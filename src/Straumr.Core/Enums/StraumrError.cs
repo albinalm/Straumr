@@ -2,9 +2,10 @@ namespace Straumr.Core.Enums;
 
 public enum StraumrError
 {
-    FileConflict,
-    FileNotFound,
-    FileCorrupt,
+    EntryConflict,
+    CorruptEntry,
     InvalidScope,
-    EntryNotFound
+    InvalidPath,
+    EntryNotFound,
+    InvalidEntry
 }

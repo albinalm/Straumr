@@ -11,7 +11,10 @@ public class StraumrFileService : IStraumrFileService
     public async Task Write<T>(string path, T value, JsonTypeInfo<T> typeInfo)
     {
         string? dir = Path.GetDirectoryName(path);
-        if (dir != null) Directory.CreateDirectory(dir);
+        if (dir != null)
+        {
+            Directory.CreateDirectory(dir);
+        }
 
         string json = JsonSerializer.Serialize(value, typeInfo);
         await File.WriteAllTextAsync(path, json);
@@ -21,6 +24,6 @@ public class StraumrFileService : IStraumrFileService
     {
         string json = await File.ReadAllTextAsync(path);
         return JsonSerializer.Deserialize(json, typeInfo) ??
-               throw new StraumrException("Failed to deserialize file", StraumrError.FileCorrupt);
+               throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
     }
 }

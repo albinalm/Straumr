@@ -9,4 +9,5 @@ public interface IStraumrWorkspaceService
     Task Import(string path);
     Task Delete(string name);
     Task Save();
+    Task<string> Export(string workspaceName, string outputDir);
 }

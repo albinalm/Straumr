@@ -48,11 +48,11 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
             await workspaceService.Load(entry.Name);
             status = "[green]Valid[/]";
         }
-        catch (StraumrException ex) when (ex.Reason == StraumrError.FileCorrupt)
+        catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {
             status = "[red]Invalid[/]";
         }
-        catch (StraumrException ex) when (ex.Reason == StraumrError.FileNotFound)
+        catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
         {
             status = "[yellow]Missing[/]";
         }

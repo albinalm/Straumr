@@ -30,7 +30,7 @@ public class StraumrRequestService(
         }
         catch (JsonException jex)
         {
-            throw new StraumrException("Invalid request", StraumrError.FileCorrupt, jex);
+            throw new StraumrException("Invalid request", StraumrError.CorruptEntry, jex);
         }
     }
 
@@ -44,7 +44,7 @@ public class StraumrRequestService(
         string fullPath = RequestPath(request.Id);
         if (File.Exists(fullPath))
         {
-            throw new StraumrException("Request already exists", StraumrError.FileConflict);
+            throw new StraumrException("Request already exists", StraumrError.EntryConflict);
         }
 
         await fileService.Write(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
