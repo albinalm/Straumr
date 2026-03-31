@@ -1,6 +1,7 @@
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
+using Straumr.Core.Extensions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 
@@ -33,6 +34,7 @@ public class StraumrWorkspaceService(
 
         StraumrWorkspace workspace = await fileService.Read(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         entry.LastAccessed = DateTimeOffset.UtcNow;
+        optionsService.Options.CurrentWorkspace = entry;
         await optionsService.Save();
         scope.Workspace = workspace;
     }
@@ -92,6 +94,34 @@ public class StraumrWorkspaceService(
             Path = destPath
         });
         await optionsService.Save();
+    }
+
+    public async Task Delete(string name)
+    {
+        StraumrWorkspaceEntry? entry = optionsService.Options.Workspaces
+            .SingleOrDefault(x => x.Name == name);
+
+        if (entry is null)
+        {
+            string id = name.ToStraumrId();
+            string path = Path.Combine(optionsService.Options.DefaultWorkspacePath, id);
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, true);
+            }
+        }
+        else
+        {
+            string? directory =  Path.GetDirectoryName(entry.Path);
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
+            
+            optionsService.Options.Workspaces.Remove(entry);
+            await optionsService.Save();
+        }
+        
     }
 
     public async Task Save()

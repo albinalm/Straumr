@@ -16,7 +16,7 @@ public class WorkspaceLoadCommand(IStraumrWorkspaceService workspaceService, ISt
     {
         await workspaceService.Load(settings.Name);
 
-        AnsiConsole.MarkupLine($"[green]Loaded workspace[/] [bold]{scope.Workspace!.Name}[/]");
+        AnsiConsole.MarkupLine($"[green][bold]{scope.Workspace!.Name}[/] is now your active workspace[/]");
         return 0;
     }
 }

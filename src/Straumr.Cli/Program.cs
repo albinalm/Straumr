@@ -41,6 +41,7 @@ class Program
                 workspace.AddCommand<WorkspaceLoadCommand>("load");
                 workspace.AddCommand<WorkspaceImportCommand>("import");
                 workspace.AddCommand<WorkspaceListCommand>("list");
+                workspace.AddCommand<WorkspaceDeleteCommand>("delete");
             });
         });
 
