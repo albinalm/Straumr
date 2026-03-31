@@ -19,7 +19,6 @@ class Program
     private static async Task<int> RunApp(string[] args)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IStraumrScope, StraumrScope>();
 
         var fileService = new StraumrFileService();
         var optionsService = new StraumrOptionsService(fileService);
@@ -27,8 +26,8 @@ class Program
 
         services.AddSingleton<IStraumrFileService>(fileService);
         services.AddSingleton<IStraumrOptionsService>(optionsService);
-        services.AddTransient<IStraumrWorkspaceService, StraumrWorkspaceService>();
-        services.AddTransient<IStraumrRequestService, StraumrRequestService>();
+        services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
+        services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
 
         var app = new CommandApp(new StraumrTypeRegistrar(services)); 
         app.Configure(config =>

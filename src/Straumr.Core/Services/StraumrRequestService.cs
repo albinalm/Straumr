@@ -8,20 +8,19 @@ using Straumr.Core.Services.Interfaces;
 namespace Straumr.Core.Services;
 
 public class StraumrRequestService(
-    IStraumrScope scope,
     IStraumrFileService fileService,
     IStraumrOptionsService optionsService) : IStraumrRequestService
 {
-    private string RequestPath(string id) =>
-        Path.Combine(optionsService.Options.DefaultWorkspacePath, scope.Workspace!.Id, id + ".json");
+    private string RequestPath(string id)
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        string? directory = Path.GetDirectoryName(entry.Path);
+        return Path.Combine(directory!, id + ".json");
+    }
 
     public async Task<StraumrRequest> Get(string id)
     {
-        if (scope.Workspace == null)
-        {
-            throw new StraumrException("No workspace loaded", StraumrError.InvalidScope);
-        }
-
+        GetCurrentWorkspaceEntry();
         string fullPath = RequestPath(id);
 
         try
@@ -36,10 +35,7 @@ public class StraumrRequestService(
 
     public async Task Create(StraumrRequest request)
     {
-        if (scope.Workspace == null)
-        {
-            throw new StraumrException("No workspace loaded", StraumrError.InvalidScope);
-        }
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
 
         string fullPath = RequestPath(request.Id);
         if (File.Exists(fullPath))
@@ -48,6 +44,19 @@ public class StraumrRequestService(
         }
 
         await fileService.Write(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
-        scope.Workspace.Requests.Add(request.Id);
+        await AddRequestToWorkspace(entry, request.Id);
+    }
+
+    private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
+    {
+        return optionsService.Options.CurrentWorkspace
+            ?? throw new StraumrException("No workspace loaded", StraumrError.InvalidScope);
+    }
+
+    private async Task AddRequestToWorkspace(StraumrWorkspaceEntry entry, string requestId)
+    {
+        StraumrWorkspace workspace = await fileService.Read(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+        workspace.Requests.Add(requestId);
+        await fileService.Write(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
     }
 }

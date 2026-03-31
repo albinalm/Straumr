@@ -4,7 +4,7 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Cli.Commands.Workspace;
 
-public class WorkspaceLoadCommand(IStraumrWorkspaceService workspaceService, IStraumrScope scope) : AsyncCommand<WorkspaceLoadCommand.Settings>
+public class WorkspaceLoadCommand(IStraumrWorkspaceService workspaceService) : AsyncCommand<WorkspaceLoadCommand.Settings>
 {
     public sealed class Settings : CommandSettings
     {
@@ -16,7 +16,7 @@ public class WorkspaceLoadCommand(IStraumrWorkspaceService workspaceService, ISt
     {
         await workspaceService.Load(settings.Name);
 
-        AnsiConsole.MarkupLine($"[green][bold]{scope.Workspace!.Name}[/] is now your active workspace[/]");
+        AnsiConsole.MarkupLine($"[green][bold]{settings.Name}[/] is now your active workspace[/]");
         return 0;
     }
 }
