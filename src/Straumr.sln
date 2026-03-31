@@ -1,8 +1,22 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Cli", "Straumr.Cli\Straumr.Cli.csproj", "{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Core", "Straumr.Core\Straumr.Core.csproj", "{105B30FF-422F-41E4-8204-72E79375C2AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{105B30FF-422F-41E4-8204-72E79375C2AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{105B30FF-422F-41E4-8204-72E79375C2AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{105B30FF-422F-41E4-8204-72E79375C2AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{105B30FF-422F-41E4-8204-72E79375C2AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
