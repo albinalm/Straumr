@@ -28,11 +28,14 @@ class Program
         services.AddSingleton<IStraumrOptionsService>(optionsService);
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
+        
+        // Required for Spectre.Console.Cli to resolve the default settings type under Native AOT.
+        services.AddSingleton<EmptyCommandSettings>();
 
         var app = new CommandApp(new StraumrTypeRegistrar(services)); 
         app.Configure(config =>
         {
-            config.SetApplicationName("straumr");
+            config.SetApplicationName("Straumr");
 
             config.AddBranch("workspace", workspace =>
             {

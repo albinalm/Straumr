@@ -47,7 +47,7 @@ public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
                 return 1;
             }
 
-            workspaceService.ApplyEdit(settings.Identifier, tempPath);
+            await workspaceService.ApplyEdit(settings.Identifier, tempPath);
             AnsiConsole.MarkupLine($"[green]Workspace [bold]{settings.Identifier}[/] updated[/]");
             return 0;
         }
