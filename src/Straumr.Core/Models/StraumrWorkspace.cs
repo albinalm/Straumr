@@ -2,5 +2,5 @@ namespace Straumr.Core.Models;
 
 public class StraumrWorkspace : StraumrModelBase
 {
-    public HashSet<string> Requests { get; set; } = [];
+    public HashSet<Guid> Requests { get; set; } = [];
 }

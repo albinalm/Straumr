@@ -8,7 +8,7 @@ public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService) :
 {
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<path>")]
+        [CommandArgument(0, "<Path>")]
         public required string Path { get; set; }
     }
 

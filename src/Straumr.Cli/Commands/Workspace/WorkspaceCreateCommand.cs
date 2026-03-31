@@ -10,7 +10,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
 {
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<name>")] public required string Name { get; set; }
+        [CommandArgument(0, "<Name>")] public required string Name { get; set; }
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -19,7 +19,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
         var workspace = new StraumrWorkspace { Name = settings.Name };
         await workspaceService.CreateAndOpen(workspace);
 
-        AnsiConsole.MarkupLine($"[green]Created workspace[/] [bold]{workspace.Name}[/] ({workspace.Id}.straumr)");
+        AnsiConsole.MarkupLine($"[green]Created workspace[/] [bold]{workspace.Name}[/] ({workspace.Id})");
         return 0;
     }
 }

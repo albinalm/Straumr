@@ -6,7 +6,7 @@ namespace Straumr.Core.Extensions;
 
 public static partial class StringExtensions
 {
-    public static string ToStraumrId(this string name)
+    public static string ToFileName(this string name)
     {
         return GetFileName(name);
     }

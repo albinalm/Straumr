@@ -26,11 +26,11 @@ public class StraumrOptionsService(IStraumrFileService fileService) : IStraumrOp
             return;
         }
 
-        Options = await fileService.Read(OptionsPath, StraumrJsonContext.Default.StraumrOptions);
+        Options = await fileService.ReadGeneric(OptionsPath, StraumrJsonContext.Default.StraumrOptions);
     }
 
     public async Task Save()
     {
-        await fileService.Write(OptionsPath, Options, StraumrJsonContext.Default.StraumrOptions);
+        await fileService.WriteGeneric(OptionsPath, Options, StraumrJsonContext.Default.StraumrOptions);
     }
 }

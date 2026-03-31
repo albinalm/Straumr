@@ -10,7 +10,6 @@ public class StraumrOptions
 
 public class StraumrWorkspaceEntry
 {
-    public required string Name { get; set; }
+    public Guid Id { get; set; }
     public required string Path { get; set; }
-    public DateTimeOffset LastAccessed { get; set; } = DateTimeOffset.UtcNow;
 }

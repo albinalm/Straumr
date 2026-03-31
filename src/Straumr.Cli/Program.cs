@@ -37,11 +37,12 @@ class Program
             config.AddBranch("workspace", workspace =>
             {
                 workspace.AddCommand<WorkspaceCreateCommand>("create");
-                workspace.AddCommand<WorkspaceLoadCommand>("load");
+                workspace.AddCommand<WorkspaceActivateCommand>("use");
                 workspace.AddCommand<WorkspaceImportCommand>("import");
                 workspace.AddCommand<WorkspaceListCommand>("list");
                 workspace.AddCommand<WorkspaceDeleteCommand>("delete");
                 workspace.AddCommand<WorkspaceExportCommand>("export");
+                workspace.AddCommand<WorkspaceEditCommand>("edit");
             });
         });
 
