@@ -14,14 +14,15 @@ public class AutocompleteQueryCommand(
     IStraumrSecretService secretService)
     : AsyncCommand<AutocompleteQueryCommand.Settings>
 {
-    private static readonly string[] Branches = ["workspace", "request", "auth", "secret"];
+    private static readonly string[] Branches = ["workspace", "request", "auth", "secret", "config"];
 
     private static readonly Dictionary<string, string[]> BranchCommands = new()
     {
         ["workspace"] = ["create", "use", "import", "list", "delete", "export", "edit", "get"],
         ["request"] = ["create", "send", "edit", "list", "delete", "get"],
         ["auth"] = ["create", "edit", "list", "delete", "get"],
-        ["secret"] = ["create", "edit", "list", "delete", "get"]
+        ["secret"] = ["create", "edit", "list", "delete", "get"],
+        ["config"] = ["workspace-path"]
     };
 
     private static readonly string[] WorkspaceIdentifierCommands = ["use", "delete", "export", "edit", "get"];
