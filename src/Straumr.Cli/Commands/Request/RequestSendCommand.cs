@@ -193,7 +193,8 @@ public class RequestSendCommand(IStraumrRequestService requestService)
 
         Panel panel = new Panel(new Markup(Markup.Escape(content)))
             .Header("Body", Justify.Left)
-            .BorderColor(Color.Grey);
+            .BorderColor(Color.Grey)
+            .Expand();
 
         AnsiConsole.Write(panel);
     }

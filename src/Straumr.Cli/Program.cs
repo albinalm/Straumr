@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Commands.Auth;
 using Straumr.Cli.Commands.Request;
@@ -44,7 +46,6 @@ internal class Program
         app.Configure(config =>
         {
             config.SetApplicationName("Straumr");
-
             config.AddBranch("workspace", workspace =>
             {
                 workspace.AddCommand<WorkspaceCreateCommand>("create");
@@ -71,6 +72,22 @@ internal class Program
                 auth.AddCommand<AuthDeleteCommand>("delete");
             });
         });
+
+        if (args.Length == 0)
+        {
+            AnsiConsole.Write(new FigletText("Straumr").Color(Color.Green));
+
+            Assembly assembly = typeof(Program).Assembly;
+            string version = assembly.GetName().Version?.ToString() ?? "unknown";
+
+            Panel infoPanel = new Panel(new Markup($"[bold]Version:[/] {Markup.Escape(version)}"))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Green)
+                .Expand();
+
+            AnsiConsole.Write(infoPanel);
+            AnsiConsole.WriteLine();
+        }
 
         return await app.RunAsync(args);
     }
