@@ -75,15 +75,15 @@ internal class Program
 
         if (args.Length == 0)
         {
-            AnsiConsole.Write(new FigletText("Straumr").Color(Color.Green));
-
             Assembly assembly = typeof(Program).Assembly;
             string version = assembly.GetName().Version?.ToString() ?? "unknown";
 
-            Panel infoPanel = new Panel(new Markup($"[bold]Version:[/] {Markup.Escape(version)}"))
-                .Border(BoxBorder.Rounded)
-                .BorderColor(Color.Green)
-                .Expand();
+            Panel infoPanel =
+                new Panel(new Rows(new FigletText("Straumr").Color(Color.Green),
+                        new Markup($"[bold]Version:[/] {Markup.Escape(version)}")))
+                    .Border(BoxBorder.Rounded)
+                    .BorderColor(Color.Green)
+                    .Expand();
 
             AnsiConsole.Write(infoPanel);
             AnsiConsole.WriteLine();
