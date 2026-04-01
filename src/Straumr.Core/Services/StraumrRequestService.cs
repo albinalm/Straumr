@@ -24,56 +24,20 @@ public class StraumrRequestService(
 
     public async Task<StraumrRequest> GetAsync(string identifier)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
-        StraumrWorkspace workspace =
-            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        RequestLookup lookup =
+            await RequireRequestAsync(workspace, identifier,
+                $"No request found with the identifier: {identifier}");
 
-        if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
-        {
-            return await GetByIdAsync(requestId);
-        }
-
-        foreach (Guid id in workspace.Requests)
-        {
-            StraumrRequest request = await GetByIdAsync(id);
-            if (request.Name == identifier)
-            {
-                return request;
-            }
-        }
-
-        throw new StraumrException($"No request found with the identifier: {identifier}",
-            StraumrError.EntryNotFound);
+        return await ResolveRequestAsync(lookup);
     }
 
     public async Task DeleteAsync(string identifier)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
-        StraumrWorkspace workspace =
-            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+        (StraumrWorkspaceEntry entry, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        RequestLookup lookup = await RequireRequestAsync(workspace, identifier, "No request found");
 
-
-        if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
-        {
-            RemoveRequestFile(requestId);
-            workspace.Requests.Remove(requestId);
-            await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
-            return;
-        }
-
-        StraumrRequest? request;
-        foreach (Guid id in workspace.Requests)
-        {
-            request = await GetByIdAsync(id);
-            if (request.Name != identifier) continue;
-
-            RemoveRequestFile(id);
-            workspace.Requests.Remove(id);
-            await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
-            return;
-        }
-
-        throw new StraumrException("No request found", StraumrError.EntryNotFound);
+        await RemoveRequestAsync(entry, workspace, lookup.Id);
     }
 
     private void RemoveRequestFile(Guid id)
@@ -129,29 +93,11 @@ public class StraumrRequestService(
 
     public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
-        StraumrWorkspace workspace =
-            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
-
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        RequestLookup lookup = await RequireRequestAsync(workspace, identifier, "No request found");
         string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-
-        if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
-        {
-            File.Copy(RequestPath(requestId), tempPath, overwrite: true);
-            return (requestId, tempPath);
-        }
-
-        StraumrRequest? request;
-        foreach (Guid id in workspace.Requests)
-        {
-            request = await GetByIdAsync(id);
-            if (request.Name != identifier) continue;
-
-            File.Copy(RequestPath(id), tempPath, overwrite: true);
-            return (id, tempPath);
-        }
-
-        throw new StraumrException("No request found", StraumrError.EntryNotFound);
+        File.Copy(RequestPath(lookup.Id), tempPath, overwrite: true);
+        return (lookup.Id, tempPath);
     }
 
     public void ApplyEdit(Guid requestId, string tempPath)
@@ -176,6 +122,64 @@ public class StraumrRequestService(
         StraumrWorkspace workspace =
             await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         workspace.Requests.Add(requestId);
+        await PersistWorkspaceAsync(entry, workspace);
+    }
+
+    private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync()
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        StraumrWorkspace workspace =
+            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+        return (entry, workspace);
+    }
+
+    private async Task<StraumrRequest> ResolveRequestAsync(RequestLookup lookup)
+    {
+        return lookup.Request ?? await GetByIdAsync(lookup.Id);
+    }
+
+    private async Task RemoveRequestAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace, Guid id)
+    {
+        RemoveRequestFile(id);
+        workspace.Requests.Remove(id);
+        await PersistWorkspaceAsync(entry, workspace);
+    }
+
+    private async Task PersistWorkspaceAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)
+    {
         await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
     }
+
+    private async Task<RequestLookup?> LookupRequestAsync(StraumrWorkspace workspace, string identifier)
+    {
+        if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
+        {
+            return new RequestLookup(requestId, null);
+        }
+
+        foreach (Guid id in workspace.Requests)
+        {
+            StraumrRequest request = await GetByIdAsync(id);
+            if (request.Name == identifier)
+            {
+                return new RequestLookup(id, request);
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<RequestLookup> RequireRequestAsync(StraumrWorkspace workspace, string identifier,
+        string errorMessage)
+    {
+        RequestLookup? lookup = await LookupRequestAsync(workspace, identifier);
+        if (lookup.HasValue)
+        {
+            return lookup.Value;
+        }
+
+        throw new StraumrException(errorMessage, StraumrError.EntryNotFound);
+    }
+
+    private readonly record struct RequestLookup(Guid Id, StraumrRequest? Request);
 }
