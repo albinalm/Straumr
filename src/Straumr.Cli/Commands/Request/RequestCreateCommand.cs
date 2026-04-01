@@ -16,6 +16,7 @@ using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 namespace Straumr.Cli.Commands.Request;
 
 public class RequestCreateCommand(
+    IStraumrOptionsService optionsService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService,
     IStraumrAuthTemplateService authTemplateService)
@@ -34,6 +35,14 @@ public class RequestCreateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+
+        if (!hasWorkspace)
+        {
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                StraumrError.MissingEntry);
+        }
+
         if (settings.Url is not null)
         {
             return await ExecuteInlineAsync(settings);

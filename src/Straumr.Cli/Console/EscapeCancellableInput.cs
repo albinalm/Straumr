@@ -113,10 +113,7 @@ public sealed class EscapeCancellableInput(IAnsiConsoleInput originalInput) : IA
             return;
         }
 
-        foreach (char ch in text)
-        {
-            _prefill.Enqueue(new ConsoleKeyInfo(ch, GuessConsoleKey(ch), false, false, false));
-        }
+        foreach (char ch in text) _prefill.Enqueue(new ConsoleKeyInfo(ch, GuessConsoleKey(ch), false, false, false));
     }
 
     private static ConsoleKey GuessConsoleKey(char ch)

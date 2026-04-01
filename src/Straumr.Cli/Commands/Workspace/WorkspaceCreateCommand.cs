@@ -12,7 +12,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
         CancellationToken cancellation)
     {
         var workspace = new StraumrWorkspace { Name = settings.Name };
-        await workspaceService.CreateAndOpen(workspace);
+        await workspaceService.Create(workspace);
 
         AnsiConsole.MarkupLine($"[green]Created workspace[/] [bold]{workspace.Name}[/] ({workspace.Id})");
         return 0;

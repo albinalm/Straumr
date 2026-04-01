@@ -37,8 +37,12 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
 
         foreach (WorkspaceListEntry workspaceListItem in workspaceListItems.OrderByDescending(x => x.LastAccessed))
         {
+            string idString = workspaceListItem.IsCurrent
+                ? $"[blue](Current)[/] {workspaceListItem.Entry.Id.ToString()}"
+                : workspaceListItem.Entry.Id.ToString();
+
             table.AddRow(
-                workspaceListItem.Entry.Id.ToString(),
+                idString,
                 Markup.Escape(workspaceListItem.Workspace?.Name ?? "N/A"),
                 workspaceListItem.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "N/A",
                 workspaceListItem.Workspace?.Requests.Count.ToString() ?? "N/A",
@@ -78,6 +82,7 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
 
     private class WorkspaceListEntry
     {
+        public bool IsCurrent => Entry.Id == Workspace?.Id;
         public StraumrWorkspace? Workspace { get; init; }
         public required StraumrWorkspaceEntry Entry { get; init; }
         public required string Status { get; init; }

@@ -97,10 +97,7 @@ public static class PromptHelpers
             var table = new Table();
             table.AddColumn(col1);
             table.AddColumn(col2);
-            foreach ((string key, string value) in items)
-            {
-                table.AddRow(Markup.Escape(key), Markup.Escape(value));
-            }
+            foreach ((string key, string value) in items) table.AddRow(Markup.Escape(key), Markup.Escape(value));
 
             AnsiConsole.Write(table);
         }

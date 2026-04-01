@@ -6,12 +6,20 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthDeleteCommand(IStraumrAuthTemplateService templateService)
+public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAuthTemplateService templateService)
     : AsyncCommand<AuthDeleteCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+
+        if (!hasWorkspace)
+        {
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                StraumrError.MissingEntry);
+        }
+
         try
         {
             await templateService.DeleteAsync(settings.Identifier);

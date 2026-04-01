@@ -14,6 +14,7 @@ using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 namespace Straumr.Cli.Commands.Auth;
 
 public class AuthEditCommand(
+    IStraumrOptionsService optionsService,
     IStraumrAuthTemplateService templateService,
     IStraumrAuthService authService) : AsyncCommand<AuthEditCommand.Settings>
 {
@@ -25,6 +26,14 @@ public class AuthEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+
+        if (!hasWorkspace)
+        {
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                StraumrError.MissingEntry);
+        }
+
         if (settings.UseEditor)
         {
             return await ExecuteEditorAsync(settings.Identifier, cancellation);

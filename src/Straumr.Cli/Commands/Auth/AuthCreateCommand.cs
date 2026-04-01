@@ -1,6 +1,8 @@
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
+using Straumr.Core.Enums;
+using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
@@ -8,7 +10,10 @@ using static Straumr.Cli.Console.PromptHelpers;
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthCreateCommand(IStraumrAuthTemplateService templateService, IStraumrAuthService authService)
+public class AuthCreateCommand(
+    IStraumrOptionsService optionsService,
+    IStraumrAuthTemplateService templateService,
+    IStraumrAuthService authService)
     : AsyncCommand<AuthCreateCommand.Settings>
 {
     private const string ActionFinish = "Finish";
@@ -19,6 +24,14 @@ public class AuthCreateCommand(IStraumrAuthTemplateService templateService, IStr
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+
+        if (!hasWorkspace)
+        {
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                StraumrError.MissingEntry);
+        }
+
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
         var state = new CreateAuthTemplateState(settings.Name);
 

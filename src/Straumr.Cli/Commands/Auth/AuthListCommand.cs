@@ -8,10 +8,19 @@ using static Straumr.Cli.Helpers.AuthCommandHelpers;
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthListCommand(IStraumrAuthTemplateService templateService) : AsyncCommand
+public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuthTemplateService templateService)
+    : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellation)
     {
+        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+
+        if (!hasWorkspace)
+        {
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                StraumrError.MissingEntry);
+        }
+
         IReadOnlyList<StraumrAuthTemplate> templates;
         try
         {

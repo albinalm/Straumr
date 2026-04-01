@@ -11,12 +11,20 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Cli.Commands.Request;
 
-public class RequestSendCommand(IStraumrRequestService requestService)
+public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrRequestService requestService)
     : AsyncCommand<RequestSendCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+
+        if (!hasWorkspace)
+        {
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                StraumrError.MissingEntry);
+        }
+
         try
         {
             StraumrRequest request = await requestService.GetAsync(settings.Identifier);
@@ -108,9 +116,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         System.Console.Error.WriteLine(requestLine);
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
-        {
             System.Console.Error.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
-        }
 
         System.Console.Error.WriteLine();
 
@@ -121,9 +127,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.ResponseHeaders)
-        {
             System.Console.Error.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
-        }
 
         System.Console.Error.WriteLine();
 
@@ -143,9 +147,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.ResponseHeaders)
-        {
             System.Console.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
-        }
 
         System.Console.WriteLine();
     }

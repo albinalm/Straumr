@@ -18,7 +18,7 @@ public class RequestListCommand(
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry == null)
         {
-            throw new StraumrException("No workspace selected. Please select a workspace first.",
+            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
                 StraumrError.MissingEntry);
         }
 

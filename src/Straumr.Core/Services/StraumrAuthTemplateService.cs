@@ -37,6 +37,11 @@ public class StraumrAuthTemplateService(
         GetCurrentWorkspaceEntry();
         string fullPath = TemplatePath(id);
 
+        if (!File.Exists(fullPath))
+        {
+            throw new StraumrException("Auth template not found", StraumrError.EntryNotFound);
+        }
+
         try
         {
             return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrAuthTemplate);
@@ -170,11 +175,15 @@ public class StraumrAuthTemplateService(
 
         foreach (Guid id in workspace.AuthTemplates)
         {
-            StraumrAuthTemplate template = await PeekByIdAsync(id);
-            if (template.Name == identifier)
+            try
             {
-                return new TemplateLookup(id, template);
+                StraumrAuthTemplate template = await PeekByIdAsync(id);
+                if (template.Name == identifier)
+                {
+                    return new TemplateLookup(id, template);
+                }
             }
+            catch (StraumrException) { }
         }
 
         return null;

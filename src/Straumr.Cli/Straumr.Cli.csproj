@@ -22,6 +22,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <EmbeddedResource Include="Commands\Autocomplete\Scripts\**\*"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <TrimmerRootDescriptor Include="MyRoots.xml"/>
     </ItemGroup>
 </Project>

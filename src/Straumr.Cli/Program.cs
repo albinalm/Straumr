@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Commands.Auth;
+using Straumr.Cli.Commands.Autocomplete;
 using Straumr.Cli.Commands.Request;
 using Straumr.Cli.Commands.Workspace;
 using Straumr.Cli.Infrastructure;
@@ -55,6 +56,7 @@ internal class Program
                 workspace.AddCommand<WorkspaceDeleteCommand>("delete");
                 workspace.AddCommand<WorkspaceExportCommand>("export");
                 workspace.AddCommand<WorkspaceEditCommand>("edit");
+                workspace.AddCommand<WorkspaceGetCommand>("get");
             });
             config.AddBranch("request", request =>
             {
@@ -63,6 +65,7 @@ internal class Program
                 request.AddCommand<RequestEditCommand>("edit");
                 request.AddCommand<RequestListCommand>("list");
                 request.AddCommand<RequestDeleteCommand>("delete");
+                request.AddCommand<RequestGetCommand>("get");
             });
             config.AddBranch("auth", auth =>
             {
@@ -70,6 +73,13 @@ internal class Program
                 auth.AddCommand<AuthEditCommand>("edit");
                 auth.AddCommand<AuthListCommand>("list");
                 auth.AddCommand<AuthDeleteCommand>("delete");
+                auth.AddCommand<AuthGetCommand>("get");
+            });
+            config.AddBranch("autocomplete", autocomplete =>
+            {
+                autocomplete.HideBranch();
+                autocomplete.AddCommand<AutocompleteInstallCommand>("install");
+                autocomplete.AddCommand<AutocompleteQueryCommand>("query");
             });
         });
 

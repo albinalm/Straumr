@@ -40,6 +40,11 @@ public class StraumrRequestService(
         GetCurrentWorkspaceEntry();
         string fullPath = RequestPath(id);
 
+        if (!File.Exists(fullPath))
+        {
+            throw new StraumrException("Request not found", StraumrError.EntryNotFound);
+        }
+
         try
         {
             return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
@@ -286,11 +291,15 @@ public class StraumrRequestService(
 
         foreach (Guid id in workspace.Requests)
         {
-            StraumrRequest request = await PeekByIdAsync(id);
-            if (request.Name == identifier)
+            try
             {
-                return new RequestLookup(id, request);
+                StraumrRequest request = await PeekByIdAsync(id);
+                if (request.Name == identifier)
+                {
+                    return new RequestLookup(id, request);
+                }
             }
+            catch (StraumrException) { }
         }
 
         return null;
