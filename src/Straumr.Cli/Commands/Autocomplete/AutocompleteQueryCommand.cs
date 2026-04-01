@@ -10,21 +10,24 @@ public class AutocompleteQueryCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
-    IStraumrAuthTemplateService authTemplateService)
+    IStraumrAuthTemplateService authTemplateService,
+    IStraumrSecretService secretService)
     : AsyncCommand<AutocompleteQueryCommand.Settings>
 {
-    private static readonly string[] Branches = ["workspace", "request", "auth"];
+    private static readonly string[] Branches = ["workspace", "request", "auth", "secret"];
 
     private static readonly Dictionary<string, string[]> BranchCommands = new()
     {
         ["workspace"] = ["create", "use", "import", "list", "delete", "export", "edit", "get"],
         ["request"] = ["create", "send", "edit", "list", "delete", "get"],
-        ["auth"] = ["create", "edit", "list", "delete", "get"]
+        ["auth"] = ["create", "edit", "list", "delete", "get"],
+        ["secret"] = ["create", "edit", "list", "delete", "get"]
     };
 
     private static readonly string[] WorkspaceIdentifierCommands = ["use", "delete", "export", "edit", "get"];
     private static readonly string[] RequestIdentifierCommands = ["send", "edit", "delete", "get"];
     private static readonly string[] AuthIdentifierCommands = ["edit", "delete", "get"];
+    private static readonly string[] SecretIdentifierCommands = ["edit", "delete", "get"];
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellationToken)
@@ -69,6 +72,12 @@ public class AutocompleteQueryCommand(
                  optionsService.Options.CurrentWorkspace is not null)
         {
             await AddAuthCompletionsAsync(completions, tokens[2]);
+        }
+        else if (tokens.Length == 3 && !trailingSpace &&
+                 tokens[0] == "secret" &&
+                 SecretIdentifierCommands.Contains(tokens[1]))
+        {
+            await AddSecretCompletionsAsync(completions, tokens[2]);
         }
 
         completions.Flush();
@@ -119,7 +128,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrRequest request = await requestService.PeekByIdAsync(id);
+                StraumrRequest request = await requestService.GetAsync(id.ToString());
                 if (request.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(request.Name);
@@ -152,13 +161,36 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrAuthTemplate template = await authTemplateService.PeekByIdAsync(id);
+                StraumrAuthTemplate template = await authTemplateService.GetAsync(id.ToString());
                 if (template.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(template.Name);
                 }
             }
             catch (StraumrException) { }
+        }
+    }
+
+    private async Task AddSecretCompletionsAsync(CompletionResult completions, string partial)
+    {
+        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
+        {
+            if (entry.Id.ToString().StartsWith(partial, StringComparison.OrdinalIgnoreCase))
+            {
+                completions.Add(entry.Id.ToString());
+            }
+
+            try
+            {
+                StraumrSecret secret = await secretService.GetAsync(entry.Id.ToString());
+                if (secret.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
+                {
+                    completions.Add(secret.Name);
+                }
+            }
+            catch (StraumrException)
+            {
+            }
         }
     }
 
