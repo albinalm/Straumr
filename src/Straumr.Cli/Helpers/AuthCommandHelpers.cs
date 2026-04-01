@@ -66,6 +66,11 @@ internal static class AuthCommandHelpers
         return auth is OAuth2Config or CustomAuthConfig;
     }
 
+    internal static bool SupportsAuthAutoRenew(StraumrAuthConfig? auth)
+    {
+        return auth is OAuth2Config or CustomAuthConfig;
+    }
+
     private static StraumrAuthConfig? CloneAuthConfig(StraumrAuthConfig? auth)
     {
         if (auth is null)

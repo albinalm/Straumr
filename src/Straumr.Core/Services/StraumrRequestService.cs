@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
@@ -91,27 +92,73 @@ public class StraumrRequestService(
         File.Copy(tempPath, RequestPath(requestId), true);
     }
 
-    public async Task<StraumrResponse> SendAsync(StraumrRequest request)
+    public async Task<StraumrResponse> SendAsync(StraumrRequest request, SendOptions? options = null)
     {
+        var requestUpdated = false;
+
         switch (request.Auth)
         {
-            case OAuth2Config oauth2:
+            case OAuth2Config oauth2 when request.AutoRenewAuth:
             {
                 OAuth2Token token = await authService.EnsureTokenAsync(oauth2);
                 oauth2.Token = token;
-                await UpdateAsync(request);
+                requestUpdated = true;
                 break;
             }
-            case CustomAuthConfig custom when custom.CachedValue is null:
+            case CustomAuthConfig { CachedValue: null } custom:
             {
                 await authService.ExecuteCustomAuthAsync(custom);
-                await UpdateAsync(request);
+                requestUpdated = true;
                 break;
             }
         }
 
-        var networkRequest = request.ToHttpRequestMessage();
-        return await _client.SendAsync(networkRequest).WithMetrics();
+        if (requestUpdated)
+        {
+            await UpdateAsync(request);
+        }
+
+        HttpClient client = _client;
+        HttpClientHandler? handler = null;
+
+        bool needsCustomHandler = options is { Insecure: true } or { FollowRedirects: true };
+        if (needsCustomHandler)
+        {
+            handler = new HttpClientHandler();
+            if (options!.Insecure)
+            {
+                handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+            }
+
+            if (options.FollowRedirects)
+            {
+                handler.AllowAutoRedirect = true;
+            }
+
+            client = new HttpClient(handler, disposeHandler: true);
+        }
+
+        try
+        {
+            StraumrResponse response = await SendWithMetadataAsync(client, request);
+
+            if (ShouldRetryCustomAuth(request, response))
+            {
+                var custom = (CustomAuthConfig)request.Auth!;
+                await authService.ExecuteCustomAuthAsync(custom);
+                await UpdateAsync(request);
+                response = await SendWithMetadataAsync(client, request);
+            }
+
+            return response;
+        }
+        finally
+        {
+            if (handler is not null)
+            {
+                client.Dispose();
+            }
+        }
     }
 
     private string RequestPath(Guid id)
@@ -170,6 +217,49 @@ public class StraumrRequestService(
     private async Task<StraumrRequest> ResolveRequestAsync(RequestLookup lookup)
     {
         return lookup.Request ?? await GetByIdAsync(lookup.Id);
+    }
+
+    private static async Task<StraumrResponse> SendWithMetadataAsync(HttpClient client, StraumrRequest request)
+    {
+        var networkRequest = request.ToHttpRequestMessage();
+        try
+        {
+            StraumrResponse response = await client.SendAsync(networkRequest).WithMetrics();
+            PopulateRequestMetadata(response, networkRequest);
+            return response;
+        }
+        finally
+        {
+            networkRequest.Dispose();
+        }
+    }
+
+    private static void PopulateRequestMetadata(StraumrResponse response, HttpRequestMessage networkRequest)
+    {
+        var requestHeaders = new Dictionary<string, IEnumerable<string>>();
+        foreach (KeyValuePair<string, IEnumerable<string>> h in networkRequest.Headers)
+        {
+            requestHeaders[h.Key] = h.Value;
+        }
+
+        if (networkRequest.Content is not null)
+        {
+            foreach (KeyValuePair<string, IEnumerable<string>> h in networkRequest.Content.Headers)
+            {
+                requestHeaders[h.Key] = h.Value;
+            }
+        }
+
+        response.RequestHeaders = requestHeaders;
+        response.RequestLine =
+            $"{networkRequest.Method} {networkRequest.RequestUri} HTTP/{networkRequest.Version}";
+    }
+
+    private static bool ShouldRetryCustomAuth(StraumrRequest request, StraumrResponse response)
+    {
+        return request.AutoRenewAuth
+               && request.Auth is CustomAuthConfig
+               && response.StatusCode == HttpStatusCode.Unauthorized;
     }
 
     private async Task RemoveRequestAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace, Guid id)

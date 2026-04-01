@@ -27,6 +27,7 @@ public class RequestCreateCommand(
     private const string ActionHeaders = "Edit headers";
     private const string ActionBody = "Edit body";
     private const string ActionAuth = "Edit auth";
+    private const string ActionAutoRenew = "Auto-renew auth";
     private const string ActionFetchToken = "Fetch token";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -153,6 +154,7 @@ public class RequestCreateCommand(
             ? "[grey]none[/]"
             : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
+        string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
 
         var menuChoices = new List<string>
         {
@@ -162,6 +164,11 @@ public class RequestCreateCommand(
         if (SupportsAuthFetch(state.Auth))
         {
             menuChoices.Add(ActionFetchToken);
+        }
+
+        if (SupportsAuthAutoRenew(state.Auth))
+        {
+            menuChoices.Add(ActionAutoRenew);
         }
 
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
@@ -176,6 +183,7 @@ public class RequestCreateCommand(
                 ActionHeaders => $"Headers: {headersDisplay}",
                 ActionBody => $"Body: {bodyDisplay}",
                 ActionAuth => $"Auth: {authDisplay}",
+                ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
             })
             .AddChoices(menuChoices);
@@ -245,6 +253,9 @@ public class RequestCreateCommand(
             case ActionFetchToken:
                 await FetchAuthValueAsync(authService, state.Auth);
                 break;
+            case ActionAutoRenew:
+                state.AutoRenewAuth = !state.AutoRenewAuth;
+                break;
         }
     }
 
@@ -264,6 +275,7 @@ public class RequestCreateCommand(
         public BodyType BodyType { get; set; } = BodyType.None;
         public Dictionary<BodyType, string> Bodies { get; } = new();
         public StraumrAuthConfig? Auth { get; set; }
+        public bool AutoRenewAuth { get; set; } = true;
 
         public StraumrRequest ToRequest()
         {
@@ -276,7 +288,8 @@ public class RequestCreateCommand(
                 Headers = Headers,
                 BodyType = BodyType,
                 Bodies = Bodies,
-                Auth = Auth
+                Auth = Auth,
+                AutoRenewAuth = AutoRenewAuth
             };
         }
     }

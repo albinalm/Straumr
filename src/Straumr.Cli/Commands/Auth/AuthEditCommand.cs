@@ -1,12 +1,15 @@
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Cli.Commands.Auth;
 
@@ -22,6 +25,11 @@ public class AuthEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.UseEditor)
+        {
+            return await ExecuteEditorAsync(settings.Identifier, cancellation);
+        }
+
         StraumrAuthTemplate template;
         try
         {
@@ -65,6 +73,90 @@ public class AuthEditCommand(
             }
 
             await HandleEditActionAsync(console, state, action);
+        }
+    }
+
+    private async Task<int> ExecuteEditorAsync(string identifier, CancellationToken cancellation)
+    {
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (editor is null)
+        {
+            throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
+        }
+
+        Guid templateId;
+        string tempPath;
+        try
+        {
+            (templateId, tempPath) = await templateService.PrepareEditAsync(identifier);
+        }
+        catch (StraumrException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return -1;
+        }
+
+        try
+        {
+            int? exitCode = await LaunchEditorAsync(editor, tempPath, cancellation);
+            if (exitCode is not null)
+            {
+                return exitCode.Value;
+            }
+
+            string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
+            StraumrAuthTemplate? deserialized;
+            try
+            {
+                deserialized = JsonSerializer.Deserialize<StraumrAuthTemplate>(editedJson,
+                    StraumrJsonContext.Default.StraumrAuthTemplate);
+            }
+            catch (JsonException ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Invalid auth template JSON: {Markup.Escape(ex.Message)}[/]");
+                return 1;
+            }
+
+            if (deserialized is null)
+            {
+                AnsiConsole.MarkupLine("[red]Invalid auth template JSON.[/]");
+                return 1;
+            }
+
+            if (deserialized.Id != templateId)
+            {
+                AnsiConsole.MarkupLine("[red]Auth template ID cannot be changed.[/]");
+                return 1;
+            }
+
+            try
+            {
+                templateService.ApplyEdit(templateId, tempPath);
+                AnsiConsole.MarkupLine($"[green]Updated auth preset[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                return 0;
+            }
+            catch (StraumrException ex)
+            {
+                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                return -1;
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
         }
     }
 
@@ -155,6 +247,7 @@ public class AuthEditCommand(
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
+        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
     }
 
     private sealed class EditableAuthTemplateState

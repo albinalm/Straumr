@@ -8,10 +8,9 @@ using static Straumr.Cli.Helpers.AuthCommandHelpers;
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthListCommand(IStraumrAuthTemplateService templateService) : AsyncCommand<AuthListCommand.Settings>
+public class AuthListCommand(IStraumrAuthTemplateService templateService) : AsyncCommand
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
-        CancellationToken cancellation)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellation)
     {
         IReadOnlyList<StraumrAuthTemplate> templates;
         try
@@ -51,6 +50,4 @@ public class AuthListCommand(IStraumrAuthTemplateService templateService) : Asyn
         AnsiConsole.Write(table);
         return 0;
     }
-
-    public sealed class Settings : CommandSettings;
 }

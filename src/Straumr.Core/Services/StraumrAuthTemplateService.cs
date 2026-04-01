@@ -84,6 +84,20 @@ public class StraumrAuthTemplateService(
         await PersistWorkspaceAsync(entry, workspace);
     }
 
+    public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
+    {
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        TemplateLookup lookup = await RequireTemplateAsync(workspace, identifier, "No auth template found");
+        string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+        File.Copy(TemplatePath(lookup.Id), tempPath, true);
+        return (lookup.Id, tempPath);
+    }
+
+    public void ApplyEdit(Guid templateId, string tempPath)
+    {
+        File.Copy(tempPath, TemplatePath(templateId), true);
+    }
+
     private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync()
     {
         StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();

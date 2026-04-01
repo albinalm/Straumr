@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Xml.Linq;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Enums;
@@ -17,15 +19,66 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         try
         {
             StraumrRequest request = await requestService.GetAsync(settings.Identifier);
-            StraumrResponse response = await requestService.SendAsync(request);
+
+            var options = new SendOptions
+            {
+                Insecure = settings.Insecure,
+                FollowRedirects = settings.FollowRedirects
+            };
+
+            StraumrResponse response = await requestService.SendAsync(request, options);
+            string content = settings.Beautify ? BeautifyContent(response.Content) : response.Content ?? string.Empty;
 
             if (settings.Verbose)
             {
-                RenderVerboseBody(request, response);
+                if (settings.Pretty)
+                {
+                    RenderPrettyVerbose(response);
+                }
+                else
+                {
+                    RenderVerbose(response);
+                }
+            }
+
+            if (response.Exception is not null)
+            {
+                if (!settings.Silent)
+                {
+                    await System.Console.Error.WriteLineAsync(response.Exception.Message);
+                }
+
+                return 1;
+            }
+
+            if (settings.IncludeHeaders)
+            {
+                RenderIncludeHeaders(response);
+            }
+
+            if (settings.Pretty)
+            {
+                RenderPrettyBody(response, settings.Beautify);
+                RenderPrettySummary(request, response);
+            }
+            else if (!string.IsNullOrEmpty(settings.OutputFile))
+            {
+                await File.WriteAllTextAsync(settings.OutputFile, content, cancellation);
             }
             else
             {
-                RenderNormalBody(response);
+                System.Console.Write(content);
+            }
+
+            if (settings.Fail && response.StatusCode is not null && (int)response.StatusCode.Value >= 400)
+            {
+                if (!settings.Silent)
+                {
+                    await System.Console.Error.WriteLineAsync(
+                        $"The requested URL returned error: {(int)response.StatusCode.Value} {response.ReasonPhrase}");
+                }
+
+                return 22;
             }
 
             return 0;
@@ -42,25 +95,51 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
     }
 
-    private static void RenderNormalBody(StraumrResponse response)
+    private static void RenderVerbose(StraumrResponse response)
     {
-        if (response.Exception is not null)
+        if (response.RequestLine is not null)
         {
-            AnsiConsole.Markup($"[red]{Markup.Escape(response.Exception.Message)}[/]");
+            System.Console.Error.WriteLine($"> {response.RequestLine}");
         }
-        else
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
         {
-            System.Console.Write(response.Content);
+            System.Console.Error.WriteLine($"> {header.Key}: {string.Join(", ", header.Value)}");
         }
+
+        System.Console.Error.WriteLine(">");
+
+        if (response.StatusCode is not null)
+        {
+            System.Console.Error.WriteLine(
+                $"< HTTP/{response.HttpVersion} {(int)response.StatusCode.Value} {response.ReasonPhrase}");
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.ResponseHeaders)
+        {
+            System.Console.Error.WriteLine($"< {header.Key}: {string.Join(", ", header.Value)}");
+        }
+
+        System.Console.Error.WriteLine("<");
     }
 
-    private static void RenderVerboseBody(StraumrRequest request, StraumrResponse response)
+    private static void RenderIncludeHeaders(StraumrResponse response)
     {
-        RenderBody(response);
-        RenderSummary(request, response);
+        if (response.StatusCode is not null)
+        {
+            System.Console.WriteLine(
+                $"HTTP/{response.HttpVersion} {(int)response.StatusCode.Value} {response.ReasonPhrase}");
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.ResponseHeaders)
+        {
+            System.Console.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
+        }
+
+        System.Console.WriteLine();
     }
 
-    private static void RenderSummary(StraumrRequest request, StraumrResponse response)
+    private static void RenderPrettySummary(StraumrRequest request, StraumrResponse response)
     {
         Table table = new Table()
             .Border(TableBorder.Rounded)
@@ -76,13 +155,13 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         string authInfo = FormatRequestAuthInfo(request.Auth);
 
         table.AddRow(
-            $"[bold]{Markup.Escape(request.Name)}[/]\n[blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri)}{authInfo}",
+            $"Name: [bold]{Markup.Escape(request.Name)}[/]\nMethod: [blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri)}{authInfo}",
             $"Status: {FormatStatus(response)}\nDuration: [bold]{response.Duration.TotalMilliseconds:F0} ms[/]\nBody: [bold]{contentLength:N0} chars[/] ({FormatSize(byteLength)})");
 
         AnsiConsole.Write(table);
     }
 
-    private static void RenderBody(StraumrResponse response)
+    private static void RenderPrettyBody(StraumrResponse response, bool beautify)
     {
         if (response.Exception is not null)
         {
@@ -99,11 +178,87 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             return;
         }
 
-        Panel panel = new Panel(new Markup(Markup.Escape(response.Content!)))
+        string content = beautify ? BeautifyContent(response.Content) : response.Content;
+
+        Panel panel = new Panel(new Markup(Markup.Escape(content)))
             .Header("Body", Justify.Left)
             .BorderColor(Color.Grey);
 
         AnsiConsole.Write(panel);
+    }
+
+    private static void RenderPrettyVerbose(StraumrResponse response)
+    {
+        var grid = new Grid();
+        grid.AddColumn();
+        grid.AddColumn();
+
+        grid.AddRow("[bold]Request[/]", "[bold]Response[/]");
+
+        var requestLines = new StringBuilder();
+        if (response.RequestLine is not null)
+        {
+            requestLines.AppendLine($"[blue]{Markup.Escape(response.RequestLine)}[/]");
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
+        {
+            requestLines.AppendLine(
+                $"[grey]{Markup.Escape(header.Key)}:[/] {Markup.Escape(string.Join(", ", header.Value))}");
+        }
+
+        var responseLines = new StringBuilder();
+        if (response.StatusCode is not null)
+        {
+            responseLines.AppendLine(
+                $"{FormatStatus(response)} [grey]HTTP/{response.HttpVersion}[/]");
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.ResponseHeaders)
+        {
+            responseLines.AppendLine(
+                $"[grey]{Markup.Escape(header.Key)}:[/] {Markup.Escape(string.Join(", ", header.Value))}");
+        }
+
+        grid.AddRow(
+            new Markup(requestLines.ToString().TrimEnd()),
+            new Markup(responseLines.ToString().TrimEnd()));
+
+        Panel panel = new Panel(grid)
+            .Header("Details", Justify.Left)
+            .BorderColor(Color.Blue);
+
+        AnsiConsole.Write(panel);
+    }
+
+    private static string BeautifyContent(string? content)
+    {
+        if (content is null)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(content);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            {
+                doc.WriteTo(writer);
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+        catch (JsonException) { }
+
+        try
+        {
+            XDocument doc = XDocument.Parse(content);
+            return doc.ToString();
+        }
+        catch (System.Xml.XmlException) { }
+
+        return content;
     }
 
     private static string FormatStatus(StraumrResponse response)
@@ -160,8 +315,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             BasicAuthConfig => "\nAuth: [blue]Basic[/]",
             OAuth2Config { Token: { } token } =>
                 $"\nAuth: [blue]OAuth 2.0[/] ({(token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
-            CustomAuthConfig custom =>
-                $"\nAuth: [blue]Custom[/] ({(custom.CachedValue is not null ? "[green]has value[/]" : "[grey]no value[/]")})",
+            CustomAuthConfig => "\nAuth: [blue]Custom[/]",
             _ => string.Empty
         };
     }
@@ -169,6 +323,14 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-v|--verbose")] public bool Verbose { get; set; }
+        [CommandOption("-v")] public bool Verbose { get; set; }
+        [CommandOption("-p|--pretty")] public bool Pretty { get; set; }
+        [CommandOption("-b|--beautify")] public bool Beautify { get; set; }
+        [CommandOption("-k|--insecure")] public bool Insecure { get; set; }
+        [CommandOption("-L|--location")] public bool FollowRedirects { get; set; }
+        [CommandOption("-o|--output")] public string? OutputFile { get; set; }
+        [CommandOption("-f|--fail")] public bool Fail { get; set; }
+        [CommandOption("-i|--include")] public bool IncludeHeaders { get; set; }
+        [CommandOption("-s|--silent")] public bool Silent { get; set; }
     }
 }

@@ -28,6 +28,7 @@ public class RequestEditCommand(
     private const string ActionHeaders = "Edit headers";
     private const string ActionBody = "Edit body";
     private const string ActionAuth = "Edit auth";
+    private const string ActionAutoRenew = "Auto-renew auth";
     private const string ActionFetchToken = "Fetch token";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -98,6 +99,7 @@ public class RequestEditCommand(
             ? "[grey]none[/]"
             : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
+        string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
 
         var menuChoices = new List<string>
         {
@@ -107,6 +109,11 @@ public class RequestEditCommand(
         if (SupportsAuthFetch(state.Auth))
         {
             menuChoices.Add(ActionFetchToken);
+        }
+
+        if (SupportsAuthAutoRenew(state.Auth))
+        {
+            menuChoices.Add(ActionAutoRenew);
         }
 
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
@@ -122,6 +129,7 @@ public class RequestEditCommand(
                 ActionHeaders => $"Headers: {headersDisplay}",
                 ActionBody => $"Body: {bodyDisplay}",
                 ActionAuth => $"Auth: {authDisplay}",
+                ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
             })
             .AddChoices(menuChoices);
@@ -206,6 +214,9 @@ public class RequestEditCommand(
                 break;
             case ActionFetchToken:
                 await FetchAuthValueAsync(authService, state.Auth);
+                break;
+            case ActionAutoRenew:
+                state.AutoRenewAuth = !state.AutoRenewAuth;
                 break;
         }
     }
@@ -305,7 +316,7 @@ public class RequestEditCommand(
     {
         private EditableRequestState(string name, string uri, string method, Dictionary<string, string> parameters,
             Dictionary<string, string> headers, Dictionary<BodyType, string> bodies, BodyType bodyType,
-            StraumrAuthConfig? auth)
+            StraumrAuthConfig? auth, bool autoRenewAuth)
         {
             Name = name;
             Uri = uri;
@@ -315,6 +326,7 @@ public class RequestEditCommand(
             Bodies = bodies;
             BodyType = bodyType;
             Auth = auth;
+            AutoRenewAuth = autoRenewAuth;
         }
 
         public string Name { get; set; }
@@ -325,6 +337,7 @@ public class RequestEditCommand(
         public Dictionary<BodyType, string> Bodies { get; }
         public BodyType BodyType { get; set; }
         public StraumrAuthConfig? Auth { get; set; }
+        public bool AutoRenewAuth { get; set; }
 
         public static EditableRequestState FromRequest(StraumrRequest request)
         {
@@ -336,7 +349,8 @@ public class RequestEditCommand(
                 new Dictionary<string, string>(request.Headers, StringComparer.OrdinalIgnoreCase),
                 new Dictionary<BodyType, string>(request.Bodies),
                 request.BodyType,
-                request.Auth);
+                request.Auth,
+                request.AutoRenewAuth);
         }
 
         public void ApplyTo(StraumrRequest request)
@@ -349,6 +363,7 @@ public class RequestEditCommand(
             request.BodyType = BodyType;
             request.Bodies = new Dictionary<BodyType, string>(Bodies);
             request.Auth = Auth;
+            request.AutoRenewAuth = AutoRenewAuth;
         }
     }
 }

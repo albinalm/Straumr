@@ -10,4 +10,6 @@ public interface IStraumrAuthTemplateService
     Task CreateAsync(StraumrAuthTemplate template);
     Task UpdateAsync(StraumrAuthTemplate template);
     Task DeleteAsync(string identifier);
+    Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier);
+    void ApplyEdit(Guid templateId, string tempPath);
 }

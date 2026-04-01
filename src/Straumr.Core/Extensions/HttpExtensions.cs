@@ -5,31 +5,44 @@ namespace Straumr.Core.Extensions;
 
 public static class HttpExtensions
 {
-    private static readonly Stopwatch Stopwatch = new();
-
     public static async Task<StraumrResponse> WithMetrics(this Task<HttpResponseMessage> requestTask)
     {
+        var stopwatch = Stopwatch.StartNew();
         try
         {
-            Stopwatch.Restart();
             HttpResponseMessage response = await requestTask;
-            Stopwatch.Stop();
+            stopwatch.Stop();
             string body = await response.Content.ReadAsStringAsync();
+
+            var headers = new Dictionary<string, IEnumerable<string>>();
+            foreach (KeyValuePair<string, IEnumerable<string>> h in response.Headers)
+            {
+                headers[h.Key] = h.Value;
+            }
+
+            foreach (KeyValuePair<string, IEnumerable<string>> h in response.Content.Headers)
+            {
+                headers[h.Key] = h.Value;
+            }
+
             return new StraumrResponse
             {
                 StatusCode = response.StatusCode,
-                Duration = Stopwatch.Elapsed,
+                Duration = stopwatch.Elapsed,
                 Content = body,
-                Exception = null
+                Exception = null,
+                ResponseHeaders = headers,
+                ReasonPhrase = response.ReasonPhrase,
+                HttpVersion = response.Version
             };
         }
         catch (Exception ex)
         {
-            Stopwatch.Stop();
+            stopwatch.Stop();
             return new StraumrResponse
             {
                 Content = null,
-                Duration = Stopwatch.Elapsed,
+                Duration = stopwatch.Elapsed,
                 Exception = ex,
                 StatusCode = null
             };
