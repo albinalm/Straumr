@@ -251,8 +251,6 @@ public class StraumrRequestService(
         }
 
         response.RequestHeaders = requestHeaders;
-        response.RequestLine =
-            $"{networkRequest.Method} {networkRequest.RequestUri} HTTP/{networkRequest.Version}";
     }
 
     private static bool ShouldRetryCustomAuth(StraumrRequest request, StraumrResponse response)

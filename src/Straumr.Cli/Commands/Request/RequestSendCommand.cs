@@ -29,15 +29,20 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             StraumrResponse response = await requestService.SendAsync(request, options);
             string content = settings.Beautify ? BeautifyContent(response.Content) : response.Content ?? string.Empty;
 
+            if (settings.Pretty && !settings.Verbose)
+            {
+                RenderPrettySummary(request, response);
+            }
+
             if (settings.Verbose)
             {
                 if (settings.Pretty)
                 {
-                    RenderPrettyVerbose(response);
+                    RenderPrettyVerbose(request, response);
                 }
                 else
                 {
-                    RenderVerbose(response);
+                    RenderVerbose(request, response);
                 }
             }
 
@@ -59,7 +64,6 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             if (settings.Pretty)
             {
                 RenderPrettyBody(response, settings.Beautify);
-                RenderPrettySummary(request, response);
             }
             else if (!string.IsNullOrEmpty(settings.OutputFile))
             {
@@ -95,12 +99,12 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
     }
 
-    private static void RenderVerbose(StraumrResponse response)
+    private static void RenderVerbose(StraumrRequest request, StraumrResponse response)
     {
-        if (response.RequestLine is not null)
-        {
-            System.Console.Error.WriteLine(response.RequestLine);
-        }
+        var requestLine =
+            $"{request.Method.ToString().ToUpperInvariant()} {request.Uri} HTTP/{response.HttpVersion?.ToString() ?? "Unknown"}";
+        
+        System.Console.Error.WriteLine(requestLine);
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
         {
@@ -121,6 +125,12 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
 
         System.Console.Error.WriteLine();
+
+        System.Console.Error.WriteLine($"Duration: {response.Duration.TotalMilliseconds:F0} ms");
+
+        int contentLength = response.Content?.Length ?? 0;
+        int byteLength = response.Content is null ? 0 : Encoding.UTF8.GetByteCount(response.Content);
+        System.Console.Error.WriteLine($"Body: {contentLength:N0} chars ({FormatSize(byteLength)})");
     }
 
     private static void RenderIncludeHeaders(StraumrResponse response)
@@ -143,6 +153,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     {
         Table table = new Table()
             .Border(TableBorder.Rounded)
+            .BorderColor(Color.Blue)
             .Expand();
 
         table.AddColumn(new TableColumn("[bold]Request[/]").NoWrap());
@@ -152,7 +163,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
 
         int byteLength = response.Content is null ? 0 : Encoding.UTF8.GetByteCount(response.Content);
 
-        string authInfo = FormatRequestAuthInfo(request.Auth);
+        var authInfo = $"\nAuth: {FormatRequestAuthInfo(request.Auth)}";
 
         table.AddRow(
             $"Name: [bold]{Markup.Escape(request.Name)}[/]\nMethod: [blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri)}{authInfo}",
@@ -187,19 +198,22 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         AnsiConsole.Write(panel);
     }
 
-    private static void RenderPrettyVerbose(StraumrResponse response)
+    private static void RenderPrettyVerbose(StraumrRequest request, StraumrResponse response)
     {
-        var grid = new Grid();
-        grid.AddColumn();
-        grid.AddColumn();
-
-        grid.AddRow("[bold]Request[/]", "[bold]Response[/]");
+        Table table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderColor(Color.Blue)
+            .Expand();
+        table.AddColumn("[bold]Request[/]");
+        table.AddColumn("[bold]Response[/]");
 
         var requestLines = new StringBuilder();
-        if (response.RequestLine is not null)
-        {
-            requestLines.AppendLine($"[blue]{Markup.Escape(response.RequestLine)}[/]");
-        }
+        requestLines.AppendLine($"Name: {request.Name}");
+        requestLines.AppendLine($"Auth: {FormatRequestAuthInfo(request.Auth)}");
+        requestLines.AppendLine();
+
+        requestLines.AppendLine(
+            $"[blue]{Markup.Escape(request.Method.ToString().ToUpperInvariant())}[/] {Markup.Escape(request.Uri)} HTTP/{response.HttpVersion?.ToString() ?? "Unknown"}");
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
         {
@@ -220,15 +234,18 @@ public class RequestSendCommand(IStraumrRequestService requestService)
                 $"[grey]{Markup.Escape(header.Key)}:[/] {Markup.Escape(string.Join(", ", header.Value))}");
         }
 
-        grid.AddRow(
+        responseLines.AppendLine($"[grey]Duration:[/] [bold]{response.Duration.TotalMilliseconds:F0} ms[/]");
+
+        int contentLength = response.Content?.Length ?? 0;
+        int byteLength = response.Content is null ? 0 : Encoding.UTF8.GetByteCount(response.Content);
+        responseLines.AppendLine(
+            $"[grey]Body:[/] [bold]{contentLength:N0} chars[/] ({Markup.Escape(FormatSize(byteLength))})");
+
+        table.AddRow(
             new Markup(requestLines.ToString().TrimEnd()),
             new Markup(responseLines.ToString().TrimEnd()));
 
-        Panel panel = new Panel(grid)
-            .Header("Details", Justify.Left)
-            .BorderColor(Color.Blue);
-
-        AnsiConsole.Write(panel);
+        AnsiConsole.Write(table);
     }
 
     private static string BeautifyContent(string? content)
@@ -274,7 +291,9 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
 
         var code = (int)response.StatusCode.Value;
-        var name = response.StatusCode.Value.ToString();
+        string reason = string.IsNullOrWhiteSpace(response.ReasonPhrase)
+            ? response.StatusCode.Value.ToString()
+            : response.ReasonPhrase!;
         string color = code switch
         {
             >= 200 and < 300 => "green",
@@ -284,7 +303,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             _ => "white"
         };
 
-        return $"[{color}]{code} {name}[/]";
+        return $"[{color}]{code} {Markup.Escape(reason)}[/]";
     }
 
     private static string FormatSize(long bytes)
@@ -311,11 +330,11 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     {
         return auth switch
         {
-            BearerAuthConfig => "\nAuth: [blue]Bearer[/]",
-            BasicAuthConfig => "\nAuth: [blue]Basic[/]",
+            BearerAuthConfig => "[blue]Bearer[/]",
+            BasicAuthConfig => "[blue]Basic[/]",
             OAuth2Config { Token: { } token } =>
-                $"\nAuth: [blue]OAuth 2.0[/] ({(token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
-            CustomAuthConfig => "\nAuth: [blue]Custom[/]",
+                $"[blue]OAuth 2.0[/] ({(token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
+            CustomAuthConfig => "[blue]Custom[/]",
             _ => string.Empty
         };
     }

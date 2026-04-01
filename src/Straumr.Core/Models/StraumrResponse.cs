@@ -14,5 +14,4 @@ public class StraumrResponse
     public Version? HttpVersion { get; init; }
     public IReadOnlyDictionary<string, IEnumerable<string>> RequestHeaders { get; internal set; } =
         new Dictionary<string, IEnumerable<string>>();
-    public string? RequestLine { get; internal set; }
 }
