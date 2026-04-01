@@ -99,27 +99,18 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         return fullPath;
     }
 
-    public async Task Save()
+    public async Task<string> PrepareEdit(string identifier)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
-        StraumrWorkspace workspace =
-            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
-        workspace.Modified = DateTimeOffset.UtcNow;
-        await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
-    }
-
-    public async Task<string> PrepareEdit(string name)
-    {
-        StraumrWorkspaceEntry entry = await GetWorkspaceEntry(name);
+        StraumrWorkspaceEntry entry = await GetWorkspaceEntry(identifier);
         string workspacePath = entry.Path;
         string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
         File.Copy(workspacePath, tempPath, overwrite: true);
         return tempPath;
     }
 
-    public async Task ApplyEdit(string name, string tempPath)
+    public async Task ApplyEdit(string identifier, string tempPath)
     {
-        StraumrWorkspaceEntry entry = await GetWorkspaceEntry(name);
+        StraumrWorkspaceEntry entry = await GetWorkspaceEntry(identifier);
         File.Copy(tempPath, entry.Path, overwrite: true);
     }
 
@@ -173,12 +164,6 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         throw new StraumrException($"No workspace found with the name: {identifier}",
             StraumrError.EntryNotFound);
-    }
-
-    private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
-    {
-        return optionsService.Options.CurrentWorkspace
-               ?? throw new StraumrException("No workspace loaded", StraumrError.MissingEntry);
     }
 
     private async Task EnsureNoConflict(string name, string fullPath)

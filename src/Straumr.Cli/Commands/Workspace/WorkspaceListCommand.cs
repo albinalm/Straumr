@@ -21,10 +21,11 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
         }
 
         var table = new Table();
+        table.AddColumn("ID");
         table.AddColumn("Name");
         table.AddColumn("Last Accessed");
+        table.AddColumn("Requests");
         table.AddColumn("Status");
-        table.AddColumn("ID");
 
         List<WorkspaceListEntry> workspaceListItems = [];
 
@@ -37,10 +38,11 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
         foreach (WorkspaceListEntry workspaceListItem in workspaceListItems.OrderByDescending(x => x.LastAccessed))
         {
             table.AddRow(
+                workspaceListItem.Entry.Id.ToString(),
                 Markup.Escape(workspaceListItem.Workspace?.Name ?? "N/A"),
                 workspaceListItem.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "N/A",
-                workspaceListItem.Status,
-                workspaceListItem.Entry.Id.ToString());
+                workspaceListItem.Workspace?.Requests.Count.ToString() ?? "N/A",
+                workspaceListItem.Status);
         }
 
         AnsiConsole.Write(table);

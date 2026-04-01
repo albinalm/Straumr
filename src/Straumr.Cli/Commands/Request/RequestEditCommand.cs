@@ -12,40 +12,56 @@ using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Cli.Commands.Request;
 
-public class RequestCreateCommand(IStraumrRequestService requestService)
-    : AsyncCommand<RequestCreateCommand.Settings>
+public class RequestEditCommand(IStraumrRequestService requestService)
+    : AsyncCommand<RequestEditCommand.Settings>
 {
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name>")] public required string Name { get; set; }
+        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
         [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        if (!settings.UseEditor)
+        if (settings.UseEditor)
         {
-            return await ExecutePromptMenuAsync(settings, cancellation);
+            return await ExecuteEditorAsync(settings.Identifier, cancellation);
         }
-        else
+        
+        StraumrRequest request;
+        try
         {
-            return await ExecuteFileEditAsync(settings, cancellation);
+            request = await requestService.GetAsync(settings.Identifier);
         }
+        catch (StraumrException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return -1;
+        }
+        
+        return await ExecutePromptMenuAsync(request, cancellation);
     }
 
-    private async Task<int> ExecutePromptMenuAsync(Settings settings,
-        CancellationToken cancellation)
+    private async Task<int> ExecutePromptMenuAsync(StraumrRequest request, CancellationToken cancellation)
     {
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
-        var url = string.Empty;
-        var method = "GET";
-        var parameters = new Dictionary<string, string>(StringComparer.Ordinal);
-        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var bodyType = BodyType.None;
-        var bodies = new Dictionary<BodyType, string>();
 
-        const string actionFinish = "Finish";
+        string name = request.Name;
+        string url = request.Uri;
+        string method = request.Method.Method;
+        var parameters = new Dictionary<string, string>(request.Params, StringComparer.Ordinal);
+        var headers = new Dictionary<string, string>(request.Headers, StringComparer.OrdinalIgnoreCase);
+        var bodies = new Dictionary<BodyType, string>(request.Bodies);
+        BodyType bodyType = request.BodyType;
+
+        const string actionFinish = "Save";
+        const string actionName = "Edit name";
         const string actionUrl = "Edit URL";
         const string actionMethod = "Edit method";
         const string actionParams = "Edit params";
@@ -54,6 +70,7 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
 
         while (true)
         {
+            string nameDisplay = $"[blue]{Markup.Escape(name)}[/]";
             string urlDisplay = string.IsNullOrWhiteSpace(url) ? "[grey]not set[/]" : $"[blue]{Markup.Escape(url)}[/]";
             var methodDisplay = $"[blue]{method}[/]";
             string paramsDisplay = parameters.Count == 0 ? "[grey]none[/]" : $"[blue]{parameters.Count}[/]";
@@ -63,11 +80,12 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                 : $"[blue]{BodyTypeDisplayName(bodyType)}[/]";
 
             SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Request setup")
+                .Title("Edit request")
                 .EnableSearch()
                 .SearchPlaceholderText("/")
                 .UseConverter(choice => choice switch
                 {
+                    actionName => $"Name: {nameDisplay}",
                     actionUrl => $"URL: {urlDisplay}",
                     actionMethod => $"Method: {methodDisplay}",
                     actionParams => $"Params: {paramsDisplay}",
@@ -75,10 +93,9 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                     actionBody => $"Body: {bodyDisplay}",
                     _ => choice
                 })
-                .AddChoices(actionFinish, actionUrl, actionMethod, actionParams, actionHeaders, actionBody);
+                .AddChoices(actionFinish, actionName, actionUrl, actionMethod, actionParams, actionHeaders, actionBody);
 
             string? action = await PromptAsync(console, prompt);
-
             if (action is null)
             {
                 continue;
@@ -88,20 +105,18 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
             {
                 case actionFinish:
                 {
-                    var request = new StraumrRequest
-                    {
-                        Name = settings.Name,
-                        Uri = url,
-                        Method = new HttpMethod(method),
-                        Params = parameters,
-                        Headers = headers,
-                        BodyType = bodyType,
-                        Bodies = bodies
-                    };
+                    request.Name = name;
+                    request.Uri = url;
+                    request.Method = new HttpMethod(method);
+                    request.Params = new Dictionary<string, string>(parameters, StringComparer.Ordinal);
+                    request.Headers = new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
+                    request.BodyType = bodyType;
+                    request.Bodies = new Dictionary<BodyType, string>(bodies);
+
                     try
                     {
-                        await requestService.CreateAsync(request);
-                        AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{request.Name}[/] ({request.Id})");
+                        await requestService.UpdateAsync(request);
+                        AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
                         return 0;
                     }
                     catch (StraumrException ex)
@@ -111,6 +126,21 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                     catch (Exception ex)
                     {
                         ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+                    }
+
+                    break;
+                }
+                case actionName:
+                {
+                    string? updated = await PromptAsync(console,
+                        new TextPrompt<string>("Name")
+                            .Validate(value => string.IsNullOrWhiteSpace(value)
+                                ? ValidationResult.Error("Name cannot be empty.")
+                                : ValidationResult.Success()));
+
+                    if (!string.IsNullOrWhiteSpace(updated))
+                    {
+                        name = updated;
                     }
 
                     break;
@@ -148,7 +178,7 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
         }
     }
 
-    private async Task<int> ExecuteFileEditAsync(Settings settings, CancellationToken cancellation)
+    private async Task<int> ExecuteEditorAsync(string identifier, CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
@@ -156,19 +186,25 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
-        string tempPath = Path.GetTempFileName();
+        Guid requestId;
+        string tempPath;
         try
         {
-            var request = new StraumrRequest
-            {
-                Uri = string.Empty,
-                Method = HttpMethod.Get,
-                Name = settings.Name
-            };
+            (requestId, tempPath) = await requestService.PrepareEditAsync(identifier);
+        }
+        catch (StraumrException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return -1;
+        }
 
-            string json = JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest);
-            await File.WriteAllTextAsync(tempPath, json, cancellation);
-
+        try
+        {
             int? exitCode = await LaunchEditorAsync(editor, tempPath, cancellation);
             if (exitCode is not null)
             {
@@ -194,23 +230,29 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                 return 1;
             }
 
+            if (deserializedJson.Id != requestId)
+            {
+                AnsiConsole.MarkupLine("[red]Request ID cannot be changed.[/]");
+                return 1;
+            }
+
             try
             {
-                await requestService.CreateAsync(deserializedJson);
+                requestService.ApplyEdit(requestId, tempPath);
                 AnsiConsole.MarkupLine(
-                    $"[green]Created request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
+                    $"[green]Updated request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
                 return 0;
             }
             catch (StraumrException ex)
             {
                 AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                return -1;
             }
-
-            return -1;
         }
         finally
         {
@@ -220,5 +262,4 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
             }
         }
     }
-
 }

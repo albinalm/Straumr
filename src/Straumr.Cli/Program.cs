@@ -27,6 +27,7 @@ class Program
 
         services.AddSingleton<IStraumrFileService>(fileService);
         services.AddSingleton<IStraumrOptionsService>(optionsService);
+        services.AddHttpClient();
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
         
@@ -51,6 +52,10 @@ class Program
             config.AddBranch("request", request =>
             {
                 request.AddCommand<RequestCreateCommand>("create");
+                request.AddCommand<RequestSendCommand>("send");
+                request.AddCommand<RequestEditCommand>("edit");
+                request.AddCommand<RequestListCommand>("list");
+                request.AddCommand<RequestDeleteCommand>("delete");
             });
         });
 

@@ -4,7 +4,7 @@ namespace Straumr.Core.Models;
 
 public class StraumrRequest : StraumrModelBase
 {
-    public required Uri Uri { get; set; }
+    public required string Uri { get; set; }
     public required HttpMethod Method { get; set; }
     public Dictionary<string, string> Params { get; set; } = new();
     public Dictionary<string, string> Headers { get; set; } = new();

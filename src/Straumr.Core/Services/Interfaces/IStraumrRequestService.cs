@@ -4,7 +4,11 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrRequestService
 {
-    Task<StraumrRequest> Get(Guid id);
-    Task Create(StraumrRequest request);
-    bool Validate(StraumrRequest request, out string? validationMessage);
+    Task<StraumrRequest> GetAsync(string identifier);
+    Task CreateAsync(StraumrRequest request);
+    Task UpdateAsync(StraumrRequest request);
+    Task<StraumrResponse> SendAsync(StraumrRequest request);
+    Task DeleteAsync(string identifier);
+    Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier);
+    void ApplyEdit(Guid requestId, string tempPath);
 }

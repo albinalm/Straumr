@@ -8,10 +8,8 @@ public interface IStraumrWorkspaceService
     Task CreateAndOpen(StraumrWorkspace workspace);
     Task Import(string path);
     Task Delete(string identifier);
-    Task Save();
     Task<string> Export(string workspaceName, string outputDir);
-    Task<string> PrepareEdit(string name);
-    Task ApplyEdit(string name, string tempPath);
-    Task<string> GetWorkspaceName(string path);
+    Task<string> PrepareEdit(string identifier);
+    Task ApplyEdit(string identifier, string tempPath);
     Task<StraumrWorkspace> GetWorkspace(string path);
 }
