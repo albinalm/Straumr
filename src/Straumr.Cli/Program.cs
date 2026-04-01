@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Cli;
+using Straumr.Cli.Commands.Request;
 using Straumr.Cli.Commands.Workspace;
 using Straumr.Cli.Infrastructure;
 using Straumr.Core.Services;
@@ -46,6 +47,10 @@ class Program
                 workspace.AddCommand<WorkspaceDeleteCommand>("delete");
                 workspace.AddCommand<WorkspaceExportCommand>("export");
                 workspace.AddCommand<WorkspaceEditCommand>("edit");
+            });
+            config.AddBranch("request", request =>
+            {
+                request.AddCommand<RequestCreateCommand>("create");
             });
         });
 
