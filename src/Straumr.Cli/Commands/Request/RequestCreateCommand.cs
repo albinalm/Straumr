@@ -7,12 +7,17 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Cli.Commands.Request;
 
-public class RequestCreateCommand(IStraumrRequestService requestService, IStraumrAuthService authService)
+public class RequestCreateCommand(
+    IStraumrRequestService requestService,
+    IStraumrAuthService authService,
+    IStraumrAuthTemplateService authTemplateService)
     : AsyncCommand<RequestCreateCommand.Settings>
 {
     private const string ActionFinish = "Finish";
@@ -206,7 +211,7 @@ public class RequestCreateCommand(IStraumrRequestService requestService, IStraum
         {
             case ActionUrl:
             {
-                string? updated = await PromptUrlAsync(console);
+                string? updated = await PromptUrlAsync(console, state.Uri);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
                     state.Uri = updated;
@@ -235,17 +240,12 @@ public class RequestCreateCommand(IStraumrRequestService requestService, IStraum
                     await EditBodyAsync(console, state.Headers, state.Bodies, state.BodyType, cancellation);
                 break;
             case ActionAuth:
-                state.Auth = await EditAuthAsync(console, state.Auth);
+                state.Auth = await EditAuthAsync(console, state.Auth, authTemplateService);
                 break;
             case ActionFetchToken:
                 await FetchAuthValueAsync(authService, state.Auth);
                 break;
         }
-    }
-
-    private static bool SupportsAuthFetch(StraumrAuthConfig? auth)
-    {
-        return auth is OAuth2Config or CustomAuthConfig;
     }
 
     public sealed class Settings : CommandSettings

@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console.Cli;
+using Straumr.Cli.Commands.Auth;
 using Straumr.Cli.Commands.Request;
 using Straumr.Cli.Commands.Workspace;
 using Straumr.Cli.Infrastructure;
@@ -33,6 +34,7 @@ internal class Program
         services.AddHttpClient();
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
+        services.AddSingleton<IStraumrAuthTemplateService, StraumrAuthTemplateService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
 
         // Required for Spectre.Console.Cli to resolve the default settings type under Native AOT.
@@ -60,6 +62,13 @@ internal class Program
                 request.AddCommand<RequestEditCommand>("edit");
                 request.AddCommand<RequestListCommand>("list");
                 request.AddCommand<RequestDeleteCommand>("delete");
+            });
+            config.AddBranch("auth", auth =>
+            {
+                auth.AddCommand<AuthCreateCommand>("create");
+                auth.AddCommand<AuthEditCommand>("edit");
+                auth.AddCommand<AuthListCommand>("list");
+                auth.AddCommand<AuthDeleteCommand>("delete");
             });
         });
 

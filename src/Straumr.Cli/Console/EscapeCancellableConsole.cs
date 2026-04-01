@@ -24,6 +24,11 @@ public sealed class EscapeCancellableConsole(IAnsiConsole console) : IAnsiConsol
         console.Write(renderable);
     }
 
+    public void PrefillInput(string? text)
+    {
+        _input.Prefill(text);
+    }
+
     public async Task<T> PromptAsync<T>(IPrompt<T> prompt, CancellationToken cancellationToken = default)
     {
         using var cts = new CancellationTokenSource();
@@ -41,11 +46,13 @@ public sealed class EscapeCancellableConsole(IAnsiConsole console) : IAnsiConsol
         try
         {
             T result = await AnsiConsoleExtensions.PromptAsync(this, prompt, token);
+            System.Console.Out.Flush();
             ClearLines(cursorTop);
             return result;
         }
         catch (OperationCanceledException)
         {
+            System.Console.Out.Flush();
             ClearLines(cursorTop);
             throw;
         }

@@ -32,6 +32,20 @@ public static class PromptHelpers
         }
     }
 
+    public static async Task<string?> PromptTextAsync(
+        EscapeCancellableConsole console, TextPrompt<string> prompt, string? initialValue)
+    {
+        console.PrefillInput(initialValue);
+        try
+        {
+            return await PromptAsync(console, prompt);
+        }
+        finally
+        {
+            console.PrefillInput(null);
+        }
+    }
+
     /// <summary>
     ///     Show a simple selection menu with escape-to-go-back support.
     ///     Returns <c>null</c> when the user presses Escape.
