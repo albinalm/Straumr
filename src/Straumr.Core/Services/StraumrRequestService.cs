@@ -11,7 +11,8 @@ namespace Straumr.Core.Services;
 public class StraumrRequestService(
     IStraumrFileService fileService,
     IStraumrOptionsService optionsService,
-    IHttpClientFactory httpClientFactory) : IStraumrRequestService
+    IHttpClientFactory httpClientFactory,
+    IStraumrAuthService authService) : IStraumrRequestService
 {
     private readonly HttpClient _client = httpClientFactory.CreateClient();
 
@@ -123,10 +124,25 @@ public class StraumrRequestService(
 
     public async Task<StraumrResponse> SendAsync(StraumrRequest request)
     {
+        if (request is { AuthType: AuthType.OAuth2, OAuth2: not null })
+        {
+            OAuth2Token token = await authService.EnsureTokenAsync(request.OAuth2);
+            request.OAuth2.Token = token;
+            await UpdateAsync(request);
+        }
+        else if (request is { AuthType: AuthType.Custom, CustomAuth: not null })
+        {
+            if (request.CustomAuth.CachedValue is null)
+            {
+                await authService.ExecuteCustomAuthAsync(request.CustomAuth);
+                await UpdateAsync(request);
+            }
+        }
+
         var networkRequest = request.ToHttpRequestMessage();
         return await _client.SendAsync(networkRequest).WithMetrics();
     }
-
+    
     private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
     {
         return optionsService.Options.CurrentWorkspace

@@ -29,6 +29,7 @@ class Program
         services.AddSingleton<IStraumrOptionsService>(optionsService);
         services.AddHttpClient();
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
+        services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
         
         // Required for Spectre.Console.Cli to resolve the default settings type under Native AOT.

@@ -40,6 +40,29 @@ public static class ModelExtensions
         }
 
         var message = new HttpRequestMessage(request.Method, uriBuilder.Uri);
+
+        switch (request.AuthType)
+        {
+            case AuthType.Bearer when request.BearerAuth is { } bearer && !string.IsNullOrWhiteSpace(bearer.Token):
+                message.Headers.Authorization = new AuthenticationHeaderValue(
+                    string.IsNullOrWhiteSpace(bearer.Prefix) ? "Bearer" : bearer.Prefix, bearer.Token);
+                break;
+            case AuthType.Basic when request.BasicAuth is { } basic:
+                string credentials = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes($"{basic.Username}:{basic.Password}"));
+                message.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+                break;
+            case AuthType.OAuth2 when request.OAuth2?.Token is { } oauthToken
+                                      && !string.IsNullOrWhiteSpace(oauthToken.AccessToken):
+                string scheme = string.IsNullOrWhiteSpace(oauthToken.TokenType) ? "Bearer" : oauthToken.TokenType;
+                message.Headers.Authorization = new AuthenticationHeaderValue(scheme, oauthToken.AccessToken);
+                break;
+            case AuthType.Custom when request.CustomAuth is { CachedValue: { } cachedValue }:
+                string headerValue = request.CustomAuth.ApplyHeaderTemplate.Replace("{{value}}", cachedValue);
+                message.Headers.TryAddWithoutValidation(request.CustomAuth.ApplyHeaderName, headerValue);
+                break;
+        }
+
         var pendingContentHeaders = new List<KeyValuePair<string, string>>();
 
         foreach (KeyValuePair<string, string> header in request.Headers)
@@ -66,7 +89,8 @@ public static class ModelExtensions
                     message.Content = new StringContent(body, Encoding.UTF8, "text/plain");
                     break;
                 case BodyType.FormUrlEncoded:
-                    Dictionary<string, string> formPairs = ParseSerializedFields(body).ToDictionary(pair => pair.Key, pair => pair.Value);
+                    Dictionary<string, string> formPairs =
+                        ParseSerializedFields(body).ToDictionary(pair => pair.Key, pair => pair.Value);
                     message.Content = new FormUrlEncodedContent(formPairs);
                     break;
                 case BodyType.MultipartForm:

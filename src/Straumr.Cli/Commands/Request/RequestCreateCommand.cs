@@ -12,7 +12,7 @@ using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Cli.Commands.Request;
 
-public class RequestCreateCommand(IStraumrRequestService requestService)
+public class RequestCreateCommand(IStraumrRequestService requestService, IStraumrAuthService authService)
     : AsyncCommand<RequestCreateCommand.Settings>
 {
     public sealed class Settings : CommandSettings
@@ -44,6 +44,11 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var bodyType = BodyType.None;
         var bodies = new Dictionary<BodyType, string>();
+        var authType = AuthType.None;
+        BearerAuthConfig? bearerAuth = null;
+        BasicAuthConfig? basicAuth = null;
+        OAuth2Config? oauth2 = null;
+        CustomAuthConfig? customAuth = null;
 
         const string actionFinish = "Finish";
         const string actionUrl = "Edit URL";
@@ -51,6 +56,8 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
         const string actionParams = "Edit params";
         const string actionHeaders = "Edit headers";
         const string actionBody = "Edit body";
+        const string actionAuth = "Edit auth";
+        const string actionFetchToken = "Fetch token";
 
         while (true)
         {
@@ -61,6 +68,18 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
             string bodyDisplay = bodyType == BodyType.None
                 ? "[grey]none[/]"
                 : $"[blue]{BodyTypeDisplayName(bodyType)}[/]";
+            string authDisplay = AuthDisplayName(authType, oauth2: oauth2, customAuth: customAuth,
+                bearerAuth: bearerAuth, basicAuth: basicAuth);
+
+            var menuChoices = new List<string>
+            {
+                actionFinish, actionUrl, actionMethod, actionParams, actionHeaders, actionBody, actionAuth
+            };
+            if ((authType == AuthType.OAuth2 && oauth2 is not null)
+                || (authType == AuthType.Custom && customAuth is not null))
+            {
+                menuChoices.Add(actionFetchToken);
+            }
 
             SelectionPrompt<string> prompt = new SelectionPrompt<string>()
                 .Title("Request setup")
@@ -73,9 +92,10 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                     actionParams => $"Params: {paramsDisplay}",
                     actionHeaders => $"Headers: {headersDisplay}",
                     actionBody => $"Body: {bodyDisplay}",
+                    actionAuth => $"Auth: {authDisplay}",
                     _ => choice
                 })
-                .AddChoices(actionFinish, actionUrl, actionMethod, actionParams, actionHeaders, actionBody);
+                .AddChoices(menuChoices);
 
             string? action = await PromptAsync(console, prompt);
 
@@ -96,7 +116,12 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                         Params = parameters,
                         Headers = headers,
                         BodyType = bodyType,
-                        Bodies = bodies
+                        Bodies = bodies,
+                        AuthType = authType,
+                        BearerAuth = bearerAuth,
+                        BasicAuth = basicAuth,
+                        OAuth2 = oauth2,
+                        CustomAuth = customAuth
                     };
                     try
                     {
@@ -144,6 +169,43 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                 case actionBody:
                     bodyType = await EditBodyAsync(console, headers, bodies, bodyType, cancellation);
                     break;
+                case actionAuth:
+                    (authType, bearerAuth, basicAuth, oauth2, customAuth) =
+                        await EditAuthAsync(console, authType, bearerAuth, basicAuth, oauth2, customAuth);
+                    break;
+                case actionFetchToken:
+                {
+                    try
+                    {
+                        if (authType == AuthType.OAuth2 && oauth2 is not null)
+                        {
+                            OAuth2Token token = await authService.FetchTokenAsync(oauth2);
+                            oauth2.Token = token;
+                            string expiresDisplay = token.ExpiresAt.HasValue
+                                ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                                : "N/A";
+                            ShowTransientMessage(
+                                $"[green]Token fetched successfully![/]\n" +
+                                $"Type: [blue]{Markup.Escape(token.TokenType)}[/]\n" +
+                                $"Expires: [blue]{expiresDisplay}[/]");
+                        }
+                        else if (authType == AuthType.Custom && customAuth is not null)
+                        {
+                            string value = await authService.ExecuteCustomAuthAsync(customAuth);
+                            string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", value);
+                            ShowTransientMessage(
+                                $"[green]Value fetched successfully![/]\n" +
+                                $"Extracted: [blue]{Markup.Escape(value)}[/]\n" +
+                                $"Header: [blue]{Markup.Escape(customAuth.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowTransientMessage($"[red]Failed to fetch: {Markup.Escape(ex.Message)}[/]");
+                    }
+
+                    break;
+                }
             }
         }
     }

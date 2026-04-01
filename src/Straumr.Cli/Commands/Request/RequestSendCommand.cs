@@ -77,8 +77,19 @@ public class RequestSendCommand(IStraumrRequestService requestService)
 
         int byteLength = response.Content is null ? 0 : Encoding.UTF8.GetByteCount(response.Content);
 
+        string authInfo = request.AuthType switch
+        {
+            AuthType.Bearer => "\nAuth: [blue]Bearer[/]",
+            AuthType.Basic => "\nAuth: [blue]Basic[/]",
+            AuthType.OAuth2 when request.OAuth2?.Token is not null =>
+                $"\nAuth: [blue]OAuth 2.0[/] ({(request.OAuth2.Token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
+            AuthType.Custom when request.CustomAuth is not null =>
+                $"\nAuth: [blue]Custom[/] ({(request.CustomAuth.CachedValue is not null ? "[green]has value[/]" : "[grey]no value[/]")})",
+            _ => ""
+        };
+
         table.AddRow(
-            $"[bold]{Markup.Escape(request.Name)}[/]\n[blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri.ToString())}",
+            $"[bold]{Markup.Escape(request.Name)}[/]\n[blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri)}{authInfo}",
             $"Status: {FormatStatus(response)}\nDuration: [bold]{response.Duration.TotalMilliseconds:F0} ms[/]\nBody: [bold]{contentLength:N0} chars[/] ({FormatSize(byteLength)})");
 
         AnsiConsole.Write(table);
