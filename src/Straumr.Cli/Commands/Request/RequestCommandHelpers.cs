@@ -235,7 +235,7 @@ internal static class RequestCommandHelpers
     private static async Task<string?> EditFormBodyAsync(
         EscapeCancellableConsole console, string? currentBody)
     {
-        var fields = ParseFormFields(currentBody);
+        Dictionary<string, string> fields = ParseFormFields(currentBody);
 
         while (true)
         {
@@ -248,7 +248,7 @@ internal static class RequestCommandHelpers
             const string actionRemove = "Remove";
             const string actionList = "List";
 
-            var prompt = new SelectionPrompt<string>()
+            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
                 .Title("Form fields")
                 .EnableSearch()
                 .SearchPlaceholderText("/")
@@ -322,7 +322,7 @@ internal static class RequestCommandHelpers
     private static async Task<string?> EditMultipartBodyAsync(
         EscapeCancellableConsole console, string? currentBody)
     {
-        var fields = ParseFormFields(currentBody);
+        Dictionary<string, string> fields = ParseFormFields(currentBody);
 
         while (true)
         {
@@ -338,7 +338,7 @@ internal static class RequestCommandHelpers
             const string actionRemove = "Remove";
             const string actionList = "List";
 
-            var prompt = new SelectionPrompt<string>()
+            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
                 .Title("Multipart form fields")
                 .EnableSearch()
                 .SearchPlaceholderText("/")

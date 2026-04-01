@@ -83,7 +83,7 @@ public static class PromptHelpers
             var table = new Table();
             table.AddColumn(col1);
             table.AddColumn(col2);
-            foreach (var (key, value) in items)
+            foreach ((string key, string value) in items)
             {
                 table.AddRow(Markup.Escape(key), Markup.Escape(value));
             }

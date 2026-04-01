@@ -29,7 +29,7 @@ public static class ModelExtensions
                 queryParts.Add(existingQuery);
             }
 
-            foreach (var kv in request.Params)
+            foreach (KeyValuePair<string, string> kv in request.Params)
             {
                 string key = Uri.EscapeDataString(kv.Key);
                 string value = Uri.EscapeDataString(kv.Value);
@@ -42,7 +42,7 @@ public static class ModelExtensions
         var message = new HttpRequestMessage(request.Method, uriBuilder.Uri);
         var pendingContentHeaders = new List<KeyValuePair<string, string>>();
 
-        foreach (var header in request.Headers)
+        foreach (KeyValuePair<string, string> header in request.Headers)
         {
             if (!message.Headers.TryAddWithoutValidation(header.Key, header.Value))
             {
@@ -66,12 +66,12 @@ public static class ModelExtensions
                     message.Content = new StringContent(body, Encoding.UTF8, "text/plain");
                     break;
                 case BodyType.FormUrlEncoded:
-                    var formPairs = ParseSerializedFields(body).ToDictionary(pair => pair.Key, pair => pair.Value);
+                    Dictionary<string, string> formPairs = ParseSerializedFields(body).ToDictionary(pair => pair.Key, pair => pair.Value);
                     message.Content = new FormUrlEncodedContent(formPairs);
                     break;
                 case BodyType.MultipartForm:
                     var multipart = new MultipartFormDataContent();
-                    foreach (var field in ParseSerializedFields(body))
+                    foreach (KeyValuePair<string, string> field in ParseSerializedFields(body))
                     {
                         if (field.Value.StartsWith('@'))
                         {
@@ -81,7 +81,7 @@ public static class ModelExtensions
                                 throw new FileNotFoundException($"Multipart file not found: {path}", path);
                             }
 
-                            var fileStream = File.OpenRead(path);
+                            FileStream fileStream = File.OpenRead(path);
                             var fileContent = new StreamContent(fileStream);
                             string extension = Path.GetExtension(path);
                             string mime = MimeTypes.GetMimeType(extension);
@@ -105,15 +105,21 @@ public static class ModelExtensions
 
         if (message.Content is not null)
         {
-            foreach (var header in pendingContentHeaders)
+            foreach (KeyValuePair<string, string> header in pendingContentHeaders)
             {
+                if (header.Key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)
+                    && message.Content.Headers.ContentType is not null)
+                {
+                    continue;
+                }
+
                 message.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
         }
         else if (pendingContentHeaders.Count > 0)
         {
             message.Content = new ByteArrayContent(Array.Empty<byte>());
-            foreach (var header in pendingContentHeaders)
+            foreach (KeyValuePair<string, string> header in pendingContentHeaders)
             {
                 message.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }

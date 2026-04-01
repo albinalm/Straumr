@@ -66,7 +66,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     }
     private static void RenderSummary(StraumrRequest request, StraumrResponse response)
     {
-        var table = new Table()
+        Table table = new Table()
             .Border(TableBorder.Rounded)
             .Expand();
 
@@ -88,7 +88,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     {
         if (response.Exception is not null)
         {
-            var errorPanel = new Panel($"[red]{Markup.Escape(response.Exception.Message)}[/]")
+            Panel errorPanel = new Panel($"[red]{Markup.Escape(response.Exception.Message)}[/]")
                 .Header("Error", Justify.Left)
                 .BorderColor(Color.Red);
             AnsiConsole.Write(errorPanel);
@@ -101,7 +101,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             return;
         }
 
-        var panel = new Panel(new Markup(Markup.Escape(response.Content!)))
+        Panel panel = new Panel(new Markup(Markup.Escape(response.Content!)))
             .Header("Body", Justify.Left)
             .BorderColor(Color.Grey);
 
