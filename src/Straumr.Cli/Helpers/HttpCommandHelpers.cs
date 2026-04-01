@@ -536,7 +536,32 @@ internal static class HttpCommandHelpers
         }
 
         return string.Join('&', fields.Select(kv =>
-            $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+            $"{EscapeFormFieldComponent(kv.Key)}={EscapeFormFieldComponent(kv.Value)}"));
+    }
+
+    private static string EscapeFormFieldComponent(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var placeholders = new List<string>();
+        string protectedValue = SecretPattern.Replace(value, match =>
+        {
+            string token = $"__STRAUMR_SECRET_{placeholders.Count}__";
+            placeholders.Add(match.Value);
+            return token;
+        });
+
+        string escaped = Uri.EscapeDataString(protectedValue);
+        for (var i = 0; i < placeholders.Count; i++)
+        {
+            string token = Uri.EscapeDataString($"__STRAUMR_SECRET_{i}__");
+            escaped = escaped.Replace(token, placeholders[i], StringComparison.Ordinal);
+        }
+
+        return escaped;
     }
 
     private static void SyncContentTypeHeader(IDictionary<string, string> headers, BodyType type)
