@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -33,6 +34,11 @@ public class RequestCreateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Url is not null)
+        {
+            return await ExecuteInlineAsync(settings);
+        }
+
         if (!settings.UseEditor)
         {
             return await ExecutePromptMenuAsync(settings, cancellation);
@@ -259,9 +265,128 @@ public class RequestCreateCommand(
         }
     }
 
+    private async Task<int> ExecuteInlineAsync(Settings settings)
+    {
+        var request = new StraumrRequest
+        {
+            Name = settings.Name,
+            Uri = settings.Url!,
+            Method = new HttpMethod(settings.Method ?? "GET"),
+            AutoRenewAuth = !settings.NoAutoRenew
+        };
+
+        foreach (string header in settings.Headers ?? [])
+        {
+            int colon = header.IndexOf(':');
+            if (colon < 0)
+            {
+                AnsiConsole.MarkupLine($"[red]Invalid header (expected \"Name: Value\"): {Markup.Escape(header)}[/]");
+                return 1;
+            }
+
+            request.Headers[header[..colon].Trim()] = header[(colon + 1)..].Trim();
+        }
+
+        foreach (string param in settings.Params ?? [])
+        {
+            int eq = param.IndexOf('=');
+            if (eq < 0)
+            {
+                AnsiConsole.MarkupLine($"[red]Invalid param (expected \"key=value\"): {Markup.Escape(param)}[/]");
+                return 1;
+            }
+
+            request.Params[param[..eq]] = param[(eq + 1)..];
+        }
+
+        if (settings.Data is not null)
+        {
+            BodyType bodyType = settings.BodyType?.ToLowerInvariant() switch
+            {
+                "json" => BodyType.Json,
+                "xml" => BodyType.Xml,
+                "text" => BodyType.Text,
+                "form" => BodyType.FormUrlEncoded,
+                "multipart" => BodyType.MultipartForm,
+                "raw" => BodyType.Raw,
+                null => BodyType.Json,
+                _ => BodyType.None
+            };
+
+            if (bodyType == BodyType.None)
+            {
+                AnsiConsole.MarkupLine(
+                    $"[red]Unknown body type: {Markup.Escape(settings.BodyType!)}. Use json, xml, text, form, multipart, or raw.[/]");
+                return 1;
+            }
+
+            request.BodyType = bodyType;
+            request.Bodies[bodyType] = settings.Data;
+        }
+
+        if (settings.AuthTemplate is not null)
+        {
+            try
+            {
+                StraumrAuthTemplate template = await authTemplateService.GetAsync(settings.AuthTemplate);
+                request.Auth = template.Config;
+            }
+            catch (StraumrException ex)
+            {
+                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                return 1;
+            }
+        }
+
+        try
+        {
+            await requestService.CreateAsync(request);
+            AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{Markup.Escape(request.Name)}[/] ({request.Id})");
+            return 0;
+        }
+        catch (StraumrException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            return 1;
+        }
+    }
+
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name>")] public required string Name { get; set; }
+
+        [CommandArgument(1, "[Url]")]
+        [Description("Request URL. When provided, creates the request directly without interactive prompts.")]
+        public string? Url { get; set; }
+
+        [CommandOption("-m|--method")]
+        [Description("HTTP method (default: GET)")]
+        public string? Method { get; set; }
+
+        [CommandOption("-H|--header")]
+        [Description("Header in \"Name: Value\" format (repeatable)")]
+        public string[]? Headers { get; set; }
+
+        [CommandOption("-P|--param")]
+        [Description("Query param in \"key=value\" format (repeatable)")]
+        public string[]? Params { get; set; }
+
+        [CommandOption("-d|--data")]
+        [Description("Request body content")]
+        public string? Data { get; set; }
+
+        [CommandOption("-t|--type")]
+        [Description("Body type: json, xml, text, form, multipart, raw (default: json)")]
+        public string? BodyType { get; set; }
+
+        [CommandOption("-a|--auth")]
+        [Description("Auth template name or ID to apply")]
+        public string? AuthTemplate { get; set; }
+
+        [CommandOption("--no-auto-renew")]
+        [Description("Disable automatic auth token renewal")]
+        public bool NoAutoRenew { get; set; }
+
         [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
     }
 

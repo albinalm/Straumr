@@ -137,7 +137,8 @@ public class AuthEditCommand(
             try
             {
                 templateService.ApplyEdit(templateId, tempPath);
-                AnsiConsole.MarkupLine($"[green]Updated auth preset[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                AnsiConsole.MarkupLine(
+                    $"[green]Updated auth preset[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
                 return 0;
             }
             catch (StraumrException ex)

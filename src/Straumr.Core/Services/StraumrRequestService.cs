@@ -135,7 +135,7 @@ public class StraumrRequestService(
                 handler.AllowAutoRedirect = true;
             }
 
-            client = new HttpClient(handler, disposeHandler: true);
+            client = new HttpClient(handler, true);
         }
 
         try

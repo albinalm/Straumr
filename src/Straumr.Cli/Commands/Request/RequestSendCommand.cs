@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Xml;
 using System.Xml.Linq;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -103,7 +104,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     {
         var requestLine =
             $"{request.Method.ToString().ToUpperInvariant()} {request.Uri} HTTP/{response.HttpVersion?.ToString() ?? "Unknown"}";
-        
+
         System.Console.Error.WriteLine(requestLine);
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
@@ -274,7 +275,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             XDocument doc = XDocument.Parse(content);
             return doc.ToString();
         }
-        catch (System.Xml.XmlException) { }
+        catch (XmlException) { }
 
         return content;
     }
