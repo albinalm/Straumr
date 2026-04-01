@@ -49,6 +49,21 @@ public class StraumrRequestService(
         }
     }
 
+    public async Task<StraumrRequest> PeekByIdAsync(Guid id)
+    {
+        GetCurrentWorkspaceEntry();
+        string fullPath = RequestPath(id);
+
+        try
+        {
+            return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
+        }
+        catch (JsonException jex)
+        {
+            throw new StraumrException("Invalid request", StraumrError.CorruptEntry, jex);
+        }
+    }
+
     private async Task<StraumrRequest> GetByIdAsync(Guid id)
     {
         GetCurrentWorkspaceEntry();
@@ -80,7 +95,7 @@ public class StraumrRequestService(
 
     public async Task UpdateAsync(StraumrRequest request)
     {
-        GetCurrentWorkspaceEntry();
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
         string fullPath = RequestPath(request.Id);
 
         if (!File.Exists(fullPath))
@@ -89,6 +104,7 @@ public class StraumrRequestService(
         }
 
         await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
+        await StampWorkspaceAccessAsync(entry);
     }
 
     public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
@@ -150,6 +166,11 @@ public class StraumrRequestService(
         await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
+    private async Task StampWorkspaceAccessAsync(StraumrWorkspaceEntry entry)
+    {
+        await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+    }
+
     private async Task<RequestLookup?> LookupRequestAsync(StraumrWorkspace workspace, string identifier)
     {
         if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
@@ -159,7 +180,7 @@ public class StraumrRequestService(
 
         foreach (Guid id in workspace.Requests)
         {
-            StraumrRequest request = await GetByIdAsync(id);
+            StraumrRequest request = await PeekByIdAsync(id);
             if (request.Name == identifier)
             {
                 return new RequestLookup(id, request);

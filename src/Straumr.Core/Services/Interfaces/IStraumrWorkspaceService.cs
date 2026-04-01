@@ -12,4 +12,5 @@ public interface IStraumrWorkspaceService
     Task<string> PrepareEdit(string identifier);
     Task ApplyEdit(string identifier, string tempPath);
     Task<StraumrWorkspace> GetWorkspace(string path);
+    Task<StraumrWorkspace> PeekWorkspace(string path);
 }

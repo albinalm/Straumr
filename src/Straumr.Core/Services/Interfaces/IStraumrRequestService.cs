@@ -5,6 +5,7 @@ namespace Straumr.Core.Services.Interfaces;
 public interface IStraumrRequestService
 {
     Task<StraumrRequest> GetAsync(string identifier);
+    Task<StraumrRequest> PeekByIdAsync(Guid id);
     Task CreateAsync(StraumrRequest request);
     Task UpdateAsync(StraumrRequest request);
     Task<StraumrResponse> SendAsync(StraumrRequest request);

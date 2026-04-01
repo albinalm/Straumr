@@ -36,11 +36,11 @@ public class RequestListCommand(
         table.AddColumn("Last Accessed");
         table.AddColumn("Status");
 
-        foreach (string guidString in workspace.Requests.Select(requestGuid => requestGuid.ToString()))
+        foreach (Guid requestGuid in workspace.Requests)
         {
-            RequestListEntry requestEntry = await GetRequest(guidString);
+            RequestListEntry requestEntry = await GetRequest(requestGuid);
             table.AddRow(
-                guidString,
+                requestGuid.ToString(),
                 Markup.Escape(requestEntry.Request?.Name ?? "N/A"),
                 requestEntry.Request?.Method.ToString() ?? "N/A",
                 requestEntry.Request?.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "N/A",
@@ -52,13 +52,13 @@ public class RequestListCommand(
     }
 
 
-    private async Task<RequestListEntry> GetRequest(string requestId)
+    private async Task<RequestListEntry> GetRequest(Guid requestId)
     {
         string status;
         StraumrRequest? request = null;
         try
         {
-            request = await requestService.GetAsync(requestId);
+            request = await requestService.PeekByIdAsync(requestId);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

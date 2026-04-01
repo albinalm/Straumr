@@ -116,7 +116,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
     public async Task<string> GetWorkspaceName(string path)
     {
-        StraumrWorkspace workspace = await GetWorkspace(path);
+        StraumrWorkspace workspace = await PeekWorkspace(path);
         return workspace.Name;
     }
 
@@ -145,6 +145,31 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         }
     }
 
+    public async Task<StraumrWorkspace> PeekWorkspace(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                throw new StraumrException("Workspace not found", StraumrError.EntryNotFound);
+            }
+
+            StraumrWorkspace? workspace =
+                await fileService.PeekStraumrModel(path, StraumrJsonContext.Default.StraumrWorkspace);
+
+            if (workspace is null)
+            {
+                throw new StraumrException("Failed to read workspace", StraumrError.CorruptEntry);
+            }
+
+            return workspace;
+        }
+        catch (JsonException ex)
+        {
+            throw new StraumrException("Workspace is corrupt", StraumrError.CorruptEntry, ex);
+        }
+    }
+
     private async Task<StraumrWorkspaceEntry> GetWorkspaceEntry(string identifier)
     {
         foreach (StraumrWorkspaceEntry entry in
@@ -155,7 +180,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
                 return entry;
             }
 
-            StraumrWorkspace workspace = await GetWorkspace(entry.Path);
+            StraumrWorkspace workspace = await PeekWorkspace(entry.Path);
             if (workspace.Name == identifier || workspace.Id.ToString() == identifier)
             {
                 return entry;

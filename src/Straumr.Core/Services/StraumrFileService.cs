@@ -38,6 +38,13 @@ public class StraumrFileService : IStraumrFileService
         return deserialized;
     }
 
+    public async Task<T> PeekStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
+    {
+        string json = await File.ReadAllTextAsync(path);
+        return JsonSerializer.Deserialize(json, typeInfo) ??
+               throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
+    }
+
     private void EnsureDirectoryExists(string path)
     {
         string? dir = Path.GetDirectoryName(path);
