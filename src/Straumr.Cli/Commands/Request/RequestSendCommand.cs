@@ -99,28 +99,28 @@ public class RequestSendCommand(IStraumrRequestService requestService)
     {
         if (response.RequestLine is not null)
         {
-            System.Console.Error.WriteLine($"> {response.RequestLine}");
+            System.Console.Error.WriteLine(response.RequestLine);
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.RequestHeaders)
         {
-            System.Console.Error.WriteLine($"> {header.Key}: {string.Join(", ", header.Value)}");
+            System.Console.Error.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
         }
 
-        System.Console.Error.WriteLine(">");
+        System.Console.Error.WriteLine();
 
         if (response.StatusCode is not null)
         {
             System.Console.Error.WriteLine(
-                $"< HTTP/{response.HttpVersion} {(int)response.StatusCode.Value} {response.ReasonPhrase}");
+                $"HTTP/{response.HttpVersion} {(int)response.StatusCode.Value} {response.ReasonPhrase}");
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.ResponseHeaders)
         {
-            System.Console.Error.WriteLine($"< {header.Key}: {string.Join(", ", header.Value)}");
+            System.Console.Error.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
         }
 
-        System.Console.Error.WriteLine("<");
+        System.Console.Error.WriteLine();
     }
 
     private static void RenderIncludeHeaders(StraumrResponse response)
