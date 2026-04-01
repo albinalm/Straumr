@@ -47,6 +47,24 @@ public class StraumrRequestService(
         await AddRequestToWorkspace(entry, request.Id);
     }
 
+    public bool Validate(StraumrRequest request, out string? validationMessage)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            validationMessage = "Name is required.";
+            return false;
+        }
+
+        if (!request.Uri.IsAbsoluteUri)
+        {
+            validationMessage = "URL must be absolute.";
+            return false;
+        }
+        
+        validationMessage = null;
+        return true;
+    }
+
     private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
     {
         return optionsService.Options.CurrentWorkspace

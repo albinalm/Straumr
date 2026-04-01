@@ -105,9 +105,28 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                         Bodies = bodies
                     };
 
-                    await requestService.Create(request);
-                    AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{request.Name}[/] ({request.Id})");
-                    return 0;
+                    if (!requestService.Validate(request, out string? validationMessage))
+                    {
+                        ShowTransientMessage($"[red]{Markup.Escape(validationMessage ?? "Invalid request.")}[/]");
+                        break;
+                    }
+
+                    try
+                    {
+                        await requestService.Create(request);
+                        AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{request.Name}[/] ({request.Id})");
+                        return 0;
+                    }
+                    catch (StraumrException ex)
+                    {
+                        ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+                    }
+
+                    break;
                 }
                 case actionUrl:
                 {
@@ -150,6 +169,10 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
+        var console = new EscapeCancellableConsole(AnsiConsole.Console);
+        const string actionFinish = "Finish";
+        const string actionEdit = "Edit";
+
         string tempPath = Path.GetTempFileName();
         try
         {
@@ -163,37 +186,79 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
             string json = JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest);
             await File.WriteAllTextAsync(tempPath, json, cancellation);
 
-            Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
-            {
-                UseShellExecute = false
-            });
+            var needsEditorLaunch = true;
 
-            if (process is null)
+            while (true)
             {
-                AnsiConsole.MarkupLine("[red]Editor exited with an error.[/]");
-                return 1;
-            }
+                if (needsEditorLaunch)
+                {
+                    int? exitCode = await LaunchEditorAsync(editor, tempPath, cancellation);
+                    if (exitCode is not null)
+                    {
+                        return exitCode.Value;
+                    }
 
-            await process.WaitForExitAsync(cancellation);
+                    needsEditorLaunch = false;
+                    continue;
+                }
 
-            if (process.ExitCode != 0)
-            {
-                ShowTransientMessage("[red]Editor exited with an error. Changes discarded.[/]");
-                return process.ExitCode;
-            }
+                string? action =
+                    await PromptMenuAsync(console, $"Creating request {settings.Name}", [actionFinish, actionEdit]);
 
-            string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
-            var deserializedJson =
-                JsonSerializer.Deserialize<StraumrRequest>(editedJson, StraumrJsonContext.Default.StraumrRequest);
-            if (deserializedJson is null)
-            {
-                AnsiConsole.MarkupLine("[red]Invalid request[/]");
-                return 1;
-            }
-            else
-            {
-                await requestService.Create(request);
-                return 0;
+                if (action is null)
+                {
+                    continue;
+                }
+
+                if (action == actionEdit)
+                {
+                    needsEditorLaunch = true;
+                    continue;
+                }
+
+                if (action == actionFinish)
+                {
+                    string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
+                    StraumrRequest? deserializedJson;
+                    try
+                    {
+                        deserializedJson = JsonSerializer.Deserialize<StraumrRequest>(editedJson,
+                            StraumrJsonContext.Default.StraumrRequest);
+                    }
+                    catch (JsonException)
+                    {
+                        ShowTransientMessage("[red]Invalid request JSON. Please fix the file in the editor.[/]");
+                        continue;
+                    }
+
+                    if (deserializedJson is null)
+                    {
+                        ShowTransientMessage("[red]Invalid request. Please fix the file in the editor.[/]");
+                        continue;
+                    }
+
+                    if (!requestService.Validate(deserializedJson, out string? validationMessage))
+                    {
+                        ShowTransientMessage($"[red]{Markup.Escape(validationMessage ?? "Invalid request.")}[/]");
+                        continue;
+                    }
+
+                    try
+                    {
+                        await requestService.Create(deserializedJson);
+                        AnsiConsole.MarkupLine(
+                            $"[green]Created request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
+                        return 0;
+                    }
+                    catch (StraumrException ex)
+                    {
+                        ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+                    }
+                }
             }
         }
         finally
@@ -351,11 +416,10 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
                 case actionType:
                 {
                     string? selected = await PromptMenuAsync(console, "Select body type",
-                        new[]
-                        {
-                            "No body", "JSON", "XML", "Text",
+                    [
+                        "No body", "JSON", "XML", "Text",
                             "Form URL Encoded", "Multipart Form", "Raw"
-                        });
+                    ]);
 
                     if (selected is not null)
                     {
@@ -674,6 +738,30 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
 
         return string.Join('&', fields.Select(kv =>
             $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+    }
+
+    private static async Task<int?> LaunchEditorAsync(string editor, string path, CancellationToken cancellation)
+    {
+        Process? process = Process.Start(new ProcessStartInfo(editor, path)
+        {
+            UseShellExecute = false
+        });
+
+        if (process is null)
+        {
+            AnsiConsole.MarkupLine("[red]Editor exited with an error.[/]");
+            return 1;
+        }
+
+        await process.WaitForExitAsync(cancellation);
+
+        if (process.ExitCode != 0)
+        {
+            ShowTransientMessage("[red]Editor exited with an error. Changes discarded.[/]");
+            return process.ExitCode;
+        }
+
+        return null;
     }
 
     private static async Task<string?> EditBodyWithEditor(string content, CancellationToken cancellation)
