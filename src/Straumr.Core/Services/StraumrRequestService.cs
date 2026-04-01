@@ -50,7 +50,7 @@ public class StraumrRequestService(
     private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
     {
         return optionsService.Options.CurrentWorkspace
-            ?? throw new StraumrException("No workspace loaded", StraumrError.InvalidScope);
+            ?? throw new StraumrException("No workspace loaded", StraumrError.MissingEntry);
     }
 
     private async Task AddRequestToWorkspace(StraumrWorkspaceEntry entry, Guid requestId)

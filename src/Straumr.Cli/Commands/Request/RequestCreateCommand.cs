@@ -1,8 +1,11 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
+using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Console.PromptHelpers;
@@ -15,9 +18,23 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name>")] public required string Name { get; set; }
+        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
+        CancellationToken cancellation)
+    {
+        if (!settings.UseEditor)
+        {
+            return await ExecutePromptMenuAsync(settings, cancellation);
+        }
+        else
+        {
+            return await ExecuteFileEditAsync(settings, cancellation);
+        }
+    }
+
+    private async Task<int> ExecutePromptMenuAsync(Settings settings,
         CancellationToken cancellation)
     {
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
@@ -125,6 +142,69 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
         }
     }
 
+    private async Task<int> ExecuteFileEditAsync(Settings settings, CancellationToken cancellation)
+    {
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (editor is null)
+        {
+            throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
+        }
+
+        string tempPath = Path.GetTempFileName();
+        try
+        {
+            var request = new StraumrRequest
+            {
+                Uri = new Uri("https://straumr.app"),
+                Method = HttpMethod.Get,
+                Name = settings.Name
+            };
+
+            string json = JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest);
+            await File.WriteAllTextAsync(tempPath, json, cancellation);
+
+            Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
+            {
+                UseShellExecute = false
+            });
+
+            if (process is null)
+            {
+                AnsiConsole.MarkupLine("[red]Editor exited with an error.[/]");
+                return 1;
+            }
+
+            await process.WaitForExitAsync(cancellation);
+
+            if (process.ExitCode != 0)
+            {
+                ShowTransientMessage("[red]Editor exited with an error. Changes discarded.[/]");
+                return process.ExitCode;
+            }
+
+            string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
+            var deserializedJson =
+                JsonSerializer.Deserialize<StraumrRequest>(editedJson, StraumrJsonContext.Default.StraumrRequest);
+            if (deserializedJson is null)
+            {
+                AnsiConsole.MarkupLine("[red]Invalid request[/]");
+                return 1;
+            }
+            else
+            {
+                await requestService.Create(request);
+                return 0;
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
     private static async Task<string?> PromptUrlAsync(EscapeCancellableConsole console)
     {
         return await PromptAsync(console,
@@ -204,7 +284,7 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
 
                     string? key = await PromptMenuAsync(
                         console,
-                        $"Select to remove",
+                        "Select to remove",
                         items.Keys.OrderBy(k => k));
 
                     if (key is not null)
@@ -674,5 +754,4 @@ public class RequestCreateCommand(IStraumrRequestService requestService)
         BodyType.Raw => "Raw (no Content-Type header)",
         _ => type.ToString()
     };
-
 }

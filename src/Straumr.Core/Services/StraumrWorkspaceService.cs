@@ -178,7 +178,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
     {
         return optionsService.Options.CurrentWorkspace
-               ?? throw new StraumrException("No workspace loaded", StraumrError.InvalidScope);
+               ?? throw new StraumrException("No workspace loaded", StraumrError.MissingEntry);
     }
 
     private async Task EnsureNoConflict(string name, string fullPath)

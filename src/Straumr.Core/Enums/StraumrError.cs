@@ -4,8 +4,8 @@ public enum StraumrError
 {
     EntryConflict,
     CorruptEntry,
-    InvalidScope,
     InvalidPath,
     EntryNotFound,
-    InvalidEntry
+    InvalidEntry,
+    MissingEntry
 }
