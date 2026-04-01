@@ -9,7 +9,10 @@ public sealed class EscapeCancellableInput(IAnsiConsoleInput originalInput) : IA
     public bool SearchActive { get; set; }
     public bool WasSearchCancelled { get; set; }
 
-    public bool IsKeyAvailable() => originalInput.IsKeyAvailable();
+    public bool IsKeyAvailable()
+    {
+        return originalInput.IsKeyAvailable();
+    }
 
     public ConsoleKeyInfo? ReadKey(bool intercept)
     {

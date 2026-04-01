@@ -11,12 +11,6 @@ namespace Straumr.Cli.Commands.Request;
 public class RequestSendCommand(IStraumrRequestService requestService)
     : AsyncCommand<RequestSendCommand.Settings>
 {
-    public sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-v|--verbose")] public bool Verbose { get; set; }
-    }
-
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
@@ -59,11 +53,13 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             System.Console.Write(response.Content);
         }
     }
+
     private static void RenderVerboseBody(StraumrRequest request, StraumrResponse response)
     {
         RenderBody(response);
         RenderSummary(request, response);
     }
+
     private static void RenderSummary(StraumrRequest request, StraumrResponse response)
     {
         Table table = new Table()
@@ -77,16 +73,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
 
         int byteLength = response.Content is null ? 0 : Encoding.UTF8.GetByteCount(response.Content);
 
-        string authInfo = request.AuthType switch
-        {
-            AuthType.Bearer => "\nAuth: [blue]Bearer[/]",
-            AuthType.Basic => "\nAuth: [blue]Basic[/]",
-            AuthType.OAuth2 when request.OAuth2?.Token is not null =>
-                $"\nAuth: [blue]OAuth 2.0[/] ({(request.OAuth2.Token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
-            AuthType.Custom when request.CustomAuth is not null =>
-                $"\nAuth: [blue]Custom[/] ({(request.CustomAuth.CachedValue is not null ? "[green]has value[/]" : "[grey]no value[/]")})",
-            _ => ""
-        };
+        string authInfo = FormatRequestAuthInfo(request.Auth);
 
         table.AddRow(
             $"[bold]{Markup.Escape(request.Name)}[/]\n[blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri)}{authInfo}",
@@ -131,8 +118,8 @@ public class RequestSendCommand(IStraumrRequestService requestService)
             return "[yellow]N/A[/]";
         }
 
-        int code = (int)response.StatusCode.Value;
-        string name = response.StatusCode.Value.ToString();
+        var code = (int)response.StatusCode.Value;
+        var name = response.StatusCode.Value.ToString();
         string color = code switch
         {
             >= 200 and < 300 => "green",
@@ -154,7 +141,7 @@ public class RequestSendCommand(IStraumrRequestService requestService)
 
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         double size = bytes;
-        int unitIndex = 0;
+        var unitIndex = 0;
 
         while (size >= 1024 && unitIndex < units.Length - 1)
         {
@@ -163,5 +150,25 @@ public class RequestSendCommand(IStraumrRequestService requestService)
         }
 
         return $"{size:0.##} {units[unitIndex]}";
+    }
+
+    private static string FormatRequestAuthInfo(StraumrAuthConfig? auth)
+    {
+        return auth switch
+        {
+            BearerAuthConfig => "\nAuth: [blue]Bearer[/]",
+            BasicAuthConfig => "\nAuth: [blue]Basic[/]",
+            OAuth2Config { Token: { } token } =>
+                $"\nAuth: [blue]OAuth 2.0[/] ({(token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
+            CustomAuthConfig custom =>
+                $"\nAuth: [blue]Custom[/] ({(custom.CachedValue is not null ? "[green]has value[/]" : "[grey]no value[/]")})",
+            _ => string.Empty
+        };
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
+        [CommandOption("-v|--verbose")] public bool Verbose { get; set; }
     }
 }

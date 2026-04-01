@@ -15,11 +15,15 @@ namespace Straumr.Cli.Commands.Request;
 public class RequestEditCommand(IStraumrRequestService requestService, IStraumrAuthService authService)
     : AsyncCommand<RequestEditCommand.Settings>
 {
-    public sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
-    }
+    private const string ActionSave = "Save";
+    private const string ActionName = "Edit name";
+    private const string ActionUrl = "Edit URL";
+    private const string ActionMethod = "Edit method";
+    private const string ActionParams = "Edit params";
+    private const string ActionHeaders = "Edit headers";
+    private const string ActionBody = "Edit body";
+    private const string ActionAuth = "Edit auth";
+    private const string ActionFetchToken = "Fetch token";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
@@ -28,7 +32,7 @@ public class RequestEditCommand(IStraumrRequestService requestService, IStraumrA
         {
             return await ExecuteEditorAsync(settings.Identifier, cancellation);
         }
-        
+
         StraumrRequest request;
         try
         {
@@ -44,200 +48,166 @@ public class RequestEditCommand(IStraumrRequestService requestService, IStraumrA
             AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
             return -1;
         }
-        
+
         return await ExecutePromptMenuAsync(request, cancellation);
     }
 
     private async Task<int> ExecutePromptMenuAsync(StraumrRequest request, CancellationToken cancellation)
     {
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
-
-        string name = request.Name;
-        string url = request.Uri;
-        string method = request.Method.Method;
-        var parameters = new Dictionary<string, string>(request.Params, StringComparer.Ordinal);
-        var headers = new Dictionary<string, string>(request.Headers, StringComparer.OrdinalIgnoreCase);
-        var bodies = new Dictionary<BodyType, string>(request.Bodies);
-        BodyType bodyType = request.BodyType;
-        AuthType authType = request.AuthType;
-        BearerAuthConfig? bearerAuth = request.BearerAuth;
-        BasicAuthConfig? basicAuth = request.BasicAuth;
-        OAuth2Config? oauth2 = request.OAuth2;
-        CustomAuthConfig? customAuth = request.CustomAuth;
-
-        const string actionFinish = "Save";
-        const string actionName = "Edit name";
-        const string actionUrl = "Edit URL";
-        const string actionMethod = "Edit method";
-        const string actionParams = "Edit params";
-        const string actionHeaders = "Edit headers";
-        const string actionBody = "Edit body";
-        const string actionAuth = "Edit auth";
-        const string actionFetchToken = "Fetch token";
+        EditableRequestState state = EditableRequestState.FromRequest(request);
 
         while (true)
         {
-            string nameDisplay = $"[blue]{Markup.Escape(name)}[/]";
-            string urlDisplay = string.IsNullOrWhiteSpace(url) ? "[grey]not set[/]" : $"[blue]{Markup.Escape(url)}[/]";
-            var methodDisplay = $"[blue]{method}[/]";
-            string paramsDisplay = parameters.Count == 0 ? "[grey]none[/]" : $"[blue]{parameters.Count}[/]";
-            string headersDisplay = headers.Count == 0 ? "[grey]none[/]" : $"[blue]{headers.Count}[/]";
-            string bodyDisplay = bodyType == BodyType.None
-                ? "[grey]none[/]"
-                : $"[blue]{BodyTypeDisplayName(bodyType)}[/]";
-            string authDisplay = AuthDisplayName(authType, oauth2: oauth2, customAuth: customAuth,
-                bearerAuth: bearerAuth, basicAuth: basicAuth);
-
-            var menuChoices = new List<string>
-            {
-                actionFinish, actionName, actionUrl, actionMethod, actionParams, actionHeaders, actionBody, actionAuth
-            };
-            if ((authType == AuthType.OAuth2 && oauth2 is not null)
-                || (authType == AuthType.Custom && customAuth is not null))
-            {
-                menuChoices.Add(actionFetchToken);
-            }
-
-            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Edit request")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .UseConverter(choice => choice switch
-                {
-                    actionName => $"Name: {nameDisplay}",
-                    actionUrl => $"URL: {urlDisplay}",
-                    actionMethod => $"Method: {methodDisplay}",
-                    actionParams => $"Params: {paramsDisplay}",
-                    actionHeaders => $"Headers: {headersDisplay}",
-                    actionBody => $"Body: {bodyDisplay}",
-                    actionAuth => $"Auth: {authDisplay}",
-                    _ => choice
-                })
-                .AddChoices(menuChoices);
-
-            string? action = await PromptAsync(console, prompt);
+            string? action = await PromptEditMenuAsync(console, state);
             if (action is null)
             {
                 continue;
             }
 
-            switch (action)
+            if (action == ActionSave)
             {
-                case actionFinish:
+                if (await TrySaveChangesAsync(request, state))
                 {
-                    request.Name = name;
-                    request.Uri = url;
-                    request.Method = new HttpMethod(method);
-                    request.Params = new Dictionary<string, string>(parameters, StringComparer.Ordinal);
-                    request.Headers = new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
-                    request.BodyType = bodyType;
-                    request.Bodies = new Dictionary<BodyType, string>(bodies);
-                    request.AuthType = authType;
-                    request.BearerAuth = bearerAuth;
-                    request.BasicAuth = basicAuth;
-                    request.OAuth2 = oauth2;
-                    request.CustomAuth = customAuth;
-
-                    try
-                    {
-                        await requestService.UpdateAsync(request);
-                        AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
-                        return 0;
-                    }
-                    catch (StraumrException ex)
-                    {
-                        ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
-                    }
-                    catch (Exception ex)
-                    {
-                        ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
-                    }
-
-                    break;
+                    return 0;
                 }
-                case actionName:
-                {
-                    string? updated = await PromptAsync(console,
-                        new TextPrompt<string>("Name")
-                            .Validate(value => string.IsNullOrWhiteSpace(value)
-                                ? ValidationResult.Error("Name cannot be empty.")
-                                : ValidationResult.Success()));
 
-                    if (!string.IsNullOrWhiteSpace(updated))
-                    {
-                        name = updated;
-                    }
-
-                    break;
-                }
-                case actionUrl:
-                {
-                    string? updated = await PromptUrlAsync(console);
-                    if (!string.IsNullOrWhiteSpace(updated))
-                    {
-                        url = updated;
-                    }
-
-                    break;
-                }
-                case actionMethod:
-                {
-                    string? selected = await PromptMethodAsync(console);
-                    if (!string.IsNullOrWhiteSpace(selected))
-                    {
-                        method = selected;
-                    }
-
-                    break;
-                }
-                case actionParams:
-                    await EditKeyValuePairsAsync(console, "Params", parameters);
-                    break;
-                case actionHeaders:
-                    await EditKeyValuePairsAsync(console, "Headers", headers);
-                    break;
-                case actionBody:
-                    bodyType = await EditBodyAsync(console, headers, bodies, bodyType, cancellation);
-                    break;
-                case actionAuth:
-                    (authType, bearerAuth, basicAuth, oauth2, customAuth) =
-                        await EditAuthAsync(console, authType, bearerAuth, basicAuth, oauth2, customAuth);
-                    break;
-                case actionFetchToken:
-                {
-                    try
-                    {
-                        if (authType == AuthType.OAuth2 && oauth2 is not null)
-                        {
-                            OAuth2Token token = await authService.FetchTokenAsync(oauth2);
-                            oauth2.Token = token;
-                            string expiresDisplay = token.ExpiresAt.HasValue
-                                ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
-                                : "N/A";
-                            ShowTransientMessage(
-                                $"[green]Token fetched successfully![/]\n" +
-                                $"Type: [blue]{Markup.Escape(token.TokenType)}[/]\n" +
-                                $"Expires: [blue]{expiresDisplay}[/]");
-                        }
-                        else if (authType == AuthType.Custom && customAuth is not null)
-                        {
-                            string value = await authService.ExecuteCustomAuthAsync(customAuth);
-                            string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", value);
-                            ShowTransientMessage(
-                                $"[green]Value fetched successfully![/]\n" +
-                                $"Extracted: [blue]{Markup.Escape(value)}[/]\n" +
-                                $"Header: [blue]{Markup.Escape(customAuth.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ShowTransientMessage($"[red]Failed to fetch: {Markup.Escape(ex.Message)}[/]");
-                    }
-
-                    break;
-                }
+                continue;
             }
+
+            await HandleEditActionAsync(console, state, action, cancellation);
         }
+    }
+
+    private static async Task<string?> PromptEditMenuAsync(
+        EscapeCancellableConsole console, EditableRequestState state)
+    {
+        var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
+        string urlDisplay = string.IsNullOrWhiteSpace(state.Uri)
+            ? "[grey]not set[/]"
+            : $"[blue]{Markup.Escape(state.Uri)}[/]";
+        var methodDisplay = $"[blue]{state.Method}[/]";
+        string paramsDisplay = state.Params.Count == 0 ? "[grey]none[/]" : $"[blue]{state.Params.Count}[/]";
+        string headersDisplay = state.Headers.Count == 0 ? "[grey]none[/]" : $"[blue]{state.Headers.Count}[/]";
+        string bodyDisplay = state.BodyType == BodyType.None
+            ? "[grey]none[/]"
+            : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
+        string authDisplay = AuthDisplayName(state.Auth);
+
+        var menuChoices = new List<string>
+        {
+            ActionSave, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
+        };
+
+        if (SupportsAuthFetch(state.Auth))
+        {
+            menuChoices.Add(ActionFetchToken);
+        }
+
+        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
+            .Title("Edit request")
+            .EnableSearch()
+            .SearchPlaceholderText("/")
+            .UseConverter(choice => choice switch
+            {
+                ActionName => $"Name: {nameDisplay}",
+                ActionUrl => $"URL: {urlDisplay}",
+                ActionMethod => $"Method: {methodDisplay}",
+                ActionParams => $"Params: {paramsDisplay}",
+                ActionHeaders => $"Headers: {headersDisplay}",
+                ActionBody => $"Body: {bodyDisplay}",
+                ActionAuth => $"Auth: {authDisplay}",
+                _ => choice
+            })
+            .AddChoices(menuChoices);
+
+        return await PromptAsync(console, prompt);
+    }
+
+    private async Task<bool> TrySaveChangesAsync(StraumrRequest request, EditableRequestState state)
+    {
+        state.ApplyTo(request);
+
+        try
+        {
+            await requestService.UpdateAsync(request);
+            AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
+            return true;
+        }
+        catch (StraumrException ex)
+        {
+            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+        }
+        catch (Exception ex)
+        {
+            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+        }
+
+        return false;
+    }
+
+    private async Task HandleEditActionAsync(
+        EscapeCancellableConsole console, EditableRequestState state, string action, CancellationToken cancellation)
+    {
+        switch (action)
+        {
+            case ActionName:
+            {
+                string? updated = await PromptAsync(console,
+                    new TextPrompt<string>("Name")
+                        .Validate(value => string.IsNullOrWhiteSpace(value)
+                            ? ValidationResult.Error("Name cannot be empty.")
+                            : ValidationResult.Success()));
+
+                if (!string.IsNullOrWhiteSpace(updated))
+                {
+                    state.Name = updated;
+                }
+
+                break;
+            }
+            case ActionUrl:
+            {
+                string? updated = await PromptUrlAsync(console);
+                if (!string.IsNullOrWhiteSpace(updated))
+                {
+                    state.Uri = updated;
+                }
+
+                break;
+            }
+            case ActionMethod:
+            {
+                string? selected = await PromptMethodAsync(console);
+                if (!string.IsNullOrWhiteSpace(selected))
+                {
+                    state.Method = selected;
+                }
+
+                break;
+            }
+            case ActionParams:
+                await EditKeyValuePairsAsync(console, "Params", state.Params);
+                break;
+            case ActionHeaders:
+                await EditKeyValuePairsAsync(console, "Headers", state.Headers);
+                break;
+            case ActionBody:
+                state.BodyType =
+                    await EditBodyAsync(console, state.Headers, state.Bodies, state.BodyType, cancellation);
+                break;
+            case ActionAuth:
+                state.Auth = await EditAuthAsync(console, state.Auth);
+                break;
+            case ActionFetchToken:
+                await FetchAuthValueAsync(authService, state.Auth);
+                break;
+        }
+    }
+
+    private static bool SupportsAuthFetch(StraumrAuthConfig? auth)
+    {
+        return auth is OAuth2Config or CustomAuthConfig;
     }
 
     private async Task<int> ExecuteEditorAsync(string identifier, CancellationToken cancellation)
@@ -322,6 +292,63 @@ public class RequestEditCommand(IStraumrRequestService requestService, IStraumrA
             {
                 File.Delete(tempPath);
             }
+        }
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
+        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
+    }
+
+    private sealed class EditableRequestState
+    {
+        private EditableRequestState(string name, string uri, string method, Dictionary<string, string> parameters,
+            Dictionary<string, string> headers, Dictionary<BodyType, string> bodies, BodyType bodyType,
+            StraumrAuthConfig? auth)
+        {
+            Name = name;
+            Uri = uri;
+            Method = method;
+            Params = parameters;
+            Headers = headers;
+            Bodies = bodies;
+            BodyType = bodyType;
+            Auth = auth;
+        }
+
+        public string Name { get; set; }
+        public string Uri { get; set; }
+        public string Method { get; set; }
+        public Dictionary<string, string> Params { get; }
+        public Dictionary<string, string> Headers { get; }
+        public Dictionary<BodyType, string> Bodies { get; }
+        public BodyType BodyType { get; set; }
+        public StraumrAuthConfig? Auth { get; set; }
+
+        public static EditableRequestState FromRequest(StraumrRequest request)
+        {
+            return new EditableRequestState(
+                request.Name,
+                request.Uri,
+                request.Method.Method,
+                new Dictionary<string, string>(request.Params, StringComparer.Ordinal),
+                new Dictionary<string, string>(request.Headers, StringComparer.OrdinalIgnoreCase),
+                new Dictionary<BodyType, string>(request.Bodies),
+                request.BodyType,
+                request.Auth);
+        }
+
+        public void ApplyTo(StraumrRequest request)
+        {
+            request.Name = Name;
+            request.Uri = Uri;
+            request.Method = new HttpMethod(Method);
+            request.Params = new Dictionary<string, string>(Params, StringComparer.Ordinal);
+            request.Headers = new Dictionary<string, string>(Headers, StringComparer.OrdinalIgnoreCase);
+            request.BodyType = BodyType;
+            request.Bodies = new Dictionary<BodyType, string>(Bodies);
+            request.Auth = Auth;
         }
     }
 }

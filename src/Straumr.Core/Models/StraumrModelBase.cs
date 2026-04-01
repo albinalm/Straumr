@@ -1,6 +1,6 @@
 namespace Straumr.Core.Models;
 
-public partial class StraumrModelBase
+public class StraumrModelBase
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public required string Name { get; set; }

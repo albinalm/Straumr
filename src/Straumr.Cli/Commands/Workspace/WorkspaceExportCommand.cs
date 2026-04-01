@@ -7,12 +7,6 @@ namespace Straumr.Cli.Commands.Workspace;
 public class WorkspaceExportCommand(IStraumrWorkspaceService workspaceService)
     : AsyncCommand<WorkspaceExportCommand.Settings>
 {
-    public sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<Name or ID>")] public required string Workspace { get; set; }
-        [CommandArgument(1, "<Output folder>")] public required string OutputPath { get; set; }
-    }
-
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
@@ -20,5 +14,13 @@ public class WorkspaceExportCommand(IStraumrWorkspaceService workspaceService)
         AnsiConsole.MarkupLine(
             $"[green]Exported workspace to: [/] {outputFile}");
         return 0;
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<Name or ID>")] public required string Workspace { get; set; }
+
+        [CommandArgument(1, "<Output folder>")]
+        public required string OutputPath { get; set; }
     }
 }

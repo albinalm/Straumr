@@ -16,13 +16,6 @@ public class StraumrRequestService(
 {
     private readonly HttpClient _client = httpClientFactory.CreateClient();
 
-    private string RequestPath(Guid id)
-    {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
-        string? directory = Path.GetDirectoryName(entry.Path);
-        return Path.Combine(directory!, id + ".json");
-    }
-
     public async Task<StraumrRequest> GetAsync(string identifier)
     {
         (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
@@ -41,15 +34,6 @@ public class StraumrRequestService(
         await RemoveRequestAsync(entry, workspace, lookup.Id);
     }
 
-    private void RemoveRequestFile(Guid id)
-    {
-        string requestPath = RequestPath(id);
-        if (File.Exists(requestPath))
-        {
-            File.Delete(requestPath);
-        }
-    }
-
     public async Task<StraumrRequest> PeekByIdAsync(Guid id)
     {
         GetCurrentWorkspaceEntry();
@@ -58,21 +42,6 @@ public class StraumrRequestService(
         try
         {
             return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
-        }
-        catch (JsonException jex)
-        {
-            throw new StraumrException("Invalid request", StraumrError.CorruptEntry, jex);
-        }
-    }
-
-    private async Task<StraumrRequest> GetByIdAsync(Guid id)
-    {
-        GetCurrentWorkspaceEntry();
-        string fullPath = RequestPath(id);
-
-        try
-        {
-            return await fileService.ReadStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
         }
         catch (JsonException jex)
         {
@@ -113,36 +82,69 @@ public class StraumrRequestService(
         (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
         RequestLookup lookup = await RequireRequestAsync(workspace, identifier, "No request found");
         string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-        File.Copy(RequestPath(lookup.Id), tempPath, overwrite: true);
+        File.Copy(RequestPath(lookup.Id), tempPath, true);
         return (lookup.Id, tempPath);
     }
 
     public void ApplyEdit(Guid requestId, string tempPath)
     {
-        File.Copy(tempPath, RequestPath(requestId), overwrite: true);
+        File.Copy(tempPath, RequestPath(requestId), true);
     }
 
     public async Task<StraumrResponse> SendAsync(StraumrRequest request)
     {
-        if (request is { AuthType: AuthType.OAuth2, OAuth2: not null })
+        switch (request.Auth)
         {
-            OAuth2Token token = await authService.EnsureTokenAsync(request.OAuth2);
-            request.OAuth2.Token = token;
-            await UpdateAsync(request);
-        }
-        else if (request is { AuthType: AuthType.Custom, CustomAuth: not null })
-        {
-            if (request.CustomAuth.CachedValue is null)
+            case OAuth2Config oauth2:
             {
-                await authService.ExecuteCustomAuthAsync(request.CustomAuth);
+                OAuth2Token token = await authService.EnsureTokenAsync(oauth2);
+                oauth2.Token = token;
                 await UpdateAsync(request);
+                break;
+            }
+            case CustomAuthConfig custom when custom.CachedValue is null:
+            {
+                await authService.ExecuteCustomAuthAsync(custom);
+                await UpdateAsync(request);
+                break;
             }
         }
 
         var networkRequest = request.ToHttpRequestMessage();
         return await _client.SendAsync(networkRequest).WithMetrics();
     }
-    
+
+    private string RequestPath(Guid id)
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        string? directory = Path.GetDirectoryName(entry.Path);
+        return Path.Combine(directory!, id + ".json");
+    }
+
+    private void RemoveRequestFile(Guid id)
+    {
+        string requestPath = RequestPath(id);
+        if (File.Exists(requestPath))
+        {
+            File.Delete(requestPath);
+        }
+    }
+
+    private async Task<StraumrRequest> GetByIdAsync(Guid id)
+    {
+        GetCurrentWorkspaceEntry();
+        string fullPath = RequestPath(id);
+
+        try
+        {
+            return await fileService.ReadStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
+        }
+        catch (JsonException jex)
+        {
+            throw new StraumrException("Invalid request", StraumrError.CorruptEntry, jex);
+        }
+    }
+
     private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
     {
         return optionsService.Options.CurrentWorkspace

@@ -7,6 +7,7 @@ namespace Straumr.Core.Configuration;
 [JsonSerializable(typeof(StraumrWorkspace))]
 [JsonSerializable(typeof(StraumrRequest))]
 [JsonSerializable(typeof(StraumrOptions))]
+[JsonSerializable(typeof(StraumrAuthConfig))]
 [JsonSerializable(typeof(BearerAuthConfig))]
 [JsonSerializable(typeof(BasicAuthConfig))]
 [JsonSerializable(typeof(OAuth2Config))]

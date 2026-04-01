@@ -10,11 +10,6 @@ namespace Straumr.Cli.Commands.Workspace;
 public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
     : AsyncCommand<WorkspaceEditCommand.Settings>
 {
-    public sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-    }
-
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
@@ -58,5 +53,10 @@ public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
                 File.Delete(tempPath);
             }
         }
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
     }
 }

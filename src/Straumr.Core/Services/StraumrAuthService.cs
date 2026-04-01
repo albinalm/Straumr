@@ -26,28 +26,6 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
         };
     }
 
-    public async Task<OAuth2Token> RefreshTokenAsync(OAuth2Config config)
-    {
-        if (config.Token?.RefreshToken is null)
-        {
-            return await FetchTokenAsync(config);
-        }
-
-        var parameters = new Dictionary<string, string>
-        {
-            ["grant_type"] = "refresh_token",
-            ["refresh_token"] = config.Token.RefreshToken,
-            ["client_id"] = config.ClientId
-        };
-
-        if (!string.IsNullOrWhiteSpace(config.ClientSecret))
-        {
-            parameters["client_secret"] = config.ClientSecret;
-        }
-
-        return await RequestTokenAsync(config.TokenUrl, parameters);
-    }
-
     public async Task<OAuth2Token> EnsureTokenAsync(OAuth2Config config)
     {
         if (config.Token is not null && !config.Token.IsExpired)
@@ -98,6 +76,28 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
 
         config.CachedValue = extracted;
         return extracted;
+    }
+
+    public async Task<OAuth2Token> RefreshTokenAsync(OAuth2Config config)
+    {
+        if (config.Token?.RefreshToken is null)
+        {
+            return await FetchTokenAsync(config);
+        }
+
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["refresh_token"] = config.Token.RefreshToken,
+            ["client_id"] = config.ClientId
+        };
+
+        if (!string.IsNullOrWhiteSpace(config.ClientSecret))
+        {
+            parameters["client_secret"] = config.ClientSecret;
+        }
+
+        return await RequestTokenAsync(config.TokenUrl, parameters);
     }
 
     private static string ExtractFromJson(string json, string path)
@@ -295,7 +295,7 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
         string redirectUri, string authUrl, string expectedState)
     {
         var uri = new Uri(redirectUri);
-        string listenerPrefix = $"{uri.Scheme}://{uri.Host}:{uri.Port}/";
+        var listenerPrefix = $"{uri.Scheme}://{uri.Host}:{uri.Port}/";
 
         var listener = new HttpListener();
         listener.Prefixes.Add(listenerPrefix);
@@ -313,7 +313,8 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
             string responseHtml;
             if (error is not null)
             {
-                responseHtml = $"<html><body><h2>Authorization failed</h2><p>{WebUtility.HtmlEncode(error)}</p><p>You can close this window.</p></body></html>";
+                responseHtml =
+                    $"<html><body><h2>Authorization failed</h2><p>{WebUtility.HtmlEncode(error)}</p><p>You can close this window.</p></body></html>";
                 byte[] errorBuffer = Encoding.UTF8.GetBytes(responseHtml);
                 context.Response.ContentType = "text/html";
                 context.Response.ContentLength64 = errorBuffer.Length;
@@ -332,7 +333,8 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
                 throw new InvalidOperationException("State mismatch — possible CSRF attack");
             }
 
-            responseHtml = "<html><body><h2>Authorization successful</h2><p>You can close this window and return to Straumr.</p></body></html>";
+            responseHtml =
+                "<html><body><h2>Authorization successful</h2><p>You can close this window and return to Straumr.</p></body></html>";
             byte[] buffer = Encoding.UTF8.GetBytes(responseHtml);
             context.Response.ContentType = "text/html";
             context.Response.ContentLength64 = buffer.Length;

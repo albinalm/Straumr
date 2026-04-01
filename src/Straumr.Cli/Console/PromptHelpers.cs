@@ -3,15 +3,15 @@ using Spectre.Console;
 namespace Straumr.Cli.Console;
 
 /// <summary>
-/// Reusable prompt helpers that work with <see cref="EscapeCancellableConsole"/>
-/// to provide go-back-able, vim-navigable prompts.
+///     Reusable prompt helpers that work with <see cref="EscapeCancellableConsole" />
+///     to provide go-back-able, vim-navigable prompts.
 /// </summary>
 public static class PromptHelpers
 {
     /// <summary>
-    /// Show any Spectre prompt with escape-to-go-back support.
-    /// Returns <c>default</c> (null for reference types) when the user presses Escape.
-    /// Automatically retries when Escape only exited search mode.
+    ///     Show any Spectre prompt with escape-to-go-back support.
+    ///     Returns <c>default</c> (null for reference types) when the user presses Escape.
+    ///     Automatically retries when Escape only exited search mode.
     /// </summary>
     public static async Task<T?> PromptAsync<T>(EscapeCancellableConsole console, IPrompt<T> prompt)
     {
@@ -33,8 +33,8 @@ public static class PromptHelpers
     }
 
     /// <summary>
-    /// Show a simple selection menu with escape-to-go-back support.
-    /// Returns <c>null</c> when the user presses Escape.
+    ///     Show a simple selection menu with escape-to-go-back support.
+    ///     Returns <c>null</c> when the user presses Escape.
     /// </summary>
     public static async Task<string?> PromptMenuAsync(
         EscapeCancellableConsole console,
@@ -51,8 +51,8 @@ public static class PromptHelpers
     }
 
     /// <summary>
-    /// Show a message, wait for any key, then clear the lines.
-    /// Useful for validation errors or informational messages in a menu loop.
+    ///     Show a message, wait for any key, then clear the lines.
+    ///     Useful for validation errors or informational messages in a menu loop.
     /// </summary>
     public static void ShowTransientMessage(string markup)
     {
@@ -64,7 +64,7 @@ public static class PromptHelpers
     }
 
     /// <summary>
-    /// Show a two-column table (or an empty message), wait for any key, then clear the lines.
+    ///     Show a two-column table (or an empty message), wait for any key, then clear the lines.
     /// </summary>
     public static void ShowTransientTable(
         string col1, string col2,

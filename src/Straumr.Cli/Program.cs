@@ -9,12 +9,15 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Cli;
 
-class Program
+internal class Program
 {
     [UnconditionalSuppressMessage("AOT",
         "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.",
         Justification = "Types are registered at startup with known implementations")]
-    static Task<int> Main(string[] args) => RunApp(args);
+    private static Task<int> Main(string[] args)
+    {
+        return RunApp(args);
+    }
 
     [RequiresDynamicCode("Calls Spectre.Console.Cli.CommandApp.CommandApp(ITypeRegistrar)")]
     private static async Task<int> RunApp(string[] args)
@@ -31,11 +34,11 @@ class Program
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
-        
+
         // Required for Spectre.Console.Cli to resolve the default settings type under Native AOT.
         services.AddSingleton<EmptyCommandSettings>();
 
-        var app = new CommandApp(new StraumrTypeRegistrar(services)); 
+        var app = new CommandApp(new StraumrTypeRegistrar(services));
         app.Configure(config =>
         {
             config.SetApplicationName("Straumr");

@@ -6,15 +6,23 @@ namespace Straumr.Cli.Console;
 public sealed class EscapeCancellableConsole(IAnsiConsole console) : IAnsiConsole
 {
     private readonly EscapeCancellableInput _input = new(console.Input);
+    public bool WasSearchCancelled => _input.WasSearchCancelled;
 
     public Profile Profile => console.Profile;
     public IAnsiConsoleCursor Cursor => console.Cursor;
     public IAnsiConsoleInput Input => _input;
     public IExclusivityMode ExclusivityMode => console.ExclusivityMode;
     public RenderPipeline Pipeline => console.Pipeline;
-    public bool WasSearchCancelled => _input.WasSearchCancelled;
-    public void Clear(bool home) => console.Clear(home);
-    public void Write(IRenderable renderable) => console.Write(renderable);
+
+    public void Clear(bool home)
+    {
+        console.Clear(home);
+    }
+
+    public void Write(IRenderable renderable)
+    {
+        console.Write(renderable);
+    }
 
     public async Task<T> PromptAsync<T>(IPrompt<T> prompt, CancellationToken cancellationToken = default)
     {

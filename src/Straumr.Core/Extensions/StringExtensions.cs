@@ -10,13 +10,13 @@ public static partial class StringExtensions
     {
         return GetFileName(name);
     }
-    
+
     private static string GetFileName(string name)
     {
         ReadOnlySpan<char> invalidChars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0', '!'];
-    
+
         string kebaberized = name.Kebaberize().ToLowerInvariant();
-    
+
         var sb = new StringBuilder(kebaberized.Length);
         foreach (char c in kebaberized)
         {

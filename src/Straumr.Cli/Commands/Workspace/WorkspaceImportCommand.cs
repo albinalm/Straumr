@@ -4,18 +4,19 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Cli.Commands.Workspace;
 
-public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService) : AsyncCommand<WorkspaceImportCommand.Settings>
+public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService)
+    : AsyncCommand<WorkspaceImportCommand.Settings>
 {
-    public sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<Path>")]
-        public required string Path { get; set; }
-    }
-
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellation)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
+        CancellationToken cancellation)
     {
         await workspaceService.Import(settings.Path);
         AnsiConsole.MarkupLine($"[green]Imported workspace from[/] {settings.Path}");
         return 0;
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<Path>")] public required string Path { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using Spectre.Console;
 using Straumr.Cli.Console;
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
+using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Console.PromptHelpers;
 
 namespace Straumr.Cli.Commands.Request;
@@ -157,7 +158,7 @@ internal static class RequestCommandHelpers
                     string? selected = await PromptMenuAsync(console, "Select body type",
                     [
                         "No body", "JSON", "XML", "Text",
-                            "Form URL Encoded", "Multipart Form", "Raw"
+                        "Form URL Encoded", "Multipart Form", "Raw"
                     ]);
 
                     if (selected is not null)
@@ -568,42 +569,34 @@ internal static class RequestCommandHelpers
         }
     }
 
-    internal static string BodyTypeDisplayName(BodyType type) => type switch
+    internal static string BodyTypeDisplayName(BodyType type)
     {
-        BodyType.None => "No body",
-        BodyType.Json => "JSON (application/json)",
-        BodyType.Xml => "XML (application/xml)",
-        BodyType.Text => "Text (text/plain)",
-        BodyType.FormUrlEncoded => "Form URL Encoded (application/x-www-form-urlencoded)",
-        BodyType.MultipartForm => "Multipart Form (multipart/form-data)",
-        BodyType.Raw => "Raw (no Content-Type header)",
-        _ => type.ToString()
-    };
+        return type switch
+        {
+            BodyType.None => "No body",
+            BodyType.Json => "JSON (application/json)",
+            BodyType.Xml => "XML (application/xml)",
+            BodyType.Text => "Text (text/plain)",
+            BodyType.FormUrlEncoded => "Form URL Encoded (application/x-www-form-urlencoded)",
+            BodyType.MultipartForm => "Multipart Form (multipart/form-data)",
+            BodyType.Raw => "Raw (no Content-Type header)",
+            _ => type.ToString()
+        };
+    }
 
-    internal static string AuthDisplayName(AuthType authType, StraumrRequest? req = null,
-        OAuth2Config? oauth2 = null, CustomAuthConfig? customAuth = null,
-        BearerAuthConfig? bearerAuth = null, BasicAuthConfig? basicAuth = null)
+    internal static string AuthDisplayName(StraumrAuthConfig? auth)
     {
-        // Allow passing a full request for convenience
-        if (req is not null)
+        return auth switch
         {
-            oauth2 ??= req.OAuth2;
-            customAuth ??= req.CustomAuth;
-            bearerAuth ??= req.BearerAuth;
-            basicAuth ??= req.BasicAuth;
-        }
-
-        return authType switch
-        {
-            AuthType.None => "[grey]none[/]",
-            AuthType.Bearer => bearerAuth is not null && !string.IsNullOrWhiteSpace(bearerAuth.Token)
+            null => "[grey]none[/]",
+            BearerAuthConfig bearer => !string.IsNullOrWhiteSpace(bearer.Token)
                 ? "[blue]Bearer[/] [green]set[/]"
                 : "[blue]Bearer[/] [grey]not set[/]",
-            AuthType.Basic => basicAuth is not null && !string.IsNullOrWhiteSpace(basicAuth.Username)
-                ? $"[blue]Basic[/] [green]{Markup.Escape(basicAuth.Username)}[/]"
+            BasicAuthConfig basic => !string.IsNullOrWhiteSpace(basic.Username)
+                ? $"[blue]Basic[/] [green]{Markup.Escape(basic.Username)}[/]"
                 : "[blue]Basic[/] [grey]not set[/]",
-            AuthType.OAuth2 when oauth2 is not null => FormatOAuth2Display(oauth2),
-            AuthType.Custom when customAuth is not null => FormatCustomAuthDisplay(customAuth),
+            OAuth2Config oauth2 => FormatOAuth2Display(oauth2),
+            CustomAuthConfig custom => FormatCustomAuthDisplay(custom),
             _ => "[grey]none[/]"
         };
     }
@@ -641,12 +634,10 @@ internal static class RequestCommandHelpers
         return $"[blue]OAuth 2.0 ({grantName})[/] {tokenStatus}";
     }
 
-    internal static async Task<(AuthType authType, BearerAuthConfig? bearerAuth, BasicAuthConfig? basicAuth,
-        OAuth2Config? oauth2, CustomAuthConfig? customAuth)> EditAuthAsync(
-        EscapeCancellableConsole console, AuthType currentType,
-        BearerAuthConfig? bearerAuth, BasicAuthConfig? basicAuth,
-        OAuth2Config? oauth2, CustomAuthConfig? customAuth)
+    internal static async Task<StraumrAuthConfig?> EditAuthAsync(
+        EscapeCancellableConsole console, StraumrAuthConfig? auth)
     {
+        StraumrAuthConfig? current = auth;
         while (true)
         {
             const string actionBack = "Back";
@@ -655,6 +646,7 @@ internal static class RequestCommandHelpers
             const string actionTokenStatus = "Token status";
             const string actionClear = "Clear auth";
 
+            AuthType currentType = current?.Type ?? AuthType.None;
             string typeDisplay = currentType switch
             {
                 AuthType.Bearer => "[blue]Bearer[/]",
@@ -664,7 +656,7 @@ internal static class RequestCommandHelpers
                 _ => "[grey]none[/]"
             };
 
-            string[] choices = currentType == AuthType.None
+            string[] choices = current is null
                 ? [actionBack, actionType]
                 : [actionBack, actionType, actionConfig, actionTokenStatus, actionClear];
 
@@ -682,134 +674,152 @@ internal static class RequestCommandHelpers
             string? action = await PromptAsync(console, prompt);
             if (action is null || action == actionBack)
             {
-                return (currentType, bearerAuth, basicAuth, oauth2, customAuth);
+                return current;
             }
 
             switch (action)
             {
                 case actionType:
-                {
-                    string? selected = await PromptMenuAsync(console, "Select auth type",
-                        ["No auth", "Bearer", "Basic", "OAuth 2.0", "Custom"]);
-
-                    currentType = selected switch
-                    {
-                        "Bearer" => AuthType.Bearer,
-                        "Basic" => AuthType.Basic,
-                        "OAuth 2.0" => AuthType.OAuth2,
-                        "Custom" => AuthType.Custom,
-                        "No auth" => AuthType.None,
-                        _ => currentType
-                    };
-
-                    // Initialize the selected config if needed
-                    switch (currentType)
-                    {
-                        case AuthType.Bearer:
-                            bearerAuth ??= new BearerAuthConfig();
-                            break;
-                        case AuthType.Basic:
-                            basicAuth ??= new BasicAuthConfig();
-                            break;
-                        case AuthType.OAuth2:
-                            oauth2 ??= new OAuth2Config();
-                            break;
-                        case AuthType.Custom:
-                            customAuth ??= new CustomAuthConfig();
-                            break;
-                        case AuthType.None:
-                            bearerAuth = null;
-                            basicAuth = null;
-                            oauth2 = null;
-                            customAuth = null;
-                            break;
-                    }
-
+                    current = await SelectAuthTypeAsync(console, current);
                     break;
-                }
                 case actionConfig:
-                {
-                    switch (currentType)
-                    {
-                        case AuthType.Bearer when bearerAuth is not null:
-                            await EditBearerAuthAsync(console, bearerAuth);
-                            break;
-                        case AuthType.Basic when basicAuth is not null:
-                            await EditBasicAuthAsync(console, basicAuth);
-                            break;
-                        case AuthType.OAuth2 when oauth2 is not null:
-                            await EditOAuth2ConfigAsync(console, oauth2);
-                            break;
-                        case AuthType.Custom when customAuth is not null:
-                            await EditCustomAuthConfigAsync(console, customAuth);
-                            break;
-                    }
-
+                    await ConfigureAuthAsync(console, current);
                     break;
-                }
                 case actionTokenStatus:
+                    ShowAuthStatus(current);
+                    break;
+                case actionClear:
+                    current = null;
+                    break;
+            }
+        }
+    }
+
+    private static async Task<StraumrAuthConfig?> SelectAuthTypeAsync(
+        EscapeCancellableConsole console, StraumrAuthConfig? current)
+    {
+        string? selected = await PromptMenuAsync(console, "Select auth type",
+            ["No auth", "Bearer", "Basic", "OAuth 2.0", "Custom"]);
+
+        return selected switch
+        {
+            "Bearer" => current as BearerAuthConfig ?? new BearerAuthConfig(),
+            "Basic" => current as BasicAuthConfig ?? new BasicAuthConfig(),
+            "OAuth 2.0" => current as OAuth2Config ?? new OAuth2Config(),
+            "Custom" => current as CustomAuthConfig ?? new CustomAuthConfig(),
+            "No auth" => null,
+            _ => current
+        };
+    }
+
+    private static async Task ConfigureAuthAsync(EscapeCancellableConsole console, StraumrAuthConfig? auth)
+    {
+        switch (auth)
+        {
+            case BearerAuthConfig bearer:
+                await EditBearerAuthAsync(console, bearer);
+                break;
+            case BasicAuthConfig basic:
+                await EditBasicAuthAsync(console, basic);
+                break;
+            case OAuth2Config oauth2:
+                await EditOAuth2ConfigAsync(console, oauth2);
+                break;
+            case CustomAuthConfig custom:
+                await EditCustomAuthConfigAsync(console, custom);
+                break;
+        }
+    }
+
+    private static void ShowAuthStatus(StraumrAuthConfig? auth)
+    {
+        switch (auth)
+        {
+            case BearerAuthConfig bearer when !string.IsNullOrWhiteSpace(bearer.Token):
+                string masked = bearer.Token[..Math.Min(20, bearer.Token.Length)];
+                ShowTransientMessage(
+                    $"Prefix: [blue]{Markup.Escape(bearer.Prefix)}[/]\nToken: [blue]{Markup.Escape(masked)}...[/]");
+                break;
+            case BearerAuthConfig:
+                ShowTransientMessage("[grey]No token set.[/]");
+                break;
+            case BasicAuthConfig basic when !string.IsNullOrWhiteSpace(basic.Username):
+                ShowTransientMessage(
+                    $"Username: [blue]{Markup.Escape(basic.Username)}[/]\nPassword: [blue]****[/]");
+                break;
+            case BasicAuthConfig:
+                ShowTransientMessage("[grey]No credentials set.[/]");
+                break;
+            case OAuth2Config { Token: null }:
+                ShowTransientMessage("[grey]No token fetched yet.[/]");
+                break;
+            case OAuth2Config { Token: { } token }:
+            {
+                string status = token.IsExpired ? "[yellow]Expired[/]" : "[green]Valid[/]";
+                string expiresDisplay = token.ExpiresAt.HasValue
+                    ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                    : "N/A";
+                string hasRefresh = token.RefreshToken is not null ? "[green]Yes[/]" : "[grey]No[/]";
+                ShowTransientMessage(
+                    $"Status: {status}\n" +
+                    $"Token type: [blue]{Markup.Escape(token.TokenType)}[/]\n" +
+                    $"Expires: [blue]{expiresDisplay}[/]\n" +
+                    $"Refresh token: {hasRefresh}");
+                break;
+            }
+            case CustomAuthConfig { CachedValue: null }:
+                ShowTransientMessage("[grey]No value fetched yet.[/]");
+                break;
+            case CustomAuthConfig custom:
+            {
+                string headerPreview = custom.ApplyHeaderTemplate.Replace("{{value}}", custom.CachedValue);
+                ShowTransientMessage(
+                    $"Cached value: [blue]{Markup.Escape(custom.CachedValue)}[/]\n" +
+                    $"Applied as: [blue]{Markup.Escape(custom.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
+                break;
+            }
+        }
+    }
+
+    internal static async Task FetchAuthValueAsync(IStraumrAuthService authService, StraumrAuthConfig? auth)
+    {
+        if (auth is not (OAuth2Config or CustomAuthConfig))
+        {
+            return;
+        }
+
+        try
+        {
+            switch (auth)
+            {
+                case OAuth2Config oauth2:
                 {
-                    switch (currentType)
-                    {
-                        case AuthType.Bearer:
-                            ShowTransientMessage(bearerAuth is not null && !string.IsNullOrWhiteSpace(bearerAuth.Token)
-                                ? $"Prefix: [blue]{Markup.Escape(bearerAuth.Prefix)}[/]\nToken: [blue]{Markup.Escape(bearerAuth.Token[..Math.Min(20, bearerAuth.Token.Length)])}...[/]"
-                                : "[grey]No token set.[/]");
-                            break;
-                        case AuthType.Basic:
-                            ShowTransientMessage(basicAuth is not null
-                                ? $"Username: [blue]{Markup.Escape(basicAuth.Username)}[/]\nPassword: [blue]{"****"}[/]"
-                                : "[grey]No credentials set.[/]");
-                            break;
-                        case AuthType.OAuth2:
-                            if (oauth2?.Token is null)
-                            {
-                                ShowTransientMessage("[grey]No token fetched yet.[/]");
-                            }
-                            else
-                            {
-                                string status = oauth2.Token.IsExpired ? "[yellow]Expired[/]" : "[green]Valid[/]";
-                                string expiresDisplay = oauth2.Token.ExpiresAt.HasValue
-                                    ? oauth2.Token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
-                                    : "N/A";
-                                string hasRefresh = oauth2.Token.RefreshToken is not null ? "[green]Yes[/]" : "[grey]No[/]";
-
-                                ShowTransientMessage(
-                                    $"Status: {status}\n" +
-                                    $"Token type: [blue]{Markup.Escape(oauth2.Token.TokenType)}[/]\n" +
-                                    $"Expires: [blue]{expiresDisplay}[/]\n" +
-                                    $"Refresh token: {hasRefresh}");
-                            }
-
-                            break;
-                        case AuthType.Custom:
-                            if (customAuth?.CachedValue is null)
-                            {
-                                ShowTransientMessage("[grey]No value fetched yet.[/]");
-                            }
-                            else
-                            {
-                                string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", customAuth.CachedValue);
-                                ShowTransientMessage(
-                                    $"Cached value: [blue]{Markup.Escape(customAuth.CachedValue)}[/]\n" +
-                                    $"Applied as: [blue]{Markup.Escape(customAuth.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
-                            }
-
-                            break;
-                    }
-
+                    OAuth2Token token = await authService.FetchTokenAsync(oauth2);
+                    oauth2.Token = token;
+                    string expiresDisplay = token.ExpiresAt.HasValue
+                        ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                        : "N/A";
+                    ShowTransientMessage(
+                        $"[green]Token fetched successfully![/]\n" +
+                        $"Type: [blue]{Markup.Escape(token.TokenType)}[/]\n" +
+                        $"Expires: [blue]{expiresDisplay}[/]");
                     break;
                 }
-                case actionClear:
+                case CustomAuthConfig customAuth:
                 {
-                    currentType = AuthType.None;
-                    bearerAuth = null;
-                    basicAuth = null;
-                    oauth2 = null;
-                    customAuth = null;
+                    string value = await authService.ExecuteCustomAuthAsync(customAuth);
+                    string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", value);
+                    ShowTransientMessage(
+                        $"[green]Value fetched successfully![/]\n" +
+                        $"Extracted: [blue]{Markup.Escape(value)}[/]\n" +
+                        $"Header: [blue]{Markup.Escape(customAuth.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
                     break;
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            ShowTransientMessage($"[red]Failed to fetch: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -850,14 +860,15 @@ internal static class RequestCommandHelpers
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.Scope)}[/]";
 
-            var choices = new List<string> { actionBack, actionGrant, actionTokenUrl, actionClientId, actionClientSecret, actionScope };
+            var choices = new List<string>
+                { actionBack, actionGrant, actionTokenUrl, actionClientId, actionClientSecret, actionScope };
 
             if (config.GrantType == OAuth2GrantType.AuthorizationCode)
             {
                 string authUrlDisplay = string.IsNullOrWhiteSpace(config.AuthorizationUrl)
                     ? "[grey]not set[/]"
                     : $"[blue]{Markup.Escape(config.AuthorizationUrl)}[/]";
-                string redirectDisplay = $"[blue]{Markup.Escape(config.RedirectUri)}[/]";
+                var redirectDisplay = $"[blue]{Markup.Escape(config.RedirectUri)}[/]";
                 string pkceDisplay = config.UsePkce
                     ? $"[green]Enabled[/] ({config.CodeChallengeMethod})"
                     : "[grey]Disabled[/]";
@@ -883,7 +894,10 @@ internal static class RequestCommandHelpers
                     .AddChoices(choices);
 
                 string? action = await PromptAsync(console, authCodePrompt);
-                if (action is null || action == actionBack) return;
+                if (action is null || action == actionBack)
+                {
+                    return;
+                }
 
                 await HandleOAuth2Action(console, config, action);
             }
@@ -916,7 +930,10 @@ internal static class RequestCommandHelpers
                     .AddChoices(choices);
 
                 string? action = await PromptAsync(console, passwordPrompt);
-                if (action is null || action == actionBack) return;
+                if (action is null || action == actionBack)
+                {
+                    return;
+                }
 
                 await HandleOAuth2Action(console, config, action);
             }
@@ -938,7 +955,10 @@ internal static class RequestCommandHelpers
                     .AddChoices(choices);
 
                 string? action = await PromptAsync(console, ccPrompt);
-                if (action is null || action == actionBack) return;
+                if (action is null || action == actionBack)
+                {
+                    return;
+                }
 
                 await HandleOAuth2Action(console, config, action);
             }
@@ -954,7 +974,7 @@ internal static class RequestCommandHelpers
             const string actionPrefix = "Prefix";
 
             string tokenDisplay = string.IsNullOrWhiteSpace(config.Token) ? "[grey]not set[/]" : "[blue]****[/]";
-            string prefixDisplay = $"[blue]{Markup.Escape(config.Prefix)}[/]";
+            var prefixDisplay = $"[blue]{Markup.Escape(config.Prefix)}[/]";
 
             SelectionPrompt<string> prompt = new SelectionPrompt<string>()
                 .Title("Bearer Auth")
@@ -969,14 +989,21 @@ internal static class RequestCommandHelpers
                 .AddChoices(actionBack, actionToken, actionPrefix);
 
             string? action = await PromptAsync(console, prompt);
-            if (action is null || action == actionBack) return;
+            if (action is null || action == actionBack)
+            {
+                return;
+            }
 
             switch (action)
             {
                 case actionToken:
                 {
                     string? value = await PromptAsync(console, new TextPrompt<string>("Token").Secret());
-                    if (value is not null) config.Token = value;
+                    if (value is not null)
+                    {
+                        config.Token = value;
+                    }
+
                     break;
                 }
                 case actionPrefix:
@@ -984,7 +1011,11 @@ internal static class RequestCommandHelpers
                     string? value = await PromptAsync(console,
                         new TextPrompt<string>("Prefix (e.g. Bearer, Token)")
                             .DefaultValue(config.Prefix));
-                    if (value is not null) config.Prefix = value;
+                    if (value is not null)
+                    {
+                        config.Prefix = value;
+                    }
+
                     break;
                 }
             }
@@ -1017,20 +1048,31 @@ internal static class RequestCommandHelpers
                 .AddChoices(actionBack, actionUsername, actionPassword);
 
             string? action = await PromptAsync(console, prompt);
-            if (action is null || action == actionBack) return;
+            if (action is null || action == actionBack)
+            {
+                return;
+            }
 
             switch (action)
             {
                 case actionUsername:
                 {
                     string? value = await PromptAsync(console, new TextPrompt<string>("Username"));
-                    if (value is not null) config.Username = value;
+                    if (value is not null)
+                    {
+                        config.Username = value;
+                    }
+
                     break;
                 }
                 case actionPassword:
                 {
                     string? value = await PromptAsync(console, new TextPrompt<string>("Password").Secret());
-                    if (value is not null) config.Password = value;
+                    if (value is not null)
+                    {
+                        config.Password = value;
+                    }
+
                     break;
                 }
             }
@@ -1055,7 +1097,7 @@ internal static class RequestCommandHelpers
             string urlDisplay = string.IsNullOrWhiteSpace(config.Url)
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.Url)}[/]";
-            string methodDisplay = $"[blue]{config.Method}[/]";
+            var methodDisplay = $"[blue]{config.Method}[/]";
             string headersDisplay = config.Headers.Count == 0 ? "[grey]none[/]" : $"[blue]{config.Headers.Count}[/]";
             string paramsDisplay = config.Params.Count == 0 ? "[grey]none[/]" : $"[blue]{config.Params.Count}[/]";
             string bodyDisplay = config.BodyType == BodyType.None
@@ -1072,8 +1114,8 @@ internal static class RequestCommandHelpers
             string expressionDisplay = string.IsNullOrWhiteSpace(config.ExtractionExpression)
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.ExtractionExpression)}[/]";
-            string headerNameDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderName)}[/]";
-            string templateDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderTemplate)}[/]";
+            var headerNameDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderName)}[/]";
+            var templateDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderTemplate)}[/]";
 
             SelectionPrompt<string> prompt = new SelectionPrompt<string>()
                 .Title("Custom Auth Configuration")
@@ -1096,7 +1138,10 @@ internal static class RequestCommandHelpers
                     actionSource, actionExpression, actionHeaderName, actionTemplate);
 
             string? action = await PromptAsync(console, prompt);
-            if (action is null || action == actionBack) return;
+            if (action is null || action == actionBack)
+            {
+                return;
+            }
 
             switch (action)
             {
@@ -1107,13 +1152,21 @@ internal static class RequestCommandHelpers
                             .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
                                 ? ValidationResult.Success()
                                 : ValidationResult.Error("Please enter a valid absolute URL.")));
-                    if (value is not null) config.Url = value;
+                    if (value is not null)
+                    {
+                        config.Url = value;
+                    }
+
                     break;
                 }
                 case actionMethod:
                 {
                     string? selected = await PromptMethodAsync(console);
-                    if (selected is not null) config.Method = selected;
+                    if (selected is not null)
+                    {
+                        config.Method = selected;
+                    }
+
                     break;
                 }
                 case actionHeaders:
@@ -1123,7 +1176,8 @@ internal static class RequestCommandHelpers
                     await EditKeyValuePairsAsync(console, "Auth params", config.Params);
                     break;
                 case actionBody:
-                    config.BodyType = await EditBodyAsync(console, config.Headers, config.Bodies, config.BodyType, CancellationToken.None);
+                    config.BodyType = await EditBodyAsync(console, config.Headers, config.Bodies, config.BodyType,
+                        CancellationToken.None);
                     break;
                 case actionSource:
                 {
@@ -1157,7 +1211,11 @@ internal static class RequestCommandHelpers
                             .Validate(v => string.IsNullOrWhiteSpace(v)
                                 ? ValidationResult.Error("Expression cannot be empty.")
                                 : ValidationResult.Success()));
-                    if (value is not null) config.ExtractionExpression = value;
+                    if (value is not null)
+                    {
+                        config.ExtractionExpression = value;
+                    }
+
                     break;
                 }
                 case actionHeaderName:
@@ -1168,7 +1226,11 @@ internal static class RequestCommandHelpers
                             .Validate(v => string.IsNullOrWhiteSpace(v)
                                 ? ValidationResult.Error("Header name cannot be empty.")
                                 : ValidationResult.Success()));
-                    if (value is not null) config.ApplyHeaderName = value;
+                    if (value is not null)
+                    {
+                        config.ApplyHeaderName = value;
+                    }
+
                     break;
                 }
                 case actionTemplate:
@@ -1179,7 +1241,11 @@ internal static class RequestCommandHelpers
                             .Validate(v => string.IsNullOrWhiteSpace(v)
                                 ? ValidationResult.Error("Template cannot be empty.")
                                 : ValidationResult.Success()));
-                    if (value is not null) config.ApplyHeaderTemplate = value;
+                    if (value is not null)
+                    {
+                        config.ApplyHeaderTemplate = value;
+                    }
+
                     break;
                 }
             }
@@ -1215,25 +1281,41 @@ internal static class RequestCommandHelpers
                         .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
                             ? ValidationResult.Success()
                             : ValidationResult.Error("Please enter a valid absolute URL.")));
-                if (value is not null) config.TokenUrl = value;
+                if (value is not null)
+                {
+                    config.TokenUrl = value;
+                }
+
                 break;
             }
             case "Client ID":
             {
                 string? value = await PromptAsync(console, new TextPrompt<string>("Client ID"));
-                if (value is not null) config.ClientId = value;
+                if (value is not null)
+                {
+                    config.ClientId = value;
+                }
+
                 break;
             }
             case "Client secret":
             {
                 string? value = await PromptAsync(console, new TextPrompt<string>("Client secret").Secret());
-                if (value is not null) config.ClientSecret = value;
+                if (value is not null)
+                {
+                    config.ClientSecret = value;
+                }
+
                 break;
             }
             case "Scope":
             {
                 string? value = await PromptAsync(console, new TextPrompt<string>("Scope").AllowEmpty());
-                if (value is not null) config.Scope = value;
+                if (value is not null)
+                {
+                    config.Scope = value;
+                }
+
                 break;
             }
             case "Authorization URL":
@@ -1243,7 +1325,11 @@ internal static class RequestCommandHelpers
                         .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
                             ? ValidationResult.Success()
                             : ValidationResult.Error("Please enter a valid absolute URL.")));
-                if (value is not null) config.AuthorizationUrl = value;
+                if (value is not null)
+                {
+                    config.AuthorizationUrl = value;
+                }
+
                 break;
             }
             case "Redirect URI":
@@ -1254,7 +1340,11 @@ internal static class RequestCommandHelpers
                         .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
                             ? ValidationResult.Success()
                             : ValidationResult.Error("Please enter a valid absolute URL.")));
-                if (value is not null) config.RedirectUri = value;
+                if (value is not null)
+                {
+                    config.RedirectUri = value;
+                }
+
                 break;
             }
             case "PKCE":
@@ -1285,13 +1375,21 @@ internal static class RequestCommandHelpers
             case "Username":
             {
                 string? value = await PromptAsync(console, new TextPrompt<string>("Username"));
-                if (value is not null) config.Username = value;
+                if (value is not null)
+                {
+                    config.Username = value;
+                }
+
                 break;
             }
             case "Password":
             {
                 string? value = await PromptAsync(console, new TextPrompt<string>("Password").Secret());
-                if (value is not null) config.Password = value;
+                if (value is not null)
+                {
+                    config.Password = value;
+                }
+
                 break;
             }
         }

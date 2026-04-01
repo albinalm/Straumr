@@ -6,9 +6,13 @@ namespace Straumr.Cli.Infrastructure;
 
 public sealed class StraumrTypeRegistrar(IServiceCollection services) : ITypeRegistrar
 {
-    public ITypeResolver Build() => new StraumrTypeResolver(services.BuildServiceProvider());
+    public ITypeResolver Build()
+    {
+        return new StraumrTypeResolver(services.BuildServiceProvider());
+    }
 
-    [UnconditionalSuppressMessage("AOT", "IL2067", Justification = "Types are registered at startup with known implementations")]
+    [UnconditionalSuppressMessage("AOT", "IL2067",
+        Justification = "Types are registered at startup with known implementations")]
     public void Register(Type service, Type implementation)
     {
         services.AddSingleton(service, implementation);
@@ -27,5 +31,8 @@ public sealed class StraumrTypeRegistrar(IServiceCollection services) : ITypeReg
 
 public sealed class StraumrTypeResolver(IServiceProvider provider) : ITypeResolver
 {
-    public object? Resolve(Type? type) => type == null ? null : provider.GetService(type);
+    public object? Resolve(Type? type)
+    {
+        return type == null ? null : provider.GetService(type);
+    }
 }

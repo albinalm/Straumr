@@ -1,6 +1,3 @@
 namespace Straumr.Core.Models;
 
-public class StraumrSecret
-{
-    
-}
+public class StraumrSecret { }

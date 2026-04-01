@@ -13,9 +13,6 @@ namespace Straumr.Core.Services;
 public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOptionsService optionsService)
     : IStraumrWorkspaceService
 {
-    private string WorkspacePath(Guid id) =>
-        Path.Combine(optionsService.Options.DefaultWorkspacePath, id.ToString(), id + ".straumr");
-
     public async Task Activate(string name)
     {
         StraumrWorkspaceEntry entry = await GetWorkspaceEntry(name);
@@ -62,7 +59,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         {
             if (Directory.Exists(extractPath))
             {
-                Directory.Delete(extractPath, recursive: true);
+                Directory.Delete(extractPath, true);
             }
         }
     }
@@ -104,20 +101,14 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         StraumrWorkspaceEntry entry = await GetWorkspaceEntry(identifier);
         string workspacePath = entry.Path;
         string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-        File.Copy(workspacePath, tempPath, overwrite: true);
+        File.Copy(workspacePath, tempPath, true);
         return tempPath;
     }
 
     public async Task ApplyEdit(string identifier, string tempPath)
     {
         StraumrWorkspaceEntry entry = await GetWorkspaceEntry(identifier);
-        File.Copy(tempPath, entry.Path, overwrite: true);
-    }
-
-    public async Task<string> GetWorkspaceName(string path)
-    {
-        StraumrWorkspace workspace = await PeekWorkspace(path);
-        return workspace.Name;
+        File.Copy(tempPath, entry.Path, true);
     }
 
     public async Task<StraumrWorkspace> GetWorkspace(string path)
@@ -168,6 +159,17 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         {
             throw new StraumrException("Workspace is corrupt", StraumrError.CorruptEntry, ex);
         }
+    }
+
+    private string WorkspacePath(Guid id)
+    {
+        return Path.Combine(optionsService.Options.DefaultWorkspacePath, id.ToString(), id + ".straumr");
+    }
+
+    public async Task<string> GetWorkspaceName(string path)
+    {
+        StraumrWorkspace workspace = await PeekWorkspace(path);
+        return workspace.Name;
     }
 
     private async Task<StraumrWorkspaceEntry> GetWorkspaceEntry(string identifier)

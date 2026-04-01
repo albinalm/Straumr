@@ -70,7 +70,7 @@ public class RequestListCommand(
             status = "[yellow]Missing[/]";
         }
 
-        return new RequestListEntry()
+        return new RequestListEntry
         {
             Request = request,
             Status = status

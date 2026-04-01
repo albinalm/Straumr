@@ -10,9 +10,5 @@ public class StraumrRequest : StraumrModelBase
     public Dictionary<string, string> Headers { get; set; } = new();
     public BodyType BodyType { get; set; } = BodyType.None;
     public Dictionary<BodyType, string> Bodies { get; set; } = new();
-    public AuthType AuthType { get; set; } = AuthType.None;
-    public BearerAuthConfig? BearerAuth { get; set; }
-    public BasicAuthConfig? BasicAuth { get; set; }
-    public OAuth2Config? OAuth2 { get; set; }
-    public CustomAuthConfig? CustomAuth { get; set; }
+    public StraumrAuthConfig? Auth { get; set; }
 }

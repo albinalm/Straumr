@@ -41,25 +41,24 @@ public static class ModelExtensions
 
         var message = new HttpRequestMessage(request.Method, uriBuilder.Uri);
 
-        switch (request.AuthType)
+        switch (request.Auth)
         {
-            case AuthType.Bearer when request.BearerAuth is { } bearer && !string.IsNullOrWhiteSpace(bearer.Token):
+            case BearerAuthConfig bearer when !string.IsNullOrWhiteSpace(bearer.Token):
                 message.Headers.Authorization = new AuthenticationHeaderValue(
                     string.IsNullOrWhiteSpace(bearer.Prefix) ? "Bearer" : bearer.Prefix, bearer.Token);
                 break;
-            case AuthType.Basic when request.BasicAuth is { } basic:
+            case BasicAuthConfig basic:
                 string credentials = Convert.ToBase64String(
                     Encoding.UTF8.GetBytes($"{basic.Username}:{basic.Password}"));
                 message.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
                 break;
-            case AuthType.OAuth2 when request.OAuth2?.Token is { } oauthToken
-                                      && !string.IsNullOrWhiteSpace(oauthToken.AccessToken):
+            case OAuth2Config { Token: { } oauthToken } when !string.IsNullOrWhiteSpace(oauthToken.AccessToken):
                 string scheme = string.IsNullOrWhiteSpace(oauthToken.TokenType) ? "Bearer" : oauthToken.TokenType;
                 message.Headers.Authorization = new AuthenticationHeaderValue(scheme, oauthToken.AccessToken);
                 break;
-            case AuthType.Custom when request.CustomAuth is { CachedValue: { } cachedValue }:
-                string headerValue = request.CustomAuth.ApplyHeaderTemplate.Replace("{{value}}", cachedValue);
-                message.Headers.TryAddWithoutValidation(request.CustomAuth.ApplyHeaderName, headerValue);
+            case CustomAuthConfig { CachedValue: { } cachedValue } custom:
+                string headerValue = custom.ApplyHeaderTemplate.Replace("{{value}}", cachedValue);
+                message.Headers.TryAddWithoutValidation(custom.ApplyHeaderName, headerValue);
                 break;
         }
 

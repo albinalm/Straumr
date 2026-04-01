@@ -14,20 +14,6 @@ public class StraumrFileService : IStraumrFileService
         await WriteInternal(path, value, typeInfo, true);
     }
 
-    private async Task WriteInternal<T>(string path, T value, JsonTypeInfo<T> typeInfo, bool updateModify)
-        where T : StraumrModelBase
-    {
-        EnsureDirectoryExists(path);
-
-        if (updateModify)
-        {
-            value.Modified = DateTimeOffset.UtcNow;
-        }
-
-        string json = JsonSerializer.Serialize(value, typeInfo);
-        await File.WriteAllTextAsync(path, json);
-    }
-
     public async Task<T> ReadStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
     {
         string json = await File.ReadAllTextAsync(path);
@@ -45,6 +31,35 @@ public class StraumrFileService : IStraumrFileService
                throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
     }
 
+    public async Task WriteGeneric<T>(string path, T value, JsonTypeInfo<T> typeInfo)
+    {
+        EnsureDirectoryExists(path);
+
+        string json = JsonSerializer.Serialize(value, typeInfo);
+        await File.WriteAllTextAsync(path, json);
+    }
+
+    public async Task<T> ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo)
+    {
+        string json = await File.ReadAllTextAsync(path);
+        return JsonSerializer.Deserialize(json, typeInfo) ??
+               throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
+    }
+
+    private async Task WriteInternal<T>(string path, T value, JsonTypeInfo<T> typeInfo, bool updateModify)
+        where T : StraumrModelBase
+    {
+        EnsureDirectoryExists(path);
+
+        if (updateModify)
+        {
+            value.Modified = DateTimeOffset.UtcNow;
+        }
+
+        string json = JsonSerializer.Serialize(value, typeInfo);
+        await File.WriteAllTextAsync(path, json);
+    }
+
     private void EnsureDirectoryExists(string path)
     {
         string? dir = Path.GetDirectoryName(path);
@@ -52,19 +67,5 @@ public class StraumrFileService : IStraumrFileService
         {
             Directory.CreateDirectory(dir);
         }
-    }
-    public async Task WriteGeneric<T>(string path, T value, JsonTypeInfo<T> typeInfo)
-    {
-        EnsureDirectoryExists(path);
-        
-        string json = JsonSerializer.Serialize(value, typeInfo);
-        await File.WriteAllTextAsync(path, json);
-    }
-    
-    public async Task<T> ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo)
-    {
-        string json = await File.ReadAllTextAsync(path);
-        return JsonSerializer.Deserialize(json, typeInfo) ??
-                         throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
     }
 }
