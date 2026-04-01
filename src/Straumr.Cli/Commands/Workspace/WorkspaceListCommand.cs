@@ -76,13 +76,14 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
             Workspace = workspace,
             Entry = entry,
             Status = status,
-            LastAccessed = workspace?.LastAccessed
+            LastAccessed = workspace?.LastAccessed,
+            IsCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id
         };
     }
 
     private class WorkspaceListEntry
     {
-        public bool IsCurrent => Entry.Id == Workspace?.Id;
+        public bool IsCurrent { get; init; }
         public StraumrWorkspace? Workspace { get; init; }
         public required StraumrWorkspaceEntry Entry { get; init; }
         public required string Status { get; init; }

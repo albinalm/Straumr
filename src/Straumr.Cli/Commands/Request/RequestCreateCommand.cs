@@ -362,7 +362,9 @@ public class RequestCreateCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name>")] public required string Name { get; set; }
+        [CommandArgument(0, "<Name>")]
+        [Description("Name of the request to create")]
+        public required string Name { get; set; }
 
         [CommandArgument(1, "[Url]")]
         [Description("Request URL. When provided, creates the request directly without interactive prompts.")]
@@ -396,7 +398,9 @@ public class RequestCreateCommand(
         [Description("Disable automatic auth token renewal")]
         public bool NoAutoRenew { get; set; }
 
-        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
+        [CommandOption("-e|--editor")]
+        [Description("Open the request in the default editor instead of interactive prompts")]
+        public bool UseEditor { get; set; }
     }
 
     private sealed class CreateRequestState(string name)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
@@ -256,8 +257,13 @@ public class AuthEditCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the auth template to edit")]
+        public required string Identifier { get; set; }
+
+        [CommandOption("-e|--editor")]
+        [Description("Open the auth template in the default editor instead of interactive prompts")]
+        public bool UseEditor { get; set; }
     }
 
     private sealed class EditableAuthTemplateState

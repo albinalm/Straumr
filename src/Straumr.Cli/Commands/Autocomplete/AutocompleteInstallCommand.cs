@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -178,8 +179,12 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
 
     public sealed class Settings : CommandSettings
     {
-        [CommandOption("-s|--shell")] public ShellKind? Shell { get; set; }
+        [CommandOption("-s|--shell")]
+        [Description("Shell to install autocomplete for (zsh, bash, pwsh)")]
+        public ShellKind? Shell { get; set; }
 
-        [CommandOption("-a|--alias")] public string[] Aliases { get; set; } = [];
+        [CommandOption("-a|--alias")]
+        [Description("Additional aliases to register for autocomplete")]
+        public string[] Aliases { get; set; } = [];
     }
 }

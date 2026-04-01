@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -317,8 +318,13 @@ public class RequestEditCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-e|--editor")] public bool UseEditor { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the request to edit")]
+        public required string Identifier { get; set; }
+
+        [CommandOption("-e|--editor")]
+        [Description("Open the request in the default editor instead of interactive prompts")]
+        public bool UseEditor { get; set; }
     }
 
     private sealed class EditableRequestState

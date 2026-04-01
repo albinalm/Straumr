@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Enums;
@@ -127,7 +128,12 @@ public class AuthGetCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-j|--json")] public bool Json { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the auth template to get")]
+        public required string Identifier { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the auth template as raw JSON")]
+        public bool Json { get; set; }
     }
 }

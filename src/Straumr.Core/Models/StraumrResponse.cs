@@ -17,4 +17,6 @@ public class StraumrResponse
 
     public IReadOnlyDictionary<string, IEnumerable<string>> RequestHeaders { get; internal set; } =
         new Dictionary<string, IEnumerable<string>>();
+
+    public IReadOnlyList<string> Warnings { get; internal set; } = [];
 }

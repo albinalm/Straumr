@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Services.Interfaces;
@@ -18,6 +19,8 @@ public class WorkspaceActivateCommand(IStraumrWorkspaceService workspaceService)
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the workspace to activate")]
+        public required string Identifier { get; set; }
     }
 }

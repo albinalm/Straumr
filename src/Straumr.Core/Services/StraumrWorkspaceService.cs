@@ -15,15 +15,14 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 {
     public async Task Activate(string name)
     {
-        StraumrWorkspace workspace = await GetWorkspace(name);
-        StraumrWorkspaceEntry entry = GetWorkspaceEntry(workspace.Id);
+        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(name);
         optionsService.Options.CurrentWorkspace = entry;
         await optionsService.Save();
     }
 
-    public async Task Create(StraumrWorkspace workspace)
+    public async Task Create(StraumrWorkspace workspace, string? outputDir = null)
     {
-        string fullPath = WorkspacePath(workspace.Id);
+        string fullPath = WorkspacePath(workspace.Id, outputDir);
         await EnsureNoConflict(workspace.Name, fullPath);
 
         await fileService.WriteStraumrModel(fullPath, workspace, StraumrJsonContext.Default.StraumrWorkspace);
@@ -67,8 +66,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         try
         {
-            StraumrWorkspace workspace = await GetWorkspace(identifier);
-            StraumrWorkspaceEntry entry = GetWorkspaceEntry(workspace.Id);
+            StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(identifier);
 
             DeleteDirectory(Path.GetDirectoryName(entry.Path));
             optionsService.Options.Workspaces.Remove(entry);
@@ -86,8 +84,8 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         EnsureValidOutputDirectory(outputDir);
 
-        StraumrWorkspace workspace = await GetWorkspace(workspaceIdentifier);
-        StraumrWorkspaceEntry entry = GetWorkspaceEntry(workspace.Id);
+        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(workspaceIdentifier);
+        StraumrWorkspace workspace = await PeekWorkspace(entry.Path);
         string directoryName = GetWorkspaceDirectory(entry);
 
         string fullPath = Path.Combine(outputDir, workspace.Name.ToFileName() + ".straumrpak");
@@ -98,19 +96,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
     public async Task<string> PrepareEdit(string identifier)
     {
-        StraumrWorkspaceEntry? entry = null;
-        
-        if (Guid.TryParse(identifier, out Guid guid) && optionsService.Options.Workspaces.Any(x => x.Id == guid))
-        {
-            entry = GetWorkspaceEntry(guid);
-        }
-
-        if (entry is null)
-        {
-            StraumrWorkspace workspace = await GetWorkspace(identifier);
-            entry =  GetWorkspaceEntry(workspace.Id);
-        }
-        
+        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(identifier);
         string workspacePath = entry.Path;
         string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
         File.Copy(workspacePath, tempPath, true);
@@ -119,19 +105,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
     public async Task ApplyEdit(string identifier, string tempPath)
     {
-        StraumrWorkspaceEntry? entry = null;
-        
-        if (Guid.TryParse(identifier, out Guid guid) && optionsService.Options.Workspaces.Any(x => x.Id == guid))
-        {
-            entry = GetWorkspaceEntry(guid);
-        }
-
-        if (entry is null)
-        {
-            StraumrWorkspace workspace = await GetWorkspace(identifier);
-            entry =  GetWorkspaceEntry(workspace.Id);
-        }
-        
+        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(identifier);
         File.Copy(tempPath, entry.Path, true);
     }
 
@@ -185,9 +159,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         }
     }
 
-    private string WorkspacePath(Guid id)
+    private string WorkspacePath(Guid id, string? outputDir = null)
     {
-        return Path.Combine(optionsService.Options.DefaultWorkspacePath, id.ToString(), id + ".straumr");
+        string workspaceRoot = GetWorkspaceRoot(outputDir);
+        return Path.Combine(workspaceRoot, id.ToString(), id + ".straumr");
     }
 
     public async Task<string> GetWorkspaceName(string path)
@@ -208,6 +183,31 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         }
 
         throw new StraumrException($"No workspace found with the name: {id}",
+            StraumrError.EntryNotFound);
+    }
+
+    private async Task<StraumrWorkspaceEntry> ResolveWorkspaceEntryAsync(string identifier)
+    {
+        if (Guid.TryParse(identifier, out Guid guid) && optionsService.Options.Workspaces.Any(x => x.Id == guid))
+        {
+            return GetWorkspaceEntry(guid);
+        }
+
+        foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces.Where(entry => File.Exists(entry.Path)))
+        {
+            try
+            {
+                StraumrWorkspace workspace = await PeekWorkspace(entry.Path);
+                if (string.Equals(workspace.Name, identifier, StringComparison.OrdinalIgnoreCase))
+                {
+                    return entry;
+                }
+            }
+            catch (StraumrException) { }
+        }
+
+        throw new StraumrException(
+            $"A workspace was not found using the key {identifier}. Try again using the ID instead.",
             StraumrError.EntryNotFound);
     }
 
@@ -236,7 +236,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         string extractedWorkspacePath = ValidateExtractedArchive(extractPath);
         Guid workspaceId = await ReadPakFile(extractPath);
 
-        string destinationPath = Path.Combine(optionsService.Options.DefaultWorkspacePath, workspaceId.ToString());
+        string destinationPath = Path.Combine(GetWorkspaceRoot(), workspaceId.ToString());
         if (Directory.Exists(destinationPath))
         {
             throw new StraumrException("A workspace with this id already exists",
@@ -313,6 +313,19 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         {
             Directory.CreateDirectory(outputDir);
         }
+    }
+
+    private string GetWorkspaceRoot(string? outputDir = null)
+    {
+        if (!string.IsNullOrWhiteSpace(outputDir))
+        {
+            return outputDir;
+        }
+
+        return optionsService.Options.DefaultWorkspacePath
+            ?? throw new StraumrException(
+                "No default workspace path configured. Use '-o <path>' to specify an output directory or 'config workspace-path <path>'",
+                StraumrError.MissingEntry);
     }
 
     private static string GetWorkspaceDirectory(StraumrWorkspaceEntry entry)

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Services.Interfaces;
@@ -17,6 +18,8 @@ public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService)
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Path>")] public required string Path { get; set; }
+        [CommandArgument(0, "<Path>")]
+        [Description("Path to the workspace file to import")]
+        public required string Path { get; set; }
     }
 }

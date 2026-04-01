@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Services.Interfaces;
@@ -18,9 +19,12 @@ public class WorkspaceExportCommand(IStraumrWorkspaceService workspaceService)
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Workspace { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the workspace to export")]
+        public required string Workspace { get; set; }
 
         [CommandArgument(1, "<Output folder>")]
+        [Description("Path to the folder where the exported file will be saved")]
         public required string OutputPath { get; set; }
     }
 }

@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Compute version
+        id: meta
+        shell: bash
+        run: |
+          DATE_UTC="$(date -u '+%Y.%-m.%-d')"
+          VERSION="${DATE_UTC}.${GITHUB_RUN_NUMBER}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            artifact_ext: zip
+          - rid: linux-x64
+            os: ubuntu-latest
+            artifact_ext: tar.gz
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          dotnet publish src/Straumr.Cli/Straumr.Cli.csproj \
+            -c Release -r ${{ matrix.rid }} \
+            -o artifacts/${{ matrix.rid }} \
+            /p:AssemblyName=straumr \
+            /p:Version=${VERSION} \
+            /p:FileVersion=${VERSION} \
+            /p:InformationalVersion=${VERSION}
+
+          mkdir -p dist
+          tar -C artifacts/${{ matrix.rid }} -czf dist/straumr-${VERSION}-${{ matrix.rid }}.tar.gz straumr
+
+      - name: Publish (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet publish src/Straumr.Cli/Straumr.Cli.csproj `
+            -c Release -r ${{ matrix.rid }} `
+            -o artifacts/${{ matrix.rid }} `
+            /p:AssemblyName=straumr `
+            /p:Version=${env:VERSION} `
+            /p:FileVersion=${env:VERSION} `
+            /p:InformationalVersion=${env:VERSION}
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path artifacts/${{ matrix.rid }}/straumr.exe -DestinationPath dist/straumr-${env:VERSION}-${{ matrix.rid }}.zip
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.rid }}
+          path: dist/*
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Install minisign
+        run: sudo apt-get update && sudo apt-get install -y minisign
+
+      - name: Create signatures and checksums
+        shell: bash
+        env:
+          MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+        run: |
+          if [ -z "$MINISIGN_PRIVATE_KEY" ]; then
+            echo "Missing MINISIGN_PRIVATE_KEY secret" >&2
+            exit 1
+          fi
+
+          echo "$MINISIGN_PRIVATE_KEY" > minisign.key
+          chmod 600 minisign.key
+
+          (cd dist && sha256sum * > sha256sums.txt)
+
+          for file in dist/*; do
+            if [ -f "$file" ]; then
+              minisign -S -s minisign.key -m "$file" -x "${file}.minisig"
+            fi
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          generate_release_notes: true
+          files: |
+            dist/*
+            dist/*.minisig
+            dist/sha256sums.txt
+
+  winget:
+    needs: [version, release]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PACKAGE_ID: AlbinAlm.Straumr
+    steps:
+      - name: Download wingetcreate
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://aka.ms/wingetcreate/latest" -OutFile "wingetcreate.exe"
+
+      - name: Submit Winget update
+        shell: pwsh
+        env:
+          WINGET_PAT: ${{ secrets.WINGET_PAT }}
+        run: |
+          if (-not $env:WINGET_PAT) { throw "Missing WINGET_PAT secret" }
+
+          $url = "https://github.com/albinalm/straumr/releases/download/v$env:VERSION/straumr-$env:VERSION-win-x64.zip"
+          .\wingetcreate.exe update $env:PACKAGE_ID -v $env:VERSION -u $url -t $env:WINGET_PAT --submit

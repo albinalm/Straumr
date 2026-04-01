@@ -5,26 +5,17 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Services.Interfaces;
 
-namespace Straumr.Cli.Commands.Auth;
+namespace Straumr.Cli.Commands.Secret;
 
-public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAuthTemplateService templateService)
-    : AsyncCommand<AuthDeleteCommand.Settings>
+public class SecretDeleteCommand(IStraumrSecretService secretService) : AsyncCommand<SecretDeleteCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
-
-        if (!hasWorkspace)
-        {
-            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
-                StraumrError.MissingEntry);
-        }
-
         try
         {
-            await templateService.DeleteAsync(settings.Identifier);
-            AnsiConsole.MarkupLine($"[green]Deleted auth preset[/] [bold]{settings.Identifier}[/]");
+            await secretService.DeleteAsync(settings.Identifier);
+            AnsiConsole.MarkupLine($"[green]Deleted secret[/] [bold]{settings.Identifier}[/]");
             return 0;
         }
         catch (StraumrException ex)
@@ -42,7 +33,7 @@ public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAu
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")]
-        [Description("Name or ID of the auth template to delete")]
+        [Description("Name or ID of the secret to delete")]
         public required string Identifier { get; set; }
     }
 }

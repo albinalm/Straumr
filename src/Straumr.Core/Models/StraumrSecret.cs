@@ -1,3 +1,6 @@
 namespace Straumr.Core.Models;
 
-public class StraumrSecret { }
+public class StraumrSecret : StraumrModelBase
+{
+    public required string Value { get; set; }
+}

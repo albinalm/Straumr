@@ -566,7 +566,7 @@ internal static class AuthCommandHelpers
             case "Token URL":
             {
                 TextPrompt<string> valuePrompt = new TextPrompt<string>("Token URL")
-                    .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
+                    .Validate(v => IsValidAbsoluteUrl(v)
                         ? ValidationResult.Success()
                         : ValidationResult.Error("Enter a valid absolute URL."));
                 string? value = await PromptTextAsync(console, valuePrompt, config.TokenUrl);
@@ -618,7 +618,7 @@ internal static class AuthCommandHelpers
             case "Authorization URL":
             {
                 TextPrompt<string> valuePrompt = new TextPrompt<string>("Authorization URL")
-                    .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
+                    .Validate(v => IsValidAbsoluteUrl(v)
                         ? ValidationResult.Success()
                         : ValidationResult.Error("Enter a valid absolute URL."));
                 string? value = await PromptTextAsync(console, valuePrompt, config.AuthorizationUrl);
@@ -632,7 +632,7 @@ internal static class AuthCommandHelpers
             case "Redirect URI":
             {
                 TextPrompt<string> valuePrompt = new TextPrompt<string>("Redirect URI")
-                    .Validate(v => Uri.TryCreate(v, UriKind.Absolute, out _)
+                    .Validate(v => IsValidAbsoluteUrl(v)
                         ? ValidationResult.Success()
                         : ValidationResult.Error("Enter a valid absolute URL."));
                 string? value = await PromptTextAsync(console, valuePrompt, config.RedirectUri);

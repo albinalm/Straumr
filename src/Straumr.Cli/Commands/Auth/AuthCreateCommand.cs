@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
@@ -137,7 +138,9 @@ public class AuthCreateCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name>")] public required string Name { get; set; }
+        [CommandArgument(0, "<Name>")]
+        [Description("Name of the auth template to create")]
+        public required string Name { get; set; }
     }
 
     private sealed class CreateAuthTemplateState(string name)

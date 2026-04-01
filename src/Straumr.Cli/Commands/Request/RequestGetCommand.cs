@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Enums;
@@ -84,10 +85,13 @@ public class RequestGetCommand(
         }
 
         StraumrRequest? request = null;
+        string? resolvedUrl = null;
+        IReadOnlyList<string> warnings = [];
         string status;
         try
         {
             request = await requestService.PeekByIdAsync(foundId.Value);
+            (resolvedUrl, warnings) = await requestService.ResolveUrlAsync(request);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
@@ -109,7 +113,7 @@ public class RequestGetCommand(
         table.AddRow("[grey]Name[/]", request is not null ? $"[bold]{Markup.Escape(request.Name)}[/]" : "[grey]N/A[/]");
         table.AddRow("[grey]Method[/]",
             request is not null ? $"[blue]{Markup.Escape(request.Method.ToString())}[/]" : "[grey]N/A[/]");
-        table.AddRow("[grey]URI[/]", request is not null ? Markup.Escape(request.Uri) : "[grey]N/A[/]");
+        table.AddRow("[grey]URI[/]", request is not null ? Markup.Escape(resolvedUrl ?? request.Uri) : "[grey]N/A[/]");
         table.AddRow("[grey]Auth[/]", AuthDisplayName(request?.Auth));
         table.AddRow("[grey]Headers[/]", request?.Headers.Count.ToString() ?? "[grey]N/A[/]");
         table.AddRow("[grey]Params[/]", request?.Params.Count.ToString() ?? "[grey]N/A[/]");
@@ -127,12 +131,23 @@ public class RequestGetCommand(
             .Padding(1, 0);
 
         AnsiConsole.Write(panel);
+
+        foreach (string warning in warnings)
+        {
+            AnsiConsole.MarkupLine($"\n[yellow]Warning:[/] {Markup.Escape(warning)}");
+        }
+
         return request is not null ? 0 : 1;
     }
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-j|--json")] public bool Json { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the request to get")]
+        public required string Identifier { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the request as raw JSON")]
+        public bool Json { get; set; }
     }
 }

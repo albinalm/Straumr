@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Spectre.Console;
 using Straumr.Cli.Console;
 using Straumr.Core.Enums;
@@ -8,14 +9,27 @@ namespace Straumr.Cli.Helpers;
 
 internal static class HttpCommandHelpers
 {
+    private static readonly Regex SecretPattern = new(@"\{\{secret:[^}]+\}\}", RegexOptions.Compiled);
+
     internal static async Task<string?> PromptUrlAsync(EscapeCancellableConsole console, string? current = null)
     {
         TextPrompt<string> prompt = new TextPrompt<string>("URL")
-            .Validate(value => Uri.TryCreate(value, UriKind.Absolute, out _)
+            .Validate(value => IsValidAbsoluteUrl(value)
                 ? ValidationResult.Success()
                 : ValidationResult.Error("Please enter a valid absolute URL."));
 
         return await PromptTextAsync(console, prompt, current);
+    }
+
+    internal static bool IsValidAbsoluteUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        string normalized = SecretPattern.Replace(value, "secret");
+        return Uri.TryCreate(normalized, UriKind.Absolute, out _);
     }
 
     internal static async Task<string?> PromptMethodAsync(EscapeCancellableConsole console)

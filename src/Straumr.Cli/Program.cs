@@ -5,7 +5,9 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Commands.Auth;
 using Straumr.Cli.Commands.Autocomplete;
+using Straumr.Cli.Commands.Config;
 using Straumr.Cli.Commands.Request;
+using Straumr.Cli.Commands.Secret;
 using Straumr.Cli.Commands.Workspace;
 using Straumr.Cli.Infrastructure;
 using Straumr.Core.Services;
@@ -39,6 +41,7 @@ internal class Program
         services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
         services.AddSingleton<IStraumrAuthTemplateService, StraumrAuthTemplateService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
+        services.AddSingleton<IStraumrSecretService, StraumrSecretService>();
 
         // Required for Spectre.Console.Cli to resolve the default settings type under Native AOT.
         services.AddSingleton<EmptyCommandSettings>();
@@ -74,6 +77,18 @@ internal class Program
                 auth.AddCommand<AuthListCommand>("list");
                 auth.AddCommand<AuthDeleteCommand>("delete");
                 auth.AddCommand<AuthGetCommand>("get");
+            });
+            config.AddBranch("secret", secret =>
+            {
+                secret.AddCommand<SecretCreateCommand>("create");
+                secret.AddCommand<SecretEditCommand>("edit");
+                secret.AddCommand<SecretListCommand>("list");
+                secret.AddCommand<SecretDeleteCommand>("delete");
+                secret.AddCommand<SecretGetCommand>("get");
+            });
+            config.AddBranch("config", branch =>
+            {
+                branch.AddCommand<ConfigWorkspacePathCommand>("workspace-path");
             });
             config.AddBranch("autocomplete", autocomplete =>
             {

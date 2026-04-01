@@ -6,6 +6,7 @@ namespace Straumr.Core.Configuration;
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(StraumrWorkspace))]
 [JsonSerializable(typeof(StraumrRequest))]
+[JsonSerializable(typeof(StraumrSecret))]
 [JsonSerializable(typeof(StraumrAuthTemplate))]
 [JsonSerializable(typeof(StraumrOptions))]
 [JsonSerializable(typeof(StraumrAuthConfig))]

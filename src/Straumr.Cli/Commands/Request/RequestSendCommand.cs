@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
@@ -81,6 +82,14 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
             else
             {
                 System.Console.Write(content);
+            }
+
+            if (!settings.Silent)
+            {
+                foreach (string warning in response.Warnings)
+                {
+                    AnsiConsole.MarkupLine($"\n[yellow]Warning:[/] {Markup.Escape(warning)}");
+                }
             }
 
             if (settings.Fail && response.StatusCode is not null && (int)response.StatusCode.Value >= 400)
@@ -345,15 +354,44 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
-        [CommandOption("-v")] public bool Verbose { get; set; }
-        [CommandOption("-p|--pretty")] public bool Pretty { get; set; }
-        [CommandOption("-b|--beautify")] public bool Beautify { get; set; }
-        [CommandOption("-k|--insecure")] public bool Insecure { get; set; }
-        [CommandOption("-L|--location")] public bool FollowRedirects { get; set; }
-        [CommandOption("-o|--output")] public string? OutputFile { get; set; }
-        [CommandOption("-f|--fail")] public bool Fail { get; set; }
-        [CommandOption("-i|--include")] public bool IncludeHeaders { get; set; }
-        [CommandOption("-s|--silent")] public bool Silent { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the request to send")]
+        public required string Identifier { get; set; }
+
+        [CommandOption("-v")]
+        [Description("Show verbose output including request details")]
+        public bool Verbose { get; set; }
+
+        [CommandOption("-p|--pretty")]
+        [Description("Format the response body for readability")]
+        public bool Pretty { get; set; }
+
+        [CommandOption("-b|--beautify")]
+        [Description("Beautify JSON or XML response body")]
+        public bool Beautify { get; set; }
+
+        [CommandOption("-k|--insecure")]
+        [Description("Allow insecure SSL/TLS connections")]
+        public bool Insecure { get; set; }
+
+        [CommandOption("-L|--location")]
+        [Description("Follow HTTP redirects")]
+        public bool FollowRedirects { get; set; }
+
+        [CommandOption("-o|--output")]
+        [Description("Write response body to file at the given path")]
+        public string? OutputFile { get; set; }
+
+        [CommandOption("-f|--fail")]
+        [Description("Exit with a non-zero code on HTTP error responses (4xx/5xx)")]
+        public bool Fail { get; set; }
+
+        [CommandOption("-i|--include")]
+        [Description("Include response headers in the output")]
+        public bool IncludeHeaders { get; set; }
+
+        [CommandOption("-s|--silent")]
+        [Description("Suppress all output")]
+        public bool Silent { get; set; }
     }
 }

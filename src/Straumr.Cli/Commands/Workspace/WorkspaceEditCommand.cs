@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -57,6 +58,8 @@ public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name or ID>")] public required string Identifier { get; set; }
+        [CommandArgument(0, "<Name or ID>")]
+        [Description("Name or ID of the workspace to edit")]
+        public required string Identifier { get; set; }
     }
 }

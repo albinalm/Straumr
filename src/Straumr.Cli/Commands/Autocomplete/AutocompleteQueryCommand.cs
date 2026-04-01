@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Spectre.Console.Cli;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -163,7 +164,9 @@ public class AutocompleteQueryCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Query>")] public required string Query { get; set; }
+        [CommandArgument(0, "<Query>")]
+        [Description("Current command line to complete")]
+        public required string Query { get; set; }
     }
 }
 
