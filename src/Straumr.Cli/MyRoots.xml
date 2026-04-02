@@ -1,5 +1,5 @@
 <linker>
-    <assembly fullname="Straumr.Cli"/>
+    <assembly fullname="straumr"/>
     <assembly fullname="Spectre.Console.Cli">
         <type fullname="Spectre.Console.Cli.EmptyCommandSettings"/>
         <type fullname="Spectre.Console.Cli.ExplainCommand"/>

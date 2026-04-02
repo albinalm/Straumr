@@ -9,6 +9,10 @@
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>true</SelfContained>
         <PublishAot>true</PublishAot>
+        <ApplicationIcon>icon.ico</ApplicationIcon>
+        <Company>Albin Alm</Company>
+        <Product>Straumr</Product>
+        <AssemblyName>straumr</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
