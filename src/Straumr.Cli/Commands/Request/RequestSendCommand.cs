@@ -164,7 +164,7 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
     private static void RenderPrettySummary(StraumrRequest request, StraumrResponse response)
     {
         Table table = new Table()
-            .Border(TableBorder.Rounded)
+            .Border(TableBorder.Square)
             .BorderColor(Color.Blue)
             .Expand();
 
@@ -214,7 +214,7 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
     private static void RenderPrettyVerbose(StraumrRequest request, StraumrResponse response)
     {
         Table table = new Table()
-            .Border(TableBorder.Rounded)
+            .Border(TableBorder.Square)
             .BorderColor(Color.Blue)
             .Expand();
         table.AddColumn("[bold]Request[/]");

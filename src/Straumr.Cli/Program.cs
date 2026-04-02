@@ -106,7 +106,7 @@ internal class Program
             string version = assembly.GetName().Version?.ToString() ?? "unknown";
 
             Panel infoPanel = new Panel(new Markup($"[bold]Version:[/] {Markup.Escape(version)}"))
-                .Border(BoxBorder.Rounded)
+                .Border(BoxBorder.Square)
                 .BorderColor(Color.Green)
                 .Expand();
 

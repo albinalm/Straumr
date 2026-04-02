@@ -126,25 +126,3 @@ jobs:
             dist/*
             dist/*.minisig
             dist/sha256sums.txt
-
-  winget:
-    needs: [version, release]
-    runs-on: windows-latest
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
-      PACKAGE_ID: AlbinAlm.Straumr
-    steps:
-      - name: Download wingetcreate
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://aka.ms/wingetcreate/latest" -OutFile "wingetcreate.exe"
-
-      - name: Submit Winget update
-        shell: pwsh
-        env:
-          WINGET_PAT: ${{ secrets.WINGET_PAT }}
-        run: |
-          if (-not $env:WINGET_PAT) { throw "Missing WINGET_PAT secret" }
-
-          $url = "https://github.com/albinalm/straumr/releases/download/v$env:VERSION/straumr-$env:VERSION-win-x64.zip"
-          .\wingetcreate.exe update $env:PACKAGE_ID -v $env:VERSION -u $url -t $env:WINGET_PAT --submit
