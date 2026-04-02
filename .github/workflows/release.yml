@@ -110,7 +110,7 @@ jobs:
 
           for file in dist/*; do
             if [ -f "$file" ]; then
-              minisign -S -s minisign.key -m "$file" -x "${file}.minisig"
+              echo "" | minisign -S -s minisign.key -m "$file" -x "${file}.minisig"
             fi
           done
 
