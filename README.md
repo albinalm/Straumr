@@ -31,7 +31,7 @@ Attach an auth template to a request and it's applied automatically on send. OAu
 
 **Secrets**
 
-Store API keys, tokens, and other sensitive values as named secrets. Reference them in request URLs, headers, body, or auth templates using `${SECRET_NAME}`. Secrets are global across all workspaces.
+Store API keys, tokens, and other sensitive values as named secrets. Reference them in request URLs, headers, body, or auth templates using `{{secret:<name>}}`. Secrets are global across all workspaces.
 
 **Shell completion**
 
