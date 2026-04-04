@@ -22,7 +22,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
     public async Task Create(StraumrWorkspace workspace, string? outputDir = null)
     {
-        string fullPath = WorkspacePath(workspace.Id, outputDir);
+        string fullPath = WorkspacePath(workspace.Id, workspace.Name, outputDir);
         await EnsureNoConflict(workspace.Name, fullPath);
 
         await fileService.WriteStraumrModel(fullPath, workspace, StraumrJsonContext.Default.StraumrWorkspace);
@@ -78,6 +78,43 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
                 $"A workspace was not found using the key {identifier}. Try again using the ID instead.",
                 StraumrError.EntryNotFound);
         }
+    }
+
+    public async Task Copy(string identifier, string newName, string? outputDir = null)
+    {
+        StraumrWorkspaceEntry sourceEntry = await ResolveWorkspaceEntryAsync(identifier);
+        StraumrWorkspace sourceWorkspace = await GetWorkspace(sourceEntry.Path);
+
+        var newWorkspace = new StraumrWorkspace
+        {
+            Name = newName,
+            Requests = sourceWorkspace.Requests,
+            AuthTemplates = sourceWorkspace.AuthTemplates,
+            Secrets = sourceWorkspace.Secrets
+        };
+
+        string newFullPath = WorkspacePath(newWorkspace.Id, newName, outputDir);
+        await EnsureNoConflict(newName, newFullPath);
+
+        string sourceDir = GetWorkspaceDirectory(sourceEntry);
+        string destDir = Path.GetDirectoryName(newFullPath)!;
+        Directory.CreateDirectory(destDir);
+
+        foreach (string file in Directory.EnumerateFiles(sourceDir))
+        {
+            if (Path.GetExtension(file).Equals(".straumr", StringComparison.OrdinalIgnoreCase))
+                continue;
+            File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)));
+        }
+
+        await fileService.WriteStraumrModel(newFullPath, newWorkspace, StraumrJsonContext.Default.StraumrWorkspace);
+
+        optionsService.Options.Workspaces.Add(new StraumrWorkspaceEntry
+        {
+            Id = newWorkspace.Id,
+            Path = newFullPath
+        });
+        await optionsService.Save();
     }
 
     public async Task<string> Export(string workspaceIdentifier, string outputDir)
@@ -159,10 +196,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         }
     }
 
-    private string WorkspacePath(Guid id, string? outputDir = null)
+    private string WorkspacePath(Guid id, string name, string? outputDir = null)
     {
         string workspaceRoot = GetWorkspaceRoot(outputDir);
-        return Path.Combine(workspaceRoot, id.ToString(), id + ".straumr");
+        return Path.Combine(workspaceRoot, name.ToFileName(), id + ".straumr");
     }
 
     public async Task<string> GetWorkspaceName(string path)
@@ -234,12 +271,12 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     private async Task ImportExtractedWorkspace(string extractPath)
     {
         string extractedWorkspacePath = ValidateExtractedArchive(extractPath);
-        Guid workspaceId = await ReadPakFile(extractPath);
+        (Guid workspaceId, string workspaceName) = await ReadPakData(extractPath);
 
-        string destinationPath = Path.Combine(GetWorkspaceRoot(), workspaceId.ToString());
+        string destinationPath = Path.Combine(GetWorkspaceRoot(), workspaceName.ToFileName());
         if (Directory.Exists(destinationPath))
         {
-            throw new StraumrException("A workspace with this id already exists",
+            throw new StraumrException("A workspace with this name already exists",
                 StraumrError.EntryConflict);
         }
 
@@ -249,7 +286,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         optionsService.Options.Workspaces.Add(new StraumrWorkspaceEntry
         {
             Id = workspaceId,
-            Path = WorkspacePath(workspaceId)
+            Path = WorkspacePath(workspaceId, workspaceName)
         });
 
         await optionsService.Save();
@@ -282,11 +319,11 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         return directories[0];
     }
 
-    private static async Task<Guid> ReadPakFile(string extractPath)
+    private static async Task<(Guid id, string name)> ReadPakData(string extractPath)
     {
         string pakPath = Path.Combine(extractPath, ".pak");
         string[] pakData = await File.ReadAllLinesAsync(pakPath);
-        return Guid.Parse(pakData[0]);
+        return (Guid.Parse(pakData[0]), pakData[1]);
     }
 
     private static void DeleteDirectory(string? path)

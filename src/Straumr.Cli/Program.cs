@@ -54,6 +54,7 @@ internal class Program
             {
                 workspace.AddCommand<WorkspaceCreateCommand>("create");
                 workspace.AddCommand<WorkspaceActivateCommand>("use");
+                workspace.AddCommand<WorkspaceCopyCommand>("copy");
                 workspace.AddCommand<WorkspaceImportCommand>("import");
                 workspace.AddCommand<WorkspaceListCommand>("list");
                 workspace.AddCommand<WorkspaceDeleteCommand>("delete");

@@ -6,6 +6,7 @@ public interface IStraumrWorkspaceService
 {
     Task Activate(string name);
     Task Create(StraumrWorkspace workspace, string? outputDir = null);
+    Task Copy(string identifier, string newName, string? outputDir = null);
     Task Import(string path);
     Task Delete(string identifier);
     Task<string> Export(string workspaceIdentifier, string outputDir);
