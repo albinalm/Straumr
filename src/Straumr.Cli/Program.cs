@@ -39,7 +39,6 @@ internal class Program
         services.AddHttpClient();
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
-        services.AddSingleton<IStraumrAuthTemplateService, StraumrAuthTemplateService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
         services.AddSingleton<IStraumrSecretService, StraumrSecretService>();
 
@@ -50,55 +49,121 @@ internal class Program
         app.Configure(config =>
         {
             config.SetApplicationName("Straumr");
-            config.AddBranch("workspace", workspace =>
+            
+            config.AddBranch("list", list =>
             {
-                workspace.AddCommand<WorkspaceCreateCommand>("create");
-                workspace.AddCommand<WorkspaceActivateCommand>("use");
-                workspace.AddCommand<WorkspaceCopyCommand>("copy");
-                workspace.AddCommand<WorkspaceImportCommand>("import");
-                workspace.AddCommand<WorkspaceListCommand>("list");
-                workspace.AddCommand<WorkspaceDeleteCommand>("delete");
-                workspace.AddCommand<WorkspaceExportCommand>("export");
-                workspace.AddCommand<WorkspaceEditCommand>("edit");
-                workspace.AddCommand<WorkspaceGetCommand>("get");
+                list.AddCommand<WorkspaceListCommand>("workspace");
+                list.AddCommand<WorkspaceListCommand>("ws");
+
+                list.AddCommand<RequestListCommand>("request");
+                list.AddCommand<RequestListCommand>("rq");
+
+                list.AddCommand<AuthListCommand>("auth");
+                list.AddCommand<AuthListCommand>("au");
+
+                list.AddCommand<SecretListCommand>("secret");
+                list.AddCommand<SecretListCommand>("sc");
             });
-            config.AddBranch("request", request =>
+
+            config.AddBranch("create", create =>
             {
-                request.AddCommand<RequestCreateCommand>("create");
-                request.AddCommand<RequestSendCommand>("send");
-                request.AddCommand<RequestEditCommand>("edit");
-                request.AddCommand<RequestListCommand>("list");
-                request.AddCommand<RequestDeleteCommand>("delete");
-                request.AddCommand<RequestGetCommand>("get");
+                create.AddCommand<WorkspaceCreateCommand>("workspace");
+                create.AddCommand<WorkspaceCreateCommand>("ws");
+
+                create.AddCommand<RequestCreateCommand>("request");
+                create.AddCommand<RequestCreateCommand>("rq");
+
+                create.AddCommand<AuthCreateCommand>("auth");
+                create.AddCommand<AuthCreateCommand>("au");
+
+                create.AddCommand<SecretCreateCommand>("secret");
+                create.AddCommand<SecretCreateCommand>("sc");
             });
-            config.AddBranch("auth", auth =>
+
+            config.AddBranch("delete", delete =>
             {
-                auth.AddCommand<AuthCreateCommand>("create");
-                auth.AddCommand<AuthEditCommand>("edit");
-                auth.AddCommand<AuthListCommand>("list");
-                auth.AddCommand<AuthDeleteCommand>("delete");
-                auth.AddCommand<AuthGetCommand>("get");
+                delete.AddCommand<WorkspaceDeleteCommand>("workspace");
+                delete.AddCommand<WorkspaceDeleteCommand>("ws");
+
+                delete.AddCommand<RequestDeleteCommand>("request");
+                delete.AddCommand<RequestDeleteCommand>("rq");
+
+                delete.AddCommand<AuthDeleteCommand>("auth");
+                delete.AddCommand<AuthDeleteCommand>("au");
+
+                delete.AddCommand<SecretDeleteCommand>("secret");
+                delete.AddCommand<SecretDeleteCommand>("sc");
             });
-            config.AddBranch("secret", secret =>
+
+            config.AddBranch("edit", edit =>
             {
-                secret.AddCommand<SecretCreateCommand>("create");
-                secret.AddCommand<SecretEditCommand>("edit");
-                secret.AddCommand<SecretListCommand>("list");
-                secret.AddCommand<SecretDeleteCommand>("delete");
-                secret.AddCommand<SecretGetCommand>("get");
+                edit.AddCommand<WorkspaceEditCommand>("workspace");
+                edit.AddCommand<WorkspaceEditCommand>("ws");
+
+                edit.AddCommand<RequestEditCommand>("request");
+                edit.AddCommand<RequestEditCommand>("rq");
+
+                edit.AddCommand<AuthEditCommand>("auth");
+                edit.AddCommand<AuthEditCommand>("au");
+
+                edit.AddCommand<SecretEditCommand>("secret");
+                edit.AddCommand<SecretEditCommand>("sc");
             });
-            config.AddBranch("config", branch =>
+
+            config.AddBranch("get", get =>
             {
-                branch.AddCommand<ConfigWorkspacePathCommand>("workspace-path");
+                get.AddCommand<WorkspaceGetCommand>("workspace");
+                get.AddCommand<WorkspaceGetCommand>("ws");
+
+                get.AddCommand<RequestGetCommand>("request");
+                get.AddCommand<RequestGetCommand>("rq");
+
+                get.AddCommand<AuthGetCommand>("auth");
+                get.AddCommand<AuthGetCommand>("au");
+
+                get.AddCommand<SecretGetCommand>("secret");
+                get.AddCommand<SecretGetCommand>("sc");
             });
+
+            config.AddBranch("use", use =>
+            {
+                use.AddCommand<WorkspaceActivateCommand>("workspace");
+                use.AddCommand<WorkspaceActivateCommand>("ws");
+            });
+
+            config.AddBranch("copy", copy =>
+            {
+                copy.AddCommand<WorkspaceCopyCommand>("workspace");
+                copy.AddCommand<WorkspaceCopyCommand>("ws");
+            });
+
+            config.AddBranch("import", import =>
+            {
+                import.AddCommand<WorkspaceImportCommand>("workspace");
+                import.AddCommand<WorkspaceImportCommand>("ws");
+            });
+
+            config.AddBranch("export", export =>
+            {
+                export.AddCommand<WorkspaceExportCommand>("workspace");
+                export.AddCommand<WorkspaceExportCommand>("ws");
+            });
+
+            config.AddBranch("config", cfg =>
+            {
+                cfg.AddCommand<ConfigWorkspacePathCommand>("workspace-path");
+            });
+
             config.AddBranch("autocomplete", autocomplete =>
             {
-                autocomplete.HideBranch();
                 autocomplete.AddCommand<AutocompleteInstallCommand>("install");
-                autocomplete.AddCommand<AutocompleteQueryCommand>("query");
+                autocomplete.AddCommand<AutocompleteInstallCommand>("query").IsHidden();
             });
+
+            config.AddCommand<RequestSendCommand>("send");
         });
 
+        
         if (args.Length == 0)
         {
             AnsiConsole.Write(new FigletText("Straumr").Color(Color.Green));

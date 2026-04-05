@@ -12,25 +12,24 @@ using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
 
 public class RequestCreateCommand(
     IStraumrOptionsService optionsService,
     IStraumrRequestService requestService,
-    IStraumrAuthService authService,
-    IStraumrAuthTemplateService authTemplateService)
+    IStraumrAuthService authService)
     : AsyncCommand<RequestCreateCommand.Settings>
 {
     private const string ActionFinish = "Finish";
+    private const string ActionName = "Edit name";
     private const string ActionUrl = "Edit URL";
     private const string ActionMethod = "Edit method";
     private const string ActionParams = "Edit params";
     private const string ActionHeaders = "Edit headers";
     private const string ActionBody = "Edit body";
     private const string ActionAuth = "Edit auth";
-    private const string ActionAutoRenew = "Auto-renew auth";
-    private const string ActionFetchToken = "Fetch token";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
@@ -45,6 +44,12 @@ public class RequestCreateCommand(
 
         if (settings.Url is not null)
         {
+            if (string.IsNullOrWhiteSpace(settings.Name))
+            {
+                AnsiConsole.MarkupLine("[red]A name is required when creating a request inline.[/]");
+                return 1;
+            }
+
             return await ExecuteInlineAsync(settings);
         }
 
@@ -59,11 +64,12 @@ public class RequestCreateCommand(
     private async Task<int> ExecutePromptMenuAsync(Settings settings, CancellationToken cancellation)
     {
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
-        var state = new CreateRequestState(settings.Name);
+        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
+        var state = new CreateRequestState(settings.Name ?? string.Empty);
 
         while (true)
         {
-            string? action = await PromptCreateMenuAsync(console, state);
+            string? action = await PromptCreateMenuAsync(console, state, auths);
             if (action is null)
             {
                 continue;
@@ -98,7 +104,7 @@ public class RequestCreateCommand(
             {
                 Uri = string.Empty,
                 Method = HttpMethod.Get,
-                Name = settings.Name
+                Name = settings.Name ?? string.Empty
             };
 
             string json = JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest);
@@ -157,8 +163,11 @@ public class RequestCreateCommand(
     }
 
     private static async Task<string?> PromptCreateMenuAsync(
-        EscapeCancellableConsole console, CreateRequestState state)
+        EscapeCancellableConsole console, CreateRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
+        string nameDisplay = string.IsNullOrWhiteSpace(state.Name)
+            ? "[grey]not set[/]"
+            : $"[blue]{Markup.Escape(state.Name)}[/]";
         string urlDisplay = string.IsNullOrWhiteSpace(state.Uri)
             ? "[grey]not set[/]"
             : $"[blue]{Markup.Escape(state.Uri)}[/]";
@@ -168,23 +177,12 @@ public class RequestCreateCommand(
         string bodyDisplay = state.BodyType == BodyType.None
             ? "[grey]none[/]"
             : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
-        string authDisplay = AuthDisplayName(state.Auth);
-        string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
+        string authDisplay = AuthDisplayName(state.AuthId, auths);
 
         var menuChoices = new List<string>
         {
-            ActionFinish, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
+            ActionFinish, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
-
-        if (SupportsAuthFetch(state.Auth))
-        {
-            menuChoices.Add(ActionFetchToken);
-        }
-
-        if (SupportsAuthAutoRenew(state.Auth))
-        {
-            menuChoices.Add(ActionAutoRenew);
-        }
 
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
             .Title("Request setup")
@@ -192,13 +190,13 @@ public class RequestCreateCommand(
             .SearchPlaceholderText("/")
             .UseConverter(choice => choice switch
             {
+                ActionName => $"Name: {nameDisplay}",
                 ActionUrl => $"URL: {urlDisplay}",
                 ActionMethod => $"Method: {methodDisplay}",
                 ActionParams => $"Params: {paramsDisplay}",
                 ActionHeaders => $"Headers: {headersDisplay}",
                 ActionBody => $"Body: {bodyDisplay}",
                 ActionAuth => $"Auth: {authDisplay}",
-                ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
             })
             .AddChoices(menuChoices);
@@ -208,6 +206,12 @@ public class RequestCreateCommand(
 
     private async Task<bool> TryCreateRequestAsync(CreateRequestState state)
     {
+        if (string.IsNullOrWhiteSpace(state.Name))
+        {
+            ShowTransientMessage("[red]A name is required.[/]");
+            return false;
+        }
+
         StraumrRequest request = state.ToRequest();
         try
         {
@@ -232,6 +236,20 @@ public class RequestCreateCommand(
     {
         switch (action)
         {
+            case ActionName:
+            {
+                TextPrompt<string> prompt = new TextPrompt<string>("Name")
+                    .Validate(value => string.IsNullOrWhiteSpace(value)
+                        ? ValidationResult.Error("Name cannot be empty.")
+                        : ValidationResult.Success());
+                string? updated = await PromptTextAsync(console, prompt, state.Name);
+                if (!string.IsNullOrWhiteSpace(updated))
+                {
+                    state.Name = updated;
+                }
+
+                break;
+            }
             case ActionUrl:
             {
                 string? updated = await PromptUrlAsync(console, state.Uri);
@@ -263,14 +281,11 @@ public class RequestCreateCommand(
                     await EditBodyAsync(console, state.Headers, state.Bodies, state.BodyType, cancellation);
                 break;
             case ActionAuth:
-                state.Auth = await EditAuthAsync(console, state.Auth, authTemplateService);
+            {
+                StraumrAuth? selected = await SelectAuthAsync(console, authService);
+                state.AuthId = selected?.Id;
                 break;
-            case ActionFetchToken:
-                await FetchAuthValueAsync(authService, state.Auth);
-                break;
-            case ActionAutoRenew:
-                state.AutoRenewAuth = !state.AutoRenewAuth;
-                break;
+            }
         }
     }
 
@@ -278,10 +293,9 @@ public class RequestCreateCommand(
     {
         var request = new StraumrRequest
         {
-            Name = settings.Name,
+            Name = settings.Name!,
             Uri = settings.Url!,
-            Method = new HttpMethod(settings.Method ?? "GET"),
-            AutoRenewAuth = !settings.NoAutoRenew
+            Method = new HttpMethod(settings.Method ?? "GET")
         };
 
         foreach (string header in settings.Headers ?? [])
@@ -333,12 +347,12 @@ public class RequestCreateCommand(
             request.Bodies[bodyType] = settings.Data;
         }
 
-        if (settings.AuthTemplate is not null)
+        if (settings.Auth is not null)
         {
             try
             {
-                StraumrAuthTemplate template = await authTemplateService.GetAsync(settings.AuthTemplate);
-                request.Auth = template.Config;
+                StraumrAuth auth = await authService.GetAsync(settings.Auth);
+                request.AuthId = auth.Id;
             }
             catch (StraumrException ex)
             {
@@ -362,9 +376,9 @@ public class RequestCreateCommand(
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name>")]
+        [CommandArgument(0, "[Name]")]
         [Description("Name of the request to create")]
-        public required string Name { get; set; }
+        public string? Name { get; set; }
 
         [CommandArgument(1, "[Url]")]
         [Description("Request URL. When provided, creates the request directly without interactive prompts.")]
@@ -391,12 +405,8 @@ public class RequestCreateCommand(
         public string? BodyType { get; set; }
 
         [CommandOption("-a|--auth")]
-        [Description("Auth template name or ID to apply")]
-        public string? AuthTemplate { get; set; }
-
-        [CommandOption("--no-auto-renew")]
-        [Description("Disable automatic auth token renewal")]
-        public bool NoAutoRenew { get; set; }
+        [Description("Auth name or ID to link")]
+        public string? Auth { get; set; }
 
         [CommandOption("-e|--editor")]
         [Description("Open the request in the default editor instead of interactive prompts")]
@@ -405,15 +415,14 @@ public class RequestCreateCommand(
 
     private sealed class CreateRequestState(string name)
     {
-        private string Name { get; } = name;
+        public string Name { get; set; } = name;
         public string Uri { get; set; } = string.Empty;
         public string Method { get; set; } = "GET";
         public Dictionary<string, string> Params { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, string> Headers { get; } = new(StringComparer.OrdinalIgnoreCase);
         public BodyType BodyType { get; set; } = BodyType.None;
         public Dictionary<BodyType, string> Bodies { get; } = new();
-        public StraumrAuthConfig? Auth { get; set; }
-        public bool AutoRenewAuth { get; set; } = true;
+        public Guid? AuthId { get; set; }
 
         public StraumrRequest ToRequest()
         {
@@ -426,8 +435,7 @@ public class RequestCreateCommand(
                 Headers = Headers,
                 BodyType = BodyType,
                 Bodies = Bodies,
-                Auth = Auth,
-                AutoRenewAuth = AutoRenewAuth
+                AuthId = AuthId
             };
         }
     }

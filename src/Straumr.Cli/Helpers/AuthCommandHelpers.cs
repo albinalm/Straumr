@@ -1,7 +1,5 @@
-using System.Text.Json;
 using Spectre.Console;
 using Straumr.Cli.Console;
-using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
@@ -27,6 +25,19 @@ internal static class AuthCommandHelpers
             CustomAuthConfig custom => FormatCustomAuthDisplay(custom),
             _ => "[grey]none[/]"
         };
+    }
+
+    internal static string AuthDisplayName(Guid? authId, IReadOnlyList<StraumrAuth> auths)
+    {
+        if (authId is null)
+        {
+            return "[grey]none[/]";
+        }
+
+        StraumrAuth? auth = auths.FirstOrDefault(a => a.Id == authId);
+        return auth is not null
+            ? $"[blue]{Markup.Escape(auth.Name)}[/]"
+            : "[grey]unknown[/]";
     }
 
     private static string FormatCustomAuthDisplay(CustomAuthConfig config)
@@ -66,62 +77,48 @@ internal static class AuthCommandHelpers
         return auth is OAuth2Config or CustomAuthConfig;
     }
 
-    internal static bool SupportsAuthAutoRenew(StraumrAuthConfig? auth)
-    {
-        return auth is OAuth2Config or CustomAuthConfig;
-    }
-
-    private static StraumrAuthConfig? CloneAuthConfig(StraumrAuthConfig? auth)
-    {
-        if (auth is null)
-        {
-            return null;
-        }
-
-        string json = JsonSerializer.Serialize(auth, StraumrJsonContext.Default.StraumrAuthConfig);
-        return JsonSerializer.Deserialize(json, StraumrJsonContext.Default.StraumrAuthConfig);
-    }
-
-    private static async Task<StraumrAuthConfig?> SelectAuthTemplateAsync(
+    internal static async Task<StraumrAuth?> SelectAuthAsync(
         EscapeCancellableConsole console,
-        IStraumrAuthTemplateService templateService)
+        IStraumrAuthService authService)
     {
-        IReadOnlyList<StraumrAuthTemplate> templates = await templateService.ListAsync();
-        if (templates.Count == 0)
-        {
-            ShowTransientMessage("[yellow]No auth presets available.[/]");
-            return null;
-        }
+        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
 
-        SelectionPrompt<StraumrAuthTemplate> prompt = new SelectionPrompt<StraumrAuthTemplate>()
-            .Title("Select auth preset")
+        const string noneOption = "None";
+
+        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
+            .Title("Select auth")
             .EnableSearch()
             .SearchPlaceholderText("/")
-            .UseConverter(template => $"{Markup.Escape(template.Name)} — {AuthDisplayName(template.Config)}")
-            .AddChoices(templates.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
+            .AddChoices(auths.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(a => a.Id.ToString())
+                .Prepend(noneOption))
+            .UseConverter(choice =>
+            {
+                if (choice == noneOption) return "[grey]None[/]";
+                if (!Guid.TryParse(choice, out Guid id)) return choice;
+                StraumrAuth? found = auths.FirstOrDefault(a => a.Id == id);
+                return found is not null
+                    ? $"{Markup.Escape(found.Name)} — {AuthDisplayName(found.Config)}"
+                    : choice;
+            });
 
-        StraumrAuthTemplate? selected = await PromptAsync(console, prompt);
-        if (selected is null)
+        string? selected = await PromptAsync(console, prompt);
+        if (selected is null or noneOption)
         {
             return null;
         }
 
-        try
+        if (Guid.TryParse(selected, out Guid selectedId))
         {
-            StraumrAuthTemplate template = await templateService.PeekByIdAsync(selected.Id);
-            return CloneAuthConfig(template.Config);
+            return auths.FirstOrDefault(a => a.Id == selectedId);
         }
-        catch (Exception ex)
-        {
-            ShowTransientMessage($"[red]Failed to load preset: {Markup.Escape(ex.Message)}[/]");
-            return null;
-        }
+
+        return null;
     }
 
     internal static async Task<StraumrAuthConfig?> EditAuthAsync(
         EscapeCancellableConsole console,
-        StraumrAuthConfig? auth,
-        IStraumrAuthTemplateService? templateService = null)
+        StraumrAuthConfig? auth)
     {
         StraumrAuthConfig? current = auth;
         while (true)
@@ -131,7 +128,6 @@ internal static class AuthCommandHelpers
             const string actionConfig = "Configure";
             const string actionTokenStatus = "Token status";
             const string actionClear = "Clear auth";
-            const string actionApplyPreset = "Apply preset";
 
             AuthType currentType = current?.Type ?? AuthType.None;
             string typeDisplay = currentType switch
@@ -146,11 +142,6 @@ internal static class AuthCommandHelpers
             List<string> choices = current is null
                 ? new List<string> { actionBack, actionType }
                 : new List<string> { actionBack, actionType, actionConfig, actionTokenStatus, actionClear };
-
-            if (templateService is not null)
-            {
-                choices.Insert(2, actionApplyPreset);
-            }
 
             SelectionPrompt<string> prompt = new SelectionPrompt<string>()
                 .Title("Auth")
@@ -183,16 +174,6 @@ internal static class AuthCommandHelpers
                 case actionClear:
                     current = null;
                     break;
-                case actionApplyPreset when templateService is not null:
-                {
-                    StraumrAuthConfig? preset = await SelectAuthTemplateAsync(console, templateService);
-                    if (preset is not null)
-                    {
-                        current = preset;
-                    }
-
-                    break;
-                }
             }
         }
     }

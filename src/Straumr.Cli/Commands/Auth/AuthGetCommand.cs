@@ -6,13 +6,14 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
 
 public class AuthGetCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
-    IStraumrAuthTemplateService templateService)
+    IStraumrAuthService authService)
     : AsyncCommand<AuthGetCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -38,19 +39,19 @@ public class AuthGetCommand(
 
         Guid? foundId = null;
 
-        if (Guid.TryParse(settings.Identifier, out Guid guid) && workspace.AuthTemplates.Contains(guid))
+        if (Guid.TryParse(settings.Identifier, out Guid guid) && workspace.Auths.Contains(guid))
         {
             foundId = guid;
         }
 
         if (foundId is null)
         {
-            foreach (Guid id in workspace.AuthTemplates)
+            foreach (Guid id in workspace.Auths)
             {
                 try
                 {
-                    StraumrAuthTemplate t = await templateService.PeekByIdAsync(id);
-                    if (!string.Equals(t.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
+                    StraumrAuth a = await authService.PeekByIdAsync(id);
+                    if (!string.Equals(a.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -65,30 +66,30 @@ public class AuthGetCommand(
         if (foundId is null)
         {
             AnsiConsole.MarkupLine(
-                $"[red]No auth template found with the identifier: {Markup.Escape(settings.Identifier)}[/]");
+                $"[red]No auth found with the identifier: {Markup.Escape(settings.Identifier)}[/]");
             return 1;
         }
 
         if (settings.Json)
         {
-            string templatePath =
-                Path.Combine(Path.GetDirectoryName(workspaceEntry.Path)!, foundId.Value + ".auth.json");
-            if (!File.Exists(templatePath))
+            string authPath =
+                Path.Combine(Path.GetDirectoryName(workspaceEntry.Path)!, foundId.Value + ".json");
+            if (!File.Exists(authPath))
             {
-                await System.Console.Error.WriteLineAsync("Auth template is missing");
+                await System.Console.Error.WriteLineAsync("Auth is missing");
                 return 1;
             }
 
-            string json = await File.ReadAllTextAsync(templatePath, cancellation);
+            string json = await File.ReadAllTextAsync(authPath, cancellation);
             System.Console.WriteLine(json);
             return 0;
         }
 
-        StraumrAuthTemplate? template = null;
+        StraumrAuth? auth = null;
         string status;
         try
         {
-            template = await templateService.PeekByIdAsync(foundId.Value);
+            auth = await authService.PeekByIdAsync(foundId.Value);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
@@ -106,34 +107,34 @@ public class AuthGetCommand(
             .AddColumn(new TableColumn("Key").NoWrap())
             .AddColumn(new TableColumn("Value"));
 
-        table.AddRow("[grey]ID[/]", Markup.Escape((template?.Id ?? foundId.Value).ToString()));
+        table.AddRow("[grey]ID[/]", Markup.Escape((auth?.Id ?? foundId.Value).ToString()));
         table.AddRow("[grey]Name[/]",
-            template is not null ? $"[bold]{Markup.Escape(template.Name)}[/]" : "[grey]N/A[/]");
-        table.AddRow("[grey]Type[/]", AuthDisplayName(template?.Config));
+            auth is not null ? $"[bold]{Markup.Escape(auth.Name)}[/]" : "[grey]N/A[/]");
+        table.AddRow("[grey]Type[/]", AuthDisplayName(auth?.Config));
         table.AddRow("[grey]Last Accessed[/]",
-            template?.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[grey]N/A[/]");
+            auth?.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[grey]N/A[/]");
         table.AddRow("[grey]Modified[/]",
-            template?.Modified.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[grey]N/A[/]");
+            auth?.Modified.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[grey]N/A[/]");
         table.AddRow("[grey]Status[/]", status);
 
-        string displayName = template?.Name ?? foundId.Value.ToString();
+        string displayName = auth?.Name ?? foundId.Value.ToString();
         Panel panel = new Panel(table)
-            .Header($"Auth Template [bold]{Markup.Escape(displayName)}[/]", Justify.Left)
+            .Header($"Auth [bold]{Markup.Escape(displayName)}[/]", Justify.Left)
             .BorderColor(Color.Blue)
             .Padding(1, 0);
 
         AnsiConsole.Write(panel);
-        return template is not null ? 0 : 1;
+        return auth is not null ? 0 : 1;
     }
 
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")]
-        [Description("Name or ID of the auth template to get")]
+        [Description("Name or ID of the auth to get")]
         public required string Identifier { get; set; }
 
         [CommandOption("-j|--json")]
-        [Description("Output the auth template as raw JSON")]
+        [Description("Output the auth as raw JSON")]
         public bool Json { get; set; }
     }
 }

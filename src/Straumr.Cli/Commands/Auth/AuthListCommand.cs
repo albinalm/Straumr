@@ -5,10 +5,11 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuthTemplateService templateService)
+public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuthService authService)
     : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellation)
@@ -21,10 +22,10 @@ public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuth
                 StraumrError.MissingEntry);
         }
 
-        IReadOnlyList<StraumrAuthTemplate> templates;
+        IReadOnlyList<StraumrAuth> auths;
         try
         {
-            templates = await templateService.ListAsync();
+            auths = await authService.ListAsync();
         }
         catch (StraumrException ex)
         {
@@ -37,9 +38,9 @@ public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuth
             return -1;
         }
 
-        if (templates.Count == 0)
+        if (auths.Count == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No auth presets defined.[/]");
+            AnsiConsole.MarkupLine("[yellow]No auths defined.[/]");
             return 0;
         }
 
@@ -48,12 +49,12 @@ public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuth
         table.AddColumn("ID");
         table.AddColumn("Type");
 
-        foreach (StraumrAuthTemplate template in templates)
+        foreach (StraumrAuth auth in auths)
         {
             table.AddRow(
-                Markup.Escape(template.Name),
-                template.Id.ToString(),
-                AuthDisplayName(template.Config));
+                Markup.Escape(auth.Name),
+                auth.Id.ToString(),
+                AuthDisplayName(auth.Config));
         }
 
         AnsiConsole.Write(table);

@@ -76,6 +76,8 @@ public class StraumrRequestService(
             throw new StraumrException("Request already exists", StraumrError.EntryConflict);
         }
 
+        await EnsureNoNameConflictAsync(request.Name);
+
         await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
         await AddRequestToWorkspace(entry, request.Id);
     }
@@ -89,6 +91,8 @@ public class StraumrRequestService(
         {
             throw new StraumrException("Request not found", StraumrError.EntryNotFound);
         }
+
+        await EnsureNoNameConflictAsync(request.Name, request.Id);
 
         await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
         await StampWorkspaceAccessAsync(entry);
@@ -111,30 +115,38 @@ public class StraumrRequestService(
     public async Task<StraumrResponse> SendAsync(StraumrRequest request, SendOptions? options = null)
     {
         var warnings = new List<string>();
-        StraumrRequest resolvedRequest = await ResolveSecretsAsync(request, warnings);
-        var requestUpdated = false;
+        var resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        switch (resolvedRequest.Auth)
-        {
-            case OAuth2Config oauth2 when request.AutoRenewAuth:
-            {
-                OAuth2Token token = await authService.EnsureTokenAsync(oauth2);
-                oauth2.Token = token;
-                requestUpdated = true;
-                break;
-            }
-            case CustomAuthConfig { CachedValue: null } custom:
-            {
-                await authService.ExecuteCustomAuthAsync(custom);
-                requestUpdated = true;
-                break;
-            }
-        }
+        StraumrAuth? auth = request.AuthId.HasValue
+            ? await authService.PeekByIdAsync(request.AuthId.Value)
+            : null;
 
-        if (requestUpdated)
+        StraumrRequest resolvedRequest = await ResolveSecretsAsync(request, resolvedSecrets, warnings);
+
+        StraumrAuthConfig? resolvedAuthConfig = auth is not null
+            ? await ResolveAuthSecretsAsync(auth.Config, resolvedSecrets, warnings)
+            : null;
+
+        if (auth is not null)
         {
-            ApplyRuntimeAuthUpdates(request.Auth, resolvedRequest.Auth);
-            await UpdateAsync(request);
+            switch (resolvedAuthConfig)
+            {
+                case OAuth2Config oauth2 when auth.AutoRenewAuth:
+                {
+                    OAuth2Token token = await authService.EnsureTokenAsync(oauth2);
+                    oauth2.Token = token;
+                    ((OAuth2Config)auth.Config).Token = token;
+                    await authService.UpdateAsync(auth);
+                    break;
+                }
+                case CustomAuthConfig { CachedValue: null } custom:
+                {
+                    await authService.ExecuteCustomAuthAsync(custom);
+                    ((CustomAuthConfig)auth.Config).CachedValue = custom.CachedValue;
+                    await authService.UpdateAsync(auth);
+                    break;
+                }
+            }
         }
 
         HttpClient client = _client;
@@ -159,16 +171,21 @@ public class StraumrRequestService(
 
         try
         {
-            StraumrResponse response = await SendWithMetadataAsync(client, resolvedRequest);
+            StraumrResponse response = await SendWithMetadataAsync(client, resolvedRequest, resolvedAuthConfig);
             response.Warnings = warnings;
 
-            if (ShouldRetryCustomAuth(resolvedRequest, response))
+            if (ShouldRetryCustomAuth(auth, resolvedAuthConfig, response))
             {
-                var custom = (CustomAuthConfig)resolvedRequest.Auth!;
+                var custom = (CustomAuthConfig)resolvedAuthConfig!;
+                custom.CachedValue = null;
                 await authService.ExecuteCustomAuthAsync(custom);
-                ApplyRuntimeAuthUpdates(request.Auth, resolvedRequest.Auth);
-                await UpdateAsync(request);
-                response = await SendWithMetadataAsync(client, resolvedRequest);
+                if (auth is not null)
+                {
+                    ((CustomAuthConfig)auth.Config).CachedValue = custom.CachedValue;
+                    await authService.UpdateAsync(auth);
+                }
+
+                response = await SendWithMetadataAsync(client, resolvedRequest, resolvedAuthConfig);
                 response.Warnings = warnings;
             }
 
@@ -180,6 +197,28 @@ public class StraumrRequestService(
             {
                 client.Dispose();
             }
+        }
+    }
+
+    private async Task EnsureNoNameConflictAsync(string name, Guid excludeId = default)
+    {
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        foreach (Guid id in workspace.Requests)
+        {
+            if (id == excludeId)
+            {
+                continue;
+            }
+
+            try
+            {
+                StraumrRequest request = await PeekByIdAsync(id);
+                if (string.Equals(request.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new StraumrException("A request with this name already exists", StraumrError.EntryConflict);
+                }
+            }
+            catch (StraumrException ex) when (ex.Reason is StraumrError.CorruptEntry or StraumrError.EntryNotFound) { }
         }
     }
 
@@ -241,9 +280,10 @@ public class StraumrRequestService(
         return lookup.Request ?? await GetByIdAsync(lookup.Id);
     }
 
-    private static async Task<StraumrResponse> SendWithMetadataAsync(HttpClient client, StraumrRequest request)
+    private static async Task<StraumrResponse> SendWithMetadataAsync(
+        HttpClient client, StraumrRequest request, StraumrAuthConfig? auth)
     {
-        var networkRequest = request.ToHttpRequestMessage();
+        var networkRequest = request.ToHttpRequestMessage(auth);
         try
         {
             StraumrResponse response = await client.SendAsync(networkRequest).WithMetrics();
@@ -275,10 +315,11 @@ public class StraumrRequestService(
         response.RequestHeaders = requestHeaders;
     }
 
-    private async Task<StraumrRequest> ResolveSecretsAsync(StraumrRequest request, List<string> warnings)
+    private async Task<StraumrRequest> ResolveSecretsAsync(
+        StraumrRequest request,
+        Dictionary<string, string> resolvedSecrets,
+        List<string> warnings)
     {
-        var resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
-
         return new StraumrRequest
         {
             Id = request.Id,
@@ -291,8 +332,7 @@ public class StraumrRequestService(
             Headers = await ResolveSecretReferencesAsync(request.Headers, resolvedSecrets, warnings, StringComparer.OrdinalIgnoreCase),
             BodyType = request.BodyType,
             Bodies = await ResolveSecretReferencesAsync(request.Bodies, resolvedSecrets, warnings),
-            Auth = await ResolveAuthSecretsAsync(request.Auth, resolvedSecrets, warnings),
-            AutoRenewAuth = request.AutoRenewAuth
+            AuthId = request.AuthId
         };
     }
 
@@ -428,24 +468,12 @@ public class StraumrRequestService(
         return resolved;
     }
 
-    private static bool ShouldRetryCustomAuth(StraumrRequest request, StraumrResponse response)
+    private static bool ShouldRetryCustomAuth(
+        StraumrAuth? auth, StraumrAuthConfig? resolvedAuthConfig, StraumrResponse response)
     {
-        return request.AutoRenewAuth
-               && request.Auth is CustomAuthConfig
+        return auth is { AutoRenewAuth: true }
+               && resolvedAuthConfig is CustomAuthConfig
                && response.StatusCode == HttpStatusCode.Unauthorized;
-    }
-
-    private static void ApplyRuntimeAuthUpdates(StraumrAuthConfig? target, StraumrAuthConfig? source)
-    {
-        switch (target, source)
-        {
-            case (OAuth2Config targetOauth, OAuth2Config sourceOauth):
-                targetOauth.Token = sourceOauth.Token;
-                break;
-            case (CustomAuthConfig targetCustom, CustomAuthConfig sourceCustom):
-                targetCustom.CachedValue = sourceCustom.CachedValue;
-                break;
-        }
     }
 
     private async Task RemoveRequestAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace, Guid id)

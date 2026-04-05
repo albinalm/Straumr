@@ -9,10 +9,14 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
 
-public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrRequestService requestService)
+public class RequestSendCommand(
+    IStraumrOptionsService optionsService,
+    IStraumrRequestService requestService,
+    IStraumrAuthService authService)
     : AsyncCommand<RequestSendCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -30,6 +34,10 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
         {
             StraumrRequest request = await requestService.GetAsync(settings.Identifier);
 
+            StraumrAuth? auth = request.AuthId.HasValue
+                ? await authService.PeekByIdAsync(request.AuthId.Value)
+                : null;
+
             var options = new SendOptions
             {
                 Insecure = settings.Insecure,
@@ -41,14 +49,14 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
 
             if (settings.Pretty && !settings.Verbose)
             {
-                RenderPrettySummary(request, response);
+                RenderPrettySummary(request, auth, response);
             }
 
             if (settings.Verbose)
             {
                 if (settings.Pretty)
                 {
-                    RenderPrettyVerbose(request, response);
+                    RenderPrettyVerbose(request, auth, response);
                 }
                 else
                 {
@@ -161,7 +169,7 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
         System.Console.WriteLine();
     }
 
-    private static void RenderPrettySummary(StraumrRequest request, StraumrResponse response)
+    private static void RenderPrettySummary(StraumrRequest request, StraumrAuth? auth, StraumrResponse response)
     {
         Table table = new Table()
             .Border(TableBorder.Square)
@@ -175,7 +183,7 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
 
         int byteLength = response.Content is null ? 0 : Encoding.UTF8.GetByteCount(response.Content);
 
-        var authInfo = $"\nAuth: {FormatRequestAuthInfo(request.Auth)}";
+        string authInfo = auth is not null ? $"\nAuth: {FormatRequestAuthInfo(auth)}" : string.Empty;
 
         table.AddRow(
             $"Name: [bold]{Markup.Escape(request.Name)}[/]\nMethod: [blue]{Markup.Escape(request.Method.Method)}[/] {Markup.Escape(request.Uri)}{authInfo}",
@@ -211,7 +219,7 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
         AnsiConsole.Write(panel);
     }
 
-    private static void RenderPrettyVerbose(StraumrRequest request, StraumrResponse response)
+    private static void RenderPrettyVerbose(StraumrRequest request, StraumrAuth? auth, StraumrResponse response)
     {
         Table table = new Table()
             .Border(TableBorder.Square)
@@ -222,7 +230,10 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
 
         var requestLines = new StringBuilder();
         requestLines.AppendLine($"Name: {request.Name}");
-        requestLines.AppendLine($"Auth: {FormatRequestAuthInfo(request.Auth)}");
+        if (auth is not null)
+        {
+            requestLines.AppendLine($"Auth: {FormatRequestAuthInfo(auth)}");
+        }
         requestLines.AppendLine();
 
         requestLines.AppendLine(
@@ -339,16 +350,16 @@ public class RequestSendCommand(IStraumrOptionsService optionsService, IStraumrR
         return $"{size:0.##} {units[unitIndex]}";
     }
 
-    private static string FormatRequestAuthInfo(StraumrAuthConfig? auth)
+    private static string FormatRequestAuthInfo(StraumrAuth auth)
     {
-        return auth switch
+        return auth.Config switch
         {
-            BearerAuthConfig => "[blue]Bearer[/]",
-            BasicAuthConfig => "[blue]Basic[/]",
+            BearerAuthConfig => $"[blue]{Markup.Escape(auth.Name)}[/] (Bearer)",
+            BasicAuthConfig => $"[blue]{Markup.Escape(auth.Name)}[/] (Basic)",
             OAuth2Config { Token: { } token } =>
-                $"[blue]OAuth 2.0[/] ({(token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
-            CustomAuthConfig => "[blue]Custom[/]",
-            _ => string.Empty
+                $"[blue]{Markup.Escape(auth.Name)}[/] (OAuth 2.0 {(token.IsExpired ? "[yellow]expired[/]" : "[green]valid[/]")})",
+            CustomAuthConfig => $"[blue]{Markup.Escape(auth.Name)}[/] (Custom)",
+            _ => Markup.Escape(auth.Name)
         };
     }
 

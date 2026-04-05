@@ -28,7 +28,7 @@ public class StraumrSecretService(
     public async Task CreateAsync(StraumrSecret secret)
     {
         string fullPath = SecretPath(secret.Id);
-        await EnsureNoConflictAsync(secret.Name, fullPath);
+        await EnsureNoConflictAsync(secret.Name, fullPath, secret.Id);
 
         if (File.Exists(fullPath))
         {
@@ -53,6 +53,8 @@ public class StraumrSecretService(
         {
             throw new StraumrException("Secret not found", StraumrError.EntryNotFound);
         }
+
+        await EnsureNoConflictAsync(secret.Name, fullPath, secret.Id);
 
         await fileService.WriteStraumrModel(fullPath, secret, StraumrJsonContext.Default.StraumrSecret);
     }
@@ -137,10 +139,15 @@ public class StraumrSecretService(
         throw new StraumrException($"No secret found with the identifier: {id}", StraumrError.EntryNotFound);
     }
 
-    private async Task EnsureNoConflictAsync(string name, string fullPath)
+    private async Task EnsureNoConflictAsync(string name, string fullPath, Guid excludeId = default)
     {
         foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
         {
+            if (entry.Id == excludeId)
+            {
+                continue;
+            }
+
             try
             {
                 StraumrSecret secret = await PeekByPathAsync(entry.Path);

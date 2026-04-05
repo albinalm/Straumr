@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Core.Services.Interfaces;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Config;
 

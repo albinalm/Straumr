@@ -7,13 +7,15 @@ using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
 
 public class RequestGetCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
-    IStraumrRequestService requestService)
+    IStraumrRequestService requestService,
+    IStraumrAuthService authService)
     : AsyncCommand<RequestGetCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -103,6 +105,16 @@ public class RequestGetCommand(
             status = "[yellow]Missing[/]";
         }
 
+        IReadOnlyList<StraumrAuth> auths = [];
+        if (request?.AuthId is not null)
+        {
+            try
+            {
+                auths = await authService.ListAsync();
+            }
+            catch (StraumrException) { }
+        }
+
         Table table = new Table()
             .Border(TableBorder.None)
             .HideHeaders()
@@ -114,7 +126,7 @@ public class RequestGetCommand(
         table.AddRow("[grey]Method[/]",
             request is not null ? $"[blue]{Markup.Escape(request.Method.ToString())}[/]" : "[grey]N/A[/]");
         table.AddRow("[grey]URI[/]", request is not null ? Markup.Escape(resolvedUrl ?? request.Uri) : "[grey]N/A[/]");
-        table.AddRow("[grey]Auth[/]", AuthDisplayName(request?.Auth));
+        table.AddRow("[grey]Auth[/]", AuthDisplayName(request?.AuthId, auths));
         table.AddRow("[grey]Headers[/]", request?.Headers.Count.ToString() ?? "[grey]N/A[/]");
         table.AddRow("[grey]Params[/]", request?.Params.Count.ToString() ?? "[grey]N/A[/]");
         table.AddRow("[grey]Body[/]", request is not null ? BodyTypeDisplayName(request.BodyType) : "[grey]N/A[/]");

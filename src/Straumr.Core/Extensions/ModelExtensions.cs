@@ -7,7 +7,7 @@ namespace Straumr.Core.Extensions;
 
 public static class ModelExtensions
 {
-    public static HttpRequestMessage ToHttpRequestMessage(this StraumrRequest request)
+    public static HttpRequestMessage ToHttpRequestMessage(this StraumrRequest request, StraumrAuthConfig? auth)
     {
         if (request is null)
         {
@@ -41,7 +41,7 @@ public static class ModelExtensions
 
         var message = new HttpRequestMessage(request.Method, uriBuilder.Uri);
 
-        switch (request.Auth)
+        switch (auth)
         {
             case BearerAuthConfig bearer when !string.IsNullOrWhiteSpace(bearer.Token):
                 message.Headers.Authorization = new AuthenticationHeaderValue(

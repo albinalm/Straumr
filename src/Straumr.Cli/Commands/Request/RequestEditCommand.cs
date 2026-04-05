@@ -12,14 +12,14 @@ using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
 
 public class RequestEditCommand(
     IStraumrOptionsService optionsService,
     IStraumrRequestService requestService,
-    IStraumrAuthService authService,
-    IStraumrAuthTemplateService authTemplateService)
+    IStraumrAuthService authService)
     : AsyncCommand<RequestEditCommand.Settings>
 {
     private const string ActionSave = "Save";
@@ -30,8 +30,6 @@ public class RequestEditCommand(
     private const string ActionHeaders = "Edit headers";
     private const string ActionBody = "Edit body";
     private const string ActionAuth = "Edit auth";
-    private const string ActionAutoRenew = "Auto-renew auth";
-    private const string ActionFetchToken = "Fetch token";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
@@ -71,11 +69,12 @@ public class RequestEditCommand(
     private async Task<int> ExecutePromptMenuAsync(StraumrRequest request, CancellationToken cancellation)
     {
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
+        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
         EditableRequestState state = EditableRequestState.FromRequest(request);
 
         while (true)
         {
-            string? action = await PromptEditMenuAsync(console, state);
+            string? action = await PromptEditMenuAsync(console, state, auths);
             if (action is null)
             {
                 continue;
@@ -96,7 +95,7 @@ public class RequestEditCommand(
     }
 
     private static async Task<string?> PromptEditMenuAsync(
-        EscapeCancellableConsole console, EditableRequestState state)
+        EscapeCancellableConsole console, EditableRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
         var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string urlDisplay = string.IsNullOrWhiteSpace(state.Uri)
@@ -108,23 +107,12 @@ public class RequestEditCommand(
         string bodyDisplay = state.BodyType == BodyType.None
             ? "[grey]none[/]"
             : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
-        string authDisplay = AuthDisplayName(state.Auth);
-        string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
+        string authDisplay = AuthDisplayName(state.AuthId, auths);
 
         var menuChoices = new List<string>
         {
             ActionSave, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
-
-        if (SupportsAuthFetch(state.Auth))
-        {
-            menuChoices.Add(ActionFetchToken);
-        }
-
-        if (SupportsAuthAutoRenew(state.Auth))
-        {
-            menuChoices.Add(ActionAutoRenew);
-        }
 
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
             .Title("Edit request")
@@ -139,7 +127,6 @@ public class RequestEditCommand(
                 ActionHeaders => $"Headers: {headersDisplay}",
                 ActionBody => $"Body: {bodyDisplay}",
                 ActionAuth => $"Auth: {authDisplay}",
-                ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
             })
             .AddChoices(menuChoices);
@@ -220,14 +207,11 @@ public class RequestEditCommand(
                     await EditBodyAsync(console, state.Headers, state.Bodies, state.BodyType, cancellation);
                 break;
             case ActionAuth:
-                state.Auth = await EditAuthAsync(console, state.Auth, authTemplateService);
+            {
+                StraumrAuth? selected = await SelectAuthAsync(console, authService);
+                state.AuthId = selected?.Id;
                 break;
-            case ActionFetchToken:
-                await FetchAuthValueAsync(authService, state.Auth);
-                break;
-            case ActionAutoRenew:
-                state.AutoRenewAuth = !state.AutoRenewAuth;
-                break;
+            }
         }
     }
 
@@ -331,7 +315,7 @@ public class RequestEditCommand(
     {
         private EditableRequestState(string name, string uri, string method, Dictionary<string, string> parameters,
             Dictionary<string, string> headers, Dictionary<BodyType, string> bodies, BodyType bodyType,
-            StraumrAuthConfig? auth, bool autoRenewAuth)
+            Guid? authId)
         {
             Name = name;
             Uri = uri;
@@ -340,8 +324,7 @@ public class RequestEditCommand(
             Headers = headers;
             Bodies = bodies;
             BodyType = bodyType;
-            Auth = auth;
-            AutoRenewAuth = autoRenewAuth;
+            AuthId = authId;
         }
 
         public string Name { get; set; }
@@ -351,8 +334,7 @@ public class RequestEditCommand(
         public Dictionary<string, string> Headers { get; }
         public Dictionary<BodyType, string> Bodies { get; }
         public BodyType BodyType { get; set; }
-        public StraumrAuthConfig? Auth { get; set; }
-        public bool AutoRenewAuth { get; set; }
+        public Guid? AuthId { get; set; }
 
         public static EditableRequestState FromRequest(StraumrRequest request)
         {
@@ -364,8 +346,7 @@ public class RequestEditCommand(
                 new Dictionary<string, string>(request.Headers, StringComparer.OrdinalIgnoreCase),
                 new Dictionary<BodyType, string>(request.Bodies),
                 request.BodyType,
-                request.Auth,
-                request.AutoRenewAuth);
+                request.AuthId);
         }
 
         public void ApplyTo(StraumrRequest request)
@@ -377,8 +358,7 @@ public class RequestEditCommand(
             request.Headers = new Dictionary<string, string>(Headers, StringComparer.OrdinalIgnoreCase);
             request.BodyType = BodyType;
             request.Bodies = new Dictionary<BodyType, string>(Bodies);
-            request.Auth = Auth;
-            request.AutoRenewAuth = AutoRenewAuth;
+            request.AuthId = AuthId;
         }
     }
 }

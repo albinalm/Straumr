@@ -4,16 +4,117 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
+using Straumr.Core.Exceptions;
 using Straumr.Core.Extensions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Core.Services;
 
-public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumrAuthService
+public class StraumrAuthService(
+    IStraumrFileService fileService,
+    IStraumrOptionsService optionsService,
+    IHttpClientFactory httpClientFactory) : IStraumrAuthService
 {
     private readonly HttpClient _client = httpClientFactory.CreateClient();
+
+    public async Task<IReadOnlyList<StraumrAuth>> ListAsync()
+    {
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        var auths = new List<StraumrAuth>();
+        foreach (Guid id in workspace.Auths)
+        {
+            auths.Add(await PeekByIdAsync(id));
+        }
+
+        return auths;
+    }
+
+    public async Task<StraumrAuth> GetAsync(string identifier)
+    {
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        AuthLookup lookup = await RequireAuthAsync(workspace, identifier,
+            $"No auth found with the identifier: {identifier}");
+
+        return await ResolveAuthAsync(lookup);
+    }
+
+    public async Task<StraumrAuth> PeekByIdAsync(Guid id)
+    {
+        GetCurrentWorkspaceEntry();
+        string fullPath = AuthPath(id);
+
+        if (!File.Exists(fullPath))
+        {
+            throw new StraumrException("Auth not found", StraumrError.EntryNotFound);
+        }
+
+        try
+        {
+            return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrAuth);
+        }
+        catch (JsonException jex)
+        {
+            throw new StraumrException("Invalid auth", StraumrError.CorruptEntry, jex);
+        }
+    }
+
+    public async Task CreateAsync(StraumrAuth auth)
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        string fullPath = AuthPath(auth.Id);
+
+        if (File.Exists(fullPath))
+        {
+            throw new StraumrException("Auth already exists", StraumrError.EntryConflict);
+        }
+
+        await EnsureNoNameConflictAsync(auth.Name);
+
+        await fileService.WriteStraumrModel(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
+        await AddAuthToWorkspace(entry, auth.Id);
+    }
+
+    public async Task UpdateAsync(StraumrAuth auth)
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        string fullPath = AuthPath(auth.Id);
+
+        if (!File.Exists(fullPath))
+        {
+            throw new StraumrException("Auth not found", StraumrError.EntryNotFound);
+        }
+
+        await EnsureNoNameConflictAsync(auth.Name, auth.Id);
+
+        await fileService.WriteStraumrModel(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
+        await StampWorkspaceAccessAsync(entry);
+    }
+
+    public async Task DeleteAsync(string identifier)
+    {
+        (StraumrWorkspaceEntry entry, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        AuthLookup lookup = await RequireAuthAsync(workspace, identifier, "No auth found");
+        RemoveAuthFile(lookup.Id);
+        workspace.Auths.Remove(lookup.Id);
+        await PersistWorkspaceAsync(entry, workspace);
+    }
+
+    public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
+    {
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        AuthLookup lookup = await RequireAuthAsync(workspace, identifier, "No auth found");
+        string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+        File.Copy(AuthPath(lookup.Id), tempPath, true);
+        return (lookup.Id, tempPath);
+    }
+
+    public void ApplyEdit(Guid authId, string tempPath)
+    {
+        File.Copy(tempPath, AuthPath(authId), true);
+    }
 
     public async Task<OAuth2Token> FetchTokenAsync(OAuth2Config config)
     {
@@ -54,7 +155,7 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
             Bodies = new Dictionary<BodyType, string>(config.Bodies)
         };
 
-        var httpMessage = authRequest.ToHttpRequestMessage();
+        var httpMessage = authRequest.ToHttpRequestMessage(null);
         HttpResponseMessage response = await _client.SendAsync(httpMessage);
 
         if (!response.IsSuccessStatusCode)
@@ -78,7 +179,7 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
         return extracted;
     }
 
-    public async Task<OAuth2Token> RefreshTokenAsync(OAuth2Config config)
+    private async Task<OAuth2Token> RefreshTokenAsync(OAuth2Config config)
     {
         if (config.Token?.RefreshToken is null)
         {
@@ -396,4 +497,131 @@ public class StraumrAuthService(IHttpClientFactory httpClientFactory) : IStraumr
         builder.Query = string.Join('&', queryParts);
         return builder.Uri.ToString();
     }
+
+    private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync()
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        StraumrWorkspace workspace =
+            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+        return (entry, workspace);
+    }
+
+    private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
+    {
+        return optionsService.Options.CurrentWorkspace
+               ?? throw new StraumrException("No workspace loaded", StraumrError.MissingEntry);
+    }
+
+    private async Task AddAuthToWorkspace(StraumrWorkspaceEntry entry, Guid id)
+    {
+        StraumrWorkspace workspace =
+            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+        workspace.Auths.Add(id);
+        await PersistWorkspaceAsync(entry, workspace);
+    }
+
+    private async Task PersistWorkspaceAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)
+    {
+        await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
+    }
+
+    private async Task StampWorkspaceAccessAsync(StraumrWorkspaceEntry entry)
+    {
+        await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+    }
+
+    private async Task EnsureNoNameConflictAsync(string name, Guid excludeId = default)
+    {
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        foreach (Guid id in workspace.Auths)
+        {
+            if (id == excludeId)
+            {
+                continue;
+            }
+
+            try
+            {
+                StraumrAuth auth = await PeekByIdAsync(id);
+                if (string.Equals(auth.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new StraumrException("An auth with this name already exists", StraumrError.EntryConflict);
+                }
+            }
+            catch (StraumrException ex) when (ex.Reason is StraumrError.CorruptEntry or StraumrError.EntryNotFound) { }
+        }
+    }
+
+    private string AuthPath(Guid id)
+    {
+        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        string? directory = Path.GetDirectoryName(entry.Path);
+        return Path.Combine(directory!, $"{id}.json");
+    }
+
+    private void RemoveAuthFile(Guid id)
+    {
+        string path = AuthPath(id);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private async Task<StraumrAuth> GetByIdAsync(Guid id)
+    {
+        GetCurrentWorkspaceEntry();
+        string fullPath = AuthPath(id);
+
+        try
+        {
+            return await fileService.ReadStraumrModel(fullPath, StraumrJsonContext.Default.StraumrAuth);
+        }
+        catch (JsonException jex)
+        {
+            throw new StraumrException("Invalid auth", StraumrError.CorruptEntry, jex);
+        }
+    }
+
+    private async Task<AuthLookup?> LookupAuthAsync(StraumrWorkspace workspace, string identifier)
+    {
+        if (Guid.TryParse(identifier, out Guid authId) && workspace.Auths.Contains(authId))
+        {
+            return new AuthLookup(authId, null);
+        }
+
+        foreach (Guid id in workspace.Auths)
+        {
+            try
+            {
+                StraumrAuth auth = await PeekByIdAsync(id);
+                if (auth.Name == identifier)
+                {
+                    return new AuthLookup(id, auth);
+                }
+            }
+            catch (StraumrException) { }
+        }
+
+        return null;
+    }
+
+    private async Task<AuthLookup> RequireAuthAsync(
+        StraumrWorkspace workspace, string identifier, string errorMessage)
+    {
+        AuthLookup? lookup = await LookupAuthAsync(workspace, identifier);
+        if (lookup.HasValue)
+        {
+            return lookup.Value;
+        }
+
+        throw new StraumrException(errorMessage, StraumrError.EntryNotFound);
+    }
+
+    private async Task<StraumrAuth> ResolveAuthAsync(AuthLookup lookup)
+    {
+        return lookup.Auth ?? await GetByIdAsync(lookup.Id);
+    }
+
+    private readonly record struct AuthLookup(Guid Id, StraumrAuth? Auth);
 }

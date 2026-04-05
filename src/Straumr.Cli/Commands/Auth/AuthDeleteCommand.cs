@@ -4,10 +4,11 @@ using Spectre.Console.Cli;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Services.Interfaces;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAuthTemplateService templateService)
+public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAuthService authService)
     : AsyncCommand<AuthDeleteCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -23,8 +24,8 @@ public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAu
 
         try
         {
-            await templateService.DeleteAsync(settings.Identifier);
-            AnsiConsole.MarkupLine($"[green]Deleted auth preset[/] [bold]{settings.Identifier}[/]");
+            await authService.DeleteAsync(settings.Identifier);
+            AnsiConsole.MarkupLine($"[green]Deleted auth[/] [bold]{settings.Identifier}[/]");
             return 0;
         }
         catch (StraumrException ex)
@@ -42,7 +43,7 @@ public class AuthDeleteCommand(IStraumrOptionsService optionsService, IStraumrAu
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")]
-        [Description("Name or ID of the auth template to delete")]
+        [Description("Name or ID of the auth to delete")]
         public required string Identifier { get; set; }
     }
 }

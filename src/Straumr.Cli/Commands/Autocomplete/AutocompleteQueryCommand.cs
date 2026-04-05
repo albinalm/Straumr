@@ -10,7 +10,7 @@ public class AutocompleteQueryCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
-    IStraumrAuthTemplateService authTemplateService,
+    IStraumrAuthService authService,
     IStraumrSecretService secretService)
     : AsyncCommand<AutocompleteQueryCommand.Settings>
 {
@@ -153,7 +153,7 @@ public class AutocompleteQueryCommand(
             return;
         }
 
-        foreach (Guid id in workspace.AuthTemplates)
+        foreach (Guid id in workspace.Auths)
         {
             if (id.ToString().StartsWith(partial, StringComparison.OrdinalIgnoreCase))
             {
@@ -162,10 +162,10 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrAuthTemplate template = await authTemplateService.GetAsync(id.ToString());
-                if (template.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
+                StraumrAuth auth = await authService.GetAsync(id.ToString());
+                if (auth.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
-                    completions.Add(template.Name);
+                    completions.Add(auth.Name);
                 }
             }
             catch (StraumrException) { }

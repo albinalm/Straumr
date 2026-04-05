@@ -10,6 +10,5 @@ public class StraumrRequest : StraumrModelBase
     public Dictionary<string, string> Headers { get; set; } = new();
     public BodyType BodyType { get; set; } = BodyType.None;
     public Dictionary<BodyType, string> Bodies { get; set; } = new();
-    public StraumrAuthConfig? Auth { get; set; }
-    public bool AutoRenewAuth { get; set; } = true;
+    public Guid? AuthId { get; set; }
 }

@@ -5,6 +5,7 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Workspace;
 
@@ -93,7 +94,7 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
         table.AddRow("[grey]Modified[/]",
             workspace?.Modified.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[grey]N/A[/]");
         table.AddRow("[grey]Requests[/]", workspace?.Requests.Count.ToString() ?? "[grey]N/A[/]");
-        table.AddRow("[grey]Auth Templates[/]", workspace?.AuthTemplates.Count.ToString() ?? "[grey]N/A[/]");
+        table.AddRow("[grey]Auths[/]", workspace?.Auths.Count.ToString() ?? "[grey]N/A[/]");
 
         string displayName = workspace?.Name ?? entry.Id.ToString();
         Panel panel = new Panel(table)

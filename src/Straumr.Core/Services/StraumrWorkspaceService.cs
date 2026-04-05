@@ -89,7 +89,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         {
             Name = newName,
             Requests = sourceWorkspace.Requests,
-            AuthTemplates = sourceWorkspace.AuthTemplates,
+            Auths = sourceWorkspace.Auths,
             Secrets = sourceWorkspace.Secrets
         };
 
@@ -254,7 +254,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         {
             string workspaceName = await GetWorkspaceName(entry.Path);
 
-            if (File.Exists(entry.Path) && workspaceName == name)
+            if (File.Exists(entry.Path) && string.Equals(workspaceName, name, StringComparison.OrdinalIgnoreCase))
             {
                 throw new StraumrException("A workspace with this name already exists",
                     StraumrError.EntryConflict);

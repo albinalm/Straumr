@@ -11,18 +11,19 @@ using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
 
 public class AuthEditCommand(
     IStraumrOptionsService optionsService,
-    IStraumrAuthTemplateService templateService,
     IStraumrAuthService authService) : AsyncCommand<AuthEditCommand.Settings>
 {
     private const string ActionSave = "Save";
     private const string ActionName = "Edit name";
     private const string ActionConfigure = "Configure auth";
     private const string ActionFetch = "Fetch token/value";
+    private const string ActionAutoRenew = "Auto-renew auth";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
@@ -40,10 +41,10 @@ public class AuthEditCommand(
             return await ExecuteEditorAsync(settings.Identifier, cancellation);
         }
 
-        StraumrAuthTemplate template;
+        StraumrAuth auth;
         try
         {
-            template = await templateService.GetAsync(settings.Identifier);
+            auth = await authService.GetAsync(settings.Identifier);
         }
         catch (StraumrException ex)
         {
@@ -56,13 +57,13 @@ public class AuthEditCommand(
             return -1;
         }
 
-        return await ExecutePromptMenuAsync(template);
+        return await ExecutePromptMenuAsync(auth);
     }
 
-    private async Task<int> ExecutePromptMenuAsync(StraumrAuthTemplate template)
+    private async Task<int> ExecutePromptMenuAsync(StraumrAuth auth)
     {
         var console = new EscapeCancellableConsole(AnsiConsole.Console);
-        EditableAuthTemplateState state = EditableAuthTemplateState.FromTemplate(template);
+        EditableAuthState state = EditableAuthState.FromAuth(auth);
 
         while (true)
         {
@@ -74,7 +75,7 @@ public class AuthEditCommand(
 
             if (action == ActionSave)
             {
-                if (await TrySaveChangesAsync(template, state))
+                if (await TrySaveChangesAsync(auth, state))
                 {
                     return 0;
                 }
@@ -94,11 +95,11 @@ public class AuthEditCommand(
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
-        Guid templateId;
+        Guid authId;
         string tempPath;
         try
         {
-            (templateId, tempPath) = await templateService.PrepareEditAsync(identifier);
+            (authId, tempPath) = await authService.PrepareEditAsync(identifier);
         }
         catch (StraumrException ex)
         {
@@ -120,35 +121,35 @@ public class AuthEditCommand(
             }
 
             string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
-            StraumrAuthTemplate? deserialized;
+            StraumrAuth? deserialized;
             try
             {
-                deserialized = JsonSerializer.Deserialize<StraumrAuthTemplate>(editedJson,
-                    StraumrJsonContext.Default.StraumrAuthTemplate);
+                deserialized = JsonSerializer.Deserialize<StraumrAuth>(editedJson,
+                    StraumrJsonContext.Default.StraumrAuth);
             }
             catch (JsonException ex)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid auth template JSON: {Markup.Escape(ex.Message)}[/]");
+                AnsiConsole.MarkupLine($"[red]Invalid auth JSON: {Markup.Escape(ex.Message)}[/]");
                 return 1;
             }
 
             if (deserialized is null)
             {
-                AnsiConsole.MarkupLine("[red]Invalid auth template JSON.[/]");
+                AnsiConsole.MarkupLine("[red]Invalid auth JSON.[/]");
                 return 1;
             }
 
-            if (deserialized.Id != templateId)
+            if (deserialized.Id != authId)
             {
-                AnsiConsole.MarkupLine("[red]Auth template ID cannot be changed.[/]");
+                AnsiConsole.MarkupLine("[red]Auth ID cannot be changed.[/]");
                 return 1;
             }
 
             try
             {
-                templateService.ApplyEdit(templateId, tempPath);
+                authService.ApplyEdit(authId, tempPath);
                 AnsiConsole.MarkupLine(
-                    $"[green]Updated auth preset[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                    $"[green]Updated auth[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
                 return 0;
             }
             catch (StraumrException ex)
@@ -172,11 +173,12 @@ public class AuthEditCommand(
     }
 
     private static async Task<string?> PromptEditMenuAsync(
-        EscapeCancellableConsole console, EditableAuthTemplateState state)
+        EscapeCancellableConsole console, EditableAuthState state)
     {
         var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
-        var menuChoices = new List<string> { ActionSave, ActionName, ActionConfigure };
+        string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
+        var menuChoices = new List<string> { ActionSave, ActionName, ActionConfigure, ActionAutoRenew };
 
         if (SupportsAuthFetch(state.Auth))
         {
@@ -184,13 +186,14 @@ public class AuthEditCommand(
         }
 
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Edit auth preset")
+            .Title("Edit auth")
             .EnableSearch()
             .SearchPlaceholderText("/")
             .UseConverter(choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
                 ActionConfigure => $"Auth: {authDisplay}",
+                ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
             })
             .AddChoices(menuChoices);
@@ -198,7 +201,7 @@ public class AuthEditCommand(
         return await PromptAsync(console, prompt);
     }
 
-    private async Task<bool> TrySaveChangesAsync(StraumrAuthTemplate template, EditableAuthTemplateState state)
+    private async Task<bool> TrySaveChangesAsync(StraumrAuth auth, EditableAuthState state)
     {
         if (state.Auth is null)
         {
@@ -206,12 +209,12 @@ public class AuthEditCommand(
             return false;
         }
 
-        state.ApplyTo(template);
+        state.ApplyTo(auth);
 
         try
         {
-            await templateService.UpdateAsync(template);
-            AnsiConsole.MarkupLine($"[green]Updated auth preset[/] [bold]{template.Name}[/] ({template.Id})");
+            await authService.UpdateAsync(auth);
+            AnsiConsole.MarkupLine($"[green]Updated auth[/] [bold]{auth.Name}[/] ({auth.Id})");
             return true;
         }
         catch (StraumrException ex)
@@ -227,7 +230,7 @@ public class AuthEditCommand(
     }
 
     private async Task HandleEditActionAsync(
-        EscapeCancellableConsole console, EditableAuthTemplateState state, string action)
+        EscapeCancellableConsole console, EditableAuthState state, string action)
     {
         switch (action)
         {
@@ -249,6 +252,9 @@ public class AuthEditCommand(
             case ActionConfigure:
                 state.Auth = await EditAuthAsync(console, state.Auth);
                 break;
+            case ActionAutoRenew:
+                state.AutoRenewAuth = !state.AutoRenewAuth;
+                break;
             case ActionFetch:
                 await FetchAuthValueAsync(authService, state.Auth);
                 break;
@@ -258,34 +264,37 @@ public class AuthEditCommand(
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")]
-        [Description("Name or ID of the auth template to edit")]
+        [Description("Name or ID of the auth to edit")]
         public required string Identifier { get; set; }
 
         [CommandOption("-e|--editor")]
-        [Description("Open the auth template in the default editor instead of interactive prompts")]
+        [Description("Open the auth in the default editor instead of interactive prompts")]
         public bool UseEditor { get; set; }
     }
 
-    private sealed class EditableAuthTemplateState
+    private sealed class EditableAuthState
     {
-        private EditableAuthTemplateState(string name, StraumrAuthConfig? auth)
+        private EditableAuthState(string name, StraumrAuthConfig? auth, bool autoRenewAuth)
         {
             Name = name;
             Auth = auth;
+            AutoRenewAuth = autoRenewAuth;
         }
 
         public string Name { get; set; }
         public StraumrAuthConfig? Auth { get; set; }
+        public bool AutoRenewAuth { get; set; }
 
-        public static EditableAuthTemplateState FromTemplate(StraumrAuthTemplate template)
+        public static EditableAuthState FromAuth(StraumrAuth auth)
         {
-            return new EditableAuthTemplateState(template.Name, template.Config);
+            return new EditableAuthState(auth.Name, auth.Config, auth.AutoRenewAuth);
         }
 
-        public void ApplyTo(StraumrAuthTemplate template)
+        public void ApplyTo(StraumrAuth auth)
         {
-            template.Name = Name;
-            template.Config = Auth ?? throw new InvalidOperationException("Auth config must be set.");
+            auth.Name = Name;
+            auth.Config = Auth ?? throw new InvalidOperationException("Auth config must be set.");
+            auth.AutoRenewAuth = AutoRenewAuth;
         }
     }
 }

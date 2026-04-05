@@ -13,12 +13,22 @@ public class SecretCreateCommand(IStraumrSecretService secretService) : AsyncCom
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        string name = settings.Name ?? AnsiConsole.Prompt(
+            new TextPrompt<string>("Name:")
+                .Validate(v => string.IsNullOrWhiteSpace(v)
+                    ? ValidationResult.Error("Name cannot be empty.")
+                    : ValidationResult.Success()));
+
+        string value = settings.Value ?? AnsiConsole.Prompt(
+            new TextPrompt<string>("Value:")
+                .Secret());
+
         try
         {
             var secret = new StraumrSecret
             {
-                Name = settings.Name,
-                Value = settings.Value
+                Name = name,
+                Value = value
             };
 
             await secretService.CreateAsync(secret);
@@ -39,12 +49,12 @@ public class SecretCreateCommand(IStraumrSecretService secretService) : AsyncCom
 
     public sealed class Settings : CommandSettings
     {
-        [CommandArgument(0, "<Name>")]
+        [CommandArgument(0, "[Name]")]
         [Description("Name of the secret to create")]
-        public required string Name { get; set; }
+        public string? Name { get; set; }
 
-        [CommandArgument(1, "<Value>")]
+        [CommandArgument(1, "[Value]")]
         [Description("Value of the secret to create")]
-        public required string Value { get; set; }
+        public string? Value { get; set; }
     }
 }
