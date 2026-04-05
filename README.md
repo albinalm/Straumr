@@ -8,6 +8,16 @@ Straumr is a CLI tool for managing and sending HTTP requests. You define request
 
 It handles authentication templates, secrets, and multiple workspaces, so you can keep work, staging, and personal projects separate without duplicating config.
 
+## Documentation
+
+Detailed documentation lives in [`docs/`](docs/README.md):
+
+- [User Workflows](docs/user-workflows.md)
+- [Command Reference](docs/command-reference.md)
+- [Data Model](docs/data-model.md)
+- [Architecture](docs/architecture.md)
+- [Development](docs/development.md)
+
 ## Features
 
 **Workspaces**
@@ -24,7 +34,7 @@ Straumr supports four auth types you can configure as reusable templates:
 
 - **Bearer** - a static token injected as an Authorization header
 - **Basic** - username and password, Base64 encoded
-- **OAuth 2.0** - full token lifecycle with automatic refresh (supports authorization code, client credentials, password, and implicit grant types)
+- **OAuth 2.0** - full token lifecycle with automatic refresh (supports authorization code, client credentials, and password grant types)
 - **Custom** - define your own header-based auth
 
 Attach an auth template to a request and it's applied automatically on send. OAuth tokens that expire get refreshed without you having to do anything.
@@ -64,44 +74,45 @@ Verify the download using the provided `sha256sums.txt` and `.minisig` signature
 
 ```sh
 # Create a workspace and activate it
-straumr workspace create myapi
-straumr workspace use myapi
+straumr create workspace myapi
+straumr use workspace myapi
 ```
 
 Creating a request opens an interactive TUI by default:
 
 ```sh
-straumr request create get-users
+straumr create request get-users
 ```
 
 Use `-e` to open the request in your editor as a JSON. To understand values and structure you'll need to adhere to the documentation:
 
 ```sh
-straumr request create get-users -e
+straumr create request get-users -e
 ```
 
 You can also pass everything inline, which is useful for scripting:
 
 ```sh
-straumr request create get-users https://api.example.com/users --method GET
+straumr create request get-users https://api.example.com/users --method GET
 ```
 
 Then send it:
 
 ```sh
-straumr request send get-users --pretty
+straumr send get-users --pretty
 ```
 
 ## Commands
 
 | Group | Commands |
 |---|---|
-| `workspace` | `create`, `use`, `list`, `get`, `edit`, `export`, `import`, `delete` |
-| `request` | `create`, `send`, `edit`, `list`, `get`, `delete` |
-| `auth` | `create`, `edit`, `list`, `get`, `delete` |
-| `secret` | `create`, `edit`, `list`, `get`, `delete` |
+| `workspace` | via `create`, `use`, `list`, `get`, `edit`, `export`, `import`, `delete`, `copy` |
+| `request` | via `create`, `edit`, `list`, `get`, `delete` |
+| `auth` | via `create`, `edit`, `list`, `get`, `delete` |
+| `secret` | via `create`, `edit`, `list`, `get`, `delete` |
 | `config` | `workspace-path` |
 | `autocomplete` | `install` |
+| top-level | `send` |
 
 Run `straumr <command> --help` for details on any command.
 
