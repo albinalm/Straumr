@@ -165,7 +165,7 @@ internal class Program
             config.AddBranch("autocomplete", autocomplete =>
             {
                 autocomplete.AddCommand<AutocompleteInstallCommand>("install");
-                autocomplete.AddCommand<AutocompleteInstallCommand>("query").IsHidden();
+                autocomplete.AddCommand<AutocompleteQueryCommand>("query").IsHidden();
             });
 
             config.AddCommand<RequestSendCommand>("send");

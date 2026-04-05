@@ -71,6 +71,13 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
             DeleteDirectory(Path.GetDirectoryName(entry.Path));
             optionsService.Options.Workspaces.Remove(entry);
+            
+            //Clear current workspace if it's the same one as you're deleting.
+            if (optionsService.Options.CurrentWorkspace?.Id == entry.Id)
+            {
+                optionsService.Options.CurrentWorkspace = null;
+            }
+            
             await optionsService.Save();
         }
         catch (StraumrException ex) when (ex.Reason is StraumrError.CorruptEntry or StraumrError.EntryNotFound)
