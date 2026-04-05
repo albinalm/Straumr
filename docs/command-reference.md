@@ -170,14 +170,14 @@ Supported options:
 
 ```json
 {
-  "status": 200,
-  "reason": "OK",
-  "version": "1.1",
-  "durationMs": 123.4,
-  "headers": {
+  "Status": 200,
+  "Reason": "OK",
+  "Version": "1.1",
+  "DurationMs": 123.4,
+  "Headers": {
     "Content-Type": ["application/json"]
   },
-  "body": "{\"ok\":true}"
+  "Body": "{\"ok\":true}"
 }
 ```
 
@@ -185,8 +185,8 @@ On send-time failures in JSON mode, Straumr writes an error envelope:
 
 ```json
 {
-  "error": {
-    "message": "..."
+  "Error": {
+    "Message": "..."
   }
 }
 ```

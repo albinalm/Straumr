@@ -539,7 +539,7 @@ public class RequestSendCommand(
         public bool Silent { get; set; }
 
         [CommandOption("-j|--json")]
-        [Description("Output response as a JSON envelope {status, reason, version, duration_ms, headers, body}")]
+        [Description("Output response as a JSON envelope {Status, Reason, Version, DurationMs, Headers, Body}")]
         public bool Json { get; set; }
 
         [CommandOption("-n|--dry-run")]

@@ -3,7 +3,7 @@ using Straumr.Cli.Models;
 
 namespace Straumr.Cli.Infrastructure;
 
-[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+[JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(WorkspaceListItem[]))]
 [JsonSerializable(typeof(RequestListItem[]))]
 [JsonSerializable(typeof(AuthListItem[]))]
