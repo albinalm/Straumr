@@ -31,6 +31,24 @@ public class StraumrFileService : IStraumrFileService
                throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
     }
 
+    public async Task StampAccessAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        string json = await File.ReadAllTextAsync(path);
+        T? deserialized = JsonSerializer.Deserialize(json, typeInfo);
+        if (deserialized is null)
+        {
+            return;
+        }
+
+        deserialized.LastAccessed = DateTimeOffset.UtcNow;
+        await WriteInternal(path, deserialized, typeInfo, false);
+    }
+
     public async Task WriteGeneric<T>(string path, T value, JsonTypeInfo<T> typeInfo)
     {
         EnsureDirectoryExists(path);

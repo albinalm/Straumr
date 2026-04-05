@@ -1,5 +1,9 @@
+using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -12,19 +16,57 @@ public class RequestListCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService)
-    : AsyncCommand
+    : AsyncCommand<RequestListCommand.Settings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellation)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
+        CancellationToken cancellation)
     {
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry == null)
         {
-            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
-                StraumrError.MissingEntry);
+            if (settings.Json)
+            {
+                await System.Console.Error.WriteLineAsync("{\"error\":{\"message\":\"No workspace loaded\"}}");
+            }
+            else
+            {
+                throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
+                    StraumrError.MissingEntry);
+            }
+            return 1;
         }
 
         StraumrWorkspace workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
-        if (workspace.Requests.Count == 0)
+
+        var entries = new List<RequestListEntry>();
+        foreach (Guid requestGuid in workspace.Requests)
+        {
+            RequestListEntry requestEntry = await GetRequest(requestGuid);
+            entries.Add(requestEntry);
+        }
+
+        if (!string.IsNullOrEmpty(settings.Filter))
+        {
+            entries = entries.Where(e =>
+                (e.Request?.Name.Contains(settings.Filter, StringComparison.OrdinalIgnoreCase) == true) ||
+                e.Id.ToString().StartsWith(settings.Filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (settings.Json)
+        {
+            var items = entries.Select(e => new RequestListItem(
+                Id: e.Id.ToString(),
+                Name: e.Request?.Name ?? "N/A",
+                Method: e.Request?.Method.ToString() ?? "N/A",
+                Uri: e.Request?.Uri ?? "N/A",
+                Status: StripMarkup(e.Status),
+                LastAccessed: e.Request?.LastAccessed.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss")
+            )).ToArray();
+            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Default.RequestListItemArray));
+            return 0;
+        }
+
+        if (entries.Count == 0)
         {
             AnsiConsole.MarkupLine("[yellow]No requests found.[/]");
             return 0;
@@ -37,21 +79,19 @@ public class RequestListCommand(
         table.AddColumn("Last Accessed");
         table.AddColumn("Status");
 
-        foreach (Guid requestGuid in workspace.Requests)
+        foreach (RequestListEntry entry in entries)
         {
-            RequestListEntry requestEntry = await GetRequest(requestGuid);
             table.AddRow(
-                requestGuid.ToString(),
-                Markup.Escape(requestEntry.Request?.Name ?? "N/A"),
-                requestEntry.Request?.Method.ToString() ?? "N/A",
-                requestEntry.Request?.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "N/A",
-                requestEntry.Status);
+                entry.Id.ToString(),
+                Markup.Escape(entry.Request?.Name ?? "N/A"),
+                entry.Request?.Method.ToString() ?? "N/A",
+                entry.Request?.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "N/A",
+                entry.Status);
         }
 
         AnsiConsole.Write(table);
         return 0;
     }
-
 
     private async Task<RequestListEntry> GetRequest(Guid requestId)
     {
@@ -73,14 +113,30 @@ public class RequestListCommand(
 
         return new RequestListEntry
         {
+            Id = requestId,
             Request = request,
             Status = status
         };
     }
 
+    private static string StripMarkup(string value) =>
+        System.Text.RegularExpressions.Regex.Replace(value, @"\[.*?\]", string.Empty);
+
     private class RequestListEntry
     {
+        public Guid Id { get; init; }
         public StraumrRequest? Request { get; init; }
         public required string Status { get; init; }
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandOption("-j|--json")]
+        [Description("Output as JSON array")]
+        public bool Json { get; set; }
+
+        [CommandOption("--filter")]
+        [Description("Filter results by name (substring) or ID prefix")]
+        public string? Filter { get; set; }
     }
 }

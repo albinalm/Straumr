@@ -7,6 +7,7 @@ public interface IStraumrAuthService
     Task<IReadOnlyList<StraumrAuth>> ListAsync();
     Task<StraumrAuth> GetAsync(string identifier);
     Task<StraumrAuth> PeekByIdAsync(Guid id);
+    Task StampAccessAsync(Guid id);
     Task CreateAsync(StraumrAuth auth);
     Task UpdateAsync(StraumrAuth auth);
     Task DeleteAsync(string identifier);

@@ -18,6 +18,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(name);
         optionsService.Options.CurrentWorkspace = entry;
         await optionsService.Save();
+        await fileService.StampAccessAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
     public async Task Create(StraumrWorkspace workspace, string? outputDir = null)
@@ -83,7 +84,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     public async Task Copy(string identifier, string newName, string? outputDir = null)
     {
         StraumrWorkspaceEntry sourceEntry = await ResolveWorkspaceEntryAsync(identifier);
-        StraumrWorkspace sourceWorkspace = await GetWorkspace(sourceEntry.Path);
+        StraumrWorkspace sourceWorkspace = await PeekWorkspace(sourceEntry.Path);
 
         var newWorkspace = new StraumrWorkspace
         {

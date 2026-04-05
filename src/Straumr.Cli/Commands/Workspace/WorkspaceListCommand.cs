@@ -1,5 +1,9 @@
+using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -9,13 +13,44 @@ using Straumr.Core.Services.Interfaces;
 namespace Straumr.Cli.Commands.Workspace;
 
 public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraumrWorkspaceService workspaceService)
-    : AsyncCommand
+    : AsyncCommand<WorkspaceListCommand.Settings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellation)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
+        CancellationToken cancellation)
     {
         List<StraumrWorkspaceEntry> workspaceEntries = optionsService.Options.Workspaces;
 
-        if (workspaceEntries.Count == 0)
+        List<WorkspaceListEntry> workspaceListItems = [];
+
+        foreach (StraumrWorkspaceEntry entry in workspaceEntries)
+        {
+            WorkspaceListEntry workspace = await GetWorkspaceListEntry(entry);
+            workspaceListItems.Add(workspace);
+        }
+
+        if (!string.IsNullOrEmpty(settings.Filter))
+        {
+            workspaceListItems = workspaceListItems.Where(e =>
+                (e.Workspace?.Name.Contains(settings.Filter, StringComparison.OrdinalIgnoreCase) == true) ||
+                e.Entry.Id.ToString().StartsWith(settings.Filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (settings.Json)
+        {
+            var items = workspaceListItems.Select(e => new WorkspaceListItem(
+                Id: e.Entry.Id.ToString(),
+                Name: e.Workspace?.Name ?? "N/A",
+                Path: e.Entry.Path,
+                IsCurrent: e.IsCurrent,
+                Requests: e.Workspace?.Requests.Count ?? 0,
+                Status: StripMarkup(e.Status),
+                LastAccessed: e.LastAccessed?.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss")
+            )).ToArray();
+            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Default.WorkspaceListItemArray));
+            return 0;
+        }
+
+        if (workspaceListItems.Count == 0)
         {
             AnsiConsole.MarkupLine("[yellow]No workspaces found.[/]");
             return 0;
@@ -27,14 +62,6 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
         table.AddColumn("Last Accessed");
         table.AddColumn("Requests");
         table.AddColumn("Status");
-
-        List<WorkspaceListEntry> workspaceListItems = [];
-
-        foreach (StraumrWorkspaceEntry entry in workspaceEntries)
-        {
-            WorkspaceListEntry workspace = await GetWorkspaceListEntry(entry);
-            workspaceListItems.Add(workspace);
-        }
 
         foreach (WorkspaceListEntry workspaceListItem in workspaceListItems.OrderByDescending(x => x.LastAccessed))
         {
@@ -82,6 +109,9 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
         };
     }
 
+    private static string StripMarkup(string value) =>
+        System.Text.RegularExpressions.Regex.Replace(value, @"\[.*?\]", string.Empty);
+
     private class WorkspaceListEntry
     {
         public bool IsCurrent { get; init; }
@@ -89,5 +119,16 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
         public required StraumrWorkspaceEntry Entry { get; init; }
         public required string Status { get; init; }
         public DateTimeOffset? LastAccessed { get; init; }
+    }
+
+    public sealed class Settings : CommandSettings
+    {
+        [CommandOption("-j|--json")]
+        [Description("Output as JSON array")]
+        public bool Json { get; set; }
+
+        [CommandOption("--filter")]
+        [Description("Filter results by name (substring) or ID prefix")]
+        public string? Filter { get; set; }
     }
 }

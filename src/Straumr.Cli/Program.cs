@@ -28,6 +28,14 @@ internal class Program
     [RequiresDynamicCode("Calls Spectre.Console.Cli.CommandApp.CommandApp(ITypeRegistrar)")]
     private static async Task<int> RunApp(string[] args)
     {
+        bool noColor = args.Contains("--no-color");
+        if (noColor)
+        {
+            args = args.Where(a => a != "--no-color").ToArray();
+            AnsiConsole.Profile.Capabilities.Ansi = false;
+            AnsiConsole.Profile.Capabilities.Links = false;
+        }
+
         var services = new ServiceCollection();
 
         var fileService = new StraumrFileService();

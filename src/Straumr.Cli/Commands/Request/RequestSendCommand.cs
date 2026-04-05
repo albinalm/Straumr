@@ -5,10 +5,13 @@ using System.Xml;
 using System.Xml.Linq;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Helpers.AuthCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
@@ -26,8 +29,8 @@ public class RequestSendCommand(
 
         if (!hasWorkspace)
         {
-            throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
-                StraumrError.MissingEntry);
+            OutputError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
+            return 1;
         }
 
         try
@@ -38,6 +41,11 @@ public class RequestSendCommand(
                 ? await authService.PeekByIdAsync(request.AuthId.Value)
                 : null;
 
+            if (settings.DryRun)
+            {
+                return await ExecuteDryRunAsync(request, auth, settings, cancellation);
+            }
+
             var options = new SendOptions
             {
                 Insecure = settings.Insecure,
@@ -45,6 +53,12 @@ public class RequestSendCommand(
             };
 
             StraumrResponse response = await requestService.SendAsync(request, options);
+
+            if (settings.Json)
+            {
+                return OutputJsonResponse(response, settings);
+            }
+
             string content = settings.Beautify ? BeautifyContent(response.Content) : response.Content ?? string.Empty;
 
             if (settings.Pretty && !settings.Verbose)
@@ -74,6 +88,18 @@ public class RequestSendCommand(
                 return 1;
             }
 
+            if (settings.ResponseStatus)
+            {
+                System.Console.WriteLine(response.StatusCode.HasValue ? (int)response.StatusCode.Value : 0);
+                return ExitCode(response, settings);
+            }
+
+            if (settings.ResponseHeaders)
+            {
+                RenderIncludeHeaders(response);
+                return ExitCode(response, settings);
+            }
+
             if (settings.IncludeHeaders)
             {
                 RenderIncludeHeaders(response);
@@ -100,28 +126,135 @@ public class RequestSendCommand(
                 }
             }
 
-            if (settings.Fail && response.StatusCode is not null && (int)response.StatusCode.Value >= 400)
-            {
-                if (!settings.Silent)
-                {
-                    await System.Console.Error.WriteLineAsync(
-                        $"The requested URL returned error: {(int)response.StatusCode.Value} {response.ReasonPhrase}");
-                }
-
-                return 22;
-            }
-
-            return 0;
+            return ExitCode(response, settings);
         }
         catch (StraumrException ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            OutputError(ex.Message, settings.Json);
             return ex.Reason == StraumrError.MissingEntry ? 1 : -1;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            OutputError(ex.Message, settings.Json);
             return -1;
+        }
+    }
+
+    private async Task<int> ExecuteDryRunAsync(StraumrRequest request, StraumrAuth? auth, Settings settings,
+        CancellationToken cancellation)
+    {
+        (string resolvedUrl, IReadOnlyList<string> warnings) = await requestService.ResolveUrlAsync(request);
+
+        if (settings.Json)
+        {
+            string? bodyContent = request.Bodies.TryGetValue(request.BodyType, out string? b) ? b : null;
+            var result = new DryRunResult(
+                Method: request.Method.Method.ToUpperInvariant(),
+                Uri: resolvedUrl,
+                Auth: auth is not null ? $"{auth.Name} ({AuthTypeName(auth.Config)})" : null,
+                Headers: request.Headers,
+                Params: request.Params,
+                BodyType: request.BodyType == BodyType.None ? null : request.BodyType.ToString(),
+                Body: bodyContent
+            );
+            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Default.DryRunResult));
+            return 0;
+        }
+
+        AnsiConsole.MarkupLine("[grey]Dry run — request will not be sent[/]");
+        AnsiConsole.MarkupLine($"[blue]{request.Method.Method.ToUpperInvariant()}[/] {Markup.Escape(resolvedUrl)}");
+
+        if (auth is not null)
+        {
+            AnsiConsole.MarkupLine($"[grey]Auth:[/] {Markup.Escape(auth.Name)} ({Markup.Escape(AuthTypeName(auth.Config))})");
+        }
+
+        foreach (KeyValuePair<string, string> header in request.Headers)
+        {
+            AnsiConsole.MarkupLine($"[grey]{Markup.Escape(header.Key)}:[/] {Markup.Escape(header.Value)}");
+        }
+
+        if (request.Params.Count > 0)
+        {
+            AnsiConsole.MarkupLine("[grey]Query params:[/]");
+            foreach (KeyValuePair<string, string> param in request.Params)
+            {
+                AnsiConsole.MarkupLine($"  {Markup.Escape(param.Key)}={Markup.Escape(param.Value)}");
+            }
+        }
+
+        if (request.BodyType != BodyType.None && request.Bodies.TryGetValue(request.BodyType, out string? body))
+        {
+            AnsiConsole.MarkupLine($"[grey]Body ({request.BodyType}):[/]");
+            System.Console.WriteLine(body);
+        }
+
+        foreach (string warning in warnings)
+        {
+            AnsiConsole.MarkupLine($"\n[yellow]Warning:[/] {Markup.Escape(warning)}");
+        }
+
+        return 0;
+    }
+
+    private static int OutputJsonResponse(StraumrResponse response, Settings settings)
+    {
+        if (response.Exception is not null)
+        {
+            var envelope = new SendErrorEnvelope(new SendError(response.Exception.Message));
+            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Default.SendErrorEnvelope));
+            return 1;
+        }
+
+        var headers = response.ResponseHeaders.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.ToArray());
+
+        var result = new SendResult(
+            Status: response.StatusCode.HasValue ? (int)response.StatusCode.Value : null,
+            Reason: response.ReasonPhrase,
+            Version: response.HttpVersion?.ToString(),
+            DurationMs: response.Duration.TotalMilliseconds,
+            Headers: headers,
+            Body: response.Content
+        );
+
+        System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Default.SendResult));
+
+        if (settings.Fail && response.StatusCode.HasValue && (int)response.StatusCode.Value >= 400)
+        {
+            return 22;
+        }
+
+        return 0;
+    }
+
+    private static int ExitCode(StraumrResponse response, Settings settings)
+    {
+        if (settings.Fail && response.StatusCode is not null && (int)response.StatusCode.Value >= 400)
+        {
+            if (!settings.Silent)
+            {
+                System.Console.Error.WriteLine(
+                    $"The requested URL returned error: {(int)response.StatusCode.Value} {response.ReasonPhrase}");
+            }
+
+            return 22;
+        }
+
+        return 0;
+    }
+
+    private static void OutputError(string message, bool json)
+    {
+        if (json)
+        {
+            var envelope = new SendErrorEnvelope(new SendError(message));
+            System.Console.Error.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Default.SendErrorEnvelope));
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(message)}[/]");
         }
     }
 
@@ -404,5 +537,21 @@ public class RequestSendCommand(
         [CommandOption("-s|--silent")]
         [Description("Suppress all output")]
         public bool Silent { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output response as a JSON envelope {status, reason, version, duration_ms, headers, body}")]
+        public bool Json { get; set; }
+
+        [CommandOption("-n|--dry-run")]
+        [Description("Show the resolved request without sending it")]
+        public bool DryRun { get; set; }
+
+        [CommandOption("--response-status")]
+        [Description("Output only the HTTP status code")]
+        public bool ResponseStatus { get; set; }
+
+        [CommandOption("--response-headers")]
+        [Description("Output only the response headers")]
+        public bool ResponseHeaders { get; set; }
     }
 }

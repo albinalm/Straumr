@@ -14,21 +14,51 @@ public class AutocompleteQueryCommand(
     IStraumrSecretService secretService)
     : AsyncCommand<AutocompleteQueryCommand.Settings>
 {
-    private static readonly string[] Branches = ["workspace", "request", "auth", "secret", "config"];
+    // Top-level verbs registered in Program.cs
+    private static readonly string[] TopLevelVerbs =
+    [
+        "list", "create", "delete", "edit", "get",
+        "use", "copy", "import", "export",
+        "config", "autocomplete", "send"
+    ];
 
-    private static readonly Dictionary<string, string[]> BranchCommands = new()
+    // Nouns available under each verb (full names only, no aliases)
+    private static readonly Dictionary<string, string[]> VerbNouns = new()
     {
-        ["workspace"] = ["create", "use", "import", "list", "delete", "export", "edit", "get"],
-        ["request"] = ["create", "send", "edit", "list", "delete", "get"],
-        ["auth"] = ["create", "edit", "list", "delete", "get"],
-        ["secret"] = ["create", "edit", "list", "delete", "get"],
-        ["config"] = ["workspace-path"]
+        ["list"]       = ["workspace", "request", "auth", "secret"],
+        ["create"]     = ["workspace", "request", "auth", "secret"],
+        ["delete"]     = ["workspace", "request", "auth", "secret"],
+        ["edit"]       = ["workspace", "request", "auth", "secret"],
+        ["get"]        = ["workspace", "request", "auth", "secret"],
+        ["use"]        = ["workspace"],
+        ["copy"]       = ["workspace"],
+        ["import"]     = ["workspace"],
+        ["export"]     = ["workspace"],
+        ["config"]     = ["workspace-path"],
+        ["autocomplete"] = ["install"],
+        ["send"]       = [],
     };
 
-    private static readonly string[] WorkspaceIdentifierCommands = ["use", "delete", "export", "edit", "get"];
-    private static readonly string[] RequestIdentifierCommands = ["send", "edit", "delete", "get"];
-    private static readonly string[] AuthIdentifierCommands = ["edit", "delete", "get"];
-    private static readonly string[] SecretIdentifierCommands = ["edit", "delete", "get"];
+    // Which verbs offer workspace-name completion at position 3
+    private static readonly HashSet<string> WorkspaceIdentifierVerbs =
+        ["get", "delete", "edit", "use", "copy", "export"];
+
+    // Which verbs offer request-name completion at position 3
+    private static readonly HashSet<string> RequestIdentifierVerbs =
+        ["get", "delete", "edit"];
+
+    // Which verbs offer auth-name completion at position 3
+    private static readonly HashSet<string> AuthIdentifierVerbs =
+        ["get", "delete", "edit"];
+
+    // Which verbs offer secret-name completion at position 3
+    private static readonly HashSet<string> SecretIdentifierVerbs =
+        ["get", "delete", "edit"];
+
+    private static readonly HashSet<string> WorkspaceNouns = ["workspace", "ws"];
+    private static readonly HashSet<string> RequestNouns   = ["request", "rq"];
+    private static readonly HashSet<string> AuthNouns      = ["auth", "au"];
+    private static readonly HashSet<string> SecretNouns    = ["secret", "sc"];
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellationToken)
@@ -39,46 +69,62 @@ public class AutocompleteQueryCommand(
 
         var completions = new CompletionResult();
 
+        // Position 1: complete top-level verb
         if (tokens.Length == 0 || (tokens.Length == 1 && !trailingSpace))
         {
             string partial = tokens.Length == 0 ? string.Empty : tokens[0];
-            completions.Add(Branches.Where(b => b.StartsWith(partial, StringComparison.OrdinalIgnoreCase)));
+            completions.Add(TopLevelVerbs.Where(v => v.StartsWith(partial, StringComparison.OrdinalIgnoreCase)));
         }
 
-        else if (BranchCommands.TryGetValue(tokens[0], out string[]? commands) &&
-                 (tokens.Length == 1 || (tokens.Length == 2 && !trailingSpace)))
+        else if (VerbNouns.TryGetValue(tokens[0], out string[]? nouns))
         {
-            string partial = tokens.Length == 2 ? tokens[1] : string.Empty;
-            completions.Add(commands.Where(c => c.StartsWith(partial, StringComparison.OrdinalIgnoreCase)));
-        }
+            string verb = tokens[0];
 
-        else if (tokens.Length == 3 && !trailingSpace &&
-                 tokens[0] == "workspace" &&
-                 WorkspaceIdentifierCommands.Contains(tokens[1]))
-        {
-            await AddWorkspaceCompletionsAsync(completions, tokens[2]);
-        }
+            // 'send' takes a request identifier directly at position 2 (no noun)
+            if (verb == "send")
+            {
+                if ((tokens.Length == 1 && trailingSpace) || (tokens.Length == 2 && !trailingSpace))
+                {
+                    string partial = tokens.Length == 2 ? tokens[1] : string.Empty;
+                    if (optionsService.Options.CurrentWorkspace is not null)
+                    {
+                        await AddRequestCompletionsAsync(completions, partial);
+                    }
+                }
+            }
 
-        else if (tokens.Length == 3 && !trailingSpace &&
-                 tokens[0] == "request" &&
-                 RequestIdentifierCommands.Contains(tokens[1]) &&
-                 optionsService.Options.CurrentWorkspace is not null)
-        {
-            await AddRequestCompletionsAsync(completions, tokens[2]);
-        }
+            // Position 2: complete noun for the verb
+            else if ((tokens.Length == 1 && trailingSpace) || (tokens.Length == 2 && !trailingSpace))
+            {
+                string partial = tokens.Length == 2 ? tokens[1] : string.Empty;
+                completions.Add(nouns.Where(n => n.StartsWith(partial, StringComparison.OrdinalIgnoreCase)));
+            }
 
-        else if (tokens.Length == 3 && !trailingSpace &&
-                 tokens[0] == "auth" &&
-                 AuthIdentifierCommands.Contains(tokens[1]) &&
-                 optionsService.Options.CurrentWorkspace is not null)
-        {
-            await AddAuthCompletionsAsync(completions, tokens[2]);
-        }
-        else if (tokens.Length == 3 && !trailingSpace &&
-                 tokens[0] == "secret" &&
-                 SecretIdentifierCommands.Contains(tokens[1]))
-        {
-            await AddSecretCompletionsAsync(completions, tokens[2]);
+            // Position 3: complete identifier for verb + noun
+            else if ((tokens.Length == 2 && trailingSpace) || (tokens.Length == 3 && !trailingSpace))
+            {
+                string noun    = tokens[1];
+                string partial = tokens.Length == 3 ? tokens[2] : string.Empty;
+
+                if (WorkspaceNouns.Contains(noun) && WorkspaceIdentifierVerbs.Contains(verb))
+                {
+                    await AddWorkspaceCompletionsAsync(completions, partial);
+                }
+                else if (RequestNouns.Contains(noun) && RequestIdentifierVerbs.Contains(verb)
+                         && optionsService.Options.CurrentWorkspace is not null)
+                {
+                    await AddRequestCompletionsAsync(completions, partial);
+                }
+                else if (AuthNouns.Contains(noun) && AuthIdentifierVerbs.Contains(verb)
+                         && optionsService.Options.CurrentWorkspace is not null)
+                {
+                    await AddAuthCompletionsAsync(completions, partial);
+                }
+                else if (SecretNouns.Contains(noun) && SecretIdentifierVerbs.Contains(verb))
+                {
+                    await AddSecretCompletionsAsync(completions, partial);
+                }
+            }
         }
 
         completions.Flush();
@@ -96,7 +142,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrWorkspace workspace = await workspaceService.GetWorkspace(entry.Path);
+                StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
                 if (workspace.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(workspace.Name);
@@ -113,7 +159,7 @@ public class AutocompleteQueryCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.PeekWorkspace(workspaceEntry.Path);
         }
         catch (StraumrException)
         {
@@ -129,7 +175,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrRequest request = await requestService.GetAsync(id.ToString());
+                StraumrRequest request = await requestService.PeekByIdAsync(id);
                 if (request.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(request.Name);
@@ -146,7 +192,7 @@ public class AutocompleteQueryCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.PeekWorkspace(workspaceEntry.Path);
         }
         catch (StraumrException)
         {
@@ -162,7 +208,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrAuth auth = await authService.GetAsync(id.ToString());
+                StraumrAuth auth = await authService.PeekByIdAsync(id);
                 if (auth.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(auth.Name);
@@ -174,7 +220,7 @@ public class AutocompleteQueryCommand(
 
     private async Task AddSecretCompletionsAsync(CompletionResult completions, string partial)
     {
-        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
+        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(e => File.Exists(e.Path)))
         {
             if (entry.Id.ToString().StartsWith(partial, StringComparison.OrdinalIgnoreCase))
             {
@@ -183,15 +229,13 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrSecret secret = await secretService.GetAsync(entry.Id.ToString());
+                StraumrSecret secret = await secretService.PeekByIdAsync(entry.Id);
                 if (secret.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(secret.Name);
                 }
             }
-            catch (StraumrException)
-            {
-            }
+            catch (StraumrException) { }
         }
     }
 

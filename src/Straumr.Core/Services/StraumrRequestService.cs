@@ -84,7 +84,7 @@ public class StraumrRequestService(
 
     public async Task UpdateAsync(StraumrRequest request)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        GetCurrentWorkspaceEntry();
         string fullPath = RequestPath(request.Id);
 
         if (!File.Exists(fullPath))
@@ -95,7 +95,6 @@ public class StraumrRequestService(
         await EnsureNoNameConflictAsync(request.Name, request.Id);
 
         await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
-        await StampWorkspaceAccessAsync(entry);
     }
 
     public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
@@ -189,6 +188,16 @@ public class StraumrRequestService(
                 response.Warnings = warnings;
             }
 
+            // Stamp LastAccessed on the request, workspace, and auth (if any).
+            // Secrets are already stamped during resolution via secretService.GetAsync.
+            StraumrWorkspaceEntry workspaceEntry = GetCurrentWorkspaceEntry();
+            await fileService.StampAccessAsync(workspaceEntry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.StampAccessAsync(RequestPath(request.Id), StraumrJsonContext.Default.StraumrRequest);
+            if (request.AuthId.HasValue)
+            {
+                await authService.StampAccessAsync(request.AuthId.Value);
+            }
+
             return response;
         }
         finally
@@ -262,7 +271,7 @@ public class StraumrRequestService(
     private async Task AddRequestToWorkspace(StraumrWorkspaceEntry entry, Guid requestId)
     {
         StraumrWorkspace workspace =
-            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         workspace.Requests.Add(requestId);
         await PersistWorkspaceAsync(entry, workspace);
     }
@@ -271,13 +280,13 @@ public class StraumrRequestService(
     {
         StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
         StraumrWorkspace workspace =
-            await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         return (entry, workspace);
     }
 
     private async Task<StraumrRequest> ResolveRequestAsync(RequestLookup lookup)
     {
-        return lookup.Request ?? await GetByIdAsync(lookup.Id);
+        return lookup.Request ?? await PeekByIdAsync(lookup.Id);
     }
 
     private static async Task<StraumrResponse> SendWithMetadataAsync(
@@ -486,11 +495,6 @@ public class StraumrRequestService(
     private async Task PersistWorkspaceAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)
     {
         await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
-    }
-
-    private async Task StampWorkspaceAccessAsync(StraumrWorkspaceEntry entry)
-    {
-        await fileService.ReadStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
     private async Task<RequestLookup?> LookupRequestAsync(StraumrWorkspace workspace, string identifier)

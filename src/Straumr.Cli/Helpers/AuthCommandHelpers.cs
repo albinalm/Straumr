@@ -27,6 +27,25 @@ internal static class AuthCommandHelpers
         };
     }
 
+    internal static string AuthTypeName(StraumrAuthConfig? auth)
+    {
+        return auth switch
+        {
+            null => "none",
+            BearerAuthConfig => "Bearer",
+            BasicAuthConfig => "Basic",
+            OAuth2Config oauth2 => oauth2.GrantType switch
+            {
+                OAuth2GrantType.ClientCredentials => "OAuth2 Client Credentials",
+                OAuth2GrantType.AuthorizationCode => "OAuth2 Authorization Code",
+                OAuth2GrantType.ResourceOwnerPassword => "OAuth2 Password",
+                _ => "OAuth2"
+            },
+            CustomAuthConfig => "Custom",
+            _ => "none"
+        };
+    }
+
     internal static string AuthDisplayName(Guid? authId, IReadOnlyList<StraumrAuth> auths)
     {
         if (authId is null)
