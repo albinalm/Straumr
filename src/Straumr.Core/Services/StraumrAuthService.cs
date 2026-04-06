@@ -107,6 +107,19 @@ public class StraumrAuthService(
         await PersistWorkspaceAsync(entry, workspace);
     }
 
+    public async Task<StraumrAuth> CopyAsync(string identifier, string newName)
+    {
+        StraumrAuth source = await GetAsync(identifier);
+        var copy = new StraumrAuth
+        {
+            Name = newName,
+            Config = source.Config,
+            AutoRenewAuth = source.AutoRenewAuth
+        };
+        await CreateAsync(copy);
+        return copy;
+    }
+
     public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
     {
         (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();

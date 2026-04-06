@@ -10,6 +10,7 @@ public interface IStraumrAuthService
     Task StampAccessAsync(Guid id);
     Task CreateAsync(StraumrAuth auth);
     Task UpdateAsync(StraumrAuth auth);
+    Task<StraumrAuth> CopyAsync(string identifier, string newName);
     Task DeleteAsync(string identifier);
     Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier);
     void ApplyEdit(Guid authId, string tempPath);

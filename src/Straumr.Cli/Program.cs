@@ -154,6 +154,9 @@ internal class Program
 
                 copy.AddCommand<RequestCopyCommand>("request");
                 copy.AddCommand<RequestCopyCommand>("rq");
+
+                copy.AddCommand<AuthCopyCommand>("auth");
+                copy.AddCommand<AuthCopyCommand>("au");
             });
 
             config.AddBranch("import", import =>
