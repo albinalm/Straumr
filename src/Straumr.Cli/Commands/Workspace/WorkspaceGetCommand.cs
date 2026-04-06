@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -50,15 +52,17 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
 
         if (settings.Json)
         {
-            if (!File.Exists(entry.Path))
+            try
             {
-                await System.Console.Error.WriteLineAsync("Workspace is ");
+                StraumrWorkspace jsonWorkspace = await workspaceService.PeekWorkspace(entry.Path);
+                System.Console.WriteLine(JsonSerializer.Serialize(jsonWorkspace, StraumrJsonContext.Default.StraumrWorkspace));
+                return 0;
+            }
+            catch (StraumrException ex)
+            {
+                await System.Console.Error.WriteLineAsync($"{{\"error\":{{\"message\":\"{ex.Message}\"}}}}");
                 return 1;
             }
-
-            string json = await File.ReadAllTextAsync(entry.Path, cancellation);
-            System.Console.WriteLine(json);
-            return 0;
         }
 
         StraumrWorkspace? workspace = null;

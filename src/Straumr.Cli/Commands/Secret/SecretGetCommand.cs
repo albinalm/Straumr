@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -53,20 +55,13 @@ public class SecretGetCommand(
         {
             try
             {
-                StraumrSecretEntry entry = optionsService.Options.Secrets.First(x => x.Id == foundId.Value);
-                if (!File.Exists(entry.Path))
-                {
-                    await System.Console.Error.WriteLineAsync("Secret is missing");
-                    return 1;
-                }
-
-                string json = await File.ReadAllTextAsync(entry.Path, cancellation);
-                System.Console.WriteLine(json);
+                StraumrSecret jsonSecret = await secretService.PeekByIdAsync(foundId.Value);
+                System.Console.WriteLine(JsonSerializer.Serialize(jsonSecret, StraumrJsonContext.Default.StraumrSecret));
                 return 0;
             }
             catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                await System.Console.Error.WriteLineAsync($"{{\"error\":{{\"message\":\"{ex.Message}\"}}}}");
                 return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
         }
