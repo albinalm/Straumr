@@ -63,8 +63,8 @@ When `--json` is passed, `create` outputs the new object as a JSON DTO instead o
 
 ```text
 straumr delete workspace|ws <Name or ID>
-straumr delete request|rq <Name or ID>
-straumr delete auth|au <Name or ID>
+straumr delete request|rq <Name or ID> [-w|--workspace <name-or-id>]
+straumr delete auth|au <Name or ID> [-w|--workspace <name-or-id>]
 straumr delete secret|sc <Name or ID>
 ```
 
@@ -99,7 +99,7 @@ Request inline edit options (presence of any triggers non-interactive mode):
 ```text
 straumr get workspace|ws <Name or ID> [--json]
 straumr get request|rq <Name or ID> [--json] [-w|--workspace <name-or-id>]
-straumr get auth|au <Name or ID> [--json]
+straumr get auth|au <Name or ID> [--json] [-w|--workspace <name-or-id>]
 straumr get secret|sc <Name or ID> [--json]
 ```
 
@@ -121,20 +121,28 @@ Sets the global active workspace. Prefer `--workspace` in scripts to avoid mutat
 ### `copy`
 
 ```text
-straumr copy workspace|ws <Identifier> <NewName> [--output <DIR>]
+straumr copy workspace|ws <Identifier> <NewName> [--output <DIR>] [-j|--json]
+straumr copy request|rq <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
+straumr copy auth|au <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
 ```
+
+`copy workspace --json` emits `{Id, Name, Path}`. `copy request --json` emits `{Id, Name, Method, Uri}`. `copy auth --json` emits `{Id, Name, Type}`.
 
 ### `import`
 
 ```text
-straumr import workspace|ws <Path>
+straumr import workspace|ws <Path> [-j|--json]
 ```
+
+`--json` emits `{Id, Name, Path}` for the imported workspace.
 
 ### `export`
 
 ```text
-straumr export workspace|ws <Name or ID> <Output folder>
+straumr export workspace|ws <Name or ID> <Output folder> [-j|--json]
 ```
+
+`--json` emits `{Path}` for the exported archive.
 
 ### `config`
 
@@ -201,7 +209,7 @@ Supported options:
 - `BodyType` is the enum name (e.g. `"Json"`, `"None"`)
 - `Body` is the active body content string for the current `BodyType`, not the full `Bodies` map
 
-`get workspace/auth/secret --json` prints the raw persisted file contents.
+`get workspace/auth/secret --json` prints the model deserialized from the persisted file via the service layer. The shape matches the on-disk format.
 
 ### Send JSON Envelope
 
@@ -222,7 +230,7 @@ Supported options:
 
 `Body` is an inlined JSON object when the response `Content-Type` contains `json`. For non-JSON responses, `Body` is a JSON string.
 
-On send-time failures in JSON mode, Straumr writes an error envelope to stderr:
+On failure in JSON mode, all commands write an error envelope to stderr:
 
 ```json
 {
@@ -251,8 +259,8 @@ On send-time failures in JSON mode, Straumr writes an error envelope to stderr:
 Observed and explicit behaviors in the code:
 
 - `0`: success
-- `1`: common user-facing failures such as missing workspace, missing entry, invalid input, or request transport failure in JSON mode
+- `1`: user-facing failures — missing workspace, missing entry, invalid input, or transport failure
 - `22`: `send --fail` with HTTP status `>= 400`
-- `-1`: unhandled or generic error paths in many non-JSON commands
+- `-1`: unhandled or generic exception path
 
-Because several commands return `-1` for generic exceptions, scripting against Straumr is cleanest with `send --json`, `list --json`, and `get --json` where possible.
+Scripting against Straumr is cleanest with `send --json`, `list --json`, and `get --json` where exit `1` covers all expected failure cases.

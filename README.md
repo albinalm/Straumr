@@ -107,8 +107,8 @@ straumr send get-users --pretty
 | Group | Commands |
 |---|---|
 | `workspace` | via `create`, `use`, `list`, `get`, `edit`, `export`, `import`, `delete`, `copy` |
-| `request` | via `create`, `edit`, `list`, `get`, `delete` |
-| `auth` | via `create`, `edit`, `list`, `get`, `delete` |
+| `request` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
+| `auth` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
 | `secret` | via `create`, `edit`, `list`, `get`, `delete` |
 | `config` | `workspace-path` |
 | `autocomplete` | `install` |

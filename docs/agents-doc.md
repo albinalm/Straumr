@@ -188,12 +188,19 @@ Add flags only when needed:
 - `straumr config workspace-path --json`
 - `straumr list workspace --json`
 - `straumr create workspace <name> --json`
+- `straumr copy workspace <name> <new-name> --json`
+- `straumr import workspace <path> --json`
+- `straumr export workspace <name-or-id> <dir> --json`
 - `straumr list request --json [--workspace <ws>]`
 - `straumr create request <name> <url> [flags] --json [--workspace <ws>]`
+- `straumr copy request <name-or-id> <new-name> --json [--workspace <ws>]`
 - `straumr get request <id> --json [--workspace <ws>]`
 - `straumr list auth --json [--workspace <ws>]`
 - `straumr create auth <name> --type bearer|basic [flags] --json [--workspace <ws>]`
+- `straumr copy auth <name-or-id> <new-name> --json [--workspace <ws>]`
+- `straumr get auth <id> --json [--workspace <ws>]`
 - `straumr list secret --json`
+- `straumr get secret <id> --json`
 - `straumr send <request-id> --dry-run --json [--workspace <ws>]`
 - `straumr send <request-id> --json [--workspace <ws>]`
 
@@ -381,7 +388,7 @@ Non-JSON response body example:
 
 ### Error envelope
 
-Commands that emit JSON on failure use this shape:
+All commands that support `--json` write this envelope to **stderr** on failure:
 
 ```json
 {
@@ -390,6 +397,8 @@ Commands that emit JSON on failure use this shape:
   }
 }
 ```
+
+Plain-text error output also goes to stderr in all commands, regardless of `--json`.
 
 ## Persisted JSON Notes
 
@@ -449,15 +458,17 @@ Agents should use `send --dry-run --json` or `send --json` to validate that secr
 Use these for automation:
 
 - `0`: success
-- `1`: common failures such as missing workspace, missing entry, invalid input, or send failure in JSON mode
+- `1`: user-facing failure — missing workspace, entity not found, invalid input, or transport failure
 - `22`: `send --fail` and HTTP status is `>= 400`
-- `-1`: generic or unhandled error path in many non-JSON flows
+- `-1`: generic or unhandled exception path
 
 For robust scripting, prefer:
 
 - `list --json`
 - `get --json`
 - `send --json`
+
+Exit `1` covers all expected failure cases in `--json` mode. Exit `-1` should not occur under normal usage.
 
 ## Safe Patterns
 
