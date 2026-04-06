@@ -83,7 +83,7 @@ Notes:
 
 - workspace edit is editor-only (no `--json`)
 - secret edit is editor-only (no `--json`)
-- auth edit supports interactive and editor modes; `--json` applies to editor mode (emits `{Id, Name, Type}` on success) and routes errors to JSON envelope in both modes
+- auth edit supports interactive and editor modes; `--json` implies `--editor` and emits `{Id, Name, Type}` on success
 - request edit supports interactive, editor, and inline modes; `--json` applies to inline mode (emits `{Id, Name, Method, Uri}` on success)
 
 Request inline edit options (presence of any triggers non-interactive mode):

@@ -38,7 +38,7 @@ public class AuthEditCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                await System.Console.Error.WriteLineAsync($"Workspace not found: {settings.Workspace}");
+                WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -53,7 +53,7 @@ public class AuthEditCommand(
                 StraumrError.MissingEntry);
         }
 
-        if (settings.UseEditor)
+        if (settings.UseEditor || settings.Json)
         {
             return await ExecuteEditorAsync(settings.Identifier, settings.Json, cancellation);
         }
@@ -65,12 +65,12 @@ public class AuthEditCommand(
         }
         catch (StraumrException ex)
         {
-            WriteError(ex.Message, settings.Json);
+            WriteError(ex.Message, false);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            WriteError(ex.Message, settings.Json);
+            WriteError(ex.Message, false);
             return -1;
         }
 
@@ -301,7 +301,7 @@ public class AuthEditCommand(
         public string? Workspace { get; set; }
 
         [CommandOption("-j|--json")]
-        [Description("Output the updated auth as JSON on success (editor mode); errors emitted as JSON to stderr")]
+        [Description("Open in editor and output the updated auth as JSON on success; implies --editor")]
         public bool Json { get; set; }
     }
 
