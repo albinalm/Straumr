@@ -35,6 +35,7 @@ public class ConfigWorkspacePathCommand(IStraumrOptionsService optionsService)
         }
 
         optionsService.Options.DefaultWorkspacePath = settings.Path;
+        Directory.CreateDirectory(settings.Path);
         await optionsService.Save();
 
         if (settings.Json)
