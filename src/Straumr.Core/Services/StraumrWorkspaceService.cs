@@ -260,9 +260,11 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
         {
+            if (!File.Exists(entry.Path)) continue;
+
             string workspaceName = await GetWorkspaceName(entry.Path);
 
-            if (File.Exists(entry.Path) && string.Equals(workspaceName, name, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(workspaceName, name, StringComparison.OrdinalIgnoreCase))
             {
                 throw new StraumrException("A workspace with this name already exists",
                     StraumrError.EntryConflict);

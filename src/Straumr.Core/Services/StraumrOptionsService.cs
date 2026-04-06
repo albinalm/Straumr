@@ -27,6 +27,12 @@ public class StraumrOptionsService(IStraumrFileService fileService) : IStraumrOp
         }
 
         Options = await fileService.ReadGeneric(OptionsPath, StraumrJsonContext.Default.StraumrOptions);
+
+        if (Options.CurrentWorkspace is not null && !File.Exists(Options.CurrentWorkspace.Path))
+        {
+            Options.CurrentWorkspace = null;
+            await Save();
+        }
     }
 
     public async Task Save()
