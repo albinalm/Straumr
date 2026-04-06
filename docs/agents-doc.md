@@ -331,6 +331,27 @@ Key differences from the persisted file:
 ]
 ```
 
+### `get auth --json`
+
+Returns the full persisted auth model:
+
+```json
+{
+  "Id": "2c5967cd-71e6-4311-9150-fde7845c8cf0",
+  "Name": "prod-key",
+  "Config": {
+    "AuthType": "Bearer",
+    "Token": "mytoken",
+    "Prefix": "Bearer"
+  },
+  "AutoRenewAuth": true,
+  "Modified": "2026-04-06T10:00:00+00:00",
+  "LastAccessed": "2026-04-06T10:00:00+00:00"
+}
+```
+
+`Config.AuthType` discriminator values: `Bearer`, `Basic`, `OAuth2`, `Custom`. The `Config` object shape varies by type.
+
 ### `list secret --json`
 
 ```json

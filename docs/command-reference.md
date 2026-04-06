@@ -209,7 +209,9 @@ Supported options:
 - `BodyType` is the enum name (e.g. `"Json"`, `"None"`)
 - `Body` is the active body content string for the current `BodyType`, not the full `Bodies` map
 
-`get workspace/auth/secret --json` prints the model deserialized from the persisted file via the service layer. The shape matches the on-disk format.
+`get workspace/secret --json` prints the model deserialized from the persisted file via the service layer. The shape matches the on-disk format.
+
+`get auth --json` returns the full auth model. The `Config` field includes an `AuthType` discriminator (`Bearer`, `Basic`, `OAuth2`, `Custom`) and type-specific fields. See agents-doc.md for an example shape.
 
 ### Send JSON Envelope
 
