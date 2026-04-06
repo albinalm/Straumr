@@ -18,6 +18,7 @@ namespace Straumr.Cli.Commands.Request;
 
 public class RequestEditCommand(
     IStraumrOptionsService optionsService,
+    IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService)
     : AsyncCommand<RequestEditCommand.Settings>
@@ -34,6 +35,19 @@ public class RequestEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
 
         if (!hasWorkspace)
@@ -486,6 +500,10 @@ public class RequestEditCommand(
         [CommandOption("-a|--auth")]
         [Description("Auth name or ID to link (use \"none\" to remove auth)")]
         public string? Auth { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 
     private sealed class EditableRequestState

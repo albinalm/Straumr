@@ -17,6 +17,7 @@ namespace Straumr.Cli.Commands.Auth;
 
 public class AuthEditCommand(
     IStraumrOptionsService optionsService,
+    IStraumrWorkspaceService workspaceService,
     IStraumrAuthService authService) : AsyncCommand<AuthEditCommand.Settings>
 {
     private const string ActionSave = "Save";
@@ -28,6 +29,19 @@ public class AuthEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
 
         if (!hasWorkspace)
@@ -270,6 +284,10 @@ public class AuthEditCommand(
         [CommandOption("-e|--editor")]
         [Description("Open the auth in the default editor instead of interactive prompts")]
         public bool UseEditor { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 
     private sealed class EditableAuthState

@@ -6,6 +6,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
@@ -19,6 +20,19 @@ public class AuthGetCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
@@ -136,5 +150,9 @@ public class AuthGetCommand(
         [CommandOption("-j|--json")]
         [Description("Output the auth as raw JSON")]
         public bool Json { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 }
