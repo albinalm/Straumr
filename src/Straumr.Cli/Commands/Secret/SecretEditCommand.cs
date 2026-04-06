@@ -2,12 +2,16 @@ using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Secret;
 
@@ -30,12 +34,12 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
         }
         catch (StraumrException ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            WriteError(ex.Message, settings.Json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            WriteError(ex.Message, settings.Json);
             return -1;
         }
 
@@ -56,36 +60,44 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
             }
             catch (JsonException ex)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid secret JSON: {Markup.Escape(ex.Message)}[/]");
+                WriteError($"Invalid secret JSON: {ex.Message}", settings.Json);
                 return 1;
             }
 
             if (deserialized is null)
             {
-                AnsiConsole.MarkupLine("[red]Invalid secret JSON.[/]");
+                WriteError("Invalid secret JSON.", settings.Json);
                 return 1;
             }
 
             if (deserialized.Id != secretId)
             {
-                AnsiConsole.MarkupLine("[red]Secret ID cannot be changed.[/]");
+                WriteError("Secret ID cannot be changed.", settings.Json);
                 return 1;
             }
 
             try
             {
                 secretService.ApplyEdit(secretId, tempPath);
-                AnsiConsole.MarkupLine($"[green]Updated secret[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                if (settings.Json)
+                {
+                    var result = new SecretListItem(deserialized.Id.ToString(), deserialized.Name, "Valid");
+                    System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.SecretListItem));
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[green]Updated secret[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                }
                 return 0;
             }
             catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                WriteError(ex.Message, settings.Json);
                 return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                WriteError(ex.Message, settings.Json);
                 return -1;
             }
         }
@@ -103,5 +115,9 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
         [CommandArgument(0, "<Name or ID>")]
         [Description("Name or ID of the secret to edit")]
         public required string Identifier { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the updated secret as JSON on success; errors emitted as JSON to stderr")]
+        public bool Json { get; set; }
     }
 }

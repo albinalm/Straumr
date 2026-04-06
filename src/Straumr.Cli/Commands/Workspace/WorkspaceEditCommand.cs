@@ -1,52 +1,87 @@
 using System.ComponentModel;
-using System.Diagnostics;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
+using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Workspace;
 
-public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
+public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraumrWorkspaceService workspaceService)
     : AsyncCommand<WorkspaceEditCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        string tempPath = await workspaceService.PrepareEdit(settings.Identifier);
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (string.IsNullOrWhiteSpace(editor))
+        {
+            throw new StraumrException("No default editor is configured.", StraumrError.MissingEntry);
+        }
+
+        string tempPath;
+        try
+        {
+            tempPath = await workspaceService.PrepareEdit(settings.Identifier);
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
 
         try
         {
-            string? editor = Environment.GetEnvironmentVariable("EDITOR");
-            if (string.IsNullOrWhiteSpace(editor))
+            int? exitCode = await LaunchEditorAsync(editor, tempPath, cancellation);
+            if (exitCode is not null)
             {
-                throw new StraumrException("No default editor is configured.", StraumrError.EntryNotFound);
+                return exitCode.Value;
             }
 
-            Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
+            try
             {
-                UseShellExecute = false
-            });
+                await workspaceService.ApplyEdit(settings.Identifier, tempPath);
 
-            if (process is null)
-            {
-                AnsiConsole.MarkupLine("[red]Failed to open file in default editor[/]");
-                return 1;
+                if (settings.Json)
+                {
+                    StraumrWorkspaceEntry? entry =
+                        await ResolveWorkspaceEntryAsync(settings.Identifier, optionsService, workspaceService);
+                    if (entry is not null)
+                    {
+                        StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
+                        var result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, entry.Path);
+                        System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[green]Workspace [bold]{settings.Identifier}[/] updated[/]");
+                }
+
+                return 0;
             }
-
-            await process.WaitForExitAsync(cancellation);
-
-            if (process.ExitCode != 0)
+            catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine("[red]Editor exited with an error. Changes discarded.[/]");
-                return 1;
+                WriteError(ex.Message, settings.Json);
+                return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
-
-            await workspaceService.ApplyEdit(settings.Identifier, tempPath);
-            AnsiConsole.MarkupLine($"[green]Workspace [bold]{settings.Identifier}[/] updated[/]");
-            return 0;
+            catch (Exception ex)
+            {
+                WriteError(ex.Message, settings.Json);
+                return -1;
+            }
         }
         finally
         {
@@ -62,5 +97,9 @@ public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
         [CommandArgument(0, "<Name or ID>")]
         [Description("Name or ID of the workspace to edit")]
         public required string Identifier { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the updated workspace as JSON on success; errors emitted as JSON to stderr")]
+        public bool Json { get; set; }
     }
 }

@@ -73,18 +73,20 @@ straumr delete secret|sc <Name or ID>
 ### `edit`
 
 ```text
-straumr edit workspace|ws <Name or ID>
+straumr edit workspace|ws <Name or ID> [-j|--json]
 straumr edit request|rq <Name or ID> [inline options] [-e|--editor] [-j|--json]
 straumr edit auth|au <Name or ID> [-e|--editor] [-j|--json]
-straumr edit secret|sc <Name or ID>
+straumr edit secret|sc <Name or ID> [-j|--json]
 ```
 
 Notes:
 
-- workspace edit is editor-only (no `--json`)
-- secret edit is editor-only (no `--json`)
+- workspace edit is editor-only; `--json` emits `{Id, Name, Path}` on success
+- secret edit is editor-only; `--json` emits `{Id, Name, Status}` on success
 - auth edit supports interactive and editor modes; `--json` implies `--editor` and emits `{Id, Name, Type}` on success
-- request edit supports interactive, editor, and inline modes; `--json` applies to inline mode (emits `{Id, Name, Method, Uri}` on success)
+- request edit supports interactive, editor, and inline modes; `--json` emits `{Id, Name, Method, Uri}` on success; implies `--editor` when no inline flags are set
+
+In all edit commands, `--json` routes errors to the JSON envelope on stderr.
 
 Request inline edit options (presence of any triggers non-interactive mode):
 
@@ -95,7 +97,7 @@ Request inline edit options (presence of any triggers non-interactive mode):
 - `-d|--data`
 - `-t|--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`, `none`)
 - `-a|--auth` (auth name or ID; use `none` to remove auth)
-- `-j|--json` — output the updated request as `{Id, Name, Method, Uri}` instead of a human-readable confirmation (inline mode only); errors always emitted as JSON to stderr
+- `-j|--json` — output the updated request as `{Id, Name, Method, Uri}`; implies `--editor` when no inline flags are set; errors emitted as JSON to stderr
 
 ### `get`
 

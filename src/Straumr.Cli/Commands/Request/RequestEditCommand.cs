@@ -59,15 +59,15 @@ public class RequestEditCommand(
                 StraumrError.MissingEntry);
         }
 
-        if (settings.UseEditor)
-        {
-            return await ExecuteEditorAsync(settings.Identifier, cancellation);
-        }
-
         bool hasInlineFlags = settings.Url is not null || settings.Method is not null ||
                               settings.Headers?.Length > 0 || settings.Params?.Length > 0 ||
                               settings.Data is not null || settings.BodyType is not null ||
                               settings.Auth is not null;
+
+        if (settings.UseEditor || (settings.Json && !hasInlineFlags))
+        {
+            return await ExecuteEditorAsync(settings.Identifier, settings.Json, cancellation);
+        }
 
         if (hasInlineFlags)
         {
@@ -388,7 +388,7 @@ public class RequestEditCommand(
         }
     }
 
-    private async Task<int> ExecuteEditorAsync(string identifier, CancellationToken cancellation)
+    private async Task<int> ExecuteEditorAsync(string identifier, bool json, CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
@@ -404,12 +404,12 @@ public class RequestEditCommand(
         }
         catch (StraumrException ex)
         {
-            WriteError(ex.Message, false);
+            WriteError(ex.Message, json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            WriteError(ex.Message, false);
+            WriteError(ex.Message, json);
             return -1;
         }
 
@@ -430,37 +430,45 @@ public class RequestEditCommand(
             }
             catch (JsonException ex)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid request JSON: {Markup.Escape(ex.Message)}[/]");
+                WriteError($"Invalid request JSON: {ex.Message}", json);
                 return 1;
             }
 
             if (deserializedJson is null)
             {
-                AnsiConsole.MarkupLine("[red]Invalid request JSON.[/]");
+                WriteError("Invalid request JSON.", json);
                 return 1;
             }
 
             if (deserializedJson.Id != requestId)
             {
-                AnsiConsole.MarkupLine("[red]Request ID cannot be changed.[/]");
+                WriteError("Request ID cannot be changed.", json);
                 return 1;
             }
 
             try
             {
                 requestService.ApplyEdit(requestId, tempPath);
-                AnsiConsole.MarkupLine(
-                    $"[green]Updated request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
+                if (json)
+                {
+                    var result = new RequestCreateResult(deserializedJson.Id.ToString(), deserializedJson.Name, deserializedJson.Method.Method, deserializedJson.Uri);
+                    System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine(
+                        $"[green]Updated request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
+                }
                 return 0;
             }
             catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                WriteError(ex.Message, json);
                 return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                WriteError(ex.Message, json);
                 return -1;
             }
         }
@@ -516,7 +524,7 @@ public class RequestEditCommand(
         public string? Workspace { get; set; }
 
         [CommandOption("-j|--json")]
-        [Description("Output the updated request as JSON (inline mode only)")]
+        [Description("Output the updated request as JSON; implies --editor when no inline flags are set")]
         public bool Json { get; set; }
     }
 
