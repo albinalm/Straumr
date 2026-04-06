@@ -28,6 +28,14 @@ internal class Program
     [RequiresDynamicCode("Calls Spectre.Console.Cli.CommandApp.CommandApp(ITypeRegistrar)")]
     private static async Task<int> RunApp(string[] args)
     {
+        if (args.Contains("--version"))
+        {
+            Assembly assembly = typeof(Program).Assembly;
+            string version = assembly.GetName().Version?.ToString() ?? "unknown";
+            System.Console.WriteLine(version);
+            return 0;
+        }
+
         bool noColor = args.Contains("--no-color");
         if (noColor)
         {
