@@ -3,7 +3,7 @@ using Straumr.Core.Enums;
 
 namespace Straumr.Core.Models;
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "authType")]
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "AuthType")]
 [JsonDerivedType(typeof(BearerAuthConfig), nameof(AuthType.Bearer))]
 [JsonDerivedType(typeof(BasicAuthConfig), nameof(AuthType.Basic))]
 [JsonDerivedType(typeof(OAuth2Config), nameof(AuthType.OAuth2))]
