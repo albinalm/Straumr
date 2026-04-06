@@ -110,7 +110,8 @@ public class AuthGetCommand(
 
             string configJson = JsonSerializer.Serialize(jsonAuth.Config,
                 Straumr.Core.Configuration.StraumrJsonContext.Default.StraumrAuthConfig);
-            JsonElement configElement = JsonDocument.Parse(configJson).RootElement;
+            string normalizedConfigJson = configJson.Replace("\"authType\":", "\"AuthType\":", StringComparison.Ordinal);
+            JsonElement configElement = JsonDocument.Parse(normalizedConfigJson).RootElement;
 
             var result = new AuthGetResult(
                 Id: jsonAuth.Id.ToString(),
