@@ -38,7 +38,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         await optionsService.Save();
     }
 
-    public async Task Import(string path)
+    public async Task<StraumrWorkspaceEntry> Import(string path)
     {
         if (!File.Exists(path))
         {
@@ -52,7 +52,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         try
         {
             await ZipFile.ExtractToDirectoryAsync(path, extractPath);
-            await ImportExtractedWorkspace(extractPath);
+            return await ImportExtractedWorkspace(extractPath);
         }
         finally
         {
@@ -276,7 +276,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         }
     }
 
-    private async Task ImportExtractedWorkspace(string extractPath)
+    private async Task<StraumrWorkspaceEntry> ImportExtractedWorkspace(string extractPath)
     {
         string extractedWorkspacePath = ValidateExtractedArchive(extractPath);
         (Guid workspaceId, string workspaceName) = await ReadPakData(extractPath);
@@ -290,14 +290,17 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         Directory.Move(extractedWorkspacePath, destinationPath);
 
-        optionsService.Options.Workspaces.RemoveAll(x => x.Id == workspaceId);
-        optionsService.Options.Workspaces.Add(new StraumrWorkspaceEntry
+        var entry = new StraumrWorkspaceEntry
         {
             Id = workspaceId,
             Path = WorkspacePath(workspaceId, workspaceName)
-        });
+        };
+
+        optionsService.Options.Workspaces.RemoveAll(x => x.Id == workspaceId);
+        optionsService.Options.Workspaces.Add(entry);
 
         await optionsService.Save();
+        return entry;
     }
 
     private static string ValidateExtractedArchive(string extractPath)

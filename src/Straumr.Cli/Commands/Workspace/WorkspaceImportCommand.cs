@@ -1,6 +1,10 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
+using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -12,8 +16,19 @@ public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        await workspaceService.Import(settings.Path);
-        AnsiConsole.MarkupLine($"[green]Imported workspace from[/] {settings.Path}");
+        StraumrWorkspaceEntry entry = await workspaceService.Import(settings.Path);
+
+        if (settings.Json)
+        {
+            StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
+            var result = new WorkspaceCreateResult(entry.Id.ToString(), workspace.Name, entry.Path);
+            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[green]Imported workspace from[/] {Markup.Escape(settings.Path)}");
+        }
+
         return 0;
     }
 
@@ -22,5 +37,9 @@ public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService)
         [CommandArgument(0, "<Path>")]
         [Description("Path to the workspace file to import")]
         public required string Path { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the imported workspace as JSON")]
+        public bool Json { get; set; }
     }
 }
