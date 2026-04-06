@@ -151,6 +151,9 @@ internal class Program
             {
                 copy.AddCommand<WorkspaceCopyCommand>("workspace");
                 copy.AddCommand<WorkspaceCopyCommand>("ws");
+
+                copy.AddCommand<RequestCopyCommand>("request");
+                copy.AddCommand<RequestCopyCommand>("rq");
             });
 
             config.AddBranch("import", import =>

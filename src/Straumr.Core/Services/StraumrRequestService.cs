@@ -38,6 +38,24 @@ public class StraumrRequestService(
         await RemoveRequestAsync(entry, workspace, lookup.Id);
     }
 
+    public async Task<StraumrRequest> CopyAsync(string identifier, string newName)
+    {
+        StraumrRequest source = await GetAsync(identifier);
+        var copy = new StraumrRequest
+        {
+            Name = newName,
+            Uri = source.Uri,
+            Method = source.Method,
+            Params = new Dictionary<string, string>(source.Params, StringComparer.Ordinal),
+            Headers = new Dictionary<string, string>(source.Headers, StringComparer.OrdinalIgnoreCase),
+            BodyType = source.BodyType,
+            Bodies = new Dictionary<BodyType, string>(source.Bodies),
+            AuthId = source.AuthId
+        };
+        await CreateAsync(copy);
+        return copy;
+    }
+
     public async Task<StraumrRequest> PeekByIdAsync(Guid id)
     {
         GetCurrentWorkspaceEntry();
