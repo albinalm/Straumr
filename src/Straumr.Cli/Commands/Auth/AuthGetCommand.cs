@@ -2,8 +2,6 @@ using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Straumr.Cli.Infrastructure;
-using Straumr.Cli.Models;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -96,10 +94,12 @@ public class AuthGetCommand(
 
         if (settings.Json)
         {
-            StraumrAuth jsonAuth;
             try
             {
-                jsonAuth = await authService.PeekByIdAsync(foundId.Value);
+                StraumrAuth jsonAuth = await authService.PeekByIdAsync(foundId.Value);
+                System.Console.WriteLine(JsonSerializer.Serialize(jsonAuth,
+                    Straumr.Core.Configuration.StraumrJsonContext.Default.StraumrAuth));
+                return 0;
             }
             catch (StraumrException ex)
             {
@@ -107,22 +107,6 @@ public class AuthGetCommand(
                     $"{{\"error\":{{\"message\":\"{ex.Message}\"}}}}");
                 return 1;
             }
-
-            string configJson = JsonSerializer.Serialize(jsonAuth.Config,
-                Straumr.Core.Configuration.StraumrJsonContext.Default.StraumrAuthConfig);
-            JsonElement configElement = JsonDocument.Parse(configJson).RootElement;
-
-            var result = new AuthGetResult(
-                Id: jsonAuth.Id.ToString(),
-                Name: jsonAuth.Name,
-                Type: AuthTypeName(jsonAuth.Config),
-                AutoRenewAuth: jsonAuth.AutoRenewAuth,
-                LastAccessed: jsonAuth.LastAccessed.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                Modified: jsonAuth.Modified.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                Config: configElement
-            );
-            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.AuthGetResult));
-            return 0;
         }
 
         StraumrAuth? auth = null;
