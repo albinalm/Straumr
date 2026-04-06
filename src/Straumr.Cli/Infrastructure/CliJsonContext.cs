@@ -23,7 +23,7 @@ namespace Straumr.Cli.Infrastructure;
 [JsonSerializable(typeof(string))]
 public partial class CliJsonContext : JsonSerializerContext
 {
-    public static CliJsonContext Relaxed { get; } = new CliJsonContext(
+    public static CliJsonContext Relaxed { get; } = new(
         new JsonSerializerOptions
         {
             WriteIndented = true,

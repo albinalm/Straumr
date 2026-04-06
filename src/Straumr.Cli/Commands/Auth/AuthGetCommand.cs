@@ -7,7 +7,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -28,7 +28,7 @@ public class AuthGetCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                Write($"Workspace not found: {settings.Workspace}", settings.Json);
+                WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -38,7 +38,7 @@ public class AuthGetCommand(
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
-            Write("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
+            WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
         }
 
@@ -49,7 +49,7 @@ public class AuthGetCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, settings.Json);
+            WriteError(ex.Message, settings.Json);
             return 1;
         }
 
@@ -81,7 +81,7 @@ public class AuthGetCommand(
 
         if (foundId is null)
         {
-            Write($"No auth found with the identifier: {settings.Identifier}", settings.Json);
+            WriteError($"No auth found with the identifier: {settings.Identifier}", settings.Json);
             return 1;
         }
 
@@ -96,7 +96,7 @@ public class AuthGetCommand(
             }
             catch (StraumrException ex)
             {
-                Write(ex.Message, settings.Json);
+                WriteError(ex.Message, settings.Json);
                 return 1;
             }
         }

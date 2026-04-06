@@ -11,7 +11,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
@@ -44,7 +44,7 @@ public class RequestCreateCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                Write($"Workspace not found: {settings.Workspace}", settings.Json);
+                WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -55,7 +55,7 @@ public class RequestCreateCommand(
 
         if (!hasWorkspace)
         {
-            Write("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
+            WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
         }
 
@@ -63,7 +63,7 @@ public class RequestCreateCommand(
         {
             if (string.IsNullOrWhiteSpace(settings.Name))
             {
-                Write("A name is required when creating a request inline.", settings.Json);
+                WriteError("A name is required when creating a request inline.", settings.Json);
                 return 1;
             }
 
@@ -142,13 +142,13 @@ public class RequestCreateCommand(
             }
             catch (JsonException ex)
             {
-                Write($"Invalid request JSON: {ex.Message}", false);
+                WriteError($"Invalid request JSON: {ex.Message}", false);
                 return 1;
             }
 
             if (deserializedJson is null)
             {
-                Write("Invalid request JSON.", false);
+                WriteError("Invalid request JSON.", false);
                 return 1;
             }
 
@@ -161,11 +161,11 @@ public class RequestCreateCommand(
             }
             catch (StraumrException ex)
             {
-                Write(ex.Message, false);
+                WriteError(ex.Message, false);
             }
             catch (Exception ex)
             {
-                Write(ex.Message, false);
+                WriteError(ex.Message, false);
             }
 
             return -1;
@@ -320,7 +320,7 @@ public class RequestCreateCommand(
             int colon = header.IndexOf(':');
             if (colon < 0)
             {
-                Write($"Invalid header (expected \"Name: Value\"): {header}", settings.Json);
+                WriteError($"Invalid header (expected \"Name: Value\"): {header}", settings.Json);
                 return 1;
             }
 
@@ -332,7 +332,7 @@ public class RequestCreateCommand(
             int eq = param.IndexOf('=');
             if (eq < 0)
             {
-                Write($"Invalid param (expected \"key=value\"): {param}", settings.Json);
+                WriteError($"Invalid param (expected \"key=value\"): {param}", settings.Json);
                 return 1;
             }
 
@@ -355,7 +355,7 @@ public class RequestCreateCommand(
 
             if (bodyType == BodyType.None)
             {
-                Write($"Unknown body type: {settings.BodyType!}. Use json, xml, text, form, multipart, or raw.", settings.Json);
+                WriteError($"Unknown body type: {settings.BodyType!}. Use json, xml, text, form, multipart, or raw.", settings.Json);
                 return 1;
             }
 
@@ -372,7 +372,7 @@ public class RequestCreateCommand(
             }
             catch (StraumrException ex)
             {
-                Write(ex.Message, settings.Json);
+                WriteError(ex.Message, settings.Json);
                 return 1;
             }
         }
@@ -400,7 +400,7 @@ public class RequestCreateCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, settings.Json);
+            WriteError(ex.Message, settings.Json);
             return 1;
         }
     }

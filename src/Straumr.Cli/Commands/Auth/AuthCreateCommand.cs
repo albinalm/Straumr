@@ -10,7 +10,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -38,7 +38,7 @@ public class AuthCreateCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                Write($"Workspace not found: {settings.Workspace}", settings.Json);
+                WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -87,7 +87,7 @@ public class AuthCreateCommand(
     {
         if (string.IsNullOrWhiteSpace(settings.Name))
         {
-            Write("A name is required when creating auth inline.", settings.Json);
+            WriteError("A name is required when creating auth inline.", settings.Json);
             return 1;
         }
 
@@ -109,7 +109,7 @@ public class AuthCreateCommand(
                 };
                 break;
             default:
-                Write($"Unknown auth type: {settings.Type}. Use bearer or basic for inline creation.", settings.Json);
+                WriteError($"Unknown auth type: {settings.Type}. Use bearer or basic for inline creation.", settings.Json);
                 return 1;
         }
 
@@ -138,7 +138,7 @@ public class AuthCreateCommand(
         }
         catch (Exception ex)
         {
-            Write(ex.Message, settings.Json);
+            WriteError(ex.Message, settings.Json);
             return 1;
         }
     }

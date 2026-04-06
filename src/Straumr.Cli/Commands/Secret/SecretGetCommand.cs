@@ -7,7 +7,7 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 
 namespace Straumr.Cli.Commands.Secret;
 
@@ -62,7 +62,7 @@ public class SecretGetCommand(
             }
             catch (StraumrException ex)
             {
-                Write(ex.Message, settings.Json);
+                WriteError(ex.Message, settings.Json);
                 return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
         }
