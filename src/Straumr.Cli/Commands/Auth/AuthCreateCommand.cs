@@ -37,7 +37,11 @@ public class AuthCreateCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                if (settings.Json)
+                    await System.Console.Error.WriteLineAsync(
+                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
+                else
+                    await System.Console.Error.WriteLineAsync($"Workspace not found: {settings.Workspace}");
                 return 1;
             }
 

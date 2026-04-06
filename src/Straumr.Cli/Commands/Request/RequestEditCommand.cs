@@ -41,7 +41,7 @@ public class RequestEditCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                await System.Console.Error.WriteLineAsync($"Workspace not found: {settings.Workspace}");
                 return 1;
             }
 
