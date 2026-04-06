@@ -185,6 +185,22 @@ Add flags only when needed:
 
 ### Best commands for parsing
 
+Delete commands accept `--json` to suppress human-readable output and route any error to the JSON envelope on stderr. Rely on exit code (`0` = deleted) rather than parsing stdout.
+
+```sh
+straumr delete request <id> --json --workspace <ws>
+straumr delete auth <id> --json --workspace <ws>
+straumr delete workspace <id> --json
+```
+
+`edit request` in inline mode accepts `--json` and emits `{Id, Name, Method, Uri}` on success:
+
+```sh
+straumr edit request <id> --url https://api.example.com/v2/users --json --workspace <ws>
+```
+
+
+
 - `straumr config workspace-path --json`
 - `straumr list workspace --json`
 - `straumr create workspace <name> --json`

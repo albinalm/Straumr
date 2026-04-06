@@ -8,8 +8,10 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
@@ -42,7 +44,7 @@ public class RequestEditCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                await System.Console.Error.WriteLineAsync($"Workspace not found: {settings.Workspace}");
+                WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -79,12 +81,12 @@ public class RequestEditCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, false);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, false);
             return -1;
         }
 
@@ -100,12 +102,12 @@ public class RequestEditCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return -1;
         }
 
@@ -124,7 +126,7 @@ public class RequestEditCommand(
             int colon = header.IndexOf(':');
             if (colon < 0)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid header (expected \"Name: Value\"): {Markup.Escape(header)}[/]");
+                WriteError($"Invalid header (expected \"Name: Value\"): {header}", settings.Json);
                 return 1;
             }
 
@@ -136,7 +138,7 @@ public class RequestEditCommand(
             int eq = param.IndexOf('=');
             if (eq < 0)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid param (expected \"key=value\"): {Markup.Escape(param)}[/]");
+                WriteError($"Invalid param (expected \"key=value\"): {param}", settings.Json);
                 return 1;
             }
 
@@ -183,8 +185,7 @@ public class RequestEditCommand(
 
             if ((int)bodyType == -1)
             {
-                AnsiConsole.MarkupLine(
-                    $"[red]Unknown body type: {Markup.Escape(settings.BodyType)}. Use json, xml, text, form, multipart, raw, or none.[/]");
+                WriteError($"Unknown body type: {settings.BodyType}. Use json, xml, text, form, multipart, raw, or none.", settings.Json);
                 return 1;
             }
 
@@ -206,7 +207,7 @@ public class RequestEditCommand(
                 }
                 catch (StraumrException ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                    WriteError(ex.Message, settings.Json);
                     return 1;
                 }
             }
@@ -215,17 +216,25 @@ public class RequestEditCommand(
         try
         {
             await requestService.UpdateAsync(request);
-            AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
+            if (settings.Json)
+            {
+                var result = new RequestCreateResult(request.Id.ToString(), request.Name, request.Method.Method, request.Uri);
+                System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
+            }
             return 0;
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return -1;
         }
     }
@@ -395,12 +404,12 @@ public class RequestEditCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, false);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, false);
             return -1;
         }
 
@@ -505,6 +514,10 @@ public class RequestEditCommand(
         [CommandOption("-w|--workspace")]
         [Description("Target workspace name or ID (overrides the current workspace for this command)")]
         public string? Workspace { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the updated request as JSON (inline mode only)")]
+        public bool Json { get; set; }
     }
 
     private sealed class EditableRequestState

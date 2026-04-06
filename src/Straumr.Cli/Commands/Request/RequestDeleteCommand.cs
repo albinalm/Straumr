@@ -6,7 +6,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
@@ -26,7 +26,7 @@ public class RequestDeleteCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                await System.Console.Error.WriteLineAsync($"Workspace not found: {settings.Workspace}");
+                WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -44,17 +44,18 @@ public class RequestDeleteCommand(
         try
         {
             await requestService.DeleteAsync(settings.Identifier);
-            AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");
+            if (!settings.Json)
+                AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");
             return 0;
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return -1;
         }
     }
@@ -68,5 +69,9 @@ public class RequestDeleteCommand(
         [CommandOption("-w|--workspace")]
         [Description("Target workspace name or ID (overrides the current workspace for this command)")]
         public string? Workspace { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Suppress human-readable output; errors are emitted as JSON to stderr")]
+        public bool Json { get; set; }
     }
 }

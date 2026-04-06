@@ -62,11 +62,13 @@ When `--json` is passed, `create` outputs the new object as a JSON DTO instead o
 ### `delete`
 
 ```text
-straumr delete workspace|ws <Name or ID>
-straumr delete request|rq <Name or ID> [-w|--workspace <name-or-id>]
-straumr delete auth|au <Name or ID> [-w|--workspace <name-or-id>]
+straumr delete workspace|ws <Name or ID> [-j|--json]
+straumr delete request|rq <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
+straumr delete auth|au <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
 straumr delete secret|sc <Name or ID>
 ```
+
+`--json` on delete suppresses the human-readable confirmation; errors are still emitted as JSON to stderr. Exit code is the signal of success.
 
 ### `edit`
 
@@ -93,6 +95,7 @@ Request inline edit options (presence of any triggers non-interactive mode):
 - `-d|--data`
 - `-t|--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`, `none`)
 - `-a|--auth` (auth name or ID; use `none` to remove auth)
+- `-j|--json` — output the updated request as `{Id, Name, Method, Uri}` instead of a human-readable confirmation (inline mode only)
 
 ### `get`
 
