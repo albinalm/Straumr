@@ -3,13 +3,15 @@ using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
-using static Straumr.Cli.Helpers.ErrorOutput;
+using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -53,7 +55,7 @@ public class AuthEditCommand(
 
         if (settings.UseEditor)
         {
-            return await ExecuteEditorAsync(settings.Identifier, cancellation);
+            return await ExecuteEditorAsync(settings.Identifier, settings.Json, cancellation);
         }
 
         StraumrAuth auth;
@@ -63,12 +65,12 @@ public class AuthEditCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, settings.Json);
             return -1;
         }
 
@@ -102,7 +104,7 @@ public class AuthEditCommand(
         }
     }
 
-    private async Task<int> ExecuteEditorAsync(string identifier, CancellationToken cancellation)
+    private async Task<int> ExecuteEditorAsync(string identifier, bool json, CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
@@ -118,12 +120,12 @@ public class AuthEditCommand(
         }
         catch (StraumrException ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            Write(ex.Message, false);
+            WriteError(ex.Message, json);
             return -1;
         }
 
@@ -144,37 +146,45 @@ public class AuthEditCommand(
             }
             catch (JsonException ex)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid auth JSON: {Markup.Escape(ex.Message)}[/]");
+                WriteError($"Invalid auth JSON: {ex.Message}", json);
                 return 1;
             }
 
             if (deserialized is null)
             {
-                AnsiConsole.MarkupLine("[red]Invalid auth JSON.[/]");
+                WriteError("Invalid auth JSON.", json);
                 return 1;
             }
 
             if (deserialized.Id != authId)
             {
-                AnsiConsole.MarkupLine("[red]Auth ID cannot be changed.[/]");
+                WriteError("Auth ID cannot be changed.", json);
                 return 1;
             }
 
             try
             {
                 authService.ApplyEdit(authId, tempPath);
-                AnsiConsole.MarkupLine(
-                    $"[green]Updated auth[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                if (json)
+                {
+                    var result = new AuthListItem(deserialized.Id.ToString(), deserialized.Name, AuthTypeName(deserialized.Config));
+                    System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.AuthListItem));
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine(
+                        $"[green]Updated auth[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                }
                 return 0;
             }
             catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                WriteError(ex.Message, json);
                 return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                WriteError(ex.Message, json);
                 return -1;
             }
         }
@@ -289,6 +299,10 @@ public class AuthEditCommand(
         [CommandOption("-w|--workspace")]
         [Description("Target workspace name or ID (overrides the current workspace for this command)")]
         public string? Workspace { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the updated auth as JSON on success (editor mode); errors emitted as JSON to stderr")]
+        public bool Json { get; set; }
     }
 
     private sealed class EditableAuthState
