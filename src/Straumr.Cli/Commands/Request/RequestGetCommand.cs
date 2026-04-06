@@ -1,12 +1,16 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
@@ -21,6 +25,19 @@ public class RequestGetCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
@@ -74,15 +91,32 @@ public class RequestGetCommand(
 
         if (settings.Json)
         {
-            string requestPath = Path.Combine(Path.GetDirectoryName(workspaceEntry.Path)!, foundId.Value + ".json");
-            if (!File.Exists(requestPath))
+            StraumrRequest req;
+            try
             {
-                await System.Console.Error.WriteLineAsync("Request is missing");
+                req = await requestService.PeekByIdAsync(foundId.Value);
+            }
+            catch (StraumrException ex)
+            {
+                await System.Console.Error.WriteLineAsync(ex.Message);
                 return 1;
             }
 
-            string json = await File.ReadAllTextAsync(requestPath, cancellation);
-            System.Console.WriteLine(json);
+            string? currentBody = req.Bodies.TryGetValue(req.BodyType, out string? b) ? b : null;
+            var result = new RequestGetResult(
+                Id: req.Id.ToString(),
+                Name: req.Name,
+                Method: req.Method.Method,
+                Uri: req.Uri,
+                BodyType: req.BodyType.ToString(),
+                Headers: req.Headers,
+                Params: req.Params,
+                Body: currentBody,
+                AuthId: req.AuthId?.ToString(),
+                LastAccessed: req.LastAccessed.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                Modified: req.Modified.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss")
+            );
+            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestGetResult));
             return 0;
         }
 
@@ -159,7 +193,11 @@ public class RequestGetCommand(
         public required string Identifier { get; set; }
 
         [CommandOption("-j|--json")]
-        [Description("Output the request as raw JSON")]
+        [Description("Output the request as JSON")]
         public bool Json { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 }

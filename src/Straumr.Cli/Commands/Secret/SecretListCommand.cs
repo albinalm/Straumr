@@ -58,7 +58,7 @@ public class SecretListCommand(
                 Name: i.secret?.Name ?? "N/A",
                 Status: StripMarkup(i.status)
             )).ToArray();
-            System.Console.WriteLine(JsonSerializer.Serialize(jsonItems, CliJsonContext.Default.SecretListItemArray));
+            System.Console.WriteLine(JsonSerializer.Serialize(jsonItems, CliJsonContext.Relaxed.SecretListItemArray));
             return Task.FromResult(0);
         }
 

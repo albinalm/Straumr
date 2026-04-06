@@ -12,12 +12,14 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
 
 public class RequestSendCommand(
     IStraumrOptionsService optionsService,
+    IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService)
     : AsyncCommand<RequestSendCommand.Settings>
@@ -25,6 +27,19 @@ public class RequestSendCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                OutputError($"Workspace not found: {settings.Workspace}", settings.Json);
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
 
         if (!hasWorkspace)
@@ -36,6 +51,8 @@ public class RequestSendCommand(
         try
         {
             StraumrRequest request = await requestService.GetAsync(settings.Identifier);
+
+            ApplyOverrides(request, settings.SendHeaders, settings.SendParams);
 
             StraumrAuth? auth = request.AuthId.HasValue
                 ? await authService.PeekByIdAsync(request.AuthId.Value)
@@ -140,6 +157,23 @@ public class RequestSendCommand(
         }
     }
 
+    private static void ApplyOverrides(StraumrRequest request, string[]? headers, string[]? params_)
+    {
+        foreach (string header in headers ?? [])
+        {
+            int colon = header.IndexOf(':');
+            if (colon < 0) continue;
+            request.Headers[header[..colon].Trim()] = header[(colon + 1)..].Trim();
+        }
+
+        foreach (string param in params_ ?? [])
+        {
+            int eq = param.IndexOf('=');
+            if (eq < 0) continue;
+            request.Params[param[..eq]] = param[(eq + 1)..];
+        }
+    }
+
     private async Task<int> ExecuteDryRunAsync(StraumrRequest request, StraumrAuth? auth, Settings settings,
         CancellationToken cancellation)
     {
@@ -157,7 +191,7 @@ public class RequestSendCommand(
                 BodyType: request.BodyType == BodyType.None ? null : request.BodyType.ToString(),
                 Body: bodyContent
             );
-            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Default.DryRunResult));
+            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.DryRunResult));
             return 0;
         }
 
@@ -202,7 +236,7 @@ public class RequestSendCommand(
         if (response.Exception is not null)
         {
             var envelope = new SendErrorEnvelope(new SendError(response.Exception.Message));
-            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Default.SendErrorEnvelope));
+            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.SendErrorEnvelope));
             return 1;
         }
 
@@ -216,10 +250,10 @@ public class RequestSendCommand(
             Version: response.HttpVersion?.ToString(),
             DurationMs: response.Duration.TotalMilliseconds,
             Headers: headers,
-            Body: response.Content
+            Body: ParseBodyElement(response.Content, headers)
         );
 
-        System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Default.SendResult));
+        System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.SendResult));
 
         if (settings.Fail && response.StatusCode.HasValue && (int)response.StatusCode.Value >= 400)
         {
@@ -227,6 +261,27 @@ public class RequestSendCommand(
         }
 
         return 0;
+    }
+
+    private static JsonElement? ParseBodyElement(string? content, Dictionary<string, string[]> responseHeaders)
+    {
+        if (content is null) return null;
+
+        bool isJson = responseHeaders.Any(h =>
+            h.Key.Equals("content-type", StringComparison.OrdinalIgnoreCase) &&
+            h.Value.Any(v => v.Contains("json", StringComparison.OrdinalIgnoreCase)));
+
+        if (isJson)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize(content, CliJsonContext.Relaxed.JsonElement);
+            }
+            catch { }
+        }
+
+        string serialized = JsonSerializer.Serialize(content, CliJsonContext.Relaxed.String);
+        return JsonSerializer.Deserialize(serialized, CliJsonContext.Relaxed.JsonElement);
     }
 
     private static int ExitCode(StraumrResponse response, Settings settings)
@@ -250,7 +305,7 @@ public class RequestSendCommand(
         if (json)
         {
             var envelope = new SendErrorEnvelope(new SendError(message));
-            System.Console.Error.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Default.SendErrorEnvelope));
+            System.Console.Error.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.SendErrorEnvelope));
         }
         else
         {
@@ -553,5 +608,17 @@ public class RequestSendCommand(
         [CommandOption("--response-headers")]
         [Description("Output only the response headers")]
         public bool ResponseHeaders { get; set; }
+
+        [CommandOption("-H|--header")]
+        [Description("Add or override a header for this send only in \"Name: Value\" format (repeatable)")]
+        public string[]? SendHeaders { get; set; }
+
+        [CommandOption("-P|--param")]
+        [Description("Add or override a query param for this send only in \"key=value\" format (repeatable)")]
+        public string[]? SendParams { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 }

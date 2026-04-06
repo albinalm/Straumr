@@ -9,16 +9,33 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
 
-public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuthService authService)
+public class AuthListCommand(
+    IStraumrOptionsService optionsService,
+    IStraumrWorkspaceService workspaceService,
+    IStraumrAuthService authService)
     : AsyncCommand<AuthListCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
 
         if (!hasWorkspace)
@@ -60,7 +77,7 @@ public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuth
                 Name: a.Name,
                 Type: AuthTypeName(a.Config)
             )).ToArray();
-            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Default.AuthListItemArray));
+            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Relaxed.AuthListItemArray));
             return 0;
         }
 
@@ -96,5 +113,9 @@ public class AuthListCommand(IStraumrOptionsService optionsService, IStraumrAuth
         [CommandOption("--filter")]
         [Description("Filter results by name (substring) or ID prefix")]
         public string? Filter { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 }

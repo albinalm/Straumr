@@ -115,11 +115,13 @@ Example:
 }
 ```
 
-Important serialization details:
+Important serialization details (on-disk format):
 
 - `Method` is serialized as an object with a `Method` property, not as a plain string.
 - `BodyType` is serialized as the enum numeric value.
 - `Bodies` uses enum names such as `Json` as object keys.
+
+Note: `get request --json` does **not** return this raw format. It returns a normalized DTO where `Method` is a plain string and `BodyType` is the enum name. Only `edit request --editor` exposes the raw on-disk format directly.
 
 ## Secret Files
 

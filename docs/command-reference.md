@@ -17,35 +17,47 @@ This is a code-verified summary of the command tree configured in `Program.cs`.
 ### `list`
 
 ```text
-straumr list workspace|ws
-straumr list request|rq
-straumr list auth|au
-straumr list secret|sc
+straumr list workspace|ws [--json] [--filter <str>]
+straumr list request|rq [--json] [--filter <str>] [-w|--workspace <name-or-id>]
+straumr list auth|au [--json] [--filter <str>] [-w|--workspace <name-or-id>]
+straumr list secret|sc [--json] [--filter <str>]
 ```
 
 Common patterns:
 
-- `--json` emits arrays of DTOs, not raw saved JSON files.
+- `--json` emits arrays of DTOs.
 - `--filter` matches name substring or ID prefix.
+- `--workspace` targets a workspace without changing global state (request and auth only).
 
 ### `create`
 
 ```text
-straumr create workspace|ws <Name> [--output <DIR>]
-straumr create request|rq [Name] [Url] [request options]
-straumr create auth|au [Name]
+straumr create workspace|ws <Name> [--output <DIR>] [-j|--json]
+straumr create request|rq [Name] [Url] [request options] [-j|--json] [-w|--workspace <name-or-id>]
+straumr create auth|au [Name] [auth options] [-j|--json] [-w|--workspace <name-or-id>]
 straumr create secret|sc [Name] [Value]
 ```
 
-Request-only options:
+Request options:
 
 - `--method`
-- `--header`
-- `--param`
+- `-H|--header` (repeatable, `"Name: Value"` format)
+- `-P|--param` (repeatable, `"key=value"` format)
 - `--data`
-- `--type`
+- `--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`)
 - `--auth`
-- `--editor`
+- `-e|--editor`
+
+Auth options for non-interactive creation (requires `--type`):
+
+- `-t|--type bearer|basic`
+- `-s|--secret <value>` — token for bearer auth
+- `--prefix <prefix>` — header prefix for bearer (default: `Bearer`)
+- `-u|--username <user>` — for basic auth
+- `-p|--password <pass>` — for basic auth
+- `--no-auto-renew` — disable auto-renewal
+
+When `--json` is passed, `create` outputs the new object as a JSON DTO instead of a human-readable confirmation.
 
 ### `delete`
 
@@ -60,8 +72,8 @@ straumr delete secret|sc <Name or ID>
 
 ```text
 straumr edit workspace|ws <Name or ID>
-straumr edit request|rq <Name or ID> [--editor]
-straumr edit auth|au <Name or ID> [--editor]
+straumr edit request|rq <Name or ID> [inline options] [-e|--editor]
+straumr edit auth|au <Name or ID> [-e|--editor]
 straumr edit secret|sc <Name or ID>
 ```
 
@@ -69,27 +81,42 @@ Notes:
 
 - workspace edit is editor-only
 - secret edit is editor-only
-- request and auth edit support interactive and editor modes
+- auth edit supports interactive and editor modes
+- request edit supports interactive, editor, and inline modes
+
+Request inline edit options (presence of any triggers non-interactive mode):
+
+- `-u|--url`
+- `-m|--method`
+- `-H|--header` (repeatable, `"Name: Value"` format)
+- `-P|--param` (repeatable, `"key=value"` format)
+- `-d|--data`
+- `-t|--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`, `none`)
+- `-a|--auth` (auth name or ID; use `none` to remove auth)
 
 ### `get`
 
 ```text
 straumr get workspace|ws <Name or ID> [--json]
-straumr get request|rq <Name or ID> [--json]
+straumr get request|rq <Name or ID> [--json] [-w|--workspace <name-or-id>]
 straumr get auth|au <Name or ID> [--json]
 straumr get secret|sc <Name or ID> [--json]
 ```
 
 Behavior split:
 
-- `--json` prints the raw persisted JSON file
+- `--json` prints a normalized DTO for the selected object
 - default output is a formatted Spectre panel with summary fields
+
+Note: `get request --json` returns a normalized DTO (PascalCase, `Method` as string, `BodyType` as enum name) — not the raw persisted file. Use `--editor` with `edit request` to access the raw file format.
 
 ### `use`
 
 ```text
 straumr use workspace|ws <Name or ID>
 ```
+
+Sets the global active workspace. Prefer `--workspace` in scripts to avoid mutating global state.
 
 ### `copy`
 
@@ -112,13 +139,14 @@ straumr export workspace|ws <Name or ID> <Output folder>
 ### `config`
 
 ```text
-straumr config workspace-path [path]
+straumr config workspace-path [path] [-j|--json]
 ```
 
 Behavior:
 
 - with no argument, prints the configured default workspace path
 - with a path, saves that path into options
+- `--json` outputs `{ "DefaultWorkspacePath": "..." }` (value is `null` if not set)
 
 ### `autocomplete`
 
@@ -153,6 +181,11 @@ Supported options:
 - `-n, --dry-run`
 - `--response-status`
 - `--response-headers`
+- `-H|--header` (repeatable) — add or override a header for this send only, `"Name: Value"` format
+- `-P|--param` (repeatable) — add or override a query param for this send only, `"key=value"` format
+- `-w|--workspace` — target workspace without changing global state
+
+`--header` and `--param` on `send` are transient: they apply to this invocation only and do not modify the saved request.
 
 ## Output Modes
 
@@ -162,7 +195,13 @@ Supported options:
 
 ### Get Commands
 
-`get ... --json` prints the exact file contents for the selected object.
+`get request --json` prints a normalized DTO with these characteristics:
+
+- `Method` is a plain string (e.g. `"GET"`)
+- `BodyType` is the enum name (e.g. `"Json"`, `"None"`)
+- `Body` is the active body content string for the current `BodyType`, not the full `Bodies` map
+
+`get workspace/auth/secret --json` prints the raw persisted file contents.
 
 ### Send JSON Envelope
 
@@ -177,17 +216,33 @@ Supported options:
   "Headers": {
     "Content-Type": ["application/json"]
   },
-  "Body": "{\"ok\":true}"
+  "Body": {"ok": true}
 }
 ```
 
-On send-time failures in JSON mode, Straumr writes an error envelope:
+`Body` is an inlined JSON object when the response `Content-Type` contains `json`. For non-JSON responses, `Body` is a JSON string.
+
+On send-time failures in JSON mode, Straumr writes an error envelope to stderr:
 
 ```json
 {
   "Error": {
     "Message": "..."
   }
+}
+```
+
+### Create JSON Output
+
+`create workspace|request|auth --json` emits a DTO for the created object. See agents-doc.md for the exact shapes.
+
+### Config JSON Output
+
+`config workspace-path --json` emits:
+
+```json
+{
+  "DefaultWorkspacePath": "/path/to/workspaces"
 }
 ```
 

@@ -11,7 +11,7 @@ Straumr has four primary object types:
 - Auths: reusable auth definitions that belong to the current workspace.
 - Secrets: global sensitive values that can be referenced from requests and auth definitions.
 
-Straumr is workspace-centric. Most `request` and `auth` commands require an active workspace before they can run.
+Straumr is workspace-centric. Most `request` and `auth` commands require an active workspace before they can run. Commands that operate on requests or auths accept a `-w|--workspace <name-or-id>` flag to target a workspace for that invocation without changing the globally active one.
 
 ## First-Time Setup
 
@@ -21,7 +21,12 @@ Before creating a workspace without `-o`, set the default workspace root:
 straumr config workspace-path /path/to/workspaces
 ```
 
-That path is persisted in `~/.straumr/options.json`.
+That path is persisted in `~/.straumr/options.json`. Add `--json` to get a machine-readable result:
+
+```sh
+straumr config workspace-path ~/api-workspaces --json
+# { "DefaultWorkspacePath": "/home/user/api-workspaces" }
+```
 
 Typical bootstrap flow:
 
@@ -41,6 +46,7 @@ Create a workspace in the configured default path:
 
 ```sh
 straumr create workspace myapi
+straumr create workspace myapi --json   # outputs { "Id", "Name", "Path" }
 ```
 
 Or override the target directory:
@@ -153,6 +159,27 @@ Inline mode is enabled when a URL argument is present. It validates:
 
 Inline requests default to `GET`, and if `--data` is provided without `--type`, the body type defaults to `json`.
 
+Add `--json` to capture the new request ID without a follow-up list:
+
+```sh
+straumr create request get-users https://api.example.com/users --method GET --json
+# { "Id": "...", "Name": "get-users", "Method": "GET", "Uri": "..." }
+```
+
+### Inline Edit Mode
+
+Update specific fields of an existing request without entering the interactive TUI:
+
+```sh
+straumr edit request get-users --url https://api.example.com/v2/users
+straumr edit request get-users --method POST --data '{"name":"Ada"}' --type json
+straumr edit request get-users --header "X-Tenant: acme" --param "v=2"
+straumr edit request get-users --auth prod-key
+straumr edit request get-users --auth none   # removes linked auth
+```
+
+Inline edit mode is triggered when any of `--url`, `--method`, `--header`, `--param`, `--data`, `--type`, or `--auth` is present. Inline and `--editor` are mutually exclusive.
+
 ### Request Bodies
 
 Supported body types:
@@ -209,6 +236,26 @@ Interactive auth editing lets you:
 - toggle auto-renew behavior
 
 Editor mode writes raw auth JSON to a temp file. Auth IDs may not be changed during edit.
+
+### Non-Interactive Auth Creation
+
+For scripts and agents, pass `--type` to bypass the TUI:
+
+```sh
+# Bearer token
+straumr create auth prod-key -t bearer -s mytoken --json
+
+# Bearer with custom prefix
+straumr create auth prod-key -t bearer -s mytoken --prefix "Token" --json
+
+# HTTP Basic
+straumr create auth staging-basic -t basic -u user -p pass --json
+
+# Disable auto-renewal
+straumr create auth static-key -t bearer -s mytoken --no-auto-renew --json
+```
+
+Only `bearer` and `basic` types support inline creation. OAuth 2.0 and Custom auth require the interactive TUI or editor mode.
 
 ### OAuth 2.0 Behavior
 
@@ -298,6 +345,17 @@ straumr send get-users --dry-run
 straumr send get-users --fail
 straumr send get-users --output response.txt
 ```
+
+### Per-Send Header and Param Overrides
+
+Inject headers or query params for a single send without modifying the saved request:
+
+```sh
+straumr send get-users --header "X-Request-Id: abc123" --param "debug=true"
+straumr send post-order --header "Idempotency-Key: $(uuidgen)"
+```
+
+Multiple `--header` and `--param` flags are supported and applied on top of the saved request values.
 
 ### Send-Time Resolution Order
 

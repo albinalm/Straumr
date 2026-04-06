@@ -46,7 +46,7 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
                 Status: StripMarkup(e.Status),
                 LastAccessed: e.LastAccessed?.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss")
             )).ToArray();
-            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Default.WorkspaceListItemArray));
+            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Relaxed.WorkspaceListItemArray));
             return 0;
         }
 

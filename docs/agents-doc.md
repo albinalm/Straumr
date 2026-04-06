@@ -7,6 +7,7 @@ This document is an agent-focused operating guide for Straumr. It is optimized f
 - Prefer `--json` whenever a command supports it.
 - Prefer IDs over names after discovery to avoid ambiguity.
 - Use `--filter` to narrow lists before selecting an object.
+- Use `--workspace <name-or-id>` to target a workspace without mutating global state — never run `use workspace` in scripts.
 - Treat workspaces as required context for most request and auth operations.
 - Use `send --dry-run --json` before `send --json` when validating what Straumr will dispatch.
 - Expect human-oriented output unless `--json` is explicitly requested.
@@ -32,19 +33,94 @@ List available workspaces:
 straumr list workspace --json
 ```
 
-If needed, activate one:
+Target a specific workspace for subsequent commands without changing global state:
+
+```sh
+straumr list request --json --workspace <workspace-id-or-name>
+```
+
+If you must set a persistent workspace (interactive sessions only), use:
 
 ```sh
 straumr use workspace <workspace-id-or-name>
 ```
 
-### 2. Discover objects with filtering
+### 2. Bootstrap config if missing
+
+If `DefaultWorkspacePath` is not set, `create workspace` (without `-o`) will fail. Detect and fix this programmatically:
+
+```sh
+straumr config workspace-path --json
+# returns { "DefaultWorkspacePath": null } if not configured
+
+straumr config workspace-path /path/to/workspaces --json
+# returns { "DefaultWorkspacePath": "/path/to/workspaces" }
+```
+
+### 3. Create objects non-interactively
+
+#### Workspace
+
+```sh
+straumr create workspace my-ws --json
+```
+
+Returns:
+
+```json
+{
+  "Id": "...",
+  "Name": "my-ws",
+  "Path": "/path/to/workspaces/my-ws"
+}
+```
+
+#### Request
+
+```sh
+straumr create request get-users https://api.example.com/users \
+  --method GET \
+  --header "Accept: application/json" \
+  --param "page=1" \
+  --workspace my-ws \
+  --json
+```
+
+Returns:
+
+```json
+{
+  "Id": "...",
+  "Name": "get-users",
+  "Method": "GET",
+  "Uri": "https://api.example.com/users"
+}
+```
+
+#### Auth (bearer or basic)
+
+```sh
+straumr create auth prod-key -t bearer -s mytoken --workspace my-ws --json
+straumr create auth prod-basic -t basic -u user -p pass --workspace my-ws --json
+```
+
+Returns:
+
+```json
+{
+  "Id": "...",
+  "Name": "prod-key",
+  "Type": "Bearer"
+}
+```
+
+### 4. Discover objects with filtering
 
 Use list commands with `--json` and `--filter`:
 
 ```sh
-straumr list request --json --filter users
-straumr list auth --json --filter prod
+straumr list request --json --filter users --workspace my-ws
+straumr list auth --json --filter prod --workspace my-ws
 straumr list secret --json --filter token
 ```
 
@@ -53,33 +129,49 @@ Filter behavior:
 - name: case-insensitive substring match
 - ID: case-insensitive prefix match
 
-### 3. Resolve to a single ID
+### 5. Resolve to a single ID
 
 After listing, select one object ID and prefer that ID in later commands:
 
 ```sh
-straumr get request <id> --json
-straumr get auth <id> --json
+straumr get request <id> --json --workspace my-ws
+straumr get auth <id> --json --workspace my-ws
 straumr get workspace <id> --json
 straumr get secret <id> --json
 ```
 
-`get ... --json` returns the raw persisted JSON file, not a summarized DTO.
+### 6. Edit requests inline
 
-### 4. Validate before sending
+Update specific fields without entering the interactive TUI:
+
+```sh
+straumr edit request <id> --url https://api.example.com/v2/users
+straumr edit request <id> --method POST --data '{"name":"Ada"}' --type json
+straumr edit request <id> --header "X-Tenant: acme" --param "v=2"
+straumr edit request <id> --auth <auth-id-or-name>
+straumr edit request <id> --auth none
+```
+
+### 7. Validate before sending
 
 Use dry-run JSON to inspect the exact resolved request shape:
 
 ```sh
-straumr send <request-id> --dry-run --json
+straumr send <request-id> --dry-run --json --workspace my-ws
 ```
 
-This is the safest preflight command for agents because it resolves secrets and shows the outgoing method, URI, headers, params, and body without making the network call.
+This resolves secrets and shows the outgoing method, URI, headers, params, and body without making the network call.
 
-### 5. Send with a machine-readable envelope
+### 8. Send with a machine-readable envelope
 
 ```sh
-straumr send <request-id> --json
+straumr send <request-id> --json --workspace my-ws
+```
+
+Inject one-off headers or params without permanently editing the saved request:
+
+```sh
+straumr send <request-id> --json --header "X-Debug: true" --param "trace=1"
 ```
 
 Add flags only when needed:
@@ -93,27 +185,50 @@ Add flags only when needed:
 
 ### Best commands for parsing
 
+- `straumr config workspace-path --json`
 - `straumr list workspace --json`
-- `straumr list request --json`
-- `straumr list auth --json`
+- `straumr create workspace <name> --json`
+- `straumr list request --json [--workspace <ws>]`
+- `straumr create request <name> <url> [flags] --json [--workspace <ws>]`
+- `straumr get request <id> --json [--workspace <ws>]`
+- `straumr list auth --json [--workspace <ws>]`
+- `straumr create auth <name> --type bearer|basic [flags] --json [--workspace <ws>]`
 - `straumr list secret --json`
-- `straumr get <type> <id> --json`
-- `straumr send <request-id> --dry-run --json`
-- `straumr send <request-id> --json`
+- `straumr send <request-id> --dry-run --json [--workspace <ws>]`
+- `straumr send <request-id> --json [--workspace <ws>]`
 
 ### Avoid for parsing
 
 - default `list`
 - default `get`
 - default `send`
+- default `create`
 
 Those render Spectre.Console tables and panels intended for humans.
 
 ## JSON Shapes
 
-CLI-generated JSON uses PascalCase property names.
+CLI-generated JSON uses PascalCase property names and `UnsafeRelaxedJsonEscaping` (no `\u0022` or `\u002F` escaping).
 
-Raw persisted files returned by `get ... --json` also use PascalCase property names from the storage model, such as `Id`, `Name`, `Method`, `BodyType`, and `Bodies`.
+### `config workspace-path --json`
+
+```json
+{
+  "DefaultWorkspacePath": "/path/to/workspaces"
+}
+```
+
+`DefaultWorkspacePath` is `null` if not yet configured.
+
+### `create workspace --json`
+
+```json
+{
+  "Id": "8f6c7c80-2f8e-4a7f-92e3-a2e4c8f6d123",
+  "Name": "my-ws",
+  "Path": "/path/to/workspaces/my-ws"
+}
+```
 
 ### `list workspace --json`
 
@@ -131,6 +246,17 @@ Raw persisted files returned by `get ... --json` also use PascalCase property na
 ]
 ```
 
+### `create request --json`
+
+```json
+{
+  "Id": "865c9c5d-ef63-49ec-8a07-c73d84f9cd86",
+  "Name": "get-users",
+  "Method": "GET",
+  "Uri": "https://api.example.com/users"
+}
+```
+
 ### `list request --json`
 
 ```json
@@ -144,6 +270,46 @@ Raw persisted files returned by `get ... --json` also use PascalCase property na
     "LastAccessed": "2026-04-05T13:10:29"
   }
 ]
+```
+
+### `get request --json`
+
+Returns a normalized DTO (not the raw persisted file):
+
+```json
+{
+  "Id": "865c9c5d-ef63-49ec-8a07-c73d84f9cd86",
+  "Name": "get-users",
+  "Method": "GET",
+  "Uri": "https://api.example.com/users",
+  "BodyType": "None",
+  "Headers": {
+    "Accept": "application/json"
+  },
+  "Params": {
+    "page": "1"
+  },
+  "Body": null,
+  "AuthId": "2c5967cd-71e6-4311-9150-fde7845c8cf0",
+  "LastAccessed": "2026-04-05T13:10:29",
+  "Modified": "2026-04-05T13:10:29"
+}
+```
+
+Key differences from the persisted file:
+
+- `Method` is a plain string, not an object
+- `BodyType` is the enum name (`None`, `Json`, `Xml`, `Text`, `FormUrlEncoded`, `MultipartForm`, `Raw`), not an integer
+- `Body` is the active body content for the current `BodyType`, not the full `Bodies` map
+
+### `create auth --json`
+
+```json
+{
+  "Id": "2c5967cd-71e6-4311-9150-fde7845c8cf0",
+  "Name": "prod-key",
+  "Type": "Bearer"
+}
 ```
 
 ### `list auth --json`
@@ -190,6 +356,8 @@ Raw persisted files returned by `get ... --json` also use PascalCase property na
 
 ### `send --json`
 
+`Body` is an inlined JSON object when the response `Content-Type` contains `json`; otherwise it is a JSON string:
+
 ```json
 {
   "Status": 200,
@@ -199,7 +367,15 @@ Raw persisted files returned by `get ... --json` also use PascalCase property na
   "Headers": {
     "Content-Type": ["application/json"]
   },
-  "Body": "{\"ok\":true}"
+  "Body": {"ok": true}
+}
+```
+
+Non-JSON response body example:
+
+```json
+{
+  "Body": "plain text response"
 }
 ```
 
@@ -223,6 +399,8 @@ When editing or generating raw request JSON for `create ... --editor` or `edit .
 - `BodyType` is stored as a numeric enum value
 - `Bodies` uses enum-name keys such as `Json`, `Xml`, `Text`, `Form`, `Multipart`, `Raw`
 - request and auth IDs must remain stable during edit
+
+The CLI JSON output from `get ... --json` normalizes these fields. Only editor mode sees the raw format.
 
 Example persisted request:
 
@@ -283,23 +461,38 @@ For robust scripting, prefer:
 
 ## Safe Patterns
 
-### Discover a workspace, activate it, inspect a request, then send it
+### Full stateless workflow (no `use workspace`)
 
 ```sh
-straumr list workspace --json --filter demo
-straumr use workspace <workspace-id>
-straumr list request --json --filter users
-straumr get request <request-id> --json
-straumr send <request-id> --dry-run --json
-straumr send <request-id> --json --fail
+WS_ID=$(straumr list workspace --json --filter my-ws | jq -r '.[0].Id')
+REQ_ID=$(straumr create request get-users https://api.example.com/users \
+  --method GET --json --workspace "$WS_ID" | jq -r '.Id')
+straumr send "$REQ_ID" --dry-run --json --workspace "$WS_ID"
+straumr send "$REQ_ID" --json --fail --workspace "$WS_ID"
+```
+
+### Bootstrap workspace and auth for a new agent session
+
+```sh
+straumr config workspace-path /tmp/agent-ws --json
+straumr create workspace agent-session --json
+WS_ID=$(straumr list workspace --json --filter agent-session | jq -r '.[0].Id')
+straumr create auth my-key -t bearer -s "$API_TOKEN" --workspace "$WS_ID" --json
+```
+
+### Send with one-off header injection
+
+```sh
+straumr send "$REQ_ID" --json --header "X-Request-Id: $(uuidgen)" --workspace "$WS_ID"
 ```
 
 ### Inspect auth linkage before sending
 
 ```sh
-straumr get request <request-id> --json
-straumr get auth <auth-id> --json
-straumr send <request-id> --dry-run --json
+straumr get request "$REQ_ID" --json --workspace "$WS_ID"
+# check AuthId, then:
+straumr get auth "$AUTH_ID" --json --workspace "$WS_ID"
+straumr send "$REQ_ID" --dry-run --json --workspace "$WS_ID"
 ```
 
 ### Locate a secret without exposing human-formatted output
@@ -311,10 +504,13 @@ straumr get secret <secret-id> --json
 
 ## Agent Recommendations
 
+- Always use `--workspace` instead of `straumr use workspace` to keep invocations stateless.
 - Always begin with workspace discovery if workspace state is not already known.
 - Prefer `list ... --json --filter ...` over full list scans.
 - Prefer exact IDs after discovery.
+- Use `create ... --json` to capture new object IDs without a follow-up list.
 - Use dry-run before send when changing or validating requests.
+- Use `send --header`/`--param` for transient overrides; do not permanently edit saved requests just to inject trace IDs.
 - Expect warnings to exist outside the main JSON result in non-JSON modes; avoid non-JSON modes for automation.
-- Do not assume request and auth commands work without an active workspace.
+- Do not assume request and auth commands work without an active workspace (via current or `--workspace`).
 - Do not parse default console tables or panels.

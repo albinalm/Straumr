@@ -3,6 +3,8 @@ using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Cli.Console;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
@@ -18,6 +20,7 @@ namespace Straumr.Cli.Commands.Request;
 
 public class RequestCreateCommand(
     IStraumrOptionsService optionsService,
+    IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService)
     : AsyncCommand<RequestCreateCommand.Settings>
@@ -34,6 +37,19 @@ public class RequestCreateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
 
         if (!hasWorkspace)
@@ -364,7 +380,22 @@ public class RequestCreateCommand(
         try
         {
             await requestService.CreateAsync(request);
-            AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{Markup.Escape(request.Name)}[/] ({request.Id})");
+
+            if (settings.Json)
+            {
+                var result = new RequestCreateResult(
+                    request.Id.ToString(),
+                    request.Name,
+                    request.Method.Method,
+                    request.Uri);
+                System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
+            }
+            else
+            {
+                AnsiConsole.MarkupLine(
+                    $"[green]Created request[/] [bold]{Markup.Escape(request.Name)}[/] ({request.Id})");
+            }
+
             return 0;
         }
         catch (StraumrException ex)
@@ -411,6 +442,14 @@ public class RequestCreateCommand(
         [CommandOption("-e|--editor")]
         [Description("Open the request in the default editor instead of interactive prompts")]
         public bool UseEditor { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the created request as JSON")]
+        public bool Json { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 
     private sealed class CreateRequestState(string name)

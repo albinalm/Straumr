@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -16,7 +19,19 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
         var workspace = new StraumrWorkspace { Name = settings.Name };
         await workspaceService.Create(workspace, settings.Output);
 
-        AnsiConsole.MarkupLine($"[green]Created workspace[/] [bold]{workspace.Name}[/] ({workspace.Id})");
+        string workspacePath = Path.GetDirectoryName(
+            workspaceService.GetWorkspaceEntry(workspace.Id).Path) ?? settings.Output ?? string.Empty;
+
+        if (settings.Json)
+        {
+            var result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, workspacePath);
+            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[green]Created workspace[/] [bold]{workspace.Name}[/] ({workspace.Id})");
+        }
+
         return 0;
     }
 
@@ -29,5 +44,9 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
         [CommandOption("-o|--output <DIR>")]
         [Description("Directory where the workspace folder should be created")]
         public string? Output { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the created workspace as JSON")]
+        public bool Json { get; set; }
     }
 }

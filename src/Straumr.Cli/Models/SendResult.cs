@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Straumr.Cli.Models;
 
 public record SendResult(
@@ -6,4 +8,4 @@ public record SendResult(
     string? Version,
     double DurationMs,
     Dictionary<string, string[]> Headers,
-    string? Body);
+    JsonElement? Body);

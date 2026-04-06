@@ -1,3 +1,5 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Straumr.Cli.Models;
 
@@ -5,10 +7,25 @@ namespace Straumr.Cli.Infrastructure;
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(WorkspaceListItem[]))]
+[JsonSerializable(typeof(WorkspaceCreateResult))]
 [JsonSerializable(typeof(RequestListItem[]))]
+[JsonSerializable(typeof(RequestCreateResult))]
+[JsonSerializable(typeof(RequestGetResult))]
 [JsonSerializable(typeof(AuthListItem[]))]
+[JsonSerializable(typeof(AuthListItem))]
 [JsonSerializable(typeof(SecretListItem[]))]
 [JsonSerializable(typeof(SendResult))]
 [JsonSerializable(typeof(SendErrorEnvelope))]
 [JsonSerializable(typeof(DryRunResult))]
-public partial class CliJsonContext : JsonSerializerContext;
+[JsonSerializable(typeof(ConfigWorkspacePathResult))]
+[JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(string))]
+public partial class CliJsonContext : JsonSerializerContext
+{
+    public static CliJsonContext Relaxed { get; } = new CliJsonContext(
+        new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+}

@@ -8,6 +8,7 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
@@ -21,6 +22,23 @@ public class RequestListCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Workspace is not null)
+        {
+            StraumrWorkspaceEntry? resolved =
+                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+            if (resolved is null)
+            {
+                if (settings.Json)
+                    await System.Console.Error.WriteLineAsync(
+                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
+                else
+                    AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                return 1;
+            }
+
+            optionsService.Options.CurrentWorkspace = resolved;
+        }
+
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry == null)
         {
@@ -57,12 +75,12 @@ public class RequestListCommand(
             var items = entries.Select(e => new RequestListItem(
                 Id: e.Id.ToString(),
                 Name: e.Request?.Name ?? "N/A",
-                Method: e.Request?.Method.ToString() ?? "N/A",
+                Method: e.Request?.Method.Method ?? "N/A",
                 Uri: e.Request?.Uri ?? "N/A",
                 Status: StripMarkup(e.Status),
                 LastAccessed: e.Request?.LastAccessed.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss")
             )).ToArray();
-            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Default.RequestListItemArray));
+            System.Console.WriteLine(JsonSerializer.Serialize(items, CliJsonContext.Relaxed.RequestListItemArray));
             return 0;
         }
 
@@ -84,7 +102,7 @@ public class RequestListCommand(
             table.AddRow(
                 entry.Id.ToString(),
                 Markup.Escape(entry.Request?.Name ?? "N/A"),
-                entry.Request?.Method.ToString() ?? "N/A",
+                entry.Request?.Method.Method ?? "N/A",
                 entry.Request?.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "N/A",
                 entry.Status);
         }
@@ -138,5 +156,9 @@ public class RequestListCommand(
         [CommandOption("--filter")]
         [Description("Filter results by name (substring) or ID prefix")]
         public string? Filter { get; set; }
+
+        [CommandOption("-w|--workspace")]
+        [Description("Target workspace name or ID (overrides the current workspace for this command)")]
+        public string? Workspace { get; set; }
     }
 }

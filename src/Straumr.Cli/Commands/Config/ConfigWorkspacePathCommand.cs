@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
 using Straumr.Core.Services.Interfaces;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -14,16 +17,38 @@ public class ConfigWorkspacePathCommand(IStraumrOptionsService optionsService)
     {
         if (string.IsNullOrWhiteSpace(settings.Path))
         {
-            string currentPath = optionsService.Options.DefaultWorkspacePath ?? "null";
-            AnsiConsole.MarkupLine($"[grey]Default workspace path:[/] {Markup.Escape(currentPath)}");
+            string? currentPath = optionsService.Options.DefaultWorkspacePath;
+
+            if (settings.Json)
+            {
+                System.Console.WriteLine(JsonSerializer.Serialize(
+                    new ConfigWorkspacePathResult(currentPath),
+                    CliJsonContext.Relaxed.ConfigWorkspacePathResult));
+            }
+            else
+            {
+                AnsiConsole.MarkupLine(
+                    $"[grey]Default workspace path:[/] {Markup.Escape(currentPath ?? "null")}");
+            }
+
             return 0;
         }
 
         optionsService.Options.DefaultWorkspacePath = settings.Path;
         await optionsService.Save();
 
-        AnsiConsole.MarkupLine(
-            $"[green]Updated default workspace path[/] [bold]{Markup.Escape(settings.Path)}[/]");
+        if (settings.Json)
+        {
+            System.Console.WriteLine(JsonSerializer.Serialize(
+                new ConfigWorkspacePathResult(settings.Path),
+                CliJsonContext.Relaxed.ConfigWorkspacePathResult));
+        }
+        else
+        {
+            AnsiConsole.MarkupLine(
+                $"[green]Updated default workspace path[/] [bold]{Markup.Escape(settings.Path)}[/]");
+        }
+
         return 0;
     }
 
@@ -32,5 +57,9 @@ public class ConfigWorkspacePathCommand(IStraumrOptionsService optionsService)
         [CommandArgument(0, "[path]")]
         [Description("Set the default workspace path. Omit to display the current value.")]
         public string? Path { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the result as JSON")]
+        public bool Json { get; set; }
     }
 }
