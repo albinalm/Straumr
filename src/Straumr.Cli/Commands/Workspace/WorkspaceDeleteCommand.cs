@@ -13,7 +13,7 @@ public class WorkspaceDeleteCommand(IStraumrWorkspaceService workspaceService)
         CancellationToken cancellation)
     {
         await workspaceService.Delete(settings.Identifier);
-        AnsiConsole.MarkupLine($"[red]Deleted workspace[/] [bold]{settings.Identifier}[/]");
+        AnsiConsole.MarkupLine($"[green]Deleted workspace[/] [bold]{settings.Identifier}[/]");
         return 0;
     }
 

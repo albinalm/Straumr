@@ -10,6 +10,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -37,11 +38,7 @@ public class AuthCreateCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                if (settings.Json)
-                    await System.Console.Error.WriteLineAsync(
-                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
-                else
-                    await System.Console.Error.WriteLineAsync($"Workspace not found: {settings.Workspace}");
+                Write($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -90,7 +87,7 @@ public class AuthCreateCommand(
     {
         if (string.IsNullOrWhiteSpace(settings.Name))
         {
-            AnsiConsole.MarkupLine("[red]A name is required when creating auth inline.[/]");
+            Write("A name is required when creating auth inline.", settings.Json);
             return 1;
         }
 
@@ -112,8 +109,7 @@ public class AuthCreateCommand(
                 };
                 break;
             default:
-                AnsiConsole.MarkupLine(
-                    $"[red]Unknown auth type: {Markup.Escape(settings.Type)}. Use bearer or basic for inline creation.[/]");
+                Write($"Unknown auth type: {settings.Type}. Use bearer or basic for inline creation.", settings.Json);
                 return 1;
         }
 
@@ -142,7 +138,7 @@ public class AuthCreateCommand(
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, settings.Json);
             return 1;
         }
     }

@@ -6,6 +6,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
@@ -40,9 +41,22 @@ public class RequestDeleteCommand(
                 StraumrError.MissingEntry);
         }
 
-        await requestService.DeleteAsync(settings.Identifier);
-        AnsiConsole.MarkupLine($"[red]Deleted request[/] [bold]{settings.Identifier}[/]");
-        return 0;
+        try
+        {
+            await requestService.DeleteAsync(settings.Identifier);
+            AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");
+            return 0;
+        }
+        catch (StraumrException ex)
+        {
+            Write(ex.Message, false);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            Write(ex.Message, false);
+            return -1;
+        }
     }
 
     public sealed class Settings : CommandSettings

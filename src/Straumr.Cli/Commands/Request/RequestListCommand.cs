@@ -8,6 +8,7 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Helpers.ErrorOutput;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -28,11 +29,7 @@ public class RequestListCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                if (settings.Json)
-                    await System.Console.Error.WriteLineAsync(
-                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
-                else
-                    AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                Write($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -42,15 +39,7 @@ public class RequestListCommand(
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry == null)
         {
-            if (settings.Json)
-            {
-                await System.Console.Error.WriteLineAsync("{\"error\":{\"message\":\"No workspace loaded\"}}");
-            }
-            else
-            {
-                throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
-                    StraumrError.MissingEntry);
-            }
+            Write("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
         }
 

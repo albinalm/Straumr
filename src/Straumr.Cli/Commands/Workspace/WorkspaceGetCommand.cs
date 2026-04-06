@@ -7,6 +7,7 @@ using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Cli.Helpers.ErrorOutput;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Workspace;
@@ -60,7 +61,7 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
             }
             catch (StraumrException ex)
             {
-                await System.Console.Error.WriteLineAsync($"{{\"error\":{{\"message\":\"{ex.Message}\"}}}}");
+                Write(ex.Message, settings.Json);
                 return 1;
             }
         }

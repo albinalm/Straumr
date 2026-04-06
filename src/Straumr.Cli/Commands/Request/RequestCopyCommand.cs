@@ -9,6 +9,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Request;
@@ -28,7 +29,7 @@ public class RequestCopyCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                Write($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -60,12 +61,12 @@ public class RequestCopyCommand(
         }
         catch (StraumrException ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, settings.Json);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, settings.Json);
             return -1;
         }
     }

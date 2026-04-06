@@ -9,6 +9,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -31,11 +32,7 @@ public class RequestGetCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                if (settings.Json)
-                    await System.Console.Error.WriteLineAsync(
-                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
-                else
-                    AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                Write($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -45,10 +42,7 @@ public class RequestGetCommand(
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
-            if (settings.Json)
-                await System.Console.Error.WriteLineAsync("{\"error\":{\"message\":\"No workspace loaded\"}}");
-            else
-                AnsiConsole.MarkupLine("[red]No workspace loaded. Please load a workspace using 'workspace use <name>'[/]");
+            Write("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
         }
 
@@ -59,7 +53,7 @@ public class RequestGetCommand(
         }
         catch (StraumrException ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, settings.Json);
             return 1;
         }
 
@@ -91,8 +85,7 @@ public class RequestGetCommand(
 
         if (foundId is null)
         {
-            AnsiConsole.MarkupLine(
-                $"[red]No request found with the identifier: {Markup.Escape(settings.Identifier)}[/]");
+            Write($"No request found with the identifier: {settings.Identifier}", settings.Json);
             return 1;
         }
 
@@ -105,7 +98,7 @@ public class RequestGetCommand(
             }
             catch (StraumrException ex)
             {
-                await System.Console.Error.WriteLineAsync(ex.Message);
+                Write(ex.Message, settings.Json);
                 return 1;
             }
 

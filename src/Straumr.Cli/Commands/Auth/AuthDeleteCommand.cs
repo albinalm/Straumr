@@ -6,6 +6,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
@@ -48,12 +49,12 @@ public class AuthDeleteCommand(
         }
         catch (StraumrException ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, false);
             return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, false);
             return -1;
         }
     }

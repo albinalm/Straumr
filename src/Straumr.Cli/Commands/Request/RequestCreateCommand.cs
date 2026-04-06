@@ -11,6 +11,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 using static Straumr.Cli.Helpers.HttpCommandHelpers;
 using static Straumr.Cli.Console.PromptHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
@@ -43,11 +44,7 @@ public class RequestCreateCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                if (settings.Json)
-                    await System.Console.Error.WriteLineAsync(
-                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
-                else
-                    AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                Write($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -58,15 +55,7 @@ public class RequestCreateCommand(
 
         if (!hasWorkspace)
         {
-            if (settings.Json)
-            {
-                await System.Console.Error.WriteLineAsync("{\"error\":{\"message\":\"No workspace loaded\"}}");
-            }
-            else
-            {
-                throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
-                    StraumrError.MissingEntry);
-            }
+            Write("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
         }
 
@@ -74,7 +63,7 @@ public class RequestCreateCommand(
         {
             if (string.IsNullOrWhiteSpace(settings.Name))
             {
-                AnsiConsole.MarkupLine("[red]A name is required when creating a request inline.[/]");
+                Write("A name is required when creating a request inline.", settings.Json);
                 return 1;
             }
 
@@ -153,13 +142,13 @@ public class RequestCreateCommand(
             }
             catch (JsonException ex)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid request JSON: {Markup.Escape(ex.Message)}[/]");
+                Write($"Invalid request JSON: {ex.Message}", false);
                 return 1;
             }
 
             if (deserializedJson is null)
             {
-                AnsiConsole.MarkupLine("[red]Invalid request JSON.[/]");
+                Write("Invalid request JSON.", false);
                 return 1;
             }
 
@@ -172,11 +161,11 @@ public class RequestCreateCommand(
             }
             catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                Write(ex.Message, false);
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                Write(ex.Message, false);
             }
 
             return -1;
@@ -331,7 +320,7 @@ public class RequestCreateCommand(
             int colon = header.IndexOf(':');
             if (colon < 0)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid header (expected \"Name: Value\"): {Markup.Escape(header)}[/]");
+                Write($"Invalid header (expected \"Name: Value\"): {header}", settings.Json);
                 return 1;
             }
 
@@ -343,7 +332,7 @@ public class RequestCreateCommand(
             int eq = param.IndexOf('=');
             if (eq < 0)
             {
-                AnsiConsole.MarkupLine($"[red]Invalid param (expected \"key=value\"): {Markup.Escape(param)}[/]");
+                Write($"Invalid param (expected \"key=value\"): {param}", settings.Json);
                 return 1;
             }
 
@@ -366,8 +355,7 @@ public class RequestCreateCommand(
 
             if (bodyType == BodyType.None)
             {
-                AnsiConsole.MarkupLine(
-                    $"[red]Unknown body type: {Markup.Escape(settings.BodyType!)}. Use json, xml, text, form, multipart, or raw.[/]");
+                Write($"Unknown body type: {settings.BodyType!}. Use json, xml, text, form, multipart, or raw.", settings.Json);
                 return 1;
             }
 
@@ -384,7 +372,7 @@ public class RequestCreateCommand(
             }
             catch (StraumrException ex)
             {
-                AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+                Write(ex.Message, settings.Json);
                 return 1;
             }
         }
@@ -412,7 +400,7 @@ public class RequestCreateCommand(
         }
         catch (StraumrException ex)
         {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
+            Write(ex.Message, settings.Json);
             return 1;
         }
     }

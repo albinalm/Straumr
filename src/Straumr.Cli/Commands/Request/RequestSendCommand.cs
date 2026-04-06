@@ -12,6 +12,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
+using static Straumr.Cli.Helpers.ErrorOutput;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -33,7 +34,7 @@ public class RequestSendCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                OutputError($"Workspace not found: {settings.Workspace}", settings.Json);
+                Write($"Workspace not found: {settings.Workspace}", settings.Json);
                 return 1;
             }
 
@@ -44,7 +45,7 @@ public class RequestSendCommand(
 
         if (!hasWorkspace)
         {
-            OutputError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
+            Write("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
         }
 
@@ -147,12 +148,12 @@ public class RequestSendCommand(
         }
         catch (StraumrException ex)
         {
-            OutputError(ex.Message, settings.Json);
+            Write(ex.Message, settings.Json);
             return ex.Reason == StraumrError.MissingEntry ? 1 : -1;
         }
         catch (Exception ex)
         {
-            OutputError(ex.Message, settings.Json);
+            Write(ex.Message, settings.Json);
             return -1;
         }
     }
@@ -235,8 +236,8 @@ public class RequestSendCommand(
     {
         if (response.Exception is not null)
         {
-            var envelope = new SendErrorEnvelope(new SendError(response.Exception.Message));
-            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.SendErrorEnvelope));
+            var envelope = new ErrorEnvelope(new ErrorDetail(response.Exception.Message));
+            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.ErrorEnvelope));
             return 1;
         }
 
@@ -300,18 +301,6 @@ public class RequestSendCommand(
         return 0;
     }
 
-    private static void OutputError(string message, bool json)
-    {
-        if (json)
-        {
-            var envelope = new SendErrorEnvelope(new SendError(message));
-            System.Console.Error.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.SendErrorEnvelope));
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(message)}[/]");
-        }
-    }
 
     private static void RenderVerbose(StraumrRequest request, StraumrResponse response)
     {
