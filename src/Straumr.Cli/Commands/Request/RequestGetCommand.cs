@@ -31,7 +31,11 @@ public class RequestGetCommand(
                 await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
             if (resolved is null)
             {
-                AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
+                if (settings.Json)
+                    await System.Console.Error.WriteLineAsync(
+                        $"{{\"error\":{{\"message\":\"Workspace not found: {settings.Workspace}\"}}}}");
+                else
+                    AnsiConsole.MarkupLine($"[red]Workspace not found: {Markup.Escape(settings.Workspace)}[/]");
                 return 1;
             }
 
@@ -41,7 +45,10 @@ public class RequestGetCommand(
         StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
-            AnsiConsole.MarkupLine("[red]No workspace loaded. Please load a workspace using 'workspace use <name>'[/]");
+            if (settings.Json)
+                await System.Console.Error.WriteLineAsync("{\"error\":{\"message\":\"No workspace loaded\"}}");
+            else
+                AnsiConsole.MarkupLine("[red]No workspace loaded. Please load a workspace using 'workspace use <name>'[/]");
             return 1;
         }
 
