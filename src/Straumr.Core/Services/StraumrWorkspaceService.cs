@@ -46,7 +46,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
                 StraumrError.EntryNotFound);
         }
 
-        string extractPath = Path.Combine(AppContext.BaseDirectory, Path.GetRandomFileName());
+        string extractPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(extractPath);
 
         try
