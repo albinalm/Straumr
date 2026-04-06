@@ -88,7 +88,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         }
     }
 
-    public async Task Copy(string identifier, string newName, string? outputDir = null)
+    public async Task<StraumrWorkspaceEntry> Copy(string identifier, string newName, string? outputDir = null)
     {
         StraumrWorkspaceEntry sourceEntry = await ResolveWorkspaceEntryAsync(identifier);
         StraumrWorkspace sourceWorkspace = await PeekWorkspace(sourceEntry.Path);
@@ -117,12 +117,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         await fileService.WriteStraumrModel(newFullPath, newWorkspace, StraumrJsonContext.Default.StraumrWorkspace);
 
-        optionsService.Options.Workspaces.Add(new StraumrWorkspaceEntry
-        {
-            Id = newWorkspace.Id,
-            Path = newFullPath
-        });
+        var newEntry = new StraumrWorkspaceEntry { Id = newWorkspace.Id, Path = newFullPath };
+        optionsService.Options.Workspaces.Add(newEntry);
         await optionsService.Save();
+        return newEntry;
     }
 
     public async Task<string> Export(string workspaceIdentifier, string outputDir)

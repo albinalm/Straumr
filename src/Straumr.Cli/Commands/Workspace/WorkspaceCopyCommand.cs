@@ -1,6 +1,10 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Models;
+using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -12,8 +16,18 @@ public class WorkspaceCopyCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        await workspaceService.Copy(settings.Identifier, settings.NewName, settings.Output);
-        AnsiConsole.MarkupLine($"[green]Copied workspace[/] [bold]{Markup.Escape(settings.Identifier)}[/] to [bold]{Markup.Escape(settings.NewName)}[/]");
+        StraumrWorkspaceEntry newEntry = await workspaceService.Copy(settings.Identifier, settings.NewName, settings.Output);
+
+        if (settings.Json)
+        {
+            var result = new WorkspaceCreateResult(newEntry.Id.ToString(), settings.NewName, newEntry.Path);
+            System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[green]Copied workspace[/] [bold]{Markup.Escape(settings.Identifier)}[/] to [bold]{Markup.Escape(settings.NewName)}[/]");
+        }
+
         return 0;
     }
 
@@ -26,9 +40,13 @@ public class WorkspaceCopyCommand(IStraumrWorkspaceService workspaceService)
         [CommandArgument(1, "<NewName>")]
         [Description("Name for the new workspace")]
         public required string NewName { get; set; }
-        
+
         [CommandOption("-o|--output <DIR>")]
         [Description("Directory where the workspace folder should be created")]
         public string? Output { get; set; }
+
+        [CommandOption("-j|--json")]
+        [Description("Output the result as JSON")]
+        public bool Json { get; set; }
     }
 }

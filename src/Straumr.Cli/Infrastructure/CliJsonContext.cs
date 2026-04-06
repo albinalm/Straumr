@@ -18,6 +18,7 @@ namespace Straumr.Cli.Infrastructure;
 [JsonSerializable(typeof(SendErrorEnvelope))]
 [JsonSerializable(typeof(DryRunResult))]
 [JsonSerializable(typeof(ConfigWorkspacePathResult))]
+[JsonSerializable(typeof(WorkspaceExportResult))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(string))]
 public partial class CliJsonContext : JsonSerializerContext
