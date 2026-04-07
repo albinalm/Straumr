@@ -61,7 +61,7 @@ public class RequestSendCommand(
 
             if (settings.DryRun)
             {
-                return await ExecuteDryRunAsync(request, auth, settings, cancellation);
+                return await ExecuteDryRunAsync(request, auth, settings);
             }
 
             var options = new SendOptions
@@ -158,7 +158,7 @@ public class RequestSendCommand(
         }
     }
 
-    private static void ApplyOverrides(StraumrRequest request, string[]? headers, string[]? params_)
+    private static void ApplyOverrides(StraumrRequest request, string[]? headers, string[]? @params)
     {
         foreach (string header in headers ?? [])
         {
@@ -167,7 +167,7 @@ public class RequestSendCommand(
             request.Headers[header[..colon].Trim()] = header[(colon + 1)..].Trim();
         }
 
-        foreach (string param in params_ ?? [])
+        foreach (string param in @params ?? [])
         {
             int eq = param.IndexOf('=');
             if (eq < 0) continue;
@@ -175,8 +175,7 @@ public class RequestSendCommand(
         }
     }
 
-    private async Task<int> ExecuteDryRunAsync(StraumrRequest request, StraumrAuth? auth, Settings settings,
-        CancellationToken cancellation)
+    private async Task<int> ExecuteDryRunAsync(StraumrRequest request, StraumrAuth? auth, Settings settings)
     {
         (string resolvedUrl, IReadOnlyList<string> warnings) = await requestService.ResolveUrlAsync(request);
 
@@ -236,8 +235,8 @@ public class RequestSendCommand(
     {
         if (response.Exception is not null)
         {
-            var envelope = new ErrorEnvelope(new ErrorDetail(response.Exception.Message));
-            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.ErrorEnvelope));
+            var envelope = new CliErrorMessage(new CliErrorMessageContent(response.Exception.Message));
+            System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.CliErrorMessage));
             return 1;
         }
 
@@ -278,7 +277,10 @@ public class RequestSendCommand(
             {
                 return JsonSerializer.Deserialize(content, CliJsonContext.Relaxed.JsonElement);
             }
-            catch { }
+            catch
+            {
+                // ignored
+            }
         }
 
         string serialized = JsonSerializer.Serialize(content, CliJsonContext.Relaxed.String);
