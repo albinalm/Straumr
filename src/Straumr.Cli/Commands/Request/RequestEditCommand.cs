@@ -59,7 +59,8 @@ public class RequestEditCommand(
                 StraumrError.MissingEntry);
         }
 
-        bool hasInlineFlags = settings.Url is not null || settings.Method is not null ||
+        bool hasInlineFlags = settings.Name is not null || settings.Url is not null ||
+                              settings.Method is not null ||
                               settings.Headers?.Length > 0 || settings.Params?.Length > 0 ||
                               settings.Data is not null || settings.BodyType is not null ||
                               settings.Auth is not null;

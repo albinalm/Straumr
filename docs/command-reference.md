@@ -108,6 +108,7 @@ In all edit commands, `--json` routes errors to the JSON envelope on stderr.
 
 Request inline edit options (presence of any triggers non-interactive mode):
 
+- `-n|--name`
 - `-u|--url`
 - `-m|--method`
 - `-H|--header` (repeatable, `"Name: Value"` format)

@@ -186,6 +186,7 @@ straumr get secret <id> --json
 Update specific fields without entering the interactive TUI:
 
 ```sh
+straumr edit request <id> --name new-name
 straumr edit request <id> --url https://api.example.com/v2/users
 straumr edit request <id> --method POST --data '{"name":"Ada"}' --type json
 straumr edit request <id> --header "X-Tenant: acme" --param "v=2"

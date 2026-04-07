@@ -171,6 +171,7 @@ straumr create request get-users https://api.example.com/users --method GET --js
 Update specific fields of an existing request without entering the interactive TUI:
 
 ```sh
+straumr edit request get-users --name get-all-users
 straumr edit request get-users --url https://api.example.com/v2/users
 straumr edit request get-users --method POST --data '{"name":"Ada"}' --type json
 straumr edit request get-users --header "X-Tenant: acme" --param "v=2"
@@ -178,7 +179,7 @@ straumr edit request get-users --auth prod-key
 straumr edit request get-users --auth none   # removes linked auth
 ```
 
-Inline edit mode is triggered when any of `--url`, `--method`, `--header`, `--param`, `--data`, `--type`, or `--auth` is present. Inline and `--editor` are mutually exclusive.
+Inline edit mode is triggered when any of `--name`, `--url`, `--method`, `--header`, `--param`, `--data`, `--type`, or `--auth` is present. Inline and `--editor` are mutually exclusive.
 
 ### Request Bodies
 
