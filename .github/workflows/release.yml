@@ -61,7 +61,8 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          curl -sL https://github.com/goreleaser/nfpm/releases/latest/download/nfpm_linux_amd64.tar.gz | tar xz nfpm
+          NFPM_URL=$(curl -s https://api.github.com/repos/goreleaser/nfpm/releases/latest | grep -oP '"browser_download_url":\s*"\K[^"]*linux_amd64\.tar\.gz')
+          curl -sL "$NFPM_URL" | tar xz nfpm
           cp artifacts/${{ matrix.rid }}/straumr .
           VERSION=${VERSION} ./nfpm pkg -f packaging/deb/nfpm.yaml -p deb -t dist/
 
