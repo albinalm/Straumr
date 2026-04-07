@@ -1,0 +1,17 @@
+name: straumr
+arch: amd64
+platform: linux
+version: ${VERSION}
+maintainer: Albin Alm <albinalm@proton.me>
+description: CLI tool for managing, saving, and sending HTTP requests across workspaces
+vendor: Albin Alm
+homepage: https://github.com/albinalm/Straumr
+license: GPL-3.0-only
+section: utils
+priority: optional
+
+contents:
+  - src: straumr
+    dst: /usr/bin/straumr
+    file_info:
+      mode: 0755

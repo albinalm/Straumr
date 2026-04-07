@@ -57,6 +57,14 @@ jobs:
           mkdir -p dist
           tar -C artifacts/${{ matrix.rid }} -czf dist/straumr-${VERSION}-${{ matrix.rid }}.tar.gz straumr
 
+      - name: Build .deb package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -sL https://github.com/goreleaser/nfpm/releases/latest/download/nfpm_linux_amd64.tar.gz | tar xz nfpm
+          cp artifacts/${{ matrix.rid }}/straumr .
+          VERSION=${VERSION} ./nfpm pkg -f packaging/deb/nfpm.yaml -p deb -t dist/
+
       - name: Publish (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -138,6 +146,7 @@ jobs:
             dist/sha256sums.txt
 
   aur:
+    if: false
     needs: [version, release]
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -198,6 +207,7 @@ jobs:
           git push
 
   winget:
+    if: false
     needs: [version, release]
     runs-on: windows-latest
     continue-on-error: true
@@ -220,6 +230,7 @@ jobs:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
 
   copr:
+    if: false
     needs: [version, release]
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -274,3 +285,73 @@ jobs:
 
           SRPM=$(find ~/rpmbuild/SRPMS -name '*.src.rpm' | head -1)
           copr-cli build straumr "$SRPM"
+
+  apt:
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev gpg
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+
+      - name: Checkout apt repo branch
+        run: |
+          git clone --branch apt-repo https://github.com/albinalm/Straumr.git apt-repo 2>/dev/null || {
+            mkdir apt-repo && cd apt-repo && git init && git checkout -b apt-repo
+          }
+
+      - name: Download .deb from release
+        run: |
+          mkdir -p apt-repo/pool/main
+          DEB_NAME=$(curl -sL "https://api.github.com/repos/albinalm/Straumr/releases/tags/v${VERSION}" \
+            | grep -oP '"name":\s*"\K[^"]*\.deb' | head -1)
+          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/${DEB_NAME}" \
+            -o "apt-repo/pool/main/${DEB_NAME}"
+
+      - name: Generate APT repo metadata
+        run: |
+          cd apt-repo
+          mkdir -p dists/stable/main/binary-amd64
+
+          dpkg-scanpackages --multiversion pool/ > dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-amd64/Packages
+
+          cd dists/stable
+          cat > Release << EOF
+          Origin: Straumr
+          Label: Straumr
+          Suite: stable
+          Codename: stable
+          Architectures: amd64
+          Components: main
+          Description: Straumr APT repository
+          EOF
+          sed -i 's/^          //' Release
+
+          apt-ftparchive release . >> Release
+          GPG_KEY_ID=$(gpg --list-keys --keyid-format long | grep -A1 "^pub" | tail -1 | xargs)
+          gpg --batch --yes --default-key "$GPG_KEY_ID" -abs -o Release.gpg Release
+          gpg --batch --yes --default-key "$GPG_KEY_ID" --clearsign -o InRelease Release
+
+      - name: Export public key
+        run: |
+          cd apt-repo
+          gpg --armor --export > straumr.gpg.key
+
+      - name: Push to apt-repo branch
+        run: |
+          cd apt-repo
+          git config user.email "albinalm@proton.me"
+          git config user.name "Albin Alm"
+          git add -A
+          git commit -m "Update APT repo to ${VERSION}" || true
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/albinalm/Straumr.git
+          git push -u origin apt-repo
