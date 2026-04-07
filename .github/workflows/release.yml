@@ -148,7 +148,6 @@ jobs:
             dist/sha256sums.txt
 
   aur:
-    if: false
     needs: [version, release]
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -209,7 +208,6 @@ jobs:
           git push
 
   winget:
-    if: false
     needs: [version, release]
     runs-on: windows-latest
     continue-on-error: true
@@ -232,7 +230,6 @@ jobs:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
 
   copr:
-    if: false
     needs: [version, release]
     runs-on: ubuntu-latest
     continue-on-error: true
