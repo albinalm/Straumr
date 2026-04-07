@@ -5,6 +5,7 @@ using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Cli.Commands.Autocomplete;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 public class AutocompleteQueryCommand(
     IStraumrOptionsService optionsService,

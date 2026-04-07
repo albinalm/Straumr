@@ -4,18 +4,14 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Enums;
+
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Autocomplete;
 
 public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallCommand.Settings>
 {
-    public enum ShellKind
-    {
-        Zsh,
-        Bash,
-        Pwsh
-    }
-
     private const string BeginMarker = "# Straumr autocomplete — DO NOT REMOVE (used to detect existing installation)";
     private const string EndMarker = "# End of Straumr autocomplete — DO NOT REMOVE";
 
@@ -36,7 +32,7 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
         string[] names = ["straumr", .. settings.Aliases];
         string block = BuildBlock(shell, function, names);
 
-        string profilePath = GetProfilePath(shell);
+        string profilePath = settings.ProfilePath ?? GetProfilePath(shell);
         string? dir = Path.GetDirectoryName(profilePath);
         if (!string.IsNullOrEmpty(dir))
         {
@@ -184,6 +180,10 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
         [Description("Shell to install autocomplete for (zsh, bash, pwsh)")]
         public ShellKind? Shell { get; set; }
 
+        [CommandOption("-p|--profile")]
+        [Description("The path to your profile file.")]
+        public string? ProfilePath { get; set; }
+        
         [CommandOption("-a|--alias")]
         [Description("Additional aliases to register for autocomplete")]
         public string[] Aliases { get; set; } = [];
