@@ -9,6 +9,7 @@
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>true</SelfContained>
         <PublishAot>true</PublishAot>
+        <InvariantGlobalization>true</InvariantGlobalization>
         <ApplicationIcon>icon.ico</ApplicationIcon>
         <Company>Albin Alm</Company>
         <Product>Straumr</Product>
