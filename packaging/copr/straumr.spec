@@ -1,5 +1,5 @@
 Name:           straumr
-Version:        %{ver}
+Version:        %{VERSION_PLACEHOLDER}
 Release:        1%{?dist}
 Summary:        CLI tool for managing, saving, and sending HTTP requests across workspaces
 License:        GPL-3.0-only

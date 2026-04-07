@@ -257,7 +257,8 @@ jobs:
             -o ~/rpmbuild/SOURCES/straumr-${VERSION}-linux-x64.tar.gz
 
           cp packaging/copr/straumr.spec ~/rpmbuild/SPECS/
-          rpmbuild -bs ~/rpmbuild/SPECS/straumr.spec --define "ver ${VERSION}"
+          sed -i "s/%{VERSION_PLACEHOLDER}/${VERSION}/" ~/rpmbuild/SPECS/straumr.spec
+          rpmbuild -bs ~/rpmbuild/SPECS/straumr.spec
 
           SRPM=$(find ~/rpmbuild/SRPMS -name '*.src.rpm' | head -1)
           copr-cli build straumr "$SRPM"
