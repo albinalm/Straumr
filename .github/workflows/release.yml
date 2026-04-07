@@ -161,6 +161,8 @@ jobs:
           SHA256=$(sha256sum tarball.tar.gz | cut -d' ' -f1)
           echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v4
+
       - name: Clone AUR repo and update
         env:
           SHA256: ${{ steps.checksum.outputs.sha256 }}
@@ -168,27 +170,9 @@ jobs:
           git clone ssh://aur@aur.archlinux.org/straumr-bin.git
           cd straumr-bin
 
-          cat > PKGBUILD << 'PKGEOF'
-          # Maintainer: Albin Alm
-          pkgname=straumr-bin
-          pkgver=${PKGVER}
-          pkgrel=1
-          pkgdesc='CLI tool for managing, saving, and sending HTTP requests across workspaces'
-          arch=('x86_64')
-          url='https://github.com/albinalm/Straumr'
-          license=('GPL-3.0-only')
-          provides=('straumr')
-          conflicts=('straumr')
-          source=("${pkgname}-${pkgver}.tar.gz::https://github.com/albinalm/Straumr/releases/download/v${pkgver}/straumr-${pkgver}-linux-x64.tar.gz")
-          sha256sums=('${SHA256SUM}')
-
-          package() {
-              install -Dm755 straumr "${pkgdir}/usr/bin/straumr"
-          }
-          PKGEOF
-
-          sed -i "s/\${PKGVER}/${VERSION}/g" PKGBUILD
-          sed -i "s/\${SHA256SUM}/${SHA256}/g" PKGBUILD
+          cp ../packaging/aur/PKGBUILD .
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+          sed -i "s/^sha256sums=.*/sha256sums=('${SHA256}')/" PKGBUILD
 
           cat > .SRCINFO << SRCEOF
           pkgbase = straumr-bin
@@ -200,6 +184,7 @@ jobs:
           	license = GPL-3.0-only
           	provides = straumr
           	conflicts = straumr
+          	options = !debug
           	source = straumr-bin-${VERSION}.tar.gz::https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz
           	sha256sums = ${SHA256}
 
