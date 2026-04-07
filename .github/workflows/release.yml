@@ -140,6 +140,7 @@ jobs:
   winget:
     needs: [version, release]
     runs-on: windows-latest
+    continue-on-error: true
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
