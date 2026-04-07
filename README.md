@@ -4,9 +4,11 @@
 
 <br>
 
+<!-- ABOUT:START -->
 Straumr is a CLI tool for managing and sending HTTP requests. You define requests once, save them to a workspace, and run them whenever you need. No GUI, no browser, just the terminal.
 
 It handles authentication templates, secrets, and multiple workspaces, so you can keep work, staging, and personal projects separate without duplicating config.
+<!-- ABOUT:END -->
 
 ## Documentation
 
