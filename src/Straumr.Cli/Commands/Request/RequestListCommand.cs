@@ -61,7 +61,7 @@ public class RequestListCommand(
 
         if (settings.Json)
         {
-            var items = entries.Select(e => new RequestListItem(
+            RequestListItem[] items = entries.Select(e => new RequestListItem(
                 Id: e.Id.ToString(),
                 Name: e.Request?.Name ?? "N/A",
                 Method: e.Request?.Method.Method ?? "N/A",

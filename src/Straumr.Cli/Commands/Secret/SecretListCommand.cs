@@ -53,7 +53,7 @@ public class SecretListCommand(
     {
         if (settings.Json)
         {
-            var jsonItems = items.Select(i => new SecretListItem(
+            SecretListItem[] jsonItems = items.Select(i => new SecretListItem(
                 Id: i.entry.Id.ToString(),
                 Name: i.secret?.Name ?? "N/A",
                 Status: StripMarkup(i.status)

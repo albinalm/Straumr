@@ -208,7 +208,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         return Path.Combine(workspaceRoot, name.ToFileName(), id + ".straumr");
     }
 
-    public async Task<string> GetWorkspaceName(string path)
+    private async Task<string> GetWorkspaceName(string path)
     {
         StraumrWorkspace workspace = await PeekWorkspace(path);
         return workspace.Name;

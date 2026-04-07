@@ -11,6 +11,7 @@ using Straumr.Core.Services.Interfaces;
 using static Straumr.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Cli.Commands.Request.RequestCommandHelpers;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Cli.Commands.Auth;
@@ -73,7 +74,7 @@ public class AuthListCommand(
 
         if (settings.Json)
         {
-            var items = filteredList.Select(a => new AuthListItem(
+            AuthListItem[] items = filteredList.Select(a => new AuthListItem(
                 Id: a.Id.ToString(),
                 Name: a.Name,
                 Type: AuthTypeName(a.Config)

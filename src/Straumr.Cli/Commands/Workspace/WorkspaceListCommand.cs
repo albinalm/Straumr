@@ -37,7 +37,7 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
 
         if (settings.Json)
         {
-            var items = workspaceListItems.Select(e => new WorkspaceListItem(
+            WorkspaceListItem[] items = workspaceListItems.Select(e => new WorkspaceListItem(
                 Id: e.Entry.Id.ToString(),
                 Name: e.Workspace?.Name ?? "N/A",
                 Path: e.Entry.Path,

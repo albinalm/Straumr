@@ -241,7 +241,7 @@ public class RequestSendCommand(
             return 1;
         }
 
-        var headers = response.ResponseHeaders.ToDictionary(
+        Dictionary<string, string[]> headers = response.ResponseHeaders.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value.ToArray());
 
