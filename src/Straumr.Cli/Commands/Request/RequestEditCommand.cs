@@ -71,7 +71,7 @@ public class RequestEditCommand(
 
         if (hasInlineFlags)
         {
-            return await ExecuteInlineAsync(settings, cancellation);
+            return await ExecuteInlineAsync(settings);
         }
 
         StraumrRequest request;
@@ -93,7 +93,7 @@ public class RequestEditCommand(
         return await ExecutePromptMenuAsync(request, cancellation);
     }
 
-    private async Task<int> ExecuteInlineAsync(Settings settings, CancellationToken cancellation)
+    private async Task<int> ExecuteInlineAsync(Settings settings)
     {
         StraumrRequest request;
         try
@@ -111,6 +111,11 @@ public class RequestEditCommand(
             return -1;
         }
 
+        if (settings.Name is not null)
+        {
+            request.Name = settings.Name;
+        }
+        
         if (settings.Url is not null)
         {
             request.Uri = settings.Url;
@@ -491,6 +496,10 @@ public class RequestEditCommand(
         [Description("Open the request in the default editor instead of interactive prompts")]
         public bool UseEditor { get; set; }
 
+        [CommandOption("-n|--name")]
+        [Description("The new name for the request")]
+        public string? Name { get; set; }
+        
         [CommandOption("-u|--url")]
         [Description("New URL for the request")]
         public string? Url { get; set; }
