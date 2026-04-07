@@ -1,0 +1,24 @@
+Origin: Straumr
+Label: Straumr
+Suite: stable
+Codename: stable
+Architectures: amd64
+Components: main
+Description: Straumr APT repository
+Date: Tue, 07 Apr 2026 13:52:41 +0000
+MD5Sum:
+ 5ea2824f4906515a06a62e2ba416a3a4              174 Release
+ b6061c2bb6b47d1452a36cc2861a3711              517 main/binary-amd64/Packages
+ dfed0d8b47a03a5459eb130b06676265              399 main/binary-amd64/Packages.gz
+SHA1:
+ 60d857f711b9cbf5715304b0aae6ddaa4a4b0733              174 Release
+ 59b8b19248f831aaf294795cbd381b17c3a24e97              517 main/binary-amd64/Packages
+ f3fa1b44b8472f52a9ddf549e454ebc927f23d8e              399 main/binary-amd64/Packages.gz
+SHA256:
+ 5e757fe855a5f288b6dc73dd332f3d83a6d9486e7f66a660e43ebc534eaffc30              174 Release
+ c9d498b5cf04af98ec22f30ffe4ea5c9c99ca7ef58ad4f6491d5da7fbed87d68              517 main/binary-amd64/Packages
+ 514333e8f45572a054fa91dd92171d0c44f172cd0a504dde045a404defa6f4aa              399 main/binary-amd64/Packages.gz
+SHA512:
+ 747b083f6b7f90140aa07f7708b63e8aaed18819cf3c6e375634360f5f342cc87e59441147e6dab030816c2fec2ccae9a6bdfd2963a2b472c6be447df06aeee4              174 Release
+ 034f946de20f73decbb6235608dd484e00f94b610baa1c3584f0db4ba66fc8af576820e2270f0fca85ef5d24961a280b7768a934504d1a3c8119ad260ed89a69              517 main/binary-amd64/Packages
+ 6cef4c8b21ad866c6ab148e5cf9ee8ea9658069fab2ca7b490d10006768726e6b336a6f6f24b9ef7a419a4ba670f07c6424ceb8aaf8bf092019ab27d3d0019d1              399 main/binary-amd64/Packages.gz
