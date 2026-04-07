@@ -218,3 +218,44 @@ jobs:
             --token $env:WINGET_PAT
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
+
+  copr:
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install copr-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install copr-cli
+
+      - name: Configure copr-cli
+        run: |
+          mkdir -p ~/.config
+          echo "[copr-cli]" > ~/.config/copr
+          echo "copr_url = https://copr.fedorainfracloud.org" >> ~/.config/copr
+          echo "gssapi = false" >> ~/.config/copr
+          echo "token = ${COPR_API_TOKEN}" >> ~/.config/copr
+          echo "username = ${COPR_USERNAME}" >> ~/.config/copr
+        env:
+          COPR_API_TOKEN: ${{ secrets.COPR_API_TOKEN }}
+          COPR_USERNAME: ${{ secrets.COPR_USERNAME }}
+
+      - name: Build SRPM and submit to COPR
+        run: |
+          sudo apt-get install -y rpm
+          mkdir -p ~/rpmbuild/{SOURCES,SPECS,SRPMS}
+
+          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz" \
+            -o ~/rpmbuild/SOURCES/straumr-${VERSION}-linux-x64.tar.gz
+
+          cp packaging/copr/straumr.spec ~/rpmbuild/SPECS/
+          rpmbuild -bs ~/rpmbuild/SPECS/straumr.spec --define "ver ${VERSION}"
+
+          SRPM=$(find ~/rpmbuild/SRPMS -name '*.src.rpm' | head -1)
+          copr-cli build straumr "$SRPM"
