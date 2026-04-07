@@ -183,6 +183,7 @@ internal class Program
             });
 
             config.AddCommand<RequestSendCommand>("send");
+            config.AddCommand<AboutCommand>("about");
         });
 
         

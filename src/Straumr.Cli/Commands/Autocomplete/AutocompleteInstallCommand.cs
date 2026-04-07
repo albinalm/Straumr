@@ -74,7 +74,6 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
         switch (shell)
         {
             case ShellKind.Zsh:
-                sb.AppendLine("setopt COMPLETE_ALIASES");
                 sb.AppendLine("if ! (( $+functions[compdef] )); then autoload -Uz compinit && compinit; fi");
                 sb.AppendLine($"compdef _straumr_complete {string.Join(" ", names)}");
                 break;
