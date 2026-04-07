@@ -71,6 +71,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path artifacts/${{ matrix.rid }}/straumr.exe -DestinationPath dist/straumr-${env:VERSION}-${{ matrix.rid }}.zip
 
+      - name: Build installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          iscc /DMyAppVersion="${env:VERSION}" `
+               /DMySourceDir="${env:GITHUB_WORKSPACE}\artifacts\${{ matrix.rid }}" `
+               /DMyOutputDir="${env:GITHUB_WORKSPACE}\dist" `
+               /DMyLicenseFile="${env:GITHUB_WORKSPACE}\LICENSE" `
+               /DMyIconFile="${env:GITHUB_WORKSPACE}\src\Straumr.Cli\icon.ico" `
+               installer\straumr.iss
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -124,3 +136,24 @@ jobs:
             dist/*
             dist/*.minisig
             dist/sha256sums.txt
+
+  winget:
+    needs: [version, release]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Install wingetcreate
+        shell: pwsh
+        run: iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+      - name: Update winget package
+        shell: pwsh
+        run: |
+          .\wingetcreate.exe update AlbinAlm.Straumr `
+            --version $env:VERSION `
+            --urls "https://github.com/albinalm/straumr/releases/download/v$env:VERSION/straumr-$env:VERSION-win-x64-setup.exe" `
+            --submit `
+            --token $env:WINGET_PAT
+        env:
+          WINGET_PAT: ${{ secrets.WINGET_PAT }}
