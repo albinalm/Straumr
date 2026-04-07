@@ -97,11 +97,52 @@ Returns:
 }
 ```
 
-#### Auth (bearer or basic)
+#### Auth
+
+All four auth types support inline creation. Pass `--type` to select the type.
 
 ```sh
+# Bearer
 straumr create auth prod-key -t bearer -s mytoken --workspace my-ws --json
+
+# Basic
 straumr create auth prod-basic -t basic -u user -p pass --workspace my-ws --json
+
+# OAuth2 client credentials
+straumr create auth api-oauth -t oauth2-client-credentials \
+  --token-url https://auth.example.com/token \
+  --client-id myapp --client-secret s3cret --scope "read write" \
+  --workspace my-ws --json
+
+# OAuth2 with explicit grant type
+straumr create auth api-oauth -t oauth2 -g client-credentials \
+  --token-url https://auth.example.com/token \
+  --client-id myapp --client-secret s3cret \
+  --workspace my-ws --json
+
+# OAuth2 authorization code with PKCE
+straumr create auth web-oauth -t oauth2-authorization-code \
+  --token-url https://auth.example.com/token \
+  --authorization-url https://auth.example.com/authorize \
+  --client-id myapp --client-secret s3cret \
+  --redirect-uri http://localhost:8765/callback \
+  --pkce S256 --workspace my-ws --json
+
+# OAuth2 resource owner password
+straumr create auth legacy-oauth -t oauth2-password \
+  --token-url https://auth.example.com/token \
+  --client-id myapp --client-secret s3cret \
+  -u admin -p secret --workspace my-ws --json
+
+# Custom auth
+straumr create auth custom-login -t custom \
+  --custom-url https://api.example.com/login \
+  --custom-method POST \
+  --custom-body '{"user":"admin","pass":"secret"}' \
+  --custom-body-type json \
+  --extraction-source jsonpath \
+  --extraction-expression access_token \
+  --workspace my-ws --json
 ```
 
 Returns:
@@ -212,7 +253,7 @@ straumr edit request <id> --url https://api.example.com/v2/users --json --worksp
 - `straumr copy request <name-or-id> <new-name> --json [--workspace <ws>]`
 - `straumr get request <id> --json [--workspace <ws>]`
 - `straumr list auth --json [--workspace <ws>]`
-- `straumr create auth <name> --type bearer|basic [flags] --json [--workspace <ws>]`
+- `straumr create auth <name> --type bearer|basic|oauth2|oauth2-client-credentials|oauth2-authorization-code|oauth2-password|custom [flags] --json [--workspace <ws>]`
 - `straumr copy auth <name-or-id> <new-name> --json [--workspace <ws>]`
 - `straumr get auth <id> --json [--workspace <ws>]`
 - `straumr list secret --json`

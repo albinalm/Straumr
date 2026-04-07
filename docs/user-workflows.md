@@ -239,23 +239,69 @@ Editor mode writes raw auth JSON to a temp file. Auth IDs may not be changed dur
 
 ### Non-Interactive Auth Creation
 
-For scripts and agents, pass `--type` to bypass the TUI:
+For scripts and agents, pass `--type` to bypass the TUI. All four auth types are supported inline.
+
+**Bearer:**
 
 ```sh
-# Bearer token
 straumr create auth prod-key -t bearer -s mytoken --json
-
-# Bearer with custom prefix
 straumr create auth prod-key -t bearer -s mytoken --prefix "Token" --json
-
-# HTTP Basic
-straumr create auth staging-basic -t basic -u user -p pass --json
-
-# Disable auto-renewal
-straumr create auth static-key -t bearer -s mytoken --no-auto-renew --json
 ```
 
-Only `bearer` and `basic` types support inline creation. OAuth 2.0 and Custom auth require the interactive TUI or editor mode.
+**Basic:**
+
+```sh
+straumr create auth staging-basic -t basic -u user -p pass --json
+```
+
+**OAuth 2.0:**
+
+```sh
+# Client credentials (default grant type)
+straumr create auth api-oauth -t oauth2 -g client-credentials \
+  --token-url https://auth.example.com/token \
+  --client-id myapp --client-secret s3cret --scope "read write" --json
+
+# Shorthand type variants (no -g needed)
+straumr create auth api-oauth -t oauth2-client-credentials \
+  --token-url https://auth.example.com/token \
+  --client-id myapp --client-secret s3cret --json
+
+# Authorization code with PKCE
+straumr create auth web-oauth -t oauth2-authorization-code \
+  --token-url https://auth.example.com/token \
+  --authorization-url https://auth.example.com/authorize \
+  --client-id myapp --client-secret s3cret \
+  --redirect-uri http://localhost:8765/callback \
+  --pkce S256 --json
+
+# Resource owner password
+straumr create auth legacy-oauth -t oauth2-password \
+  --token-url https://auth.example.com/token \
+  --client-id myapp --client-secret s3cret \
+  -u admin -p secret --json
+```
+
+**Custom:**
+
+```sh
+straumr create auth custom-login -t custom \
+  --custom-url https://api.example.com/login \
+  --custom-method POST \
+  --custom-body '{"user":"admin","pass":"secret"}' \
+  --custom-body-type json \
+  --extraction-source jsonpath \
+  --extraction-expression access_token \
+  --apply-header-name Authorization \
+  --apply-header-template "Bearer {{value}}" --json
+```
+
+**General:**
+
+```sh
+# Disable auto-renewal on any type
+straumr create auth static-key -t bearer -s mytoken --no-auto-renew --json
+```
 
 ### OAuth 2.0 Behavior
 

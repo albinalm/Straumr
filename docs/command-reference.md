@@ -50,11 +50,29 @@ Request options:
 
 Auth options for non-interactive creation (requires `--type`):
 
-- `-t|--type bearer|basic`
+- `-t|--type <type>` — `bearer`, `basic`, `oauth2`, `oauth2-client-credentials`, `oauth2-authorization-code`, `oauth2-password`, `custom`
 - `-s|--secret <value>` — token for bearer auth
 - `--prefix <prefix>` — header prefix for bearer (default: `Bearer`)
-- `-u|--username <user>` — for basic auth
-- `-p|--password <pass>` — for basic auth
+- `-u|--username <user>` — for basic auth or OAuth2 password grant
+- `-p|--password <pass>` — for basic auth or OAuth2 password grant
+- `-g|--grant <grant>` — OAuth2 grant type when `--type` is `oauth2`: `client-credentials`, `authorization-code`, `password`
+- `--token-url <url>` — OAuth2 token endpoint URL
+- `--client-id <id>` — OAuth2 client ID
+- `--client-secret <secret>` — OAuth2 client secret
+- `--scope <scope>` — OAuth2 scope
+- `--authorization-url <url>` — OAuth2 authorization URL (authorization code grant)
+- `--redirect-uri <uri>` — OAuth2 redirect URI (default: `http://localhost:8765/callback`)
+- `--pkce <mode>` — PKCE mode: `S256`, `plain`, `disabled`
+- `--custom-url <url>` — custom auth request URL
+- `--custom-method <method>` — custom auth request method (default: `POST`)
+- `--custom-header <header>` — custom auth request header in `"Name: Value"` format (repeatable)
+- `--custom-param <param>` — custom auth request param in `"key=value"` format (repeatable)
+- `--custom-body <body>` — custom auth request body content
+- `--custom-body-type <type>` — custom auth body type: `json`, `xml`, `text`, `form`, `multipart`, `raw` (default: `json`)
+- `--extraction-source <source>` — custom auth extraction source: `jsonpath`, `header`, `regex`
+- `--extraction-expression <expr>` — custom auth extraction expression
+- `--apply-header-name <name>` — custom auth header name to apply (default: `Authorization`)
+- `--apply-header-template <template>` — custom auth header value template with `{{value}}` placeholder (default: `Bearer {{value}}`)
 - `--no-auto-renew` — disable auto-renewal
 
 When `--json` is passed, `create` outputs the new object as a JSON DTO instead of a human-readable confirmation.
