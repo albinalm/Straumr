@@ -49,26 +49,47 @@ Install tab completion for bash, zsh, or PowerShell with a single command.
 
 ## Installation
 
-Download the latest release for your platform from the [releases page](https://github.com/albinalm/Straumr/releases).
-
-**Linux**
-
-Packages for apt, dnf, and AUR are coming soon. For now, download the tarball and put the binary on your PATH:
-
-```sh
-tar -xzf straumr-<version>-linux-x64.tar.gz
-sudo mv straumr /usr/local/bin/
-```
-
-**Windows**
-
-Extract the zip and move `straumr.exe` somewhere on your PATH, or install via winget:
+### Windows (winget)
 
 ```
 winget install AlbinAlm.Straumr
 ```
 
-Verify the download using the provided `sha256sums.txt` and `.minisig` signature files included in the release.
+### Arch Linux (AUR)
+
+```sh
+yay -S straumr-bin
+```
+
+### Fedora / RHEL (COPR)
+
+```sh
+sudo dnf copr enable albinalm/straumr
+sudo dnf install straumr
+```
+
+### Debian / Ubuntu (APT)
+
+```sh
+curl -fsSL https://albinalm.github.io/Straumr/straumr.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/straumr.gpg
+echo "deb [signed-by=/usr/share/keyrings/straumr.gpg] https://albinalm.github.io/Straumr stable main" | sudo tee /etc/apt/sources.list.d/straumr.list
+sudo apt update && sudo apt install straumr
+```
+
+### Manual
+
+Download the latest release for your platform from the [releases page](https://github.com/albinalm/Straumr/releases).
+
+```sh
+# Linux
+tar -xzf straumr-<version>-linux-x64.tar.gz
+sudo mv straumr /usr/local/bin/
+
+# Windows
+# Extract the zip and add straumr.exe to your PATH
+```
+
+Verify downloads using the provided `sha256sums.txt` and `.minisig` signature files included in each release.
 
 ## Quick start
 
