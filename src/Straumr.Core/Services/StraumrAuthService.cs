@@ -449,7 +449,7 @@ public class StraumrAuthService(
 
             if (state != expectedState)
             {
-                throw new InvalidOperationException("State mismatch — possible CSRF attack");
+                throw new InvalidOperationException("State mismatch - possible CSRF attack");
             }
 
             responseHtml =

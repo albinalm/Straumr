@@ -195,7 +195,7 @@ public class RequestSendCommand(
             return 0;
         }
 
-        AnsiConsole.MarkupLine("[grey]Dry run — request will not be sent[/]");
+        AnsiConsole.MarkupLine("[grey]Dry run - request will not be sent[/]");
         AnsiConsole.MarkupLine($"[blue]{request.Method.Method.ToUpperInvariant()}[/] {Markup.Escape(resolvedUrl)}");
 
         if (auth is not null)

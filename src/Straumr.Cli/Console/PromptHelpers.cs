@@ -23,7 +23,7 @@ public static class PromptHelpers
             }
             catch (OperationCanceledException) when (console.WasSearchCancelled)
             {
-                // Escape exited search mode — re-show the same prompt clean
+                // Escape exited search mode - re-show the same prompt clean
             }
             catch (OperationCanceledException)
             {
