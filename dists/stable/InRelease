@@ -8,36 +8,36 @@ Codename: stable
 Architectures: amd64
 Components: main
 Description: Straumr APT repository
-Date: Tue, 07 Apr 2026 16:12:24 +0000
+Date: Tue, 07 Apr 2026 18:23:11 +0000
 MD5Sum:
- 5e051e78c7220f3094972e48e887a549              174 Release
- 77097e13bbd18b39aa74b37a0719dd4d             1551 main/binary-amd64/Packages
- 1e53f8c22514b861dd71f4d6f00602ea              623 main/binary-amd64/Packages.gz
+ a335d8fd3d3c00f5049baa1bba98b82a              174 Release
+ 80b7ef261227ac50ec9351d328b1688c             2068 main/binary-amd64/Packages
+ 5d99dd34a9440518dbb5c24591620bfb              732 main/binary-amd64/Packages.gz
 SHA1:
- 16f683e9c72b0046ba99bba1247c0f879f66d6ce              174 Release
- 69d7d902039016cd9847eb73e91bfce8bfab19b0             1551 main/binary-amd64/Packages
- 6462a995b013345eacc72472c619ee34daee8b3b              623 main/binary-amd64/Packages.gz
+ 4c27249f31a8a6055ce36984fdbfd945814fe7ac              174 Release
+ cf866436c6d31bf1ca1ff0dd26a1eab75a742b80             2068 main/binary-amd64/Packages
+ 8988877f2a4c403aedea5184359035829747c0ce              732 main/binary-amd64/Packages.gz
 SHA256:
- 4e8c70b5f786aa7842e7b853f59a21a7994f0ed9c85b6b8732acc1f8d954a0a0              174 Release
- 8d8c283384c68eb93b98768fd8af103c85d8d1978e34745bcde2b0eeb30b4c00             1551 main/binary-amd64/Packages
- d1c3497336fa4c839a7c0d22756eff58b821e9ded25007ab321ab7928357dbc9              623 main/binary-amd64/Packages.gz
+ c3ec2269325727772b8ea0ce9f0e0be884618d7c34b7d104b6c1e8f9c93c84be              174 Release
+ dba6e2da7eb8a8228fec4b07900f17a0022344c423ea71d0a316accb160cad50             2068 main/binary-amd64/Packages
+ 4f23431680f54b0f4984358c403ea14824893fab6c2af9c81ed1fa2599b9b9e3              732 main/binary-amd64/Packages.gz
 SHA512:
- a67b26e8c09370d98ba85029f5369afcb2ea5fbf537b2dd68bb8d75f860b8de34a225a31ceb0bb782acb842be77ce0bceda0fd0e758a0c58f1877efc72050cd9              174 Release
- e8186fdc30a4ea97602331a5b7184c7296bff3f4fbbc450c45d313bc916f2cc5843244adb8443c361a9cf4c30642fdb45d021b0b158d4ca922eb7ac151bb7bcb             1551 main/binary-amd64/Packages
- 65c42205c6e0ba6e3c3f94ae27e705f9be82824875e84f220e7dfacd2eb2d82f65fb99af26097c5396e8ae3f412af211f96dd0040b33fa8c68dc19fa77774542              623 main/binary-amd64/Packages.gz
+ 007420f303b750d8da95a1044adb99395300021fd15075b77ec3d42eb934c311ae9b6f30d81c9672fc418fd76b6cb9854721ed2578b31ed76ec41c970666bc85              174 Release
+ ca7cdfd64001b010eafdf0268fc5e48c77f102ba23c767bfa7f33ed964c5b1379105c410a016041227bcdc9d0f9a33f4ab4cf2a1644658b966a0fa08822a5ce5             2068 main/binary-amd64/Packages
+ e3a18d739dffe80d9be6cf379b6bbee4e08835c26f64615ca80d864522d68752c062daa92bd7fb4d42d9ac824e7f04597116380b0640d9d3b0bebf911c00bcc4              732 main/binary-amd64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEE7CiyRasYkMGTzen6iy3YqMlxOuQFAmnVLOgACgkQiy3YqMlx
-OuSaUQ/+MBEkHmHvu36yGBFPPcxYkHX03CX7AHpneGrOOFn2497ZbhGXrNZ5a4FM
-RN8/ud+EzEkLdZxcRAuisFgv33+Ndi2a40IQsAbKRmEzaR6134c7WuThnp/owG2S
-WPSs6iY7YmJlI3WXr2qqJZNuAi+UpN7+lYkx6d29bhEmkPoElyhuhwE9oFqnrB+M
-1aeVsK1F/O3pVQT17b1dWLL8uBhexd9DdYYQDOjnQbpqOT4VOrpH/0Jmt1Vqwjdr
-U57QjhjgKUUsERhqaVP8spErhKlrB8f6+AFGqIf7Poq2EfB5NEo/2H4FTT/bkBAa
-Ei9cc+m9kEVjjvOfX94mBtbPPJl1dquh49rKFMZcDc/eiqhyDnhrfyV0ES5mKciM
-2hwMLV5rSH3C2bIL/o1L0U2zAVo1FzMSBxzTprbS/zFIFH62ZFtlHE2M98RpQazS
-rx6exoBTgHxe00zNL+pueR1AS3ki05uHghF5p3OJvg2CAgwHmOatYvIxctGl5jH6
-0TVSDK1nBGYw2bvJp8vsDi3+a4YfAvdY9j1aliJq4hVVMnBR/LxE6bN4Bjvm8GGV
-RvL833W6G6ooz4NrT7EJuwJktP0Y/ATZydg2m/FI7Jvj9CiIYQX96BhdBslZodIV
-ce4LatikgYnYVtBiHe8JJm5zuVThzsP5VP5t/fO6wvslCVJylm8=
-=RcmM
+iQIzBAEBCgAdFiEE7CiyRasYkMGTzen6iy3YqMlxOuQFAmnVS48ACgkQiy3YqMlx
+OuRjiA//bJtZYOdRDN1OEt6abunVAOSPAt3AKhhvVvj1HCc8kbefh1KRW8Z3L1J2
+hiMAUFcUTG6tItEEejZ0Hh+LW51IfxLl2ak/PnBFvScjxuXFwtBoixAii9UDcByb
+7heq0z1QLK9vKUyJtv8lKMacGv6N+Sb414gC+ow7uQ3U0DxznIuISd+R8c+BDwL/
++2TK0MYR3LhV9+o0+TtCvM3CEuuZ9QO+ZmR64kDS8WORW0NoAAd4TKmI2wsVa+OQ
+PpVtTNUJypPRwByJB9aZ0zMqE7isJjn5+SgjX30XsOSDKc27ReEs1B35jlJf4gmo
+7vzwjWEOHMBUv6wiyMuvkQSyTcUJ7UGS9Fy47NsqSXsq2XrrwVSqGxc/i6SlKj3r
+4AQY1wZbOwjsCwii1aG50Cq0T8hTnVUOhxpkARapHFBw+3sZxEro1yzeS1ON4GEh
+riCzMvz50rmDMt848pt6DJub+x8dRBonBIfaAFHv26GkeDJjw5+HJS5Y7SKOMIQI
+dT54fcd1CKEMcUskXSrqbS85Se8Yp9TYaNbc8tWcUtWeH0wlrU4RShEEPHzGB3zq
+p3nPP30zkMIdCyFdPnNjEnei2C0KjyZi2q57RUQ22MDmy/2PDLoN1ZS26iTAf2G0
+B1YHeiSH9A0As+4Xge2N586dnJelWSiWW4tnUvTr3TCb8oRVoRk=
+=coul
 -----END PGP SIGNATURE-----
