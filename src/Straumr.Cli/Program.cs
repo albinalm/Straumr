@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Cli.Commands.About;
 using Straumr.Cli.Commands.Auth;
 using Straumr.Cli.Commands.Autocomplete;
 using Straumr.Cli.Commands.Config;
