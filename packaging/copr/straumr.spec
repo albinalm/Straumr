@@ -8,6 +8,8 @@ Source0:        https://github.com/albinalm/Straumr/releases/download/v%{version
 
 ExclusiveArch:  x86_64
 
+%global debug_package %{nil}
+
 %description
 Straumr is a CLI tool for managing and sending HTTP requests. You define
 requests once, save them to a workspace, and run them whenever you need.
@@ -23,3 +25,5 @@ install -Dm755 straumr %{buildroot}%{_bindir}/straumr
 
 %files
 %{_bindir}/straumr
+
+%changelog

@@ -257,7 +257,19 @@ jobs:
             -o ~/rpmbuild/SOURCES/straumr-${VERSION}-linux-x64.tar.gz
 
           cp packaging/copr/straumr.spec ~/rpmbuild/SPECS/
-          sed -i "s/%{VERSION_PLACEHOLDER}/${VERSION}/" ~/rpmbuild/SPECS/straumr.spec
+          sed -i "s/%{VERSION_PLACEHOLDER}/${VERSION}/g" ~/rpmbuild/SPECS/straumr.spec
+
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          DATE=$(date -u '+%a %b %d %Y')
+          CHANGELOG="* ${DATE} Albin Alm <albinalm@proton.me> - ${VERSION}-1"
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges)
+          else
+            COMMITS="- Initial package"
+          fi
+          sed -i "/%changelog/,\$d" ~/rpmbuild/SPECS/straumr.spec
+          printf "\n%%changelog\n%s\n%s\n" "$CHANGELOG" "$COMMITS" >> ~/rpmbuild/SPECS/straumr.spec
+
           rpmbuild -bs ~/rpmbuild/SPECS/straumr.spec
 
           SRPM=$(find ~/rpmbuild/SRPMS -name '*.src.rpm' | head -1)
