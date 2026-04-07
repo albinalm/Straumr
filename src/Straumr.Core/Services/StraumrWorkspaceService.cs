@@ -111,7 +111,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         foreach (string file in Directory.EnumerateFiles(sourceDir))
         {
             if (Path.GetExtension(file).Equals(".straumr", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
+
             File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)));
         }
 
@@ -258,7 +261,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
         {
-            if (!File.Exists(entry.Path)) continue;
+            if (!File.Exists(entry.Path))
+            {
+                continue;
+            }
 
             string workspaceName = await GetWorkspaceName(entry.Path);
 

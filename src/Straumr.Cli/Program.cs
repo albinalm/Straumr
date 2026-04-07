@@ -9,8 +9,10 @@ using Straumr.Cli.Commands.Autocomplete;
 using Straumr.Cli.Commands.Config;
 using Straumr.Cli.Commands.Request;
 using Straumr.Cli.Commands.Secret;
+using Straumr.Cli.Commands.Tui;
 using Straumr.Cli.Commands.Workspace;
 using Straumr.Cli.Infrastructure;
+using Straumr.Cli.Theme;
 using Straumr.Core.Services;
 using Straumr.Core.Services.Interfaces;
 
@@ -51,8 +53,11 @@ internal class Program
         var optionsService = new StraumrOptionsService(fileService);
         await optionsService.Load();
 
+        var theme = await ReadTheme(fileService);
+
         services.AddSingleton<IStraumrFileService>(fileService);
         services.AddSingleton<IStraumrOptionsService>(optionsService);
+        services.AddSingleton(theme);
         services.AddHttpClient();
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
@@ -62,11 +67,11 @@ internal class Program
         // Required for Spectre.Console.Cli to resolve the default settings type under Native AOT.
         services.AddSingleton<EmptyCommandSettings>();
 
-        var app = new CommandApp(new StraumrTypeRegistrar(services));
+        var app = new CommandApp<TuiCommand>(new StraumrTypeRegistrar(services));
         app.Configure(config =>
         {
             config.SetApplicationName("Straumr");
-            
+
             config.AddBranch("list", list =>
             {
                 list.AddCommand<WorkspaceListCommand>("workspace");
@@ -187,23 +192,28 @@ internal class Program
             config.AddCommand<AboutCommand>("about");
         });
 
-        
-        if (args.Length == 0)
-        {
-            AnsiConsole.Write(new FigletText("Straumr").Color(Color.Green));
-
-            Assembly assembly = typeof(Program).Assembly;
-            string version = assembly.GetName().Version?.ToString() ?? "unknown";
-
-            Panel infoPanel = new Panel(new Markup($"[bold]Version:[/] {Markup.Escape(version)}"))
-                .Border(BoxBorder.Square)
-                .BorderColor(Color.Green)
-                .Expand();
-
-            AnsiConsole.Write(infoPanel);
-            AnsiConsole.WriteLine();
-        }
 
         return await app.RunAsync(args);
+    }
+
+    private static async Task<StraumrThemeOptions> ReadTheme(IStraumrFileService fileService)
+    {
+        string path = Path.Combine(
+            Path.GetDirectoryName(StraumrOptionsService.OptionsPath)!,
+            "theme.json");
+
+        if (!File.Exists(path))
+        {
+            return new StraumrThemeOptions();
+        }
+
+        try
+        {
+            return await fileService.ReadGeneric(path, CliJsonContext.Default.StraumrThemeOptions);
+        }
+        catch
+        {
+            return new StraumrThemeOptions();
+        }
     }
 }

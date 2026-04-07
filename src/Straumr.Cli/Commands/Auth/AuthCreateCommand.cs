@@ -165,9 +165,15 @@ public class AuthCreateCommand(
                 if (grantType == OAuth2GrantType.AuthorizationCode)
                 {
                     if (settings.AuthorizationUrl is not null)
+                    {
                         oauth2.AuthorizationUrl = settings.AuthorizationUrl;
+                    }
+
                     if (settings.RedirectUri is not null)
+                    {
                         oauth2.RedirectUri = settings.RedirectUri;
+                    }
+
                     if (settings.Pkce is not null)
                     {
                         oauth2.UsePkce = !settings.Pkce.Equals("disabled", StringComparison.OrdinalIgnoreCase);
@@ -261,13 +267,24 @@ public class AuthCreateCommand(
                 }
 
                 if (source is not null)
+                {
                     custom.Source = source.Value;
+                }
+
                 if (settings.ExtractionExpression is not null)
+                {
                     custom.ExtractionExpression = settings.ExtractionExpression;
+                }
+
                 if (settings.ApplyHeaderName is not null)
+                {
                     custom.ApplyHeaderName = settings.ApplyHeaderName;
+                }
+
                 if (settings.ApplyHeaderTemplate is not null)
+                {
                     custom.ApplyHeaderTemplate = settings.ApplyHeaderTemplate;
+                }
 
                 return custom;
             }

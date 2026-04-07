@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Straumr.Cli.Models;
+using Straumr.Cli.Theme;
 
 namespace Straumr.Cli.Infrastructure;
 
@@ -21,6 +22,7 @@ namespace Straumr.Cli.Infrastructure;
 [JsonSerializable(typeof(WorkspaceExportResult))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(StraumrThemeOptions))]
 public partial class CliJsonContext : JsonSerializerContext
 {
     public static CliJsonContext Relaxed { get; } = new(

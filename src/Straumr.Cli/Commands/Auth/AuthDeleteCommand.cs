@@ -45,7 +45,10 @@ public class AuthDeleteCommand(
         {
             await authService.DeleteAsync(settings.Identifier);
             if (!settings.Json)
+            {
                 AnsiConsole.MarkupLine($"[green]Deleted auth[/] [bold]{settings.Identifier}[/]");
+            }
+
             return 0;
         }
         catch (StraumrException ex)

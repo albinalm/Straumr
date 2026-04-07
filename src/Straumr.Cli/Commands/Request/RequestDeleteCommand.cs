@@ -45,7 +45,10 @@ public class RequestDeleteCommand(
         {
             await requestService.DeleteAsync(settings.Identifier);
             if (!settings.Json)
+            {
                 AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");
+            }
+
             return 0;
         }
         catch (StraumrException ex)

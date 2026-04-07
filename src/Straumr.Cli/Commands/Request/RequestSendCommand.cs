@@ -163,14 +163,22 @@ public class RequestSendCommand(
         foreach (string header in headers ?? [])
         {
             int colon = header.IndexOf(':');
-            if (colon < 0) continue;
+            if (colon < 0)
+            {
+                continue;
+            }
+
             request.Headers[header[..colon].Trim()] = header[(colon + 1)..].Trim();
         }
 
         foreach (string param in @params ?? [])
         {
             int eq = param.IndexOf('=');
-            if (eq < 0) continue;
+            if (eq < 0)
+            {
+                continue;
+            }
+
             request.Params[param[..eq]] = param[(eq + 1)..];
         }
     }
@@ -265,7 +273,10 @@ public class RequestSendCommand(
 
     private static JsonElement? ParseBodyElement(string? content, Dictionary<string, string[]> responseHeaders)
     {
-        if (content is null) return null;
+        if (content is null)
+        {
+            return null;
+        }
 
         bool isJson = responseHeaders.Any(h =>
             h.Key.Equals("content-type", StringComparison.OrdinalIgnoreCase) &&

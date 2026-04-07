@@ -113,8 +113,16 @@ internal static class AuthCommandHelpers
                 .Prepend(noneOption))
             .UseConverter(choice =>
             {
-                if (choice == noneOption) return "[grey]None[/]";
-                if (!Guid.TryParse(choice, out Guid id)) return choice;
+                if (choice == noneOption)
+                {
+                    return "[grey]None[/]";
+                }
+
+                if (!Guid.TryParse(choice, out Guid id))
+                {
+                    return choice;
+                }
+
                 StraumrAuth? found = auths.FirstOrDefault(a => a.Id == id);
                 return found is not null
                     ? $"{Markup.Escape(found.Name)} — {AuthDisplayName(found.Config)}"

@@ -40,19 +40,31 @@ internal static class RequestCommandHelpers
         if (Guid.TryParse(identifier, out Guid guid))
         {
             StraumrWorkspaceEntry? byId = optionsService.Options.Workspaces.FirstOrDefault(x => x.Id == guid);
-            if (byId is not null) return byId;
+            if (byId is not null)
+            {
+                return byId;
+            }
         }
 
         foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
         {
-            if (!File.Exists(entry.Path)) continue;
+            if (!File.Exists(entry.Path))
+            {
+                continue;
+            }
+
             try
             {
                 StraumrWorkspace ws = await workspaceService.PeekWorkspace(entry.Path);
                 if (string.Equals(ws.Name, identifier, StringComparison.OrdinalIgnoreCase))
+                {
                     return entry;
+                }
             }
-            catch { }
+            catch
+            {
+                // ignored
+            }
         }
 
         return null;

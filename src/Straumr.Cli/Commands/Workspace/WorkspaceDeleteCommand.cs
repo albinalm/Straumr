@@ -19,7 +19,10 @@ public class WorkspaceDeleteCommand(IStraumrWorkspaceService workspaceService)
         {
             await workspaceService.Delete(settings.Identifier);
             if (!settings.Json)
+            {
                 AnsiConsole.MarkupLine($"[green]Deleted workspace[/] [bold]{settings.Identifier}[/]");
+            }
+
             return 0;
         }
         catch (StraumrException ex)

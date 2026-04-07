@@ -100,9 +100,20 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
         string? shell = Environment.GetEnvironmentVariable("SHELL");
         if (!string.IsNullOrEmpty(shell))
         {
-            if (shell.EndsWith("zsh",  StringComparison.OrdinalIgnoreCase)) return ShellKind.Zsh;
-            if (shell.EndsWith("bash", StringComparison.OrdinalIgnoreCase)) return ShellKind.Bash;
-            if (shell.EndsWith("pwsh", StringComparison.OrdinalIgnoreCase)) return ShellKind.Pwsh;
+            if (shell.EndsWith("zsh",  StringComparison.OrdinalIgnoreCase))
+            {
+                return ShellKind.Zsh;
+            }
+
+            if (shell.EndsWith("bash", StringComparison.OrdinalIgnoreCase))
+            {
+                return ShellKind.Bash;
+            }
+
+            if (shell.EndsWith("pwsh", StringComparison.OrdinalIgnoreCase))
+            {
+                return ShellKind.Pwsh;
+            }
         }
         
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PSModulePath")))
@@ -121,7 +132,10 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
     private static bool IsPwshOnPath()
     {
         string? pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (pathEnv is null) return false;
+        if (pathEnv is null)
+        {
+            return false;
+        }
 
         foreach (string dir in pathEnv.Split(Path.PathSeparator))
         {

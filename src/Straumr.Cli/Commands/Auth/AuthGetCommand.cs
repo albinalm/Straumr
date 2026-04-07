@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -91,7 +92,7 @@ public class AuthGetCommand(
             {
                 StraumrAuth jsonAuth = await authService.PeekByIdAsync(foundId.Value);
                 System.Console.WriteLine(JsonSerializer.Serialize(jsonAuth,
-                    Straumr.Core.Configuration.StraumrJsonContext.Default.StraumrAuth));
+                    StraumrJsonContext.Default.StraumrAuth));
                 return 0;
             }
             catch (StraumrException ex)

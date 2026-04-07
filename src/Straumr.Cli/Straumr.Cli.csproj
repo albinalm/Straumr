@@ -9,6 +9,10 @@
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>true</SelfContained>
         <PublishAot>true</PublishAot>
+       
+        <!-- Suppress AOT/trim warnings from third-party packages (Terminal.Gui, Spectre.Console.Cli) -->
+        <NoWarn>$(NoWarn);IL2026;IL2104;IL3000;IL3053</NoWarn>
+     
         <InvariantGlobalization>true</InvariantGlobalization>
         <ApplicationIcon>icon.ico</ApplicationIcon>
         <Company>Albin Alm</Company>
@@ -24,6 +28,7 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5"/>
         <PackageReference Include="Spectre.Console" Version="0.54.0"/>
         <PackageReference Include="Spectre.Console.Cli" Version="0.53.1"/>
+        <PackageReference Include="Terminal.Gui" Version="2.0.0-beta.92" />
     </ItemGroup>
 
     <ItemGroup>
