@@ -1,8 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Cli", "Straumr.Cli\Straumr.Cli.csproj", "{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Console.Cli", "Straumr.Console.Cli\Straumr.Console.Cli.csproj", "{0AC63B66-8422-4EF3-AE99-F49D7C7555B8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Core", "Straumr.Core\Straumr.Core.csproj", "{105B30FF-422F-41E4-8204-72E79375C2AF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Console.Tui", "Straumr.Console.Tui\Straumr.Console.Tui.csproj", "{7178F968-DE89-462D-ACA1-98BFD7C1D036}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Console.App", "Straumr.Console.App\Straumr.Console.App.csproj", "{A559ECFB-A8CB-481E-BDEA-A537EBD97E1A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Straumr.Console.Shared", "Straumr.Console.Shared\Straumr.Console.Shared.csproj", "{954B0149-3D38-4BC1-99BF-EB72A8F2C9CC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +24,17 @@ Global
 		{105B30FF-422F-41E4-8204-72E79375C2AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{105B30FF-422F-41E4-8204-72E79375C2AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{105B30FF-422F-41E4-8204-72E79375C2AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7178F968-DE89-462D-ACA1-98BFD7C1D036}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7178F968-DE89-462D-ACA1-98BFD7C1D036}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7178F968-DE89-462D-ACA1-98BFD7C1D036}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7178F968-DE89-462D-ACA1-98BFD7C1D036}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A559ECFB-A8CB-481E-BDEA-A537EBD97E1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A559ECFB-A8CB-481E-BDEA-A537EBD97E1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A559ECFB-A8CB-481E-BDEA-A537EBD97E1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A559ECFB-A8CB-481E-BDEA-A537EBD97E1A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{954B0149-3D38-4BC1-99BF-EB72A8F2C9CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{954B0149-3D38-4BC1-99BF-EB72A8F2C9CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{954B0149-3D38-4BC1-99BF-EB72A8F2C9CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{954B0149-3D38-4BC1-99BF-EB72A8F2C9CC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
