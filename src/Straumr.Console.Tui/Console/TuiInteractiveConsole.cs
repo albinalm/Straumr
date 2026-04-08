@@ -55,6 +55,13 @@ public sealed class TuiInteractiveConsole : IInteractiveConsole
         RunPrompt(screen);
     }
 
+    public bool TryEditKeyValuePairs(string title, IDictionary<string, string> items)
+    {
+        var screen = new KeyValueEditorScreen(title, items);
+        RunScreen(screen);
+        return true;
+    }
+
     private TResult? RunPrompt<TResult>(PromptScreen<TResult> screen)
     {
         RunScreen(screen);

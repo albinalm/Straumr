@@ -36,7 +36,7 @@ internal sealed class SelectionPrompt : PromptComponent
             Y = 1,
         };
 
-        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter)
+        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter, () => CancelRequested?.Invoke())
         {
             X = Pos.Right(filterLabel) + 1,
             Y = filterLabel.Y,

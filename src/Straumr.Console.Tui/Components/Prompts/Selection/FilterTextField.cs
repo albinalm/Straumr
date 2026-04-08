@@ -8,12 +8,14 @@ internal sealed class FilterTextField : TextField
     private readonly Action<string> _onChanged;
     private readonly Action _acceptFilter;
     private readonly Action _exitFilter;
+    private readonly Action? _cancelRequested;
 
-    public FilterTextField(Action<string> onChanged, Action acceptFilter, Action exitFilter)
+    public FilterTextField(Action<string> onChanged, Action acceptFilter, Action exitFilter, Action? cancelRequested = null)
     {
         _onChanged = onChanged;
         _acceptFilter = acceptFilter;
         _exitFilter = exitFilter;
+        _cancelRequested = cancelRequested;
 
         TextChanged += (_, _) => _onChanged(Text ?? string.Empty);
     }
@@ -26,7 +28,7 @@ internal sealed class FilterTextField : TextField
             return true;
         }
 
-        if (key == Key.Esc || key == Key.C.WithCtrl)
+        if (key == Key.Esc)
         {
             Text = string.Empty;
             _exitFilter();

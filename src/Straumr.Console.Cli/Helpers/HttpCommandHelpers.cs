@@ -35,6 +35,9 @@ internal static class HttpCommandHelpers
     internal static async Task EditKeyValuePairsAsync(
         IInteractiveConsole console, string title, IDictionary<string, string> items)
     {
+        if (console.TryEditKeyValuePairs(title, items))
+            return;
+
         string titleLower = title.ToLowerInvariant();
 
         while (true)
