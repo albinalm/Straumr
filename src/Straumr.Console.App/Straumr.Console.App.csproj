@@ -26,9 +26,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <IntegrationRootDescriptor Include="..\Straumr.Console.Cli\MyRoots.xml" Condition="Exists('..\Straumr.Console.Cli\MyRoots.xml')" />
-        <IntegrationRootDescriptor Include="..\Straumr.Console.Tui\MyRoots.xml" Condition="Exists('..\Straumr.Console.Tui\MyRoots.xml')" />
+        <IntegrationRootDescriptor Include="..\Straumr.Console.Cli\CliRoots.xml" Condition="Exists('..\Straumr.Console.Cli\CliRoots.xml')" />
+        <IntegrationRootDescriptor Include="..\Straumr.Console.Tui\TuiRoots.xml" Condition="Exists('..\Straumr.Console.Tui\TuiRoots.xml')" />
         <TrimmerRootDescriptor Include="@(IntegrationRootDescriptor)" />
+        <TrimmerRootDescriptor Include="MyRoots.xml" />
     </ItemGroup>
 
 </Project>

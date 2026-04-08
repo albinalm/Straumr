@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <TrimmerRootDescriptor Include="MyRoots.xml" />
+        <TrimmerRootDescriptor Include="TuiRoots.xml" />
     </ItemGroup>
 
 </Project>
