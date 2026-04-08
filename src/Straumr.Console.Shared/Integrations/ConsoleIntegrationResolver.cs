@@ -23,13 +23,21 @@ public static class ConsoleIntegrationResolver
         IConsoleIntegration? requested = integrations.FirstOrDefault(integration =>
             NameMatches(integration.Name, requestedName) || HasMatchingAlias(integration, requestedName));
 
-        if (requested is null)
+        if (requested is not null)
         {
-            return (defaultIntegration, args);
+            string[] remaining = args.Skip(1).ToArray();
+            return (requested, remaining);
         }
 
-        string[] remaining = args.Skip(1).ToArray();
-        return (requested, remaining);
+        IConsoleIntegration? byCommand = integrations.FirstOrDefault(integration =>
+            HasMatchingCommand(integration, requestedName));
+
+        if (byCommand is not null)
+        {
+            return (byCommand, args);
+        }
+
+        return (defaultIntegration, args);
     }
 
     private static bool NameMatches(string left, string right) =>
@@ -37,4 +45,7 @@ public static class ConsoleIntegrationResolver
 
     private static bool HasMatchingAlias(IConsoleIntegration integration, string name) =>
         integration.Aliases.Any(alias => NameMatches(alias, name));
+
+    private static bool HasMatchingCommand(IConsoleIntegration integration, string name) =>
+        integration.Commands.Any(command => NameMatches(command, name));
 }

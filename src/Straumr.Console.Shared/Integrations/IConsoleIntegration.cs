@@ -4,6 +4,7 @@ public interface IConsoleIntegration
 {
     string Name { get; }
     IReadOnlyCollection<string> Aliases { get; }
+    IReadOnlyCollection<string> Commands { get; }
     bool IsDefault { get; }
     Task<int> RunAsync(string[] args, CancellationToken cancellationToken);
 }

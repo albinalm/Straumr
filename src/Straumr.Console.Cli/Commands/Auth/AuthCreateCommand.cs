@@ -2,16 +2,15 @@ using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Straumr.Console.Cli.Console;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Console.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
-using static Straumr.Console.Cli.Console.PromptHelpers;
 using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -20,7 +19,8 @@ namespace Straumr.Console.Cli.Commands.Auth;
 public class AuthCreateCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
-    IStraumrAuthService authService)
+    IStraumrAuthService authService,
+    IInteractiveConsole interactiveConsole)
     : AsyncCommand<AuthCreateCommand.Settings>
 {
     private const string ActionFinish = "Finish";
@@ -58,12 +58,11 @@ public class AuthCreateCommand(
             return await ExecuteInlineAsync(settings);
         }
 
-        var console = new EscapeCancellableConsole(AnsiConsole.Console);
         var state = new CreateAuthState(settings.Name ?? string.Empty);
 
         while (true)
         {
-            string? action = await PromptCreateMenuAsync(console, state);
+            string? action = await PromptCreateMenuAsync(state);
             if (action is null)
             {
                 continue;
@@ -79,7 +78,7 @@ public class AuthCreateCommand(
                 continue;
             }
 
-            await HandleCreateActionAsync(console, state, action);
+            await HandleCreateActionAsync(state, action);
         }
     }
 
@@ -313,8 +312,7 @@ public class AuthCreateCommand(
         };
     }
 
-    private static async Task<string?> PromptCreateMenuAsync(
-        EscapeCancellableConsole console, CreateAuthState state)
+    private async Task<string?> PromptCreateMenuAsync(CreateAuthState state)
     {
         string nameDisplay = string.IsNullOrWhiteSpace(state.Name)
             ? "[grey]not set[/]"
@@ -328,33 +326,27 @@ public class AuthCreateCommand(
             menuChoices.Add(ActionFetch);
         }
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Auth setup")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .UseConverter(choice => choice switch
+        return await interactiveConsole.SelectAsync("Auth setup", menuChoices,
+            choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
                 ActionConfigure => $"Auth: {authDisplay}",
                 ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
-            })
-            .AddChoices(menuChoices);
-
-        return await PromptAsync(console, prompt);
+            });
     }
 
     private async Task<bool> TryCreateAuthAsync(CreateAuthState state)
     {
         if (string.IsNullOrWhiteSpace(state.Name))
         {
-            ShowTransientMessage("[red]A name is required.[/]");
+            interactiveConsole.ShowMessage("[red]A name is required.[/]");
             return false;
         }
 
         if (state.Auth is null)
         {
-            ShowTransientMessage("[red]Configure an auth setup before saving.[/]");
+            interactiveConsole.ShowMessage("[red]Configure an auth setup before saving.[/]");
             return false;
         }
 
@@ -367,23 +359,19 @@ public class AuthCreateCommand(
         }
         catch (Exception ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
             return false;
         }
     }
 
-    private async Task HandleCreateActionAsync(
-        EscapeCancellableConsole console, CreateAuthState state, string action)
+    private async Task HandleCreateActionAsync(CreateAuthState state, string action)
     {
         switch (action)
         {
             case ActionName:
             {
-                TextPrompt<string> prompt = new TextPrompt<string>("Name")
-                    .Validate(value => string.IsNullOrWhiteSpace(value)
-                        ? ValidationResult.Error("Name cannot be empty.")
-                        : ValidationResult.Success());
-                string? updated = await PromptTextAsync(console, prompt, state.Name);
+                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                    validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
@@ -393,13 +381,13 @@ public class AuthCreateCommand(
                 break;
             }
             case ActionConfigure:
-                state.Auth = await EditAuthAsync(console, state.Auth);
+                state.Auth = await EditAuthAsync(interactiveConsole, state.Auth);
                 break;
             case ActionAutoRenew:
                 state.AutoRenewAuth = !state.AutoRenewAuth;
                 break;
             case ActionFetch:
-                await FetchAuthValueAsync(authService, state.Auth);
+                await FetchAuthValueAsync(interactiveConsole, authService, state.Auth);
                 break;
         }
     }

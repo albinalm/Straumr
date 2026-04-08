@@ -1,9 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Spectre.Console;
-using Straumr.Console.Cli.Console;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Enums;
-using static Straumr.Console.Cli.Console.PromptHelpers;
 
 namespace Straumr.Console.Cli.Helpers;
 
@@ -11,14 +9,10 @@ internal static class HttpCommandHelpers
 {
     private static readonly Regex SecretPattern = new(@"\{\{secret:[^}]+\}\}", RegexOptions.Compiled);
 
-    internal static async Task<string?> PromptUrlAsync(EscapeCancellableConsole console, string? current = null)
+    internal static async Task<string?> PromptUrlAsync(IInteractiveConsole console, string? current = null)
     {
-        TextPrompt<string> prompt = new TextPrompt<string>("URL")
-            .Validate(value => IsValidAbsoluteUrl(value)
-                ? ValidationResult.Success()
-                : ValidationResult.Error("Please enter a valid absolute URL."));
-
-        return await PromptTextAsync(console, prompt, current);
+        return await console.TextInputAsync("URL", current,
+            validate: value => IsValidAbsoluteUrl(value) ? null : "Please enter a valid absolute URL.");
     }
 
     internal static bool IsValidAbsoluteUrl(string value)
@@ -32,36 +26,20 @@ internal static class HttpCommandHelpers
         return Uri.TryCreate(normalized, UriKind.Absolute, out _);
     }
 
-    internal static async Task<string?> PromptMethodAsync(EscapeCancellableConsole console)
+    internal static async Task<string?> PromptMethodAsync(IInteractiveConsole console)
     {
-        return await PromptAsync(console,
-            new SelectionPrompt<string>()
-                .Title("Method")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .AddChoices(
-                    "GET",
-                    "POST",
-                    "PUT",
-                    "PATCH",
-                    "DELETE",
-                    "HEAD",
-                    "OPTIONS",
-                    "TRACE",
-                    "CONNECT"));
+        return await console.SelectAsync("Method",
+            ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"]);
     }
 
     internal static async Task EditKeyValuePairsAsync(
-        EscapeCancellableConsole console, string title, IDictionary<string, string> items)
+        IInteractiveConsole console, string title, IDictionary<string, string> items)
     {
         string titleLower = title.ToLowerInvariant();
 
         while (true)
         {
-            string? action = await PromptMenuAsync(
-                console,
-                title,
-                ["Back", "Add or update", "Remove", "List"]);
+            string? action = await console.SelectAsync(title, ["Back", "Add or update", "Remove", "List"]);
 
             if (action is null or "Back")
             {
@@ -72,11 +50,8 @@ internal static class HttpCommandHelpers
             {
                 case "Add or update":
                 {
-                    string? key = await PromptAsync(console,
-                        new TextPrompt<string>("Name")
-                            .Validate(value => string.IsNullOrWhiteSpace(value)
-                                ? ValidationResult.Error("Name cannot be empty.")
-                                : ValidationResult.Success()));
+                    string? key = await console.TextInputAsync("Name",
+                        validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                     if (key is null)
                     {
@@ -84,7 +59,7 @@ internal static class HttpCommandHelpers
                     }
 
                     string? existing = items.TryGetValue(key, out string? currentValue) ? currentValue : null;
-                    string? value = await PromptTextAsync(console, new TextPrompt<string>("Value"), existing);
+                    string? value = await console.TextInputAsync("Value", existing);
                     if (value is null)
                     {
                         break;
@@ -97,14 +72,12 @@ internal static class HttpCommandHelpers
                 {
                     if (items.Count == 0)
                     {
-                        ShowTransientMessage($"[yellow]No {titleLower} to remove.[/]");
+                        console.ShowMessage($"[yellow]No {titleLower} to remove.[/]");
                         break;
                     }
 
-                    string? key = await PromptMenuAsync(
-                        console,
-                        "Select to remove",
-                        items.Keys.OrderBy(k => k));
+                    string? key = await console.SelectAsync("Select to remove",
+                        items.Keys.OrderBy(k => k).ToList());
 
                     if (key is not null)
                     {
@@ -115,7 +88,7 @@ internal static class HttpCommandHelpers
                 }
                 case "List":
                 {
-                    ShowTransientTable("Name", "Value",
+                    console.ShowTable("Name", "Value",
                         items.OrderBy(k => k.Key).Select(kv => (kv.Key, kv.Value)),
                         $"[yellow]No {titleLower} set.[/]");
                     break;
@@ -125,7 +98,7 @@ internal static class HttpCommandHelpers
     }
 
     internal static async Task<BodyType> EditBodyAsync(
-        EscapeCancellableConsole console, IDictionary<string, string> headers,
+        IInteractiveConsole console, IDictionary<string, string> headers,
         Dictionary<BodyType, string> bodies, BodyType currentType, CancellationToken cancellation)
     {
         while (true)
@@ -142,19 +115,15 @@ internal static class HttpCommandHelpers
             const string actionContent = "Edit body";
             const string actionClear = "Clear body";
 
-            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Body")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .UseConverter(choice => choice switch
+            string? action = await console.SelectAsync("Body",
+                [actionBack, actionType, actionContent, actionClear],
+                choice => choice switch
                 {
                     actionType => $"Type: {typeDisplay}",
                     actionContent => $"Content: {contentDisplay}",
                     _ => choice
-                })
-                .AddChoices(actionBack, actionType, actionContent, actionClear);
+                });
 
-            string? action = await PromptAsync(console, prompt);
             if (action is null or actionBack)
             {
                 return currentType;
@@ -164,7 +133,7 @@ internal static class HttpCommandHelpers
             {
                 case actionType:
                 {
-                    string? selected = await PromptMenuAsync(console, "Select body type",
+                    string? selected = await console.SelectAsync("Select body type",
                     [
                         "No body", "JSON", "XML", "Text",
                         "Form URL Encoded", "Multipart Form", "Raw"
@@ -220,7 +189,7 @@ internal static class HttpCommandHelpers
                     else
                     {
                         string defaultContent = current ?? string.Empty;
-                        string? edited = await EditBodyWithEditor(defaultContent, cancellation);
+                        string? edited = await EditBodyWithEditor(console, defaultContent, cancellation);
 
                         if (edited is not null)
                         {
@@ -244,7 +213,7 @@ internal static class HttpCommandHelpers
     }
 
     private static async Task<string?> EditFormBodyAsync(
-        EscapeCancellableConsole console, string? currentBody)
+        IInteractiveConsole console, string? currentBody)
     {
         Dictionary<string, string> fields = ParseFormFields(currentBody);
 
@@ -259,18 +228,13 @@ internal static class HttpCommandHelpers
             const string actionRemove = "Remove";
             const string actionList = "List";
 
-            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Form fields")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .UseConverter(choice => choice switch
+            string? action = await console.SelectAsync("Form fields",
+                [actionBack, actionAdd, actionRemove, actionList],
+                choice => choice switch
                 {
                     actionAdd => $"Add or update ({fieldsDisplay})",
                     _ => choice
-                })
-                .AddChoices(actionBack, actionAdd, actionRemove, actionList);
-
-            string? action = await PromptAsync(console, prompt);
+                });
 
             if (action is null or actionBack)
             {
@@ -281,11 +245,8 @@ internal static class HttpCommandHelpers
             {
                 case actionAdd:
                 {
-                    string? key = await PromptAsync(console,
-                        new TextPrompt<string>("Field name")
-                            .Validate(value => string.IsNullOrWhiteSpace(value)
-                                ? ValidationResult.Error("Field name cannot be empty.")
-                                : ValidationResult.Success()));
+                    string? key = await console.TextInputAsync("Field name",
+                        validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
 
                     if (key is null)
                     {
@@ -293,7 +254,7 @@ internal static class HttpCommandHelpers
                     }
 
                     string? existing = fields.GetValueOrDefault(key);
-                    string? value = await PromptTextAsync(console, new TextPrompt<string>("Field value"), existing);
+                    string? value = await console.TextInputAsync("Field value", existing);
                     if (value is null)
                     {
                         break;
@@ -306,12 +267,12 @@ internal static class HttpCommandHelpers
                 {
                     if (fields.Count == 0)
                     {
-                        ShowTransientMessage("[yellow]No fields to remove.[/]");
+                        console.ShowMessage("[yellow]No fields to remove.[/]");
                         break;
                     }
 
-                    string? key = await PromptMenuAsync(console, "Select field to remove",
-                        fields.Keys.OrderBy(k => k));
+                    string? key = await console.SelectAsync("Select field to remove",
+                        fields.Keys.OrderBy(k => k).ToList());
 
                     if (key is not null)
                     {
@@ -322,7 +283,7 @@ internal static class HttpCommandHelpers
                 }
                 case actionList:
                 {
-                    ShowTransientTable("Name", "Value",
+                    console.ShowTable("Name", "Value",
                         fields.OrderBy(k => k.Key).Select(kv => (kv.Key, kv.Value)),
                         "[yellow]No fields set.[/]");
                     break;
@@ -332,7 +293,7 @@ internal static class HttpCommandHelpers
     }
 
     private static async Task<string?> EditMultipartBodyAsync(
-        EscapeCancellableConsole console, string? currentBody)
+        IInteractiveConsole console, string? currentBody)
     {
         Dictionary<string, string> fields = ParseFormFields(currentBody);
 
@@ -350,18 +311,13 @@ internal static class HttpCommandHelpers
             const string actionRemove = "Remove";
             const string actionList = "List";
 
-            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Multipart form fields")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .UseConverter(choice => choice switch
+            string? action = await console.SelectAsync("Multipart form fields",
+                [actionBack, actionAddText, actionAddFile, actionRemove, actionList],
+                choice => choice switch
                 {
                     actionAddText => $"Add text field ({fieldsDisplay})",
                     _ => choice
-                })
-                .AddChoices(actionBack, actionAddText, actionAddFile, actionRemove, actionList);
-
-            string? action = await PromptAsync(console, prompt);
+                });
 
             if (action is null or actionBack)
             {
@@ -372,11 +328,8 @@ internal static class HttpCommandHelpers
             {
                 case actionAddText:
                 {
-                    string? key = await PromptAsync(console,
-                        new TextPrompt<string>("Field name")
-                            .Validate(value => string.IsNullOrWhiteSpace(value)
-                                ? ValidationResult.Error("Field name cannot be empty.")
-                                : ValidationResult.Success()));
+                    string? key = await console.TextInputAsync("Field name",
+                        validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
 
                     if (key is null)
                     {
@@ -384,7 +337,7 @@ internal static class HttpCommandHelpers
                     }
 
                     string? existing = fields.GetValueOrDefault(key);
-                    string? value = await PromptTextAsync(console, new TextPrompt<string>("Field value"), existing);
+                    string? value = await console.TextInputAsync("Field value", existing);
                     if (value is null)
                     {
                         break;
@@ -395,24 +348,20 @@ internal static class HttpCommandHelpers
                 }
                 case actionAddFile:
                 {
-                    string? key = await PromptAsync(console,
-                        new TextPrompt<string>("Field name")
-                            .Validate(value => string.IsNullOrWhiteSpace(value)
-                                ? ValidationResult.Error("Field name cannot be empty.")
-                                : ValidationResult.Success()));
+                    string? key = await console.TextInputAsync("Field name",
+                        validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
 
                     if (key is null)
                     {
                         break;
                     }
 
-                    string? path = await PromptAsync(console,
-                        new TextPrompt<string>("File path")
-                            .Validate(value => string.IsNullOrWhiteSpace(value)
-                                ? ValidationResult.Error("File path cannot be empty.")
-                                : !File.Exists(value)
-                                    ? ValidationResult.Error("File not found.")
-                                    : ValidationResult.Success()));
+                    string? path = await console.TextInputAsync("File path",
+                        validate: value => string.IsNullOrWhiteSpace(value)
+                            ? "File path cannot be empty."
+                            : !File.Exists(value)
+                                ? "File not found."
+                                : null);
 
                     if (path is null)
                     {
@@ -426,12 +375,12 @@ internal static class HttpCommandHelpers
                 {
                     if (fields.Count == 0)
                     {
-                        ShowTransientMessage("[yellow]No fields to remove.[/]");
+                        console.ShowMessage("[yellow]No fields to remove.[/]");
                         break;
                     }
 
-                    string? key = await PromptMenuAsync(console, "Select field to remove",
-                        fields.Keys.OrderBy(k => k));
+                    string? key = await console.SelectAsync("Select field to remove",
+                        fields.Keys.OrderBy(k => k).ToList());
 
                     if (key is not null)
                     {
@@ -452,19 +401,20 @@ internal static class HttpCommandHelpers
                             return (kv.Key, value);
                         });
 
-                    ShowTransientTable("Name", "Value", rows, "[yellow]No fields set.[/]");
+                    console.ShowTable("Name", "Value", rows, "[yellow]No fields set.[/]");
                     break;
                 }
             }
         }
     }
 
-    private static async Task<string?> EditBodyWithEditor(string content, CancellationToken cancellation)
+    private static async Task<string?> EditBodyWithEditor(
+        IInteractiveConsole console, string content, CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (string.IsNullOrWhiteSpace(editor))
         {
-            ShowTransientMessage("[red]No default editor is configured. Set $EDITOR to use this feature.[/]");
+            console.ShowMessage("[red]No default editor is configured. Set $EDITOR to use this feature.[/]");
             return content;
         }
 
@@ -480,7 +430,7 @@ internal static class HttpCommandHelpers
 
             if (process is null)
             {
-                ShowTransientMessage("[red]Failed to open file in default editor[/]");
+                console.ShowMessage("[red]Failed to open file in default editor[/]");
                 return content;
             }
 
@@ -488,7 +438,7 @@ internal static class HttpCommandHelpers
 
             if (process.ExitCode != 0)
             {
-                ShowTransientMessage("[red]Editor exited with an error. Changes discarded.[/]");
+                console.ShowMessage("[red]Editor exited with an error. Changes discarded.[/]");
                 return content;
             }
 

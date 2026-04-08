@@ -1,10 +1,9 @@
 using Spectre.Console;
-using Straumr.Console.Cli.Console;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Console.Cli.Helpers.HttpCommandHelpers;
-using static Straumr.Console.Cli.Console.PromptHelpers;
 
 namespace Straumr.Console.Cli.Helpers;
 
@@ -97,21 +96,20 @@ internal static class AuthCommandHelpers
     }
 
     internal static async Task<StraumrAuth?> SelectAuthAsync(
-        EscapeCancellableConsole console,
+        IInteractiveConsole console,
         IStraumrAuthService authService)
     {
         IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
 
         const string noneOption = "None";
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Select auth")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .AddChoices(auths.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(a => a.Id.ToString())
-                .Prepend(noneOption))
-            .UseConverter(choice =>
+        List<string> choices = auths.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(a => a.Id.ToString())
+            .Prepend(noneOption)
+            .ToList();
+
+        string? selected = await console.SelectAsync("Select auth", choices,
+            choice =>
             {
                 if (choice == noneOption)
                 {
@@ -129,7 +127,6 @@ internal static class AuthCommandHelpers
                     : choice;
             });
 
-        string? selected = await PromptAsync(console, prompt);
         if (selected is null or noneOption)
         {
             return null;
@@ -144,7 +141,7 @@ internal static class AuthCommandHelpers
     }
 
     internal static async Task<StraumrAuthConfig?> EditAuthAsync(
-        EscapeCancellableConsole console,
+        IInteractiveConsole console,
         StraumrAuthConfig? auth)
     {
         StraumrAuthConfig? current = auth;
@@ -167,21 +164,16 @@ internal static class AuthCommandHelpers
             };
 
             List<string> choices = current is null
-                ? new List<string> { actionBack, actionType }
-                : new List<string> { actionBack, actionType, actionConfig, actionTokenStatus, actionClear };
+                ? [actionBack, actionType]
+                : [actionBack, actionType, actionConfig, actionTokenStatus, actionClear];
 
-            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Auth")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .UseConverter(choice => choice switch
+            string? action = await console.SelectAsync("Auth", choices,
+                choice => choice switch
                 {
                     actionType => $"Type: {typeDisplay}",
                     _ => choice
-                })
-                .AddChoices(choices);
+                });
 
-            string? action = await PromptAsync(console, prompt);
             if (action is null or actionBack)
             {
                 return current;
@@ -196,7 +188,7 @@ internal static class AuthCommandHelpers
                     await ConfigureAuthAsync(console, current);
                     break;
                 case actionTokenStatus:
-                    ShowAuthStatus(current);
+                    ShowAuthStatus(console, current);
                     break;
                 case actionClear:
                     current = null;
@@ -206,9 +198,9 @@ internal static class AuthCommandHelpers
     }
 
     private static async Task<StraumrAuthConfig?> SelectAuthTypeAsync(
-        EscapeCancellableConsole console, StraumrAuthConfig? current)
+        IInteractiveConsole console, StraumrAuthConfig? current)
     {
-        string? selected = await PromptMenuAsync(console, "Select auth type",
+        string? selected = await console.SelectAsync("Select auth type",
             ["No auth", "Bearer", "Basic", "OAuth 2.0", "Custom"]);
 
         return selected switch
@@ -222,7 +214,7 @@ internal static class AuthCommandHelpers
         };
     }
 
-    private static async Task ConfigureAuthAsync(EscapeCancellableConsole console, StraumrAuthConfig? auth)
+    private static async Task ConfigureAuthAsync(IInteractiveConsole console, StraumrAuthConfig? auth)
     {
         switch (auth)
         {
@@ -241,27 +233,27 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static void ShowAuthStatus(StraumrAuthConfig? auth)
+    private static void ShowAuthStatus(IInteractiveConsole console, StraumrAuthConfig? auth)
     {
         switch (auth)
         {
             case BearerAuthConfig bearer when !string.IsNullOrWhiteSpace(bearer.Token):
                 string masked = bearer.Token[..Math.Min(20, bearer.Token.Length)];
-                ShowTransientMessage(
+                console.ShowMessage(
                     $"Prefix: [blue]{Markup.Escape(bearer.Prefix)}[/]\nToken: [blue]{Markup.Escape(masked)}...[/]");
                 break;
             case BearerAuthConfig:
-                ShowTransientMessage("[grey]No token set.[/]");
+                console.ShowMessage("[grey]No token set.[/]");
                 break;
             case BasicAuthConfig basic when !string.IsNullOrWhiteSpace(basic.Username):
-                ShowTransientMessage(
+                console.ShowMessage(
                     $"Username: [blue]{Markup.Escape(basic.Username)}[/]\nPassword: [blue]****[/]");
                 break;
             case BasicAuthConfig:
-                ShowTransientMessage("[grey]No credentials set.[/]");
+                console.ShowMessage("[grey]No credentials set.[/]");
                 break;
             case OAuth2Config { Token: null }:
-                ShowTransientMessage("[grey]No token fetched yet.[/]");
+                console.ShowMessage("[grey]No token fetched yet.[/]");
                 break;
             case OAuth2Config { Token: { } token }:
             {
@@ -270,7 +262,7 @@ internal static class AuthCommandHelpers
                     ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
                     : "N/A";
                 string hasRefresh = token.RefreshToken is not null ? "[green]Yes[/]" : "[grey]No[/]";
-                ShowTransientMessage(
+                console.ShowMessage(
                     $"Status: {status}\n" +
                     $"Token type: [blue]{Markup.Escape(token.TokenType)}[/]\n" +
                     $"Expires: [blue]{expiresDisplay}[/]\n" +
@@ -278,12 +270,12 @@ internal static class AuthCommandHelpers
                 break;
             }
             case CustomAuthConfig { CachedValue: null }:
-                ShowTransientMessage("[grey]No value fetched yet.[/]");
+                console.ShowMessage("[grey]No value fetched yet.[/]");
                 break;
             case CustomAuthConfig custom:
             {
                 string headerPreview = custom.ApplyHeaderTemplate.Replace("{{value}}", custom.CachedValue);
-                ShowTransientMessage(
+                console.ShowMessage(
                     $"Cached value: [blue]{Markup.Escape(custom.CachedValue)}[/]\n" +
                     $"Applied as: [blue]{Markup.Escape(custom.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
                 break;
@@ -291,26 +283,22 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditBearerAuthAsync(EscapeCancellableConsole console, BearerAuthConfig config)
+    private static async Task EditBearerAuthAsync(IInteractiveConsole console, BearerAuthConfig config)
     {
         const string actionBack = "Back";
         const string actionPrefix = "Header prefix";
         const string actionToken = "Token";
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Bearer auth")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .UseConverter(choice => choice switch
+        string? action = await console.SelectAsync("Bearer auth",
+            [actionBack, actionPrefix, actionToken],
+            choice => choice switch
             {
                 actionPrefix => $"Prefix: [blue]{Markup.Escape(config.Prefix)}[/]",
                 actionToken =>
                     $"Token: [blue]{(string.IsNullOrWhiteSpace(config.Token) ? "[grey]not set[/]" : "****")}[/]",
                 _ => choice
-            })
-            .AddChoices(actionBack, actionPrefix, actionToken);
+            });
 
-        string? action = await PromptAsync(console, prompt);
         if (action is null or actionBack)
         {
             return;
@@ -320,11 +308,8 @@ internal static class AuthCommandHelpers
         {
             case actionPrefix:
             {
-                TextPrompt<string> prefixPrompt = new TextPrompt<string>("Header prefix")
-                    .Validate(value => string.IsNullOrWhiteSpace(value)
-                        ? ValidationResult.Error("Prefix cannot be empty.")
-                        : ValidationResult.Success());
-                string? prefix = await PromptTextAsync(console, prefixPrompt, config.Prefix);
+                string? prefix = await console.TextInputAsync("Header prefix", config.Prefix,
+                    validate: value => string.IsNullOrWhiteSpace(value) ? "Prefix cannot be empty." : null);
 
                 if (prefix is not null)
                 {
@@ -335,9 +320,7 @@ internal static class AuthCommandHelpers
             }
             case actionToken:
             {
-                string? token = await PromptAsync(console,
-                    new TextPrompt<string>("Token")
-                        .Secret());
+                string? token = await console.SecretInputAsync("Token");
                 if (token is not null)
                 {
                     config.Token = token;
@@ -348,17 +331,15 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditBasicAuthAsync(EscapeCancellableConsole console, BasicAuthConfig config)
+    private static async Task EditBasicAuthAsync(IInteractiveConsole console, BasicAuthConfig config)
     {
         const string actionBack = "Back";
         const string actionUsername = "Username";
         const string actionPassword = "Password";
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Basic auth")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .UseConverter(choice => choice switch
+        string? action = await console.SelectAsync("Basic auth",
+            [actionBack, actionUsername, actionPassword],
+            choice => choice switch
             {
                 actionUsername => string.IsNullOrWhiteSpace(config.Username)
                     ? "Username: [grey]not set[/]"
@@ -367,10 +348,8 @@ internal static class AuthCommandHelpers
                     ? "Password: [grey]not set[/]"
                     : "Password: [blue]****[/]",
                 _ => choice
-            })
-            .AddChoices(actionBack, actionUsername, actionPassword);
+            });
 
-        string? action = await PromptAsync(console, prompt);
         if (action is null or actionBack)
         {
             return;
@@ -380,11 +359,8 @@ internal static class AuthCommandHelpers
         {
             case actionUsername:
             {
-                TextPrompt<string> usernamePrompt = new TextPrompt<string>("Username")
-                    .Validate(value => string.IsNullOrWhiteSpace(value)
-                        ? ValidationResult.Error("Username cannot be empty.")
-                        : ValidationResult.Success());
-                string? username = await PromptTextAsync(console, usernamePrompt, config.Username);
+                string? username = await console.TextInputAsync("Username", config.Username,
+                    validate: value => string.IsNullOrWhiteSpace(value) ? "Username cannot be empty." : null);
                 if (username is not null)
                 {
                     config.Username = username;
@@ -394,9 +370,7 @@ internal static class AuthCommandHelpers
             }
             case actionPassword:
             {
-                string? password = await PromptAsync(console,
-                    new TextPrompt<string>("Password")
-                        .Secret());
+                string? password = await console.SecretInputAsync("Password");
                 if (password is not null)
                 {
                     config.Password = password;
@@ -407,7 +381,7 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditOAuth2ConfigAsync(EscapeCancellableConsole console, OAuth2Config config)
+    private static async Task EditOAuth2ConfigAsync(IInteractiveConsole console, OAuth2Config config)
     {
         while (true)
         {
@@ -447,6 +421,8 @@ internal static class AuthCommandHelpers
             var choices = new List<string>
                 { actionBack, actionGrant, actionTokenUrl, actionClientId, actionClientSecret, actionScope };
 
+            Func<string, string> converter;
+
             if (config.GrantType == OAuth2GrantType.AuthorizationCode)
             {
                 string authUrlDisplay = string.IsNullOrWhiteSpace(config.AuthorizationUrl)
@@ -459,31 +435,18 @@ internal static class AuthCommandHelpers
 
                 choices.AddRange([actionAuthUrl, actionRedirectUri, actionPkce]);
 
-                SelectionPrompt<string> authCodePrompt = new SelectionPrompt<string>()
-                    .Title("OAuth 2.0 Configuration")
-                    .EnableSearch()
-                    .SearchPlaceholderText("/")
-                    .UseConverter(choice => choice switch
-                    {
-                        actionGrant => $"Grant type: {grantDisplay}",
-                        actionTokenUrl => $"Token URL: {tokenUrlDisplay}",
-                        actionClientId => $"Client ID: {clientIdDisplay}",
-                        actionClientSecret => $"Client secret: {clientSecretDisplay}",
-                        actionScope => $"Scope: {scopeDisplay}",
-                        actionAuthUrl => $"Authorization URL: {authUrlDisplay}",
-                        actionRedirectUri => $"Redirect URI: {redirectDisplay}",
-                        actionPkce => $"PKCE: {pkceDisplay}",
-                        _ => choice
-                    })
-                    .AddChoices(choices);
-
-                string? action = await PromptAsync(console, authCodePrompt);
-                if (action is null or actionBack)
+                converter = choice => choice switch
                 {
-                    return;
-                }
-
-                await HandleOAuth2Action(console, config, action);
+                    actionGrant => $"Grant type: {grantDisplay}",
+                    actionTokenUrl => $"Token URL: {tokenUrlDisplay}",
+                    actionClientId => $"Client ID: {clientIdDisplay}",
+                    actionClientSecret => $"Client secret: {clientSecretDisplay}",
+                    actionScope => $"Scope: {scopeDisplay}",
+                    actionAuthUrl => $"Authorization URL: {authUrlDisplay}",
+                    actionRedirectUri => $"Redirect URI: {redirectDisplay}",
+                    actionPkce => $"PKCE: {pkceDisplay}",
+                    _ => choice
+                };
             }
             else if (config.GrantType == OAuth2GrantType.ResourceOwnerPassword)
             {
@@ -496,66 +459,49 @@ internal static class AuthCommandHelpers
 
                 choices.AddRange([actionUsername, actionPassword]);
 
-                SelectionPrompt<string> passwordPrompt = new SelectionPrompt<string>()
-                    .Title("OAuth 2.0 Configuration")
-                    .EnableSearch()
-                    .SearchPlaceholderText("/")
-                    .UseConverter(choice => choice switch
-                    {
-                        actionGrant => $"Grant type: {grantDisplay}",
-                        actionTokenUrl => $"Token URL: {tokenUrlDisplay}",
-                        actionClientId => $"Client ID: {clientIdDisplay}",
-                        actionClientSecret => $"Client secret: {clientSecretDisplay}",
-                        actionScope => $"Scope: {scopeDisplay}",
-                        actionUsername => $"Username: {usernameDisplay}",
-                        actionPassword => $"Password: {passwordDisplay}",
-                        _ => choice
-                    })
-                    .AddChoices(choices);
-
-                string? action = await PromptAsync(console, passwordPrompt);
-                if (action is null or actionBack)
+                converter = choice => choice switch
                 {
-                    return;
-                }
-
-                await HandleOAuth2Action(console, config, action);
+                    actionGrant => $"Grant type: {grantDisplay}",
+                    actionTokenUrl => $"Token URL: {tokenUrlDisplay}",
+                    actionClientId => $"Client ID: {clientIdDisplay}",
+                    actionClientSecret => $"Client secret: {clientSecretDisplay}",
+                    actionScope => $"Scope: {scopeDisplay}",
+                    actionUsername => $"Username: {usernameDisplay}",
+                    actionPassword => $"Password: {passwordDisplay}",
+                    _ => choice
+                };
             }
             else
             {
-                SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                    .Title("OAuth 2.0 Configuration")
-                    .EnableSearch()
-                    .SearchPlaceholderText("/")
-                    .UseConverter(choice => choice switch
-                    {
-                        actionGrant => $"Grant type: {grantDisplay}",
-                        actionTokenUrl => $"Token URL: {tokenUrlDisplay}",
-                        actionClientId => $"Client ID: {clientIdDisplay}",
-                        actionClientSecret => $"Client secret: {clientSecretDisplay}",
-                        actionScope => $"Scope: {scopeDisplay}",
-                        _ => choice
-                    })
-                    .AddChoices(choices);
-
-                string? action = await PromptAsync(console, prompt);
-                if (action is null or actionBack)
+                converter = choice => choice switch
                 {
-                    return;
-                }
-
-                await HandleOAuth2Action(console, config, action);
+                    actionGrant => $"Grant type: {grantDisplay}",
+                    actionTokenUrl => $"Token URL: {tokenUrlDisplay}",
+                    actionClientId => $"Client ID: {clientIdDisplay}",
+                    actionClientSecret => $"Client secret: {clientSecretDisplay}",
+                    actionScope => $"Scope: {scopeDisplay}",
+                    _ => choice
+                };
             }
+
+            string? action = await console.SelectAsync("OAuth 2.0 Configuration", choices, converter);
+
+            if (action is null or actionBack)
+            {
+                return;
+            }
+
+            await HandleOAuth2Action(console, config, action);
         }
     }
 
-    private static async Task HandleOAuth2Action(EscapeCancellableConsole console, OAuth2Config config, string action)
+    private static async Task HandleOAuth2Action(IInteractiveConsole console, OAuth2Config config, string action)
     {
         switch (action)
         {
             case "Grant type":
             {
-                string? selected = await PromptMenuAsync(console, "Select grant type",
+                string? selected = await console.SelectAsync("Select grant type",
                     ["Client Credentials", "Authorization Code", "Resource Owner Password"]);
 
                 if (selected is not null)
@@ -573,11 +519,8 @@ internal static class AuthCommandHelpers
             }
             case "Token URL":
             {
-                TextPrompt<string> valuePrompt = new TextPrompt<string>("Token URL")
-                    .Validate(v => IsValidAbsoluteUrl(v)
-                        ? ValidationResult.Success()
-                        : ValidationResult.Error("Enter a valid absolute URL."));
-                string? value = await PromptTextAsync(console, valuePrompt, config.TokenUrl);
+                string? value = await console.TextInputAsync("Token URL", config.TokenUrl,
+                    validate: v => IsValidAbsoluteUrl(v) ? null : "Enter a valid absolute URL.");
                 if (value is not null)
                 {
                     config.TokenUrl = value;
@@ -587,11 +530,8 @@ internal static class AuthCommandHelpers
             }
             case "Client ID":
             {
-                TextPrompt<string> valuePrompt = new TextPrompt<string>("Client ID")
-                    .Validate(v => string.IsNullOrWhiteSpace(v)
-                        ? ValidationResult.Error("Client ID cannot be empty.")
-                        : ValidationResult.Success());
-                string? value = await PromptTextAsync(console, valuePrompt, config.ClientId);
+                string? value = await console.TextInputAsync("Client ID", config.ClientId,
+                    validate: v => string.IsNullOrWhiteSpace(v) ? "Client ID cannot be empty." : null);
                 if (value is not null)
                 {
                     config.ClientId = value;
@@ -601,9 +541,7 @@ internal static class AuthCommandHelpers
             }
             case "Client secret":
             {
-                string? value = await PromptAsync(console,
-                    new TextPrompt<string>("Client secret")
-                        .Secret());
+                string? value = await console.SecretInputAsync("Client secret");
                 if (value is not null)
                 {
                     config.ClientSecret = value;
@@ -613,9 +551,7 @@ internal static class AuthCommandHelpers
             }
             case "Scope":
             {
-                TextPrompt<string> valuePrompt = new TextPrompt<string>("Scope (optional)")
-                    .AllowEmpty();
-                string? value = await PromptTextAsync(console, valuePrompt, config.Scope);
+                string? value = await console.TextInputAsync("Scope (optional)", config.Scope, allowEmpty: true);
                 if (value is not null)
                 {
                     config.Scope = value;
@@ -625,11 +561,8 @@ internal static class AuthCommandHelpers
             }
             case "Authorization URL":
             {
-                TextPrompt<string> valuePrompt = new TextPrompt<string>("Authorization URL")
-                    .Validate(v => IsValidAbsoluteUrl(v)
-                        ? ValidationResult.Success()
-                        : ValidationResult.Error("Enter a valid absolute URL."));
-                string? value = await PromptTextAsync(console, valuePrompt, config.AuthorizationUrl);
+                string? value = await console.TextInputAsync("Authorization URL", config.AuthorizationUrl,
+                    validate: v => IsValidAbsoluteUrl(v) ? null : "Enter a valid absolute URL.");
                 if (value is not null)
                 {
                     config.AuthorizationUrl = value;
@@ -639,11 +572,8 @@ internal static class AuthCommandHelpers
             }
             case "Redirect URI":
             {
-                TextPrompt<string> valuePrompt = new TextPrompt<string>("Redirect URI")
-                    .Validate(v => IsValidAbsoluteUrl(v)
-                        ? ValidationResult.Success()
-                        : ValidationResult.Error("Enter a valid absolute URL."));
-                string? value = await PromptTextAsync(console, valuePrompt, config.RedirectUri);
+                string? value = await console.TextInputAsync("Redirect URI", config.RedirectUri,
+                    validate: v => IsValidAbsoluteUrl(v) ? null : "Enter a valid absolute URL.");
                 if (value is not null)
                 {
                     config.RedirectUri = value;
@@ -653,8 +583,7 @@ internal static class AuthCommandHelpers
             }
             case "PKCE":
             {
-                string? mode = await PromptMenuAsync(console, "PKCE",
-                    ["Disabled", "S256", "plain"]);
+                string? mode = await console.SelectAsync("PKCE", ["Disabled", "S256", "plain"]);
                 if (mode is not null)
                 {
                     config.UsePkce = mode != "Disabled";
@@ -665,11 +594,8 @@ internal static class AuthCommandHelpers
             }
             case "Username":
             {
-                TextPrompt<string> valuePrompt = new TextPrompt<string>("Username")
-                    .Validate(v => string.IsNullOrWhiteSpace(v)
-                        ? ValidationResult.Error("Username cannot be empty.")
-                        : ValidationResult.Success());
-                string? value = await PromptTextAsync(console, valuePrompt, config.Username);
+                string? value = await console.TextInputAsync("Username", config.Username,
+                    validate: v => string.IsNullOrWhiteSpace(v) ? "Username cannot be empty." : null);
                 if (value is not null)
                 {
                     config.Username = value;
@@ -679,9 +605,7 @@ internal static class AuthCommandHelpers
             }
             case "Password":
             {
-                string? value = await PromptAsync(console,
-                    new TextPrompt<string>("Password")
-                        .Secret());
+                string? value = await console.SecretInputAsync("Password");
                 if (value is not null)
                 {
                     config.Password = value;
@@ -692,7 +616,7 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditCustomAuthConfigAsync(EscapeCancellableConsole console, CustomAuthConfig config)
+    private static async Task EditCustomAuthConfigAsync(IInteractiveConsole console, CustomAuthConfig config)
     {
         while (true)
         {
@@ -729,11 +653,12 @@ internal static class AuthCommandHelpers
             var headerNameDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderName)}[/]";
             var templateDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderTemplate)}[/]";
 
-            SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-                .Title("Custom auth")
-                .EnableSearch()
-                .SearchPlaceholderText("/")
-                .UseConverter(choice => choice switch
+            string? action = await console.SelectAsync("Custom auth",
+                [
+                    actionBack, actionUrl, actionMethod, actionHeaders, actionParams, actionBody,
+                    actionSource, actionExpression, actionHeaderName, actionTemplate
+                ],
+                choice => choice switch
                 {
                     actionUrl => $"Auth URL: {urlDisplay}",
                     actionMethod => $"Request method: {methodDisplay}",
@@ -745,20 +670,8 @@ internal static class AuthCommandHelpers
                     actionHeaderName => $"Header name: {headerNameDisplay}",
                     actionTemplate => $"Header template: {templateDisplay}",
                     _ => choice
-                })
-                .AddChoices(
-                    actionBack,
-                    actionUrl,
-                    actionMethod,
-                    actionHeaders,
-                    actionParams,
-                    actionBody,
-                    actionSource,
-                    actionExpression,
-                    actionHeaderName,
-                    actionTemplate);
+                });
 
-            string? action = await PromptAsync(console, prompt);
             if (action is null or actionBack)
             {
                 return;
@@ -798,7 +711,7 @@ internal static class AuthCommandHelpers
                     break;
                 case actionSource:
                 {
-                    string? selected = await PromptMenuAsync(console, "Extract value from",
+                    string? selected = await console.SelectAsync("Extract value from",
                         ["JSON path (dot notation)", "Response header", "Regex (first capture group)"]);
 
                     if (selected is not null)
@@ -823,11 +736,8 @@ internal static class AuthCommandHelpers
                         ExtractionSource.Regex => "Regex with capture group (e.g. token\":\"([^\"]+)\")",
                         _ => "Expression"
                     };
-                    TextPrompt<string> expressionPrompt = new TextPrompt<string>(hint)
-                        .Validate(v => string.IsNullOrWhiteSpace(v)
-                            ? ValidationResult.Error("Expression cannot be empty.")
-                            : ValidationResult.Success());
-                    string? value = await PromptTextAsync(console, expressionPrompt, config.ExtractionExpression);
+                    string? value = await console.TextInputAsync(hint, config.ExtractionExpression,
+                        validate: v => string.IsNullOrWhiteSpace(v) ? "Expression cannot be empty." : null);
                     if (value is not null)
                     {
                         config.ExtractionExpression = value;
@@ -837,11 +747,9 @@ internal static class AuthCommandHelpers
                 }
                 case actionHeaderName:
                 {
-                    TextPrompt<string> headerPrompt = new TextPrompt<string>("Header name (e.g. Authorization)")
-                        .Validate(v => string.IsNullOrWhiteSpace(v)
-                            ? ValidationResult.Error("Header name cannot be empty.")
-                            : ValidationResult.Success());
-                    string? value = await PromptTextAsync(console, headerPrompt, config.ApplyHeaderName);
+                    string? value = await console.TextInputAsync("Header name (e.g. Authorization)",
+                        config.ApplyHeaderName,
+                        validate: v => string.IsNullOrWhiteSpace(v) ? "Header name cannot be empty." : null);
                     if (value is not null)
                     {
                         config.ApplyHeaderName = value;
@@ -851,12 +759,10 @@ internal static class AuthCommandHelpers
                 }
                 case actionTemplate:
                 {
-                    TextPrompt<string> templatePrompt =
-                        new TextPrompt<string>("Header value template (use {{value}} as placeholder)")
-                            .Validate(v => string.IsNullOrWhiteSpace(v)
-                                ? ValidationResult.Error("Template cannot be empty.")
-                                : ValidationResult.Success());
-                    string? value = await PromptTextAsync(console, templatePrompt, config.ApplyHeaderTemplate);
+                    string? value = await console.TextInputAsync(
+                        "Header value template (use {{value}} as placeholder)",
+                        config.ApplyHeaderTemplate,
+                        validate: v => string.IsNullOrWhiteSpace(v) ? "Template cannot be empty." : null);
                     if (value is not null)
                     {
                         config.ApplyHeaderTemplate = value;
@@ -868,7 +774,8 @@ internal static class AuthCommandHelpers
         }
     }
 
-    internal static async Task FetchAuthValueAsync(IStraumrAuthService authService, StraumrAuthConfig? auth)
+    internal static async Task FetchAuthValueAsync(
+        IInteractiveConsole console, IStraumrAuthService authService, StraumrAuthConfig? auth)
     {
         if (auth is not (OAuth2Config or CustomAuthConfig))
         {
@@ -886,7 +793,7 @@ internal static class AuthCommandHelpers
                     string expiresDisplay = token.ExpiresAt.HasValue
                         ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
                         : "N/A";
-                    ShowTransientMessage(
+                    console.ShowMessage(
                         $"[green]Token fetched successfully![/]\n" +
                         $"Type: [blue]{Markup.Escape(token.TokenType)}[/]\n" +
                         $"Expires: [blue]{expiresDisplay}[/]");
@@ -896,7 +803,7 @@ internal static class AuthCommandHelpers
                 {
                     string value = await authService.ExecuteCustomAuthAsync(customAuth);
                     string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", value);
-                    ShowTransientMessage(
+                    console.ShowMessage(
                         $"[green]Value fetched successfully![/]\n" +
                         $"Extracted: [blue]{Markup.Escape(value)}[/]\n" +
                         $"Header: [blue]{Markup.Escape(customAuth.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
@@ -906,7 +813,7 @@ internal static class AuthCommandHelpers
         }
         catch (Exception ex)
         {
-            ShowTransientMessage($"[red]Failed to fetch: {Markup.Escape(ex.Message)}[/]");
+            console.ShowMessage($"[red]Failed to fetch: {Markup.Escape(ex.Message)}[/]");
         }
     }
 }

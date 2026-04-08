@@ -2,18 +2,17 @@ using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Straumr.Console.Cli.Console;
-using Straumr.Console.Cli.Infrastructure;
-using Straumr.Console.Cli.Models;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using Straumr.Console.Cli.Infrastructure;
+using Straumr.Console.Cli.Models;
 using static Straumr.Console.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Console.Cli.Helpers.HttpCommandHelpers;
-using static Straumr.Console.Cli.Console.PromptHelpers;
 using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -23,7 +22,8 @@ public class RequestCreateCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
-    IStraumrAuthService authService)
+    IStraumrAuthService authService,
+    IInteractiveConsole interactiveConsole)
     : AsyncCommand<RequestCreateCommand.Settings>
 {
     private const string ActionFinish = "Finish";
@@ -80,13 +80,12 @@ public class RequestCreateCommand(
 
     private async Task<int> ExecutePromptMenuAsync(Settings settings, CancellationToken cancellation)
     {
-        var console = new EscapeCancellableConsole(AnsiConsole.Console);
         IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
         var state = new CreateRequestState(settings.Name ?? string.Empty);
 
         while (true)
         {
-            string? action = await PromptCreateMenuAsync(console, state, auths);
+            string? action = await PromptCreateMenuAsync(state, auths);
             if (action is null)
             {
                 continue;
@@ -102,7 +101,7 @@ public class RequestCreateCommand(
                 continue;
             }
 
-            await HandleCreateActionAsync(console, state, action, cancellation);
+            await HandleCreateActionAsync(state, action, cancellation);
         }
     }
 
@@ -179,8 +178,8 @@ public class RequestCreateCommand(
         }
     }
 
-    private static async Task<string?> PromptCreateMenuAsync(
-        EscapeCancellableConsole console, CreateRequestState state, IReadOnlyList<StraumrAuth> auths)
+    private async Task<string?> PromptCreateMenuAsync(
+        CreateRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
         string nameDisplay = string.IsNullOrWhiteSpace(state.Name)
             ? "[grey]not set[/]"
@@ -201,11 +200,8 @@ public class RequestCreateCommand(
             ActionFinish, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Request setup")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .UseConverter(choice => choice switch
+        return await interactiveConsole.SelectAsync("Request setup", menuChoices,
+            choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
                 ActionUrl => $"URL: {urlDisplay}",
@@ -215,17 +211,14 @@ public class RequestCreateCommand(
                 ActionBody => $"Body: {bodyDisplay}",
                 ActionAuth => $"Auth: {authDisplay}",
                 _ => choice
-            })
-            .AddChoices(menuChoices);
-
-        return await PromptAsync(console, prompt);
+            });
     }
 
     private async Task<bool> TryCreateRequestAsync(CreateRequestState state)
     {
         if (string.IsNullOrWhiteSpace(state.Name))
         {
-            ShowTransientMessage("[red]A name is required.[/]");
+            interactiveConsole.ShowMessage("[red]A name is required.[/]");
             return false;
         }
 
@@ -238,28 +231,25 @@ public class RequestCreateCommand(
         }
         catch (StraumrException ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
         }
         catch (Exception ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
         }
 
         return false;
     }
 
     private async Task HandleCreateActionAsync(
-        EscapeCancellableConsole console, CreateRequestState state, string action, CancellationToken cancellation)
+        CreateRequestState state, string action, CancellationToken cancellation)
     {
         switch (action)
         {
             case ActionName:
             {
-                TextPrompt<string> prompt = new TextPrompt<string>("Name")
-                    .Validate(value => string.IsNullOrWhiteSpace(value)
-                        ? ValidationResult.Error("Name cannot be empty.")
-                        : ValidationResult.Success());
-                string? updated = await PromptTextAsync(console, prompt, state.Name);
+                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                    validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
                     state.Name = updated;
@@ -269,7 +259,7 @@ public class RequestCreateCommand(
             }
             case ActionUrl:
             {
-                string? updated = await PromptUrlAsync(console, state.Uri);
+                string? updated = await PromptUrlAsync(interactiveConsole, state.Uri);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
                     state.Uri = updated;
@@ -279,7 +269,7 @@ public class RequestCreateCommand(
             }
             case ActionMethod:
             {
-                string? selected = await PromptMethodAsync(console);
+                string? selected = await PromptMethodAsync(interactiveConsole);
                 if (!string.IsNullOrWhiteSpace(selected))
                 {
                     state.Method = selected;
@@ -288,18 +278,18 @@ public class RequestCreateCommand(
                 break;
             }
             case ActionParams:
-                await EditKeyValuePairsAsync(console, "Params", state.Params);
+                await EditKeyValuePairsAsync(interactiveConsole, "Params", state.Params);
                 break;
             case ActionHeaders:
-                await EditKeyValuePairsAsync(console, "Headers", state.Headers);
+                await EditKeyValuePairsAsync(interactiveConsole, "Headers", state.Headers);
                 break;
             case ActionBody:
                 state.BodyType =
-                    await EditBodyAsync(console, state.Headers, state.Bodies, state.BodyType, cancellation);
+                    await EditBodyAsync(interactiveConsole, state.Headers, state.Bodies, state.BodyType, cancellation);
                 break;
             case ActionAuth:
             {
-                StraumrAuth? selected = await SelectAuthAsync(console, authService);
+                StraumrAuth? selected = await SelectAuthAsync(interactiveConsole, authService);
                 state.AuthId = selected?.Id;
                 break;
             }

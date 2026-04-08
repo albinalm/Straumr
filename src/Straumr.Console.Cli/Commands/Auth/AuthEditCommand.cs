@@ -2,9 +2,9 @@ using System.Text.Json;
 using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Straumr.Console.Cli.Console;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
@@ -12,7 +12,6 @@ using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Console.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
-using static Straumr.Console.Cli.Console.PromptHelpers;
 using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -21,7 +20,8 @@ namespace Straumr.Console.Cli.Commands.Auth;
 public class AuthEditCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
-    IStraumrAuthService authService) : AsyncCommand<AuthEditCommand.Settings>
+    IStraumrAuthService authService,
+    IInteractiveConsole interactiveConsole) : AsyncCommand<AuthEditCommand.Settings>
 {
     private const string ActionSave = "Save";
     private const string ActionName = "Edit name";
@@ -79,12 +79,11 @@ public class AuthEditCommand(
 
     private async Task<int> ExecutePromptMenuAsync(StraumrAuth auth)
     {
-        var console = new EscapeCancellableConsole(AnsiConsole.Console);
         EditableAuthState state = EditableAuthState.FromAuth(auth);
 
         while (true)
         {
-            string? action = await PromptEditMenuAsync(console, state);
+            string? action = await PromptEditMenuAsync(state);
             if (action is null)
             {
                 continue;
@@ -100,7 +99,7 @@ public class AuthEditCommand(
                 continue;
             }
 
-            await HandleEditActionAsync(console, state, action);
+            await HandleEditActionAsync(state, action);
         }
     }
 
@@ -197,8 +196,7 @@ public class AuthEditCommand(
         }
     }
 
-    private static async Task<string?> PromptEditMenuAsync(
-        EscapeCancellableConsole console, EditableAuthState state)
+    private async Task<string?> PromptEditMenuAsync(EditableAuthState state)
     {
         var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
@@ -210,27 +208,21 @@ public class AuthEditCommand(
             menuChoices.Add(ActionFetch);
         }
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Edit auth")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .UseConverter(choice => choice switch
+        return await interactiveConsole.SelectAsync("Edit auth", menuChoices,
+            choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
                 ActionConfigure => $"Auth: {authDisplay}",
                 ActionAutoRenew => $"Auto-renew auth: {autoRenewDisplay}",
                 _ => choice
-            })
-            .AddChoices(menuChoices);
-
-        return await PromptAsync(console, prompt);
+            });
     }
 
     private async Task<bool> TrySaveChangesAsync(StraumrAuth auth, EditableAuthState state)
     {
         if (state.Auth is null)
         {
-            ShowTransientMessage("[red]Configure an auth setup before saving.[/]");
+            interactiveConsole.ShowMessage("[red]Configure an auth setup before saving.[/]");
             return false;
         }
 
@@ -244,28 +236,24 @@ public class AuthEditCommand(
         }
         catch (StraumrException ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
         }
         catch (Exception ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
         }
 
         return false;
     }
 
-    private async Task HandleEditActionAsync(
-        EscapeCancellableConsole console, EditableAuthState state, string action)
+    private async Task HandleEditActionAsync(EditableAuthState state, string action)
     {
         switch (action)
         {
             case ActionName:
             {
-                TextPrompt<string> prompt = new TextPrompt<string>("Name")
-                    .Validate(value => string.IsNullOrWhiteSpace(value)
-                        ? ValidationResult.Error("Name cannot be empty.")
-                        : ValidationResult.Success());
-                string? updated = await PromptTextAsync(console, prompt, state.Name);
+                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                    validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
@@ -275,13 +263,13 @@ public class AuthEditCommand(
                 break;
             }
             case ActionConfigure:
-                state.Auth = await EditAuthAsync(console, state.Auth);
+                state.Auth = await EditAuthAsync(interactiveConsole, state.Auth);
                 break;
             case ActionAutoRenew:
                 state.AutoRenewAuth = !state.AutoRenewAuth;
                 break;
             case ActionFetch:
-                await FetchAuthValueAsync(authService, state.Auth);
+                await FetchAuthValueAsync(interactiveConsole, authService, state.Auth);
                 break;
         }
     }

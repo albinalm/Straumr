@@ -2,18 +2,17 @@ using System.ComponentModel;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
-using Straumr.Console.Cli.Console;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
 using static Straumr.Console.Cli.Helpers.AuthCommandHelpers;
 using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
 using static Straumr.Console.Cli.Helpers.HttpCommandHelpers;
-using static Straumr.Console.Cli.Console.PromptHelpers;
 using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -23,7 +22,8 @@ public class RequestEditCommand(
     IStraumrOptionsService optionsService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
-    IStraumrAuthService authService)
+    IStraumrAuthService authService,
+    IInteractiveConsole interactiveConsole)
     : AsyncCommand<RequestEditCommand.Settings>
 {
     private const string ActionSave = "Save";
@@ -116,7 +116,7 @@ public class RequestEditCommand(
         {
             request.Name = settings.Name;
         }
-        
+
         if (settings.Url is not null)
         {
             request.Uri = settings.Url;
@@ -247,13 +247,12 @@ public class RequestEditCommand(
 
     private async Task<int> ExecutePromptMenuAsync(StraumrRequest request, CancellationToken cancellation)
     {
-        var console = new EscapeCancellableConsole(AnsiConsole.Console);
         IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
         EditableRequestState state = EditableRequestState.FromRequest(request);
 
         while (true)
         {
-            string? action = await PromptEditMenuAsync(console, state, auths);
+            string? action = await PromptEditMenuAsync(state, auths);
             if (action is null)
             {
                 continue;
@@ -269,12 +268,12 @@ public class RequestEditCommand(
                 continue;
             }
 
-            await HandleEditActionAsync(console, state, action, cancellation);
+            await HandleEditActionAsync(state, action, cancellation);
         }
     }
 
-    private static async Task<string?> PromptEditMenuAsync(
-        EscapeCancellableConsole console, EditableRequestState state, IReadOnlyList<StraumrAuth> auths)
+    private async Task<string?> PromptEditMenuAsync(
+        EditableRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
         var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string urlDisplay = string.IsNullOrWhiteSpace(state.Uri)
@@ -293,11 +292,8 @@ public class RequestEditCommand(
             ActionSave, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
 
-        SelectionPrompt<string> prompt = new SelectionPrompt<string>()
-            .Title("Edit request")
-            .EnableSearch()
-            .SearchPlaceholderText("/")
-            .UseConverter(choice => choice switch
+        return await interactiveConsole.SelectAsync("Edit request", menuChoices,
+            choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
                 ActionUrl => $"URL: {urlDisplay}",
@@ -307,10 +303,7 @@ public class RequestEditCommand(
                 ActionBody => $"Body: {bodyDisplay}",
                 ActionAuth => $"Auth: {authDisplay}",
                 _ => choice
-            })
-            .AddChoices(menuChoices);
-
-        return await PromptAsync(console, prompt);
+            });
     }
 
     private async Task<bool> TrySaveChangesAsync(StraumrRequest request, EditableRequestState state)
@@ -325,28 +318,25 @@ public class RequestEditCommand(
         }
         catch (StraumrException ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
         }
         catch (Exception ex)
         {
-            ShowTransientMessage($"[red]{Markup.Escape(ex.Message)}[/]");
+            interactiveConsole.ShowMessage($"[red]{Markup.Escape(ex.Message)}[/]");
         }
 
         return false;
     }
 
     private async Task HandleEditActionAsync(
-        EscapeCancellableConsole console, EditableRequestState state, string action, CancellationToken cancellation)
+        EditableRequestState state, string action, CancellationToken cancellation)
     {
         switch (action)
         {
             case ActionName:
             {
-                TextPrompt<string> prompt = new TextPrompt<string>("Name")
-                    .Validate(value => string.IsNullOrWhiteSpace(value)
-                        ? ValidationResult.Error("Name cannot be empty.")
-                        : ValidationResult.Success());
-                string? updated = await PromptTextAsync(console, prompt, state.Name);
+                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                    validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
@@ -357,7 +347,7 @@ public class RequestEditCommand(
             }
             case ActionUrl:
             {
-                string? updated = await PromptUrlAsync(console, state.Uri);
+                string? updated = await PromptUrlAsync(interactiveConsole, state.Uri);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
                     state.Uri = updated;
@@ -367,7 +357,7 @@ public class RequestEditCommand(
             }
             case ActionMethod:
             {
-                string? selected = await PromptMethodAsync(console);
+                string? selected = await PromptMethodAsync(interactiveConsole);
                 if (!string.IsNullOrWhiteSpace(selected))
                 {
                     state.Method = selected;
@@ -376,18 +366,18 @@ public class RequestEditCommand(
                 break;
             }
             case ActionParams:
-                await EditKeyValuePairsAsync(console, "Params", state.Params);
+                await EditKeyValuePairsAsync(interactiveConsole, "Params", state.Params);
                 break;
             case ActionHeaders:
-                await EditKeyValuePairsAsync(console, "Headers", state.Headers);
+                await EditKeyValuePairsAsync(interactiveConsole, "Headers", state.Headers);
                 break;
             case ActionBody:
                 state.BodyType =
-                    await EditBodyAsync(console, state.Headers, state.Bodies, state.BodyType, cancellation);
+                    await EditBodyAsync(interactiveConsole, state.Headers, state.Bodies, state.BodyType, cancellation);
                 break;
             case ActionAuth:
             {
-                StraumrAuth? selected = await SelectAuthAsync(console, authService);
+                StraumrAuth? selected = await SelectAuthAsync(interactiveConsole, authService);
                 state.AuthId = selected?.Id;
                 break;
             }
@@ -500,7 +490,7 @@ public class RequestEditCommand(
         [CommandOption("-n|--name")]
         [Description("The new name for the request")]
         public string? Name { get; set; }
-        
+
         [CommandOption("-u|--url")]
         [Description("New URL for the request")]
         public string? Url { get; set; }

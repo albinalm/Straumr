@@ -15,7 +15,7 @@
         <Product>Straumr</Product>
         <AssemblyName>straumr</AssemblyName>
 
-        <!-- Suppress AOT/trim warnings from third-party packages (Terminal.Gui, Spectre.Console.Cli) -->
+        <!-- Suppress AOT/trim warnings from third-party packages -->
         <NoWarn>$(NoWarn);IL2026;IL2104;IL3000;IL3053</NoWarn>
     </PropertyGroup>
 

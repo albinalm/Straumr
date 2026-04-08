@@ -13,10 +13,9 @@ namespace Straumr.Console.Tui.Integration;
 
 public sealed class TuiConsoleIntegration : IConsoleIntegration
 {
-    private static readonly IReadOnlyCollection<string> _aliases = ["ui"];
-
     public string Name => "tui";
-    public IReadOnlyCollection<string> Aliases => _aliases;
+    public IReadOnlyCollection<string> Aliases { get; } = ["ui"];
+    public IReadOnlyCollection<string> Commands { get; } = [];
     public bool IsDefault => true;
 
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
