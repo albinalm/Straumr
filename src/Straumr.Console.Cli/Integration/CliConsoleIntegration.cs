@@ -75,7 +75,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
         services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
         services.AddSingleton<IStraumrSecretService, StraumrSecretService>();
-        services.AddSingleton<IInteractiveConsole, CliInteractiveConsole>();
+
+        InteractiveConsoleFactory.TrySetFactory(() => new CliInteractiveConsole());
+        services.AddSingleton<IInteractiveConsole>(_ => InteractiveConsoleFactory.Create());
 
         services.AddSingleton<EmptyCommandSettings>();
 

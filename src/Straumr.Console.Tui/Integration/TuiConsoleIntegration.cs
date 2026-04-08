@@ -1,5 +1,7 @@
 using System.Reflection;
+using Straumr.Console.Shared.Console;
 using Straumr.Console.Shared.Integrations;
+using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens;
 using Straumr.Console.Tui.Theme;
@@ -35,7 +37,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         await optionsService.Load();
 
         var workspaceService = new StraumrWorkspaceService(fileService, optionsService);
-        StraumrThemeOptions theme = await ReadTheme(fileService);
+        StraumrThemeOptions theme = await TuiThemeLoader.LoadAsync(fileService);
 
         List<string> lines = LoadWorkspaceLines(optionsService, workspaceService);
         var screen = new HomeScreen(lines);
@@ -43,27 +45,6 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         app.Run(screen);
 
         return 0;
-    }
-
-    private static async Task<StraumrThemeOptions> ReadTheme(IStraumrFileService fileService)
-    {
-        string path = Path.Combine(
-            Path.GetDirectoryName(StraumrOptionsService.OptionsPath)!,
-            "theme.json");
-
-        if (!File.Exists(path))
-        {
-            return new StraumrThemeOptions();
-        }
-
-        try
-        {
-            return await fileService.ReadGeneric(path, StraumrGuiJsonContext.Default.StraumrThemeOptions);
-        }
-        catch
-        {
-            return new StraumrThemeOptions();
-        }
     }
 
     private static List<string> LoadWorkspaceLines(
@@ -123,5 +104,16 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
 
 public sealed class TuiConsoleIntegrationInstaller : IConsoleIntegrationInstaller
 {
-    public void Install(IConsoleIntegrationBuilder builder) => builder.AddIntegration(new TuiConsoleIntegration());
+    public void Install(IConsoleIntegrationBuilder builder)
+    {
+        builder.AddIntegration(new TuiConsoleIntegration());
+
+        var lazyTheme = new Lazy<TuiTheme>(() =>
+        {
+            var fileService = new StraumrFileService();
+            return TuiThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult().Tui;
+        });
+
+        InteractiveConsoleFactory.SetFactory(() => new TuiInteractiveConsole(lazyTheme.Value));
+    }
 }

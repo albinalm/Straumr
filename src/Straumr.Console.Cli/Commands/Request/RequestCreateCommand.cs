@@ -88,7 +88,7 @@ public class RequestCreateCommand(
             string? action = await PromptCreateMenuAsync(state, auths);
             if (action is null)
             {
-                continue;
+                return 1;
             }
 
             if (action == ActionFinish)

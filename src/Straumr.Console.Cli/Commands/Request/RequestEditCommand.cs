@@ -255,7 +255,7 @@ public class RequestEditCommand(
             string? action = await PromptEditMenuAsync(state, auths);
             if (action is null)
             {
-                continue;
+                return 1;
             }
 
             if (action == ActionSave)

@@ -1,0 +1,32 @@
+using Terminal.Gui.Input;
+using Terminal.Gui.Views;
+
+namespace Straumr.Console.Tui.Components.Prompts.Selection;
+
+internal sealed class SelectionListView : ListView
+{
+    private readonly Func<Key, bool> _onKey;
+
+    public SelectionListView(Func<Key, bool> onKey)
+    {
+        _onKey = onKey;
+    }
+
+    protected override bool OnKeyDown(Key key)
+    {
+        if (_onKey(key))
+            return true;
+
+        // Only allow arrow keys and Enter through to the base ListView.
+        // Block everything else (letters, etc.) to prevent type-ahead search.
+        if (key == Key.CursorUp || key == Key.CursorDown
+            || key == Key.PageUp || key == Key.PageDown
+            || key == Key.Home || key == Key.End
+            || key == Key.Enter)
+        {
+            return base.OnKeyDown(key);
+        }
+
+        return true;
+    }
+}

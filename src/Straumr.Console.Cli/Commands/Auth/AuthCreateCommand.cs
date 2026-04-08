@@ -65,7 +65,7 @@ public class AuthCreateCommand(
             string? action = await PromptCreateMenuAsync(state);
             if (action is null)
             {
-                continue;
+                return 1;
             }
 
             if (action == ActionFinish)

@@ -1,5 +1,4 @@
-﻿using Straumr.Console.Cli;
-using Straumr.Console.Cli.Integration;
+﻿using Straumr.Console.Cli.Integration;
 using Straumr.Console.Shared.Integrations;
 using Straumr.Console.Tui.Integration;
 

@@ -86,7 +86,7 @@ public class AuthEditCommand(
             string? action = await PromptEditMenuAsync(state);
             if (action is null)
             {
-                continue;
+                return 1;
             }
 
             if (action == ActionSave)
