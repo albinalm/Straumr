@@ -31,7 +31,6 @@ internal sealed class EditFormField : TextField
     public void EnterEditMode()
     {
         _editing = true;
-        ReadOnly = false;
         Border?.SetNeedsDraw();
         EditingStateChanged?.Invoke();
     }
@@ -39,7 +38,6 @@ internal sealed class EditFormField : TextField
     public void ExitEditMode()
     {
         _editing = false;
-        ReadOnly = true;
         Border?.SetNeedsDraw();
         EditingStateChanged?.Invoke();
     }

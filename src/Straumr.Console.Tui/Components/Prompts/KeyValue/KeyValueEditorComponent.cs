@@ -92,7 +92,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 1,
             Width = Dim.Fill(2),
             BorderStyle = LineStyle.Single,
-            ReadOnly = true,
             Visible = false,
         };
 
@@ -110,7 +109,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 4,
             Width = Dim.Fill(2),
             BorderStyle = LineStyle.Single,
-            ReadOnly = true,
             Visible = false,
         };
 
