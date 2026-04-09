@@ -40,8 +40,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         FrameView frame = CreateFrame(Title);
         Scheme? listScheme = BuildListScheme();
-        Scheme? inputScheme = BuildInputScheme();
-        Scheme? editingScheme = BuildInputEditingScheme();
 
         // --- List mode views ---
 
@@ -94,11 +92,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 1,
             Width = Dim.Fill(2),
             BorderStyle = LineStyle.Single,
+            ReadOnly = true,
             Visible = false,
-            DisplayScheme = inputScheme,
-            EditingScheme = editingScheme,
-            DisplayBorderStyle = LineStyle.Single,
-            EditingBorderStyle = LineStyle.Double,
         };
 
         _valueLabel = new Label
@@ -115,11 +110,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 4,
             Width = Dim.Fill(2),
             BorderStyle = LineStyle.Single,
+            ReadOnly = true,
             Visible = false,
-            DisplayScheme = inputScheme,
-            EditingScheme = editingScheme,
-            DisplayBorderStyle = LineStyle.Single,
-            EditingBorderStyle = LineStyle.Double,
         };
 
         _saveButton = new Button
@@ -169,6 +161,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         frame.Add(
             _filterLabel, _filterField, _listView, _emptyLabel,
             _keyLabel, _keyField, _valueLabel, _valueField, _saveButton, _inputErrorLabel);
+
+        _keyField.WireBorderColor();
+        _valueField.WireBorderColor();
 
         RebuildList();
 

@@ -1,62 +1,24 @@
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.Prompts.KeyValue;
 
 internal sealed class EditFormField : TextField
 {
     private bool _editing;
-    private Scheme? _displayScheme;
-    private Scheme? _editingScheme;
-    private LineStyle _displayBorderStyle = LineStyle.Single;
-    private LineStyle _editingBorderStyle = LineStyle.Double;
+
+    private Color _idleBorderColor = Color.Gray;
+    private Color _focusBorderColor = Color.White;
+    private Color _editBorderColor = Color.BrightGreen;
 
     public bool IsEditing => _editing;
 
-    public Scheme? DisplayScheme
-    {
-        get => _displayScheme;
-        set
-        {
-            _displayScheme = value;
-            if (!_editing)
-                ApplyScheme(_displayScheme);
-        }
-    }
-
-    public Scheme? EditingScheme
-    {
-        get => _editingScheme;
-        set
-        {
-            _editingScheme = value;
-            if (_editing)
-                ApplyScheme(_editingScheme);
-        }
-    }
-
-    public LineStyle DisplayBorderStyle
-    {
-        get => _displayBorderStyle;
-        set
-        {
-            _displayBorderStyle = value;
-            if (!_editing)
-                BorderStyle = value;
-        }
-    }
-
-    public LineStyle EditingBorderStyle
-    {
-        get => _editingBorderStyle;
-        set
-        {
-            _editingBorderStyle = value;
-            if (_editing)
-                BorderStyle = value;
-        }
-    }
+    public Color IdleBorderColor { get => _idleBorderColor; set { _idleBorderColor = value; Border?.SetNeedsDraw(); } }
+    public Color FocusBorderColor { get => _focusBorderColor; set { _focusBorderColor = value; Border?.SetNeedsDraw(); } }
+    public Color EditBorderColor { get => _editBorderColor; set { _editBorderColor = value; Border?.SetNeedsDraw(); } }
 
     public event Action? EditRequested;
     public event Action? EditCompleted;
@@ -69,25 +31,36 @@ internal sealed class EditFormField : TextField
     public void EnterEditMode()
     {
         _editing = true;
-        BorderStyle = _editingBorderStyle;
-        ApplyScheme(_editingScheme);
+        ReadOnly = false;
+        Border?.SetNeedsDraw();
         EditingStateChanged?.Invoke();
     }
 
     public void ExitEditMode()
     {
         _editing = false;
-        BorderStyle = _displayBorderStyle;
-        ApplyScheme(_displayScheme);
+        ReadOnly = true;
+        Border?.SetNeedsDraw();
         EditingStateChanged?.Invoke();
     }
 
-    private void ApplyScheme(Scheme? scheme)
+    protected override void OnHasFocusChanged(bool previousHasFocus, View? currentFocused, View? newFocused)
     {
-        if (scheme is null)
+        base.OnHasFocusChanged(previousHasFocus, currentFocused, newFocused);
+        Border?.SetNeedsDraw();
+    }
+
+    public void WireBorderColor()
+    {
+        if (Border is null)
             return;
 
-        SetScheme(scheme);
+        Border.GettingAttributeForRole += (_, e) =>
+        {
+            Color fg = _editing ? _editBorderColor : HasFocus ? _focusBorderColor : _idleBorderColor;
+            e.Result = new TuiAttribute(fg, Color.Black);
+            e.Handled = true;
+        };
     }
 
     protected override bool OnKeyDown(Key key)
