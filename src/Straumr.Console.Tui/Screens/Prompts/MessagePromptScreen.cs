@@ -11,7 +11,6 @@ internal sealed class MessagePromptScreen : PromptScreen<bool>
     {
         Add(new Banner
         {
-            Text = Branding.Figlet,
             X = Pos.AnchorEnd(Branding.FigletWidth + 1),
             Y = 0,
         });

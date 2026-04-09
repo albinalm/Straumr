@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Selection;
+using Straumr.Console.Tui.Theme;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -97,6 +98,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             BorderStyle = LineStyle.Single,
             Visible = false,
         };
+        ApplyFieldTheme(_keyField);
 
         _valueLabel = new Label
         {
@@ -114,6 +116,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             BorderStyle = LineStyle.Single,
             Visible = false,
         };
+        ApplyFieldTheme(_valueField);
 
         _saveButton = new Button
         {
@@ -297,6 +300,16 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         view?.SetFocus();
         UpdateFieldIndicators();
+    }
+
+    private void ApplyFieldTheme(EditFormField field)
+    {
+        if (Theme is null)
+            return;
+
+        field.IdleBorderColor = TuiColors.Resolve(Theme.Muted);
+        field.FocusBorderColor = TuiColors.Resolve(Theme.InputFocusBorder);
+        field.EditBorderColor = TuiColors.Resolve(Theme.InputEditingBorder);
     }
 
     private void UpdateFieldIndicators()

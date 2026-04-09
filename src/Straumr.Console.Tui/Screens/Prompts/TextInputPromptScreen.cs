@@ -17,7 +17,6 @@ internal sealed class TextInputPromptScreen : PromptScreen<string?>
     {
         Add(new Banner
         {
-            Text = Branding.Figlet,
             X = Pos.AnchorEnd(Branding.FigletWidth + 1),
             Y = 0,
         });

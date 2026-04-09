@@ -7,4 +7,6 @@ public class TuiTheme
     public string Accent { get; set; } = "BrightGreen";
     public string SelectionBackground { get; set; } = "DarkGray";
     public string Muted { get; set; } = "Gray";
+    public string InputFocusBorder { get; set; } = "BrightGreen";
+    public string InputEditingBorder { get; set; } = "White";
 }

@@ -11,9 +11,9 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
     {
         Add(new Banner
         {
-            Text = Branding.Figlet,
             X = Pos.AnchorEnd(Branding.FigletWidth + 1),
             Y = 0,
+            Theme = theme,
         });
 
         Add(new HintsBar { Text = "j/k Navigate  Enter Select  / Filter  Esc Back" });

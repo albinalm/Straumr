@@ -11,9 +11,9 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
     {
         Add(new Banner
         {
-            Text = Branding.Figlet,
             X = Pos.AnchorEnd(Branding.FigletWidth + 1),
             Y = 0,
+            Theme = theme,
         });
 
         var hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints });

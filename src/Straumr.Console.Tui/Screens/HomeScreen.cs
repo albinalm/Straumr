@@ -11,7 +11,6 @@ public class HomeScreen : Screen
     {
         Add(new Banner
         {
-            Text = Branding.Figlet,
             X = Pos.AnchorEnd(Branding.FigletWidth + 1),
             Y = 0,
         });

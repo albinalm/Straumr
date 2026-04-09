@@ -11,8 +11,8 @@ internal sealed class EditFormField : TextField
     private bool _editing;
 
     private Color _idleBorderColor = Color.Gray;
-    private Color _focusBorderColor = Color.White;
-    private Color _editBorderColor = Color.BrightGreen;
+    private Color _focusBorderColor = Color.BrightGreen;
+    private Color _editBorderColor = Color.White;
 
     public bool IsEditing => _editing;
 
