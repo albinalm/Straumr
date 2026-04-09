@@ -70,4 +70,20 @@ public static class TuiColors
         };
     }
 
+    public static Scheme BuildButtonScheme(TuiTheme theme)
+    {
+        Color bg = Resolve(theme.Background);
+        Color fg = Resolve(theme.Foreground);
+        Color accent = Resolve(theme.Accent);
+        Color muted = Resolve(theme.Muted);
+
+        return new Scheme(new TuiAttribute(fg, bg))
+        {
+            Focus = new TuiAttribute(bg, accent),
+            HotNormal = new TuiAttribute(accent, bg),
+            HotFocus = new TuiAttribute(bg, accent),
+            Disabled = new TuiAttribute(muted, bg),
+        };
+    }
+
 }

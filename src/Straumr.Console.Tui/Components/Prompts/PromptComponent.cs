@@ -15,6 +15,11 @@ internal abstract class PromptComponent : TuiComponent
         return Theme is not null ? TuiColors.BuildListScheme(Theme) : null;
     }
 
+    protected Scheme? BuildButtonScheme()
+    {
+        return Theme is not null ? TuiColors.BuildButtonScheme(Theme) : null;
+    }
+
     protected static FrameView CreateFrame(string title)
     {
         return new FrameView

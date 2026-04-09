@@ -40,6 +40,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         FrameView frame = CreateFrame(Title);
         Scheme? listScheme = BuildListScheme();
+        Scheme? buttonScheme = BuildButtonScheme();
 
         // --- List mode views ---
 
@@ -119,6 +120,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 8,
             Visible = false,
         };
+        if (buttonScheme is not null)
+            _saveButton.SetScheme(buttonScheme);
 
         _inputErrorLabel = new Label
         {
