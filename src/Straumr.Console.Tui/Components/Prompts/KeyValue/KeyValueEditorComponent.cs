@@ -297,13 +297,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         if (label is null)
             return;
 
-        string suffix = string.Empty;
-        if (field?.IsEditing == true)
-            suffix = " (editing)";
-        else if (field?.HasFocus == true)
-            suffix = " (selected)";
-
-        label.Text = string.IsNullOrEmpty(suffix) ? labelText : $"{labelText}{suffix}";
+        // Labels no longer carry extra suffix text for focus/edit state.
+        // Visual feedback is provided by the fields themselves.
+        label.Text = labelText;
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)
