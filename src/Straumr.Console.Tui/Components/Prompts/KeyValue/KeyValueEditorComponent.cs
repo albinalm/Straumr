@@ -303,7 +303,12 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         field.EditCompleted += () =>
         {
             field.ExitEditMode();
-            FocusView(below());
+            View? next = below();
+            FocusView(next);
+            if (next is EditFormField nextField)
+            {
+                nextField.EnterEditMode();
+            }
         };
         field.EditCancelled += () => field.ExitEditMode();
         field.NavigateUp += () => FocusView(above());
@@ -369,15 +374,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             _valueField.Text = valueText;
         }
 
-        // Focus the key field for new entries, value field when editing existing
-        if (originalKey is null)
-        {
-            FocusView(_keyField);
-        }
-        else
-        {
-            FocusView(_valueField);
-        }
+        FocusView(_keyField);
+        _keyField?.EnterEditMode();
 
         HideInputError();
         UpdateHints();

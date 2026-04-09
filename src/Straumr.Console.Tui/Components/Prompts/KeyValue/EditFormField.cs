@@ -31,6 +31,7 @@ internal sealed class EditFormField : TextField
     public void EnterEditMode()
     {
         _editing = true;
+        MoveEnd();
         Border?.SetNeedsDraw();
         EditingStateChanged?.Invoke();
     }
