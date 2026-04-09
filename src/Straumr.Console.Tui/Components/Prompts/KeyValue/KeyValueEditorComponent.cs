@@ -88,7 +88,10 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Visible = false,
         };
 
-        _keyField = new EditFormField
+        Color fieldBackground = Theme != null ? ColorResolver.Resolve(Theme.Surface) : Color.Black;
+        Color fieldForeground = Theme != null ? ColorResolver.Resolve(Theme.OnSurface) : Color.White;
+        
+        _keyField = new EditFormField(fieldBackground, fieldForeground)
         {
             X = Pos.Right(_keyLabel) + 2,
             Y = 1,
@@ -96,6 +99,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             BorderStyle = LineStyle.Single,
             Visible = false,
         };
+        
         ApplyFieldTheme(_keyField);
 
         _valueLabel = new Label
@@ -106,7 +110,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Visible = false,
         };
 
-        _valueField = new EditFormField
+        _valueField = new EditFormField(fieldBackground, fieldForeground)
         {
             X = Pos.Right(_keyLabel) + 2,
             Y = 4,

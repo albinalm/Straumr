@@ -6,7 +6,7 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.Prompts.KeyValue;
 
-internal sealed class EditFormField : BlackTextField
+internal sealed class EditFormField(Color background, Color foreground) : ThemedTextField(background, foreground)
 {
     private bool _editing;
 

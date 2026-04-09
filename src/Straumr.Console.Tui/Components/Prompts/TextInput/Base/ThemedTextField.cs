@@ -4,11 +4,11 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.Prompts.TextInput.Base;
 
-public class BlackTextField : TextField
+internal class ThemedTextField : TextField
 {
-    public BlackTextField()
+    internal ThemedTextField(Color background, Color foreground)
     {
-        var attr = new Attribute(Color.White, Color.Black);
+        var attr = new Attribute(foreground, background);
         var scheme = new Scheme(attr)
         {
             Focus = new Attribute(attr),
