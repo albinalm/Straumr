@@ -29,7 +29,9 @@ internal class StatusBar : TuiComponent
     public void ShowSuccess(string message)
     {
         if (_label is null)
+        {
             return;
+        }
 
         _hideCts?.Cancel();
         _hideCts = new CancellationTokenSource();

@@ -1,5 +1,6 @@
+using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Base;
-using Straumr.Console.Tui.Theme;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -8,16 +9,16 @@ namespace Straumr.Console.Tui.Components.Prompts;
 
 internal abstract class PromptComponent : TuiComponent
 {
-    public TuiTheme? Theme { get; init; }
+    public StraumrTheme? Theme { get; init; }
 
     protected Scheme? BuildListScheme()
     {
-        return Theme is not null ? TuiColors.BuildListScheme(Theme) : null;
+        return Theme is not null ? ColorResolver.BuildListScheme(Theme) : null;
     }
 
     protected Scheme? BuildButtonScheme()
     {
-        return Theme is not null ? TuiColors.BuildButtonScheme(Theme) : null;
+        return Theme is not null ? ColorResolver.BuildButtonScheme(Theme) : null;
     }
 
     protected static FrameView CreateFrame(string title)

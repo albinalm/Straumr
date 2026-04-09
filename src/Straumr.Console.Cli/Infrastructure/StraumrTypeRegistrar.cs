@@ -6,9 +6,19 @@ namespace Straumr.Console.Cli.Infrastructure;
 
 public sealed class StraumrTypeRegistrar(IServiceCollection services) : ITypeRegistrar
 {
+    private IServiceProvider? _provider;
+
+    /// <summary>
+    /// Sets an externally-built provider. When set, <see cref="Build"/> returns a resolver
+    /// backed by this provider instead of building a new one.
+    /// </summary>
+    public void UseServiceProvider(IServiceProvider provider) => _provider = provider;
+
     public ITypeResolver Build()
     {
-        return new StraumrTypeResolver(services.BuildServiceProvider());
+        return _provider is not null
+            ? new StraumrTypeResolver(_provider)
+            : new StraumrTypeResolver(services.BuildServiceProvider());
     }
 
     [UnconditionalSuppressMessage("AOT", "IL2067",

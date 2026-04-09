@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Text;
-using Straumr.Console.Tui.Components;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -36,7 +35,7 @@ internal sealed class SelectionPrompt : PromptComponent
             Y = 1,
         };
 
-        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter, () => CancelRequested?.Invoke())
+        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter)
         {
             X = Pos.Right(filterLabel) + 1,
             Y = filterLabel.Y,
@@ -75,11 +74,15 @@ internal sealed class SelectionPrompt : PromptComponent
     private bool HandleListKeyDown(Key key)
     {
         if (_listView is null)
+        {
             return false;
+        }
 
         int count = _valueItems.Count;
-        if (count == 0 && key != Key.Esc && !(key.AsRune.Value == '/'))
+        if (count == 0 && key != Key.Esc && key.AsRune.Value != '/')
+        {
             return false;
+        }
 
         // VIM motions
         Rune rune = key.AsRune;
@@ -118,7 +121,9 @@ internal sealed class SelectionPrompt : PromptComponent
     private void MoveSelection(int delta)
     {
         if (_listView is null || _valueItems.Count == 0)
+        {
             return;
+        }
 
         int current = _listView.SelectedItem ?? 0;
         int next = Math.Clamp(current + delta, 0, _valueItems.Count - 1);
@@ -149,15 +154,15 @@ internal sealed class SelectionPrompt : PromptComponent
 
     private void ApplyFilter(string filter)
     {
-        string filterValue = filter ?? string.Empty;
-
         _displayItems.Clear();
         _valueItems.Clear();
 
         foreach ((string value, string display) in _sourceItems)
         {
-            if (!MatchesFilter(display, filterValue))
+            if (!MatchesFilter(display, filter))
+            {
                 continue;
+            }
 
             _displayItems.Add(display);
             _valueItems.Add(value);
@@ -179,7 +184,9 @@ internal sealed class SelectionPrompt : PromptComponent
     private bool MatchesFilter(string display, string filter)
     {
         if (string.IsNullOrEmpty(filter))
+        {
             return true;
+        }
 
         return display.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
@@ -193,11 +200,15 @@ internal sealed class SelectionPrompt : PromptComponent
     private void AcceptSelection()
     {
         if (_listView?.SelectedItem is null)
+        {
             return;
+        }
 
         int index = _listView.SelectedItem.Value;
         if (index < 0 || index >= _valueItems.Count)
+        {
             return;
+        }
 
         SelectionAccepted?.Invoke(_valueItems[index]);
     }

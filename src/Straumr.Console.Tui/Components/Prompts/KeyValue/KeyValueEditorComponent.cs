@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Selection;
-using Straumr.Console.Tui.Theme;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -54,7 +54,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 1,
         };
 
-        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter, () => DoneRequested?.Invoke())
+        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter)
         {
             X = Pos.Right(_filterLabel) + 1,
             Y = _filterLabel.Y,
@@ -126,7 +126,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Visible = false,
         };
         if (buttonScheme is not null)
+        {
             _saveButton.SetScheme(buttonScheme);
+        }
 
         _inputErrorLabel = new Label
         {
@@ -183,7 +185,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private bool HandleListKeyDown(Key key)
     {
         if (_listView is null)
+        {
             return false;
+        }
 
         int count = _keys.Count;
 
@@ -215,10 +219,18 @@ internal sealed class KeyValueEditorComponent : PromptComponent
                     MoveSelection(-1);
                     return true;
                 case 'g':
-                    if (count > 0) _listView.SelectedItem = 0;
+                    if (count > 0)
+                    {
+                        _listView.SelectedItem = 0;
+                    }
+
                     return true;
                 case 'G':
-                    if (count > 0) _listView.SelectedItem = count - 1;
+                    if (count > 0)
+                    {
+                        _listView.SelectedItem = count - 1;
+                    }
+
                     return true;
                 case '/':
                     FocusView(_filterField);
@@ -256,7 +268,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         int? index = _listView?.SelectedItem;
         if (index is null || index < 0 || index >= _keys.Count)
+        {
             return;
+        }
 
         string key = _keys[index.Value];
         string currentValue = Items.TryGetValue(key, out string? v) ? v : string.Empty;
@@ -267,7 +281,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         int? index = _listView?.SelectedItem;
         if (index is null || index < 0 || index >= _keys.Count)
+        {
             return;
+        }
 
         string key = _keys[index.Value];
         Items.Remove(key);
@@ -305,11 +321,13 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private void ApplyFieldTheme(EditFormField field)
     {
         if (Theme is null)
+        {
             return;
+        }
 
-        field.IdleBorderColor = TuiColors.Resolve(Theme.Muted);
-        field.FocusBorderColor = TuiColors.Resolve(Theme.InputFocusBorder);
-        field.EditBorderColor = TuiColors.Resolve(Theme.InputEditingBorder);
+        field.IdleBorderColor = ColorResolver.Resolve(Theme.Secondary);
+        field.FocusBorderColor = ColorResolver.Resolve(Theme.Primary);
+        field.EditBorderColor = ColorResolver.Resolve(Theme.OnSurface);
     }
 
     private void UpdateFieldIndicators()
@@ -321,7 +339,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private static void UpdateFieldIndicator(EditFormField? field, Label? label, string labelText)
     {
         if (label is null)
+        {
             return;
+        }
 
         // Labels no longer carry extra suffix text for focus/edit state.
         // Visual feedback is provided by the fields themselves.
@@ -340,16 +360,24 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _valueField?.ExitEditMode();
 
         if (_keyField is not null)
+        {
             _keyField.Text = keyText;
+        }
 
         if (_valueField is not null)
+        {
             _valueField.Text = valueText;
+        }
 
         // Focus the key field for new entries, value field when editing existing
         if (originalKey is null)
+        {
             FocusView(_keyField);
+        }
         else
+        {
             FocusView(_valueField);
+        }
 
         HideInputError();
         UpdateHints();
@@ -386,7 +414,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         // If renaming, remove the old key
         if (_originalKey is not null && _originalKey != key)
+        {
             Items.Remove(_originalKey);
+        }
 
         Items[key] = value;
         ExitEditMode();
@@ -414,10 +444,14 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         bool hasItems = _keys.Count > 0;
         if (_listView is not null)
+        {
             _listView.SelectedItem = hasItems ? 0 : null;
+        }
 
         if (_emptyLabel is not null)
+        {
             _emptyLabel.Visible = !hasItems;
+        }
     }
 
     private void ApplyFilter(string filter)
@@ -430,7 +464,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             string display = FormatEntry(kvp.Key, kvp.Value);
             if (!string.IsNullOrEmpty(filter)
                 && !display.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             _keys.Add(kvp.Key);
             _displayItems.Add(display);
@@ -438,7 +474,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         bool hasItems = _keys.Count > 0;
         if (_listView is not null)
+        {
             _listView.SelectedItem = hasItems ? 0 : null;
+        }
 
         if (_emptyLabel is not null)
         {
@@ -452,7 +490,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private void MoveSelection(int delta)
     {
         if (_listView is null || _keys.Count == 0)
+        {
             return;
+        }
 
         int current = _listView.SelectedItem ?? 0;
         int next = Math.Clamp(current + delta, 0, _keys.Count - 1);
@@ -463,32 +503,78 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private void SetListViewsVisible(bool visible)
     {
-        if (_filterLabel is not null) _filterLabel.Visible = visible;
-        if (_filterField is not null) _filterField.Visible = visible;
-        if (_listView is not null) _listView.Visible = visible;
-        if (_emptyLabel is not null) _emptyLabel.Visible = visible && _keys.Count == 0;
+        if (_filterLabel is not null)
+        {
+            _filterLabel.Visible = visible;
+        }
+
+        if (_filterField is not null)
+        {
+            _filterField.Visible = visible;
+        }
+
+        if (_listView is not null)
+        {
+            _listView.Visible = visible;
+        }
+
+        if (_emptyLabel is not null)
+        {
+            _emptyLabel.Visible = visible && _keys.Count == 0;
+        }
     }
 
     private void SetEditViewsVisible(bool visible)
     {
-        if (_keyLabel is not null) _keyLabel.Visible = visible;
-        if (_keyField is not null) _keyField.Visible = visible;
-        if (_valueLabel is not null) _valueLabel.Visible = visible;
-        if (_valueField is not null) _valueField.Visible = visible;
-        if (_saveButton is not null) _saveButton.Visible = visible;
-        if (!visible) HideInputError();
+        if (_keyLabel is not null)
+        {
+            _keyLabel.Visible = visible;
+        }
+
+        if (_keyField is not null)
+        {
+            _keyField.Visible = visible;
+        }
+
+        if (_valueLabel is not null)
+        {
+            _valueLabel.Visible = visible;
+        }
+
+        if (_valueField is not null)
+        {
+            _valueField.Visible = visible;
+        }
+
+        if (_saveButton is not null)
+        {
+            _saveButton.Visible = visible;
+        }
+
+        if (!visible)
+        {
+            HideInputError();
+        }
     }
 
     private void ShowInputError(string message)
     {
-        if (_inputErrorLabel is null) return;
+        if (_inputErrorLabel is null)
+        {
+            return;
+        }
+
         _inputErrorLabel.Text = message;
         _inputErrorLabel.Visible = true;
     }
 
     private void HideInputError()
     {
-        if (_inputErrorLabel is null) return;
+        if (_inputErrorLabel is null)
+        {
+            return;
+        }
+
         _inputErrorLabel.Visible = false;
     }
 

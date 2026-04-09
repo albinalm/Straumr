@@ -1,13 +1,13 @@
+using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components;
 using Straumr.Console.Tui.Components.Prompts.Selection;
-using Straumr.Console.Tui.Theme;
 using Terminal.Gui.ViewBase;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class SelectionPromptScreen : PromptScreen<string?>
 {
-    public SelectionPromptScreen(string title, IReadOnlyList<string> items, Func<string, string>? converter, TuiTheme? theme = null)
+    public SelectionPromptScreen(string title, IReadOnlyList<string> items, Func<string, string>? converter, StraumrTheme? theme = null)
     {
         Add(new Banner
         {

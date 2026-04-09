@@ -5,19 +5,15 @@ namespace Straumr.Console.Tui.Components.Prompts.Selection;
 
 internal sealed class FilterTextField : TextField
 {
-    private readonly Action<string> _onChanged;
     private readonly Action _acceptFilter;
     private readonly Action _exitFilter;
-    private readonly Action? _cancelRequested;
 
-    public FilterTextField(Action<string> onChanged, Action acceptFilter, Action exitFilter, Action? cancelRequested = null)
+    public FilterTextField(Action<string> onChanged, Action acceptFilter, Action exitFilter)
     {
-        _onChanged = onChanged;
         _acceptFilter = acceptFilter;
         _exitFilter = exitFilter;
-        _cancelRequested = cancelRequested;
 
-        TextChanged += (_, _) => _onChanged(Text ?? string.Empty);
+        TextChanged += (_, _) => onChanged(Text);
     }
 
     protected override bool OnKeyDown(Key key)

@@ -57,9 +57,16 @@ public class StraumrFileService : IStraumrFileService
         await File.WriteAllTextAsync(path, json);
     }
 
-    public async Task<T> ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo)
+    public async Task<T> ReadGenericAsync<T>(string path, JsonTypeInfo<T> typeInfo)
     {
         string json = await File.ReadAllTextAsync(path);
+        return JsonSerializer.Deserialize(json, typeInfo) ??
+               throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
+    }
+    
+    public T ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo)
+    {
+        string json = File.ReadAllText(path);
         return JsonSerializer.Deserialize(json, typeInfo) ??
                throw new StraumrException("Failed to deserialize file", StraumrError.CorruptEntry);
     }

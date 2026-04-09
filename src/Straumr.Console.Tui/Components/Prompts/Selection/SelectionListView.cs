@@ -12,13 +12,17 @@ internal sealed class SelectionListView : ListView
     {
         _onKey = onKey;
         if (scheme is not null)
+        {
             SetScheme(scheme);
+        }
     }
 
     protected override bool OnKeyDown(Key key)
     {
         if (_onKey(key))
+        {
             return true;
+        }
 
         // Only allow arrow keys and Enter through to the base ListView.
         // Block everything else (letters, etc.) to prevent type-ahead search.

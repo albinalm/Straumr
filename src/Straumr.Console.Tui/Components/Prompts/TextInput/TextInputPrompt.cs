@@ -1,6 +1,4 @@
 using System.Text;
-using Straumr.Console.Tui.Components;
-using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -48,7 +46,9 @@ internal sealed class TextInputPrompt : PromptComponent
         frame.KeyDown += (_, key) =>
         {
             if (!_confirming)
+            {
                 return;
+            }
 
             key.Handled = true;
             Rune rune = key.AsRune;
@@ -73,18 +73,24 @@ internal sealed class TextInputPrompt : PromptComponent
     {
         HideError();
         if (_confirming)
+        {
             ExitConfirmMode();
+        }
     }
 
     private bool TrySubmit()
     {
         if (_confirming)
+        {
             ExitConfirmMode();
+        }
 
         if (_textField is null)
+        {
             return true;
+        }
 
-        string value = _textField.Text ?? string.Empty;
+        string value = _textField.Text;
 
         if (!AllowEmpty && value.Length == 0)
         {
@@ -130,7 +136,9 @@ internal sealed class TextInputPrompt : PromptComponent
     {
         _confirming = true;
         if (_textField is not null)
+        {
             _textField.Enabled = false;
+        }
 
         ShowError("Discard changes? (y/n)");
     }
@@ -149,16 +157,15 @@ internal sealed class TextInputPrompt : PromptComponent
 
     private void HideError()
     {
-        if (_errorLabel is null)
-            return;
-
-        _errorLabel.Visible = false;
+        _errorLabel?.Visible = false;
     }
 
     private void ShowError(string message)
     {
         if (_errorLabel is null)
+        {
             return;
+        }
 
         _errorLabel.Text = message;
         _errorLabel.Visible = true;

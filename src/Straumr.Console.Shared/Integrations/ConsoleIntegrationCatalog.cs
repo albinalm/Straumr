@@ -1,5 +1,3 @@
-using System;
-
 namespace Straumr.Console.Shared.Integrations;
 
 public sealed class ConsoleIntegrationCatalog

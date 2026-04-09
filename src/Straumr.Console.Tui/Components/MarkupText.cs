@@ -7,7 +7,9 @@ internal static partial class MarkupText
     public static string ToPlain(string? value)
     {
         if (string.IsNullOrEmpty(value))
+        {
             return string.Empty;
+        }
 
         return MarkupRegex().Replace(value, string.Empty);
     }

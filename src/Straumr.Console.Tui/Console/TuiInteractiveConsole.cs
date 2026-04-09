@@ -1,19 +1,15 @@
-using System.Linq;
 using Straumr.Console.Shared.Console;
+using Straumr.Console.Shared.Helpers;
+using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Screens.Base;
 using Straumr.Console.Tui.Screens.Prompts;
-using Straumr.Console.Tui.Theme;
+using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Tui.Console;
 
-public sealed class TuiInteractiveConsole : IInteractiveConsole
+public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IInteractiveConsole
 {
-    private readonly TuiTheme _theme;
-
-    public TuiInteractiveConsole(TuiTheme? theme = null)
-    {
-        _theme = theme ?? new TuiTheme();
-    }
+    private readonly StraumrTheme _theme = ThemeLoader.Load(fileService).Theme;
 
     public Task<string?> SelectAsync(string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
     {

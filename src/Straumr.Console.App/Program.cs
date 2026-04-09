@@ -1,6 +1,7 @@
 ﻿using Straumr.Console.Cli.Integration;
 using Straumr.Console.Shared.Integrations;
 using Straumr.Console.Tui.Integration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Straumr.Console.App;
 
@@ -13,6 +14,13 @@ internal static class Program
             .AddInstaller<TuiConsoleIntegrationInstaller>();
 
         IReadOnlyList<IConsoleIntegration> integrations = catalog.Build();
+        var services = new ServiceCollection();
+        foreach (IConsoleIntegration consoleIntegration in integrations)
+        {
+            consoleIntegration.ConfigureServices(services);
+        }
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
         (IConsoleIntegration integration, string[] integrationArgs) = ConsoleIntegrationResolver.Resolve(integrations, args);
 
         using var cts = new CancellationTokenSource();
@@ -22,6 +30,6 @@ internal static class Program
             eventArgs.Cancel = true;
         };
 
-        return await integration.RunAsync(integrationArgs, cts.Token);
+        return await integration.RunAsync(provider, integrationArgs, cts.Token);
     }
 }

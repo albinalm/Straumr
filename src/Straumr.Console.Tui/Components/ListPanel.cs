@@ -32,7 +32,9 @@ public class ListPanel : TuiComponent
         list.Accepting += (_, _) =>
         {
             if (list.SelectedItem is >= 0)
+            {
                 ItemActivated?.Invoke(list.SelectedItem.Value);
+            }
         };
 
         FrameView frame = new()

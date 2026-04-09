@@ -20,4 +20,8 @@
         <TrimmerRootDescriptor Include="TuiRoots.xml" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Infrastructure\" />
+    </ItemGroup>
+
 </Project>

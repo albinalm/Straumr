@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Console.Cli.Commands.About;
@@ -10,7 +11,6 @@ using Straumr.Console.Cli.Commands.Config;
 using Straumr.Console.Cli.Commands.Request;
 using Straumr.Console.Cli.Commands.Secret;
 using Straumr.Console.Cli.Commands.Workspace;
-using Straumr.Console.Cli.Console;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Shared.Console;
 using Straumr.Console.Shared.Integrations;
@@ -23,12 +23,14 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 {
     private readonly StraumrCommandRegistry _registry = new();
     private bool _registryInitialized;
+    private CommandApp? _commandApp;
+    private StraumrTypeRegistrar? _typeRegistrar;
 
     public string Name => "cli";
     public IReadOnlyCollection<string> Aliases { get; } = ["console"];
     public IReadOnlyCollection<string> Commands => EnsureRegistry();
     public bool IsDefault => false;
-    
+
     private IReadOnlyCollection<string> EnsureRegistry()
     {
         if (!_registryInitialized)
@@ -40,9 +42,48 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
         return _registry.Commands;
     }
-    
+
     [RequiresDynamicCode("Calls Spectre.Console.Cli.CommandApp.CommandApp(ITypeRegistrar)")]
-    public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.TryAddSingleton<IStraumrFileService, StraumrFileService>();
+        services.TryAddSingleton<IStraumrOptionsService, StraumrOptionsService>();
+        services.AddHttpClient();
+        services.TryAddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
+        services.TryAddSingleton<IStraumrAuthService, StraumrAuthService>();
+        services.TryAddSingleton<IStraumrRequestService, StraumrRequestService>();
+        services.TryAddSingleton<IStraumrSecretService, StraumrSecretService>();
+        services.TryAddSingleton<EmptyCommandSettings>();
+
+        if (_commandApp is null)
+        {
+            _typeRegistrar = new StraumrTypeRegistrar(services);
+            _commandApp = new CommandApp(_typeRegistrar);
+            _commandApp.Configure(ConfigureCommands);
+        }
+
+        // Spectre defers command type registration until RunAsync, but the
+        // shared ServiceProvider is built before that. Pre-register all
+        // command and settings types so they're available in the provider.
+        RegisterCommandTypes(services);
+    }
+
+    [UnconditionalSuppressMessage("AOT", "IL2067",
+        Justification = "Command types are preserved via CliRoots.xml trimmer descriptor")]
+    private static void RegisterCommandTypes(IServiceCollection services)
+    {
+        Assembly assembly = typeof(CliConsoleIntegration).Assembly;
+        foreach (Type type in assembly.GetTypes())
+        {
+            if (type.IsAbstract || type.IsInterface)
+                continue;
+
+            if (typeof(ICommand).IsAssignableFrom(type) || typeof(CommandSettings).IsAssignableFrom(type))
+                services.AddSingleton(type, type);
+        }
+    }
+
+    public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -62,29 +103,15 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
             AnsiConsole.Profile.Capabilities.Links = false;
         }
 
-        var services = new ServiceCollection();
+        if (_commandApp is null || _typeRegistrar is null)
+            throw new InvalidOperationException("CLI integration has not been initialized.");
 
-        var fileService = new StraumrFileService();
-        var optionsService = new StraumrOptionsService(fileService);
+        var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.Load();
 
-        services.AddSingleton<IStraumrFileService>(fileService);
-        services.AddSingleton<IStraumrOptionsService>(optionsService);
-        services.AddHttpClient();
-        services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
-        services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
-        services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
-        services.AddSingleton<IStraumrSecretService, StraumrSecretService>();
+        _typeRegistrar.UseServiceProvider(serviceProvider);
 
-        InteractiveConsoleFactory.TrySetFactory(() => new CliInteractiveConsole());
-        services.AddSingleton<IInteractiveConsole>(_ => InteractiveConsoleFactory.Create());
-
-        services.AddSingleton<EmptyCommandSettings>();
-
-        var app = new CommandApp(new StraumrTypeRegistrar(services));
-        app.Configure(ConfigureCommands);
-
-        return await app.RunAsync(args, cancellationToken);
+        return await _commandApp.RunAsync(args, cancellationToken);
     }
 
     private void ConfigureCommands(IConfigurator config)

@@ -36,7 +36,9 @@ internal static class HttpCommandHelpers
         IInteractiveConsole console, string title, IDictionary<string, string> items, Action? onSaved = null)
     {
         if (console.TryEditKeyValuePairs(title, items, onSaved))
+        {
             return;
+        }
 
         string titleLower = title.ToLowerInvariant();
 

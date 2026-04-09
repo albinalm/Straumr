@@ -1,10 +1,12 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Straumr.Console.Shared.Console;
+using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Integrations;
+using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
-using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens;
-using Straumr.Console.Tui.Theme;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -20,7 +22,20 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public IReadOnlyCollection<string> Commands { get; } = [];
     public bool IsDefault => true;
 
-    public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddSingleton<IStraumrFileService, StraumrFileService>();
+        services.AddSingleton<IStraumrOptionsService, StraumrOptionsService>();
+        services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
+        services.AddSingleton<StraumrThemeOptions>(provider =>
+        {
+            var fileService = provider.GetRequiredService<IStraumrFileService>();
+            return ThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult();
+        });
+        services.AddSingleton<IInteractiveConsole, TuiInteractiveConsole>();
+    }
+
+    public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -32,16 +47,15 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             return 0;
         }
 
-        var fileService = new StraumrFileService();
-        var optionsService = new StraumrOptionsService(fileService);
+        var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.Load();
 
-        var workspaceService = new StraumrWorkspaceService(fileService, optionsService);
-        StraumrThemeOptions theme = await TuiThemeLoader.LoadAsync(fileService);
+        var workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
+        StraumrThemeOptions theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
 
         List<string> lines = LoadWorkspaceLines(optionsService, workspaceService);
         var screen = new HomeScreen(lines);
-        var app = new TuiApp(theme.Tui);
+        var app = new TuiApp(theme.Theme);
         app.Run(screen);
 
         return 0;
@@ -107,13 +121,5 @@ public sealed class TuiConsoleIntegrationInstaller : IConsoleIntegrationInstalle
     public void Install(IConsoleIntegrationBuilder builder)
     {
         builder.AddIntegration(new TuiConsoleIntegration());
-
-        var lazyTheme = new Lazy<TuiTheme>(() =>
-        {
-            var fileService = new StraumrFileService();
-            return TuiThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult().Tui;
-        });
-
-        InteractiveConsoleFactory.SetFactory(() => new TuiInteractiveConsole(lazyTheme.Value));
     }
 }

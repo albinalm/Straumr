@@ -1,7 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Base;
+using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Screens.Base;
-using Straumr.Console.Tui.Theme;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
@@ -11,9 +12,9 @@ namespace Straumr.Console.Tui;
 
 public class TuiApp
 {
-    private readonly TuiTheme _theme;
+    private readonly StraumrTheme _theme;
 
-    public TuiApp(TuiTheme theme)
+    public TuiApp(StraumrTheme theme)
     {
         _theme = theme;
     }
@@ -32,7 +33,7 @@ public class TuiApp
         using IApplication app = Application.Create();
         app.Init();
 
-        Scheme scheme = TuiColors.BuildScheme(_theme);
+        Scheme scheme = ColorResolver.BuildScheme(_theme);
 
         using Window window = new();
         window.Width = Dim.Fill();
@@ -45,7 +46,9 @@ public class TuiApp
         window.KeyDown += (_, key) =>
         {
             if (screen.OnKeyDown(key))
+            {
                 key.Handled = true;
+            }
         };
 
         foreach (TuiComponent component in screen.Components)

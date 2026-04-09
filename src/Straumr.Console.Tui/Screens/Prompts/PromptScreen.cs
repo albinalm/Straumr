@@ -12,7 +12,9 @@ internal abstract class PromptScreen<TResult> : Screen
     protected void Complete(TResult? result)
     {
         if (_completed)
+        {
             return;
+        }
 
         _completed = true;
         Result = result;

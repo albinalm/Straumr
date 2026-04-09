@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Straumr.Console.Shared.Integrations;
 
 public interface IConsoleIntegration
@@ -6,5 +8,6 @@ public interface IConsoleIntegration
     IReadOnlyCollection<string> Aliases { get; }
     IReadOnlyCollection<string> Commands { get; }
     bool IsDefault { get; }
-    Task<int> RunAsync(string[] args, CancellationToken cancellationToken);
+    void ConfigureServices(IServiceCollection services);
+    Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken);
 }

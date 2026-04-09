@@ -1,13 +1,13 @@
+using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components;
 using Straumr.Console.Tui.Components.Prompts.KeyValue;
-using Straumr.Console.Tui.Theme;
 using Terminal.Gui.ViewBase;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class KeyValueEditorScreen : PromptScreen<bool>
 {
-    public KeyValueEditorScreen(string title, IDictionary<string, string> items, TuiTheme? theme = null, Action? onSaved = null)
+    public KeyValueEditorScreen(string title, IDictionary<string, string> items, StraumrTheme? theme = null, Action? onSaved = null)
     {
         Add(new Banner
         {

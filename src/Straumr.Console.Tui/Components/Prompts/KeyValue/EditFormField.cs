@@ -51,7 +51,9 @@ internal sealed class EditFormField : TextField
     public void WireBorderColor()
     {
         if (Border is null)
+        {
             return;
+        }
 
         Border.GettingAttributeForRole += (_, e) =>
         {

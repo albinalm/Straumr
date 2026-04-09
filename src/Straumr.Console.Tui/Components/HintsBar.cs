@@ -38,6 +38,8 @@ internal class HintsBar : TuiComponent
     public void UpdateText(string text)
     {
         if (_textView is not null)
+        {
             _textView.Text = text;
+        }
     }
 }
