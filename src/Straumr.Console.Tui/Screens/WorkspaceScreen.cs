@@ -22,6 +22,8 @@ public sealed class WorkspaceScreen : Screen
 {
     private const string HintsText = "j/k Navigate  g/G Jump  / Filter  Enter Open  q Quit  Esc Quit";
 
+    private readonly IStraumrWorkspaceService _workspaceService;
+    private readonly IStraumrOptionsService _optionsService;
     private readonly StraumrTheme _theme;
     private readonly ObservableCollection<string> _displayItems = [];
     private readonly List<string> _sourceItems = [];
@@ -30,20 +32,37 @@ public sealed class WorkspaceScreen : Screen
     private InteractiveTextField? _filterField;
     private Label? _emptyLabel;
     private Label? _summaryLabel;
-    private readonly StatusNotificationBar? _statusBar;
+    private readonly StatusNotificationBar _statusBar;
     private string _currentFilter = string.Empty;
 
-    public WorkspaceScreen(IStraumrWorkspaceService workspaceService, IStraumrOptionsService optionsService, StraumrTheme theme)
+    public WorkspaceScreen(
+        IStraumrWorkspaceService workspaceService,
+        IStraumrOptionsService optionsService,
+        StraumrTheme theme)
     {
+        _workspaceService = workspaceService;
+        _optionsService = optionsService;
         _theme = theme;
-        _sourceItems.AddRange(LoadWorkspaceLines(optionsService, workspaceService));
 
         Add(new Banner { Theme = _theme });
         Add(new HintsBar { Text = HintsText });
         AddView(BuildWorkspaceFrame());
 
         _statusBar = Add(new StatusNotificationBar());
-        ShowStatus($" {_sourceItems.Count} workspace{(_sourceItems.Count == 1 ? string.Empty : "s")} loaded");
+    }
+
+    public override async Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> lines = await LoadWorkspaceLinesAsync(cancellationToken);
+        _sourceItems.Clear();
+        foreach (string line in lines)
+        {
+            _sourceItems.Add(line);
+        }
+
+        ApplyFilter(_currentFilter);
+        int workspaceCount = _optionsService.Options.Workspaces.Count;
+        ShowStatus($" {workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");
     }
 
     public override bool OnKeyDown(Key key)
@@ -226,7 +245,7 @@ public sealed class WorkspaceScreen : Screen
 
         Rune rune = key.AsRune;
 
-        if (!key.IsCtrl && !key.IsAlt)
+        if (key is { IsCtrl: false, IsAlt: false })
         {
             switch (rune.Value)
             {
@@ -333,20 +352,23 @@ public sealed class WorkspaceScreen : Screen
         ShowStatus($" \"{workspace.Trim()}\" selected");
     }
 
-    private void ShowStatus(string message) => _statusBar?.ShowSuccess(message);
+    private void ShowStatus(string message) => _statusBar.ShowSuccess(message);
 
-    private static IReadOnlyList<string> LoadWorkspaceLines(
-        IStraumrOptionsService optionsService,
-        IStraumrWorkspaceService workspaceService)
+    private async Task<IReadOnlyList<string>> LoadWorkspaceLinesAsync(CancellationToken cancellationToken)
     {
-        if (optionsService.Options.Workspaces.Count == 0)
+        if (_optionsService.Options.Workspaces.Count == 0)
         {
             return ["No workspaces found."];
         }
 
-        List<WorkspaceLine> items = optionsService.Options.Workspaces
-            .Select(entry => BuildWorkspaceLine(entry, optionsService, workspaceService))
-            .ToList();
+        var items = new List<WorkspaceLine>();
+
+        foreach (StraumrWorkspaceEntry entry in _optionsService.Options.Workspaces)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WorkspaceLine line = await BuildWorkspaceLineAsync(entry);
+            items.Add(line);
+        }
 
         return items
             .OrderByDescending(item => item.LastAccessed)
@@ -354,10 +376,7 @@ public sealed class WorkspaceScreen : Screen
             .ToList();
     }
 
-    private static WorkspaceLine BuildWorkspaceLine(
-        StraumrWorkspaceEntry entry,
-        IStraumrOptionsService optionsService,
-        IStraumrWorkspaceService workspaceService)
+    private async Task<WorkspaceLine> BuildWorkspaceLineAsync(StraumrWorkspaceEntry entry)
     {
         var name = "Unknown";
         string status;
@@ -365,7 +384,7 @@ public sealed class WorkspaceScreen : Screen
 
         try
         {
-            StraumrWorkspace workspace = workspaceService.PeekWorkspace(entry.Path).GetAwaiter().GetResult();
+            StraumrWorkspace workspace = await _workspaceService.PeekWorkspace(entry.Path);
             name = workspace.Name;
             status = "Valid";
             lastAccessed = workspace.LastAccessed;
@@ -379,10 +398,10 @@ public sealed class WorkspaceScreen : Screen
             status = "Missing";
         }
 
-        bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id;
+        bool isCurrent = _optionsService.Options.CurrentWorkspace?.Id == entry.Id;
         string idShort = entry.Id.ToString("N")[..8];
         string marker = isCurrent ? "* " : "  ";
-        var display = $"{marker}{name}  [{idShort}]  {status}";
+        var display = $"{marker}{name} | {idShort}... | {status}";
 
         return new WorkspaceLine(display, lastAccessed);
     }

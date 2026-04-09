@@ -22,8 +22,22 @@ public abstract class Screen
 
     internal IReadOnlyList<TuiComponent> Components => _components;
     internal Action? QuitAction { get; set; }
+    internal Action<Type>? NavigateAction { get; set; }
 
     protected void Quit() => QuitAction?.Invoke();
+
+    protected void NavigateTo<TScreen>() where TScreen : Screen
+    {
+        if (NavigateAction is null)
+        {
+            return;
+        }
+
+        NavigateAction(typeof(TScreen));
+        Quit();
+    }
+
+    public virtual Task InitializeAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public virtual bool OnKeyDown(Key key) => false;
 

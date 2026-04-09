@@ -5,6 +5,7 @@ using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Integrations;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens;
 using Straumr.Core.Services;
 using Straumr.Core.Services.Interfaces;
@@ -28,6 +29,8 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             var fileService = provider.GetRequiredService<IStraumrFileService>();
             return ThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult();
         });
+        services.AddSingleton(provider => provider.GetRequiredService<StraumrThemeOptions>().Theme);
+        services.AddTransient<WorkspaceScreen>();
         services.AddSingleton<IInteractiveConsole, TuiInteractiveConsole>();
     }
 
@@ -46,12 +49,9 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.Load();
 
-        var workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
         var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
-
-        var screen = new WorkspaceScreen(workspaceService, optionsService, theme.Theme);
-        var app = new TuiApp(theme.Theme);
-        app.Run(screen);
+        var engine = new ScreenEngine(serviceProvider, theme.Theme);
+        await engine.RunAsync<WorkspaceScreen>(cancellationToken);
 
         return 0;
     }

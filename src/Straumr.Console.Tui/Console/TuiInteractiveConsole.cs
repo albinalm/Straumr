@@ -66,7 +66,7 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IIn
 
     private void RunScreen(Screen screen)
     {
-        var app = new TuiApp(_theme);
+        using var app = new TuiApp(_theme);
         app.Run(screen);
     }
 }

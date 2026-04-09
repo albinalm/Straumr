@@ -5,19 +5,17 @@ using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Screens.Base;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui;
 
-public class TuiApp
+public sealed class TuiApp : IDisposable
 {
-    private readonly StraumrTheme _theme;
-
-    public TuiApp(StraumrTheme theme)
-    {
-        _theme = theme;
-    }
+    private readonly IApplication _application;
+    private readonly Window _window;
+    private EventHandler<Key>? _keyHandler;
 
     [UnconditionalSuppressMessage("AOT",
         "IL2026:Using member 'Terminal.Gui.App.IApplication.Init(String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code.",
@@ -25,25 +23,42 @@ public class TuiApp
     [UnconditionalSuppressMessage("AOT",
         "IL3050:Using member 'Terminal.Gui.App.IApplication.Init(String)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling.",
         Justification = "TUI mode is a lightweight UI test surface; dynamic code use is acceptable.")]
-    public void Run(Screen screen)
+    public TuiApp(StraumrTheme theme)
     {
         System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Console.InputEncoding = System.Text.Encoding.UTF8;
 
-        using IApplication app = Application.Create();
-        app.Init();
+        _application = Application.Create();
+        _application.Init();
 
-        Scheme scheme = ColorResolver.BuildScheme(_theme);
+        Scheme scheme = ColorResolver.BuildScheme(theme);
 
-        using Window window = new();
-        window.Width = Dim.Fill();
-        window.Height = Dim.Fill();
-        window.BorderStyle = LineStyle.None;
-        window.SetScheme(scheme);
+        _window = new Window
+        {
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            BorderStyle = LineStyle.None,
+        };
+        _window.SetScheme(scheme);
+    }
 
-        screen.QuitAction = app.RequestStop;
+    public void Run(Screen screen)
+    {
+        LoadScreen(screen);
+        RunLoop();
+    }
 
-        window.KeyDown += (_, key) =>
+    internal void LoadScreen(Screen screen)
+    {
+        _window.RemoveAll();
+
+        if (_keyHandler is not null)
+        {
+            _window.KeyDown -= _keyHandler;
+            _keyHandler = null;
+        }
+
+        _keyHandler = (_, key) =>
         {
             if (screen.OnKeyDown(key))
             {
@@ -51,11 +66,23 @@ public class TuiApp
             }
         };
 
+        _window.KeyDown += _keyHandler;
+
+        screen.QuitAction = _application.RequestStop;
+
         foreach (TuiComponent component in screen.Components)
         {
-            window.Add(component.Build());
+            _window.Add(component.Build());
         }
+    }
 
-        app.Run(window);
+    internal void RunLoop() => _application.Run(_window);
+
+    internal void RequestStop() => _application.RequestStop();
+
+    public void Dispose()
+    {
+        _window.Dispose();
+        _application.Dispose();
     }
 }

@@ -10,6 +10,7 @@ internal class StatusNotificationBar : TuiComponent
 {
     private Label? _label;
     private CancellationTokenSource? _hideCts;
+    private string? _pendingMessage;
 
     public override View Build()
     {
@@ -23,16 +24,30 @@ internal class StatusNotificationBar : TuiComponent
             Visible = false
         };
 
+        TryShowPendingMessage();
         return _label;
     }
 
     public void ShowSuccess(string message)
     {
-        if (_label is null)
+        _pendingMessage = message;
+        TryShowPendingMessage();
+    }
+
+    private void TryShowPendingMessage()
+    {
+        if (_label is null || _pendingMessage is null)
         {
             return;
         }
 
+        string message = _pendingMessage;
+        _pendingMessage = null;
+        ApplyMessage(message);
+    }
+
+    private void ApplyMessage(string message)
+    {
         _hideCts?.Cancel();
         _hideCts = new CancellationTokenSource();
         CancellationToken token = _hideCts.Token;
@@ -40,7 +55,7 @@ internal class StatusNotificationBar : TuiComponent
         _label.Text = message;
         _label.Visible = true;
         var green = new TuiAttribute(Color.BrightGreen, Color.Black);
-       _label.SetScheme(new Scheme(green) { Focus = green });
+        _label.SetScheme(new Scheme(green) { Focus = green });
 
         _ = HideAfterDelayAsync(token);
     }
