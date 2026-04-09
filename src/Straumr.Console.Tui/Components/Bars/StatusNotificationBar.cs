@@ -6,7 +6,7 @@ using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.Bars;
 
-internal class StatusBar : TuiComponent
+internal class StatusNotificationBar : TuiComponent
 {
     private Label? _label;
     private CancellationTokenSource? _hideCts;

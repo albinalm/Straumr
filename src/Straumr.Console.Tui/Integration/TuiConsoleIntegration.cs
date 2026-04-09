@@ -6,9 +6,6 @@ using Straumr.Console.Shared.Integrations;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Screens;
-using Straumr.Core.Enums;
-using Straumr.Core.Exceptions;
-using Straumr.Core.Models;
 using Straumr.Core.Services;
 using Straumr.Core.Services.Interfaces;
 
@@ -52,67 +49,12 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         var workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
         var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
 
-        List<string> lines = LoadWorkspaceLines(optionsService, workspaceService);
-        var screen = new WorkspaceScreen(lines);
+        var screen = new WorkspaceScreen(workspaceService, optionsService, theme.Theme);
         var app = new TuiApp(theme.Theme);
         app.Run(screen);
 
         return 0;
     }
-
-    private static List<string> LoadWorkspaceLines(
-        IStraumrOptionsService optionsService,
-        IStraumrWorkspaceService workspaceService)
-    {
-        if (optionsService.Options.Workspaces.Count == 0)
-        {
-            return ["No workspaces found."];
-        }
-
-        List<WorkspaceLine> items = optionsService.Options.Workspaces
-            .Select(entry => BuildWorkspaceLine(entry, optionsService, workspaceService))
-            .ToList();
-
-        return items
-            .OrderByDescending(item => item.LastAccessed)
-            .Select(item => item.Display)
-            .ToList();
-    }
-
-    private static WorkspaceLine BuildWorkspaceLine(
-        StraumrWorkspaceEntry entry,
-        IStraumrOptionsService optionsService,
-        IStraumrWorkspaceService workspaceService)
-    {
-        var name = "Unknown";
-        string status;
-        DateTimeOffset? lastAccessed = null;
-
-        try
-        {
-            StraumrWorkspace workspace = workspaceService.PeekWorkspace(entry.Path).GetAwaiter().GetResult();
-            name = workspace.Name;
-            status = "Valid";
-            lastAccessed = workspace.LastAccessed;
-        }
-        catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
-        {
-            status = "Corrupt";
-        }
-        catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
-        {
-            status = "Missing";
-        }
-
-        bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id;
-        string idShort = entry.Id.ToString("N")[..8];
-        string marker = isCurrent ? "* " : "  ";
-        var display = $"{marker}{name}  [{idShort}]  {status}";
-
-        return new WorkspaceLine(display, lastAccessed);
-    }
-
-    private sealed record WorkspaceLine(string Display, DateTimeOffset? LastAccessed);
 }
 
 public sealed class TuiConsoleIntegrationInstaller : IConsoleIntegrationInstaller

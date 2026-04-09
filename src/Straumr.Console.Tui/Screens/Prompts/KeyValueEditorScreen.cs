@@ -23,14 +23,14 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
             Theme = theme,
         });
 
-        StatusBar statusBar = Add(new StatusBar());
+        StatusNotificationBar statusNotificationBar = Add(new StatusNotificationBar());
 
         editor.HintsChanged += hints.UpdateText;
         editor.DoneRequested += () => Complete(true);
         editor.ItemSaved += () =>
         {
             onSaved?.Invoke();
-            statusBar.ShowSuccess($" {title} saved");
+            statusNotificationBar.ShowSuccess($" {title} saved");
         };
     }
 }
