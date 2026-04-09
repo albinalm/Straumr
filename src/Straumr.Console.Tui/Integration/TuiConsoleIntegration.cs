@@ -28,7 +28,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<StraumrThemeOptions>(provider =>
         {
-            IStraumrFileService fileService = provider.GetRequiredService<IStraumrFileService>();
+            var fileService = provider.GetRequiredService<IStraumrFileService>();
             return ThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult();
         });
         services.AddSingleton<IInteractiveConsole, TuiInteractiveConsole>();
@@ -46,15 +46,15 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             return 0;
         }
 
-        IStraumrOptionsService optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
+        var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.Load();
 
-        IStraumrWorkspaceService workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
-        StraumrThemeOptions theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
+        var workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
+        var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
 
         List<string> lines = LoadWorkspaceLines(optionsService, workspaceService);
-        HomeScreen screen = new HomeScreen(lines);
-        TuiApp app = new TuiApp(theme.Theme);
+        var screen = new WorkspaceScreen(lines);
+        var app = new TuiApp(theme.Theme);
         app.Run(screen);
 
         return 0;
@@ -84,7 +84,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         IStraumrOptionsService optionsService,
         IStraumrWorkspaceService workspaceService)
     {
-        string name = "Unknown";
+        var name = "Unknown";
         string status;
         DateTimeOffset? lastAccessed = null;
 
@@ -107,7 +107,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id;
         string idShort = entry.Id.ToString("N")[..8];
         string marker = isCurrent ? "* " : "  ";
-        string display = $"{marker}{name}  [{idShort}]  {status}";
+        var display = $"{marker}{name}  [{idShort}]  {status}";
 
         return new WorkspaceLine(display, lastAccessed);
     }

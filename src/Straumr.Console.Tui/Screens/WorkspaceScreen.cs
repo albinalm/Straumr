@@ -6,9 +6,9 @@ using Terminal.Gui.ViewBase;
 
 namespace Straumr.Console.Tui.Screens;
 
-public class HomeScreen : Screen
+public class WorkspaceScreen : Screen
 {
-    public HomeScreen(IReadOnlyList<string> workspaceLines)
+    public WorkspaceScreen(IReadOnlyList<string> workspaceLines)
     {
         Add(new Banner());
 

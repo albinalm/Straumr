@@ -7,7 +7,7 @@ internal static class TextFieldFactory
 {
     public static InteractiveTextField CreateFilterField(Action<string> onChanged, Action acceptFilter, Action exitFilter)
     {
-        InteractiveTextField field = new InteractiveTextField();
+        var field = new InteractiveTextField();
 
         field.TextChanged += (_, _) => onChanged(field.Text);
 
@@ -37,7 +37,7 @@ internal static class TextFieldFactory
 
     public static InteractiveTextField CreatePromptField(Action onChanged, Func<bool> submit, Func<bool> requestCancel)
     {
-        InteractiveTextField field = new InteractiveTextField();
+        var field = new InteractiveTextField();
 
         field.Bind(Key.Enter, (_, _) => submit());
         field.Bind(Key.Esc, (_, _) => requestCancel());

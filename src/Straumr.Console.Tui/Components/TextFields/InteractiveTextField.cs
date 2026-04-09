@@ -52,7 +52,7 @@ internal sealed class InteractiveTextField : TextField
 
     public void ApplyTheme(Color background, Color foreground)
     {
-        Attribute attr = new Attribute(foreground, background);
+        var attr = new Attribute(foreground, background);
         Scheme scheme = new(attr)
         {
             Focus = new Attribute(attr),

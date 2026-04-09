@@ -34,7 +34,7 @@ internal sealed class TablePrompt : PromptComponent
             int maxKey = Math.Max(Column1.Length, Rows.Max(r => r.Key.Length));
             maxKey = Math.Clamp(maxKey, 8, 40);
 
-            string headerText = $"{Column1.PadRight(maxKey)}  {Column2}";
+            var headerText = $"{Column1.PadRight(maxKey)}  {Column2}";
             Label header = new()
             {
                 Text = headerText,

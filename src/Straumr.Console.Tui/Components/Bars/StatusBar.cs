@@ -39,7 +39,7 @@ internal class StatusBar : TuiComponent
 
         _label.Text = message;
         _label.Visible = true;
-        TuiAttribute green = new TuiAttribute(Color.BrightGreen, Color.Black);
+        var green = new TuiAttribute(Color.BrightGreen, Color.Black);
        _label.SetScheme(new Scheme(green) { Focus = green });
 
         _ = HideAfterDelayAsync(token);
