@@ -39,6 +39,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     public override View Build()
     {
         FrameView frame = CreateFrame(Title);
+        Scheme? listScheme = BuildListScheme();
+        Scheme? inputScheme = BuildInputScheme();
+        Scheme? editingScheme = BuildInputEditingScheme();
 
         // --- List mode views ---
 
@@ -56,7 +59,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Width = Dim.Fill(3),
         };
 
-        _listView = new SelectionListView(HandleListKeyDown, BuildListScheme())
+        _listView = new SelectionListView(HandleListKeyDown, listScheme)
         {
             X = 1,
             Y = 3,
@@ -91,8 +94,11 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 1,
             Width = Dim.Fill(2),
             BorderStyle = LineStyle.Single,
-            ReadOnly = true,
             Visible = false,
+            DisplayScheme = inputScheme,
+            EditingScheme = editingScheme,
+            DisplayBorderStyle = LineStyle.Single,
+            EditingBorderStyle = LineStyle.Double,
         };
 
         _valueLabel = new Label
@@ -109,8 +115,11 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 4,
             Width = Dim.Fill(2),
             BorderStyle = LineStyle.Single,
-            ReadOnly = true,
             Visible = false,
+            DisplayScheme = inputScheme,
+            EditingScheme = editingScheme,
+            DisplayBorderStyle = LineStyle.Single,
+            EditingBorderStyle = LineStyle.Double,
         };
 
         _saveButton = new Button
@@ -140,9 +149,21 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             bool up = key == Key.CursorUp || rune.Value == 'k';
             bool down = key == Key.CursorDown || rune.Value == 'j';
 
-            if (up) { key.Handled = true; _valueField?.SetFocus(); }
-            else if (down) { key.Handled = true; _keyField?.SetFocus(); }
-            else if (key == Key.Esc) { key.Handled = true; ExitEditMode(); }
+            if (up)
+            {
+                key.Handled = true;
+                FocusView(_valueField);
+            }
+            else if (down)
+            {
+                key.Handled = true;
+                FocusView(_keyField);
+            }
+            else if (key == Key.Esc)
+            {
+                key.Handled = true;
+                ExitEditMode();
+            }
         };
 
         frame.Add(
@@ -151,8 +172,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         RebuildList();
 
-        _listView.Initialized += (_, _) => _listView.SetFocus();
-
+        _listView.Initialized += (_, _) => FocusView(_listView);
+        UpdateFieldIndicators();
         return frame;
     }
 
@@ -184,7 +205,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
                     if (count > 0) _listView.SelectedItem = count - 1;
                     return true;
                 case '/':
-                    _filterField?.SetFocus();
+                    FocusView(_filterField);
                     return true;
                 case 'a':
                     EnterEditMode(null, string.Empty, string.Empty);
@@ -250,12 +271,39 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         field.EditCompleted += () =>
         {
             field.ExitEditMode();
-            below()?.SetFocus();
+            FocusView(below());
         };
         field.EditCancelled += () => field.ExitEditMode();
-        field.NavigateUp += () => above()?.SetFocus();
-        field.NavigateDown += () => below()?.SetFocus();
+        field.NavigateUp += () => FocusView(above());
+        field.NavigateDown += () => FocusView(below());
         field.ExitRequested += ExitEditMode;
+        field.EditingStateChanged += UpdateFieldIndicators;
+    }
+
+    private void FocusView(View? view)
+    {
+        view?.SetFocus();
+        UpdateFieldIndicators();
+    }
+
+    private void UpdateFieldIndicators()
+    {
+        UpdateFieldIndicator(_keyField, _keyLabel, "Name");
+        UpdateFieldIndicator(_valueField, _valueLabel, "Value");
+    }
+
+    private static void UpdateFieldIndicator(EditFormField? field, Label? label, string labelText)
+    {
+        if (label is null)
+            return;
+
+        string suffix = string.Empty;
+        if (field?.IsEditing == true)
+            suffix = " (editing)";
+        else if (field?.HasFocus == true)
+            suffix = " (selected)";
+
+        label.Text = string.IsNullOrEmpty(suffix) ? labelText : $"{labelText}{suffix}";
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)
@@ -277,9 +325,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         // Focus the key field for new entries, value field when editing existing
         if (originalKey is null)
-            _keyField?.SetFocus();
+            FocusView(_keyField);
         else
-            _valueField?.SetFocus();
+            FocusView(_valueField);
 
         HideInputError();
         UpdateHints();
@@ -299,7 +347,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         RebuildList();
         UpdateHints();
 
-        _listView?.SetFocus();
+        FocusView(_listView);
     }
 
     private bool TrySave()
@@ -310,7 +358,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         if (string.IsNullOrWhiteSpace(key))
         {
             ShowInputError("Name cannot be empty");
-            _keyField?.SetFocus();
+            FocusView(_keyField);
             return true;
         }
 
@@ -326,8 +374,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     // --- Filter callbacks ---
 
     private void OnFilterChanged(string text) => ApplyFilter(text);
-    private void OnAcceptFilter() => _listView?.SetFocus();
-    private void OnExitFilter() => _listView?.SetFocus();
+    private void OnAcceptFilter() => FocusView(_listView);
+    private void OnExitFilter() => FocusView(_listView);
 
     // --- List management ---
 

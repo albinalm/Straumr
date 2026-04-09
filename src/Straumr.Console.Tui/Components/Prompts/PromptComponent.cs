@@ -15,6 +15,16 @@ internal abstract class PromptComponent : TuiComponent
         return Theme is not null ? TuiColors.BuildListScheme(Theme) : null;
     }
 
+    protected Scheme? BuildInputScheme()
+    {
+        return Theme is not null ? TuiColors.BuildInputScheme(Theme) : null;
+    }
+
+    protected Scheme? BuildInputEditingScheme()
+    {
+        return Theme is not null ? TuiColors.BuildInputEditingScheme(Theme) : null;
+    }
+
     protected static FrameView CreateFrame(string title)
     {
         return new FrameView

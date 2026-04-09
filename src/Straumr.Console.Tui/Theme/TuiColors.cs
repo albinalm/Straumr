@@ -69,4 +69,35 @@ public static class TuiColors
             Disabled = new TuiAttribute(muted, bg),
         };
     }
+
+    public static Scheme BuildInputScheme(TuiTheme theme)
+    {
+        Color bg = Resolve(theme.Background);
+        Color fg = Resolve(theme.Foreground);
+        Color accent = Resolve(theme.Accent);
+        Color muted = Resolve(theme.Muted);
+
+        return new Scheme(new TuiAttribute(fg, bg))
+        {
+            Focus = new TuiAttribute(accent, bg),
+            HotNormal = new TuiAttribute(accent, bg),
+            HotFocus = new TuiAttribute(bg, accent),
+            Disabled = new TuiAttribute(muted, bg),
+        };
+    }
+
+    public static Scheme BuildInputEditingScheme(TuiTheme theme)
+    {
+        Color bg = Resolve(theme.Background);
+        Color fg = Resolve(theme.Foreground);
+        Color accent = Resolve(theme.Accent);
+
+        return new Scheme(new TuiAttribute(fg, bg))
+        {
+            Focus = new TuiAttribute(accent, bg),
+            HotNormal = new TuiAttribute(accent, bg),
+            HotFocus = new TuiAttribute(bg, accent),
+            Disabled = new TuiAttribute(fg, bg),
+        };
+    }
 }
