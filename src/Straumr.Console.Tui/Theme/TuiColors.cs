@@ -33,12 +33,27 @@ public static class TuiColors
             "BrightRed" => Color.BrightRed,
             "BrightMagenta" => Color.BrightMagenta,
             "BrightYellow" => Color.BrightYellow,
-            "White" => Color.White,
-            _ => Color.White,
+            _ => Color.White
         };
     }
 
     public static Scheme BuildScheme(TuiTheme theme)
+    {
+        Color bg = Resolve(theme.Background);
+        Color fg = Resolve(theme.Foreground);
+        Color accent = Resolve(theme.Accent);
+        Color muted = Resolve(theme.Muted);
+
+        return new Scheme(new TuiAttribute(fg, bg))
+        {
+            Focus = new TuiAttribute(fg, bg),
+            HotNormal = new TuiAttribute(accent, bg),
+            HotFocus = new TuiAttribute(accent, bg),
+            Disabled = new TuiAttribute(muted, bg),
+        };
+    }
+
+    public static Scheme BuildListScheme(TuiTheme theme)
     {
         Color bg = Resolve(theme.Background);
         Color fg = Resolve(theme.Foreground);

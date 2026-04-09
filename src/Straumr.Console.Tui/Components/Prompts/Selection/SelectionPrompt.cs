@@ -43,7 +43,7 @@ internal sealed class SelectionPrompt : PromptComponent
             Width = Dim.Fill(3),
         };
 
-        _listView = new SelectionListView(HandleListKeyDown)
+        _listView = new SelectionListView(HandleListKeyDown, BuildListScheme())
         {
             X = 1,
             Y = 3,
@@ -63,15 +63,7 @@ internal sealed class SelectionPrompt : PromptComponent
             Visible = false,
         };
 
-        Label hints = new()
-        {
-            Text = "j/k Navigate  Enter Select  / Filter  Esc Back",
-            X = 1,
-            Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(2),
-        };
-
-        frame.Add(filterLabel, _filterField, _listView, _emptyLabel, hints);
+        frame.Add(filterLabel, _filterField, _listView, _emptyLabel);
         ApplyFilter(string.Empty);
 
         // Defer focus until the view is attached to the window

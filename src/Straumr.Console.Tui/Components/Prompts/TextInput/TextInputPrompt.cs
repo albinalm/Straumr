@@ -19,7 +19,6 @@ internal sealed class TextInputPrompt : PromptComponent
 
     private PromptTextField? _textField;
     private Label? _errorLabel;
-    private Label? _hints;
     private bool _confirming;
 
     public override View Build()
@@ -43,15 +42,7 @@ internal sealed class TextInputPrompt : PromptComponent
             Visible = false,
         };
 
-        _hints = new Label
-        {
-            Text = "Enter Save  Esc Cancel",
-            X = 1,
-            Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(2),
-        };
-
-        frame.Add(_textField, _errorLabel, _hints);
+        frame.Add(_textField, _errorLabel);
 
         // Capture y/n during confirmation mode
         frame.KeyDown += (_, key) =>

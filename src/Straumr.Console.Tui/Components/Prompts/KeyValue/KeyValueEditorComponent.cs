@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Selection;
-using Straumr.Console.Tui.Components.Prompts.TextInput;
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -10,12 +10,13 @@ namespace Straumr.Console.Tui.Components.Prompts.KeyValue;
 
 internal sealed class KeyValueEditorComponent : PromptComponent
 {
-    private enum Mode { Browsing, EnteringName, EnteringValue }
+    private enum Mode { Browsing, Editing }
 
     public required string Title { get; init; }
     public required IDictionary<string, string> Items { get; init; }
 
     public event Action? DoneRequested;
+    public event Action<string>? HintsChanged;
 
     private readonly ObservableCollection<string> _displayItems = [];
     private readonly List<string> _keys = [];
@@ -24,14 +25,16 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private FilterTextField? _filterField;
     private Label? _filterLabel;
     private Label? _emptyLabel;
-    private Label? _hintsLabel;
 
-    private Label? _inputPromptLabel;
-    private PromptTextField? _inputField;
+    private Label? _keyLabel;
+    private EditFormField? _keyField;
+    private Label? _valueLabel;
+    private EditFormField? _valueField;
+    private Button? _saveButton;
     private Label? _inputErrorLabel;
 
     private Mode _mode = Mode.Browsing;
-    private string? _pendingKey;
+    private string? _originalKey;
 
     public override View Build()
     {
@@ -53,7 +56,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Width = Dim.Fill(3),
         };
 
-        _listView = new SelectionListView(HandleListKeyDown)
+        _listView = new SelectionListView(HandleListKeyDown, BuildListScheme())
         {
             X = 1,
             Y = 3,
@@ -72,46 +75,79 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Visible = false,
         };
 
-        // --- Input mode views ---
+        // --- Edit mode views ---
 
-        _inputPromptLabel = new Label
+        _keyLabel = new Label
         {
+            Text = "Name",
             X = 1,
-            Y = 1,
-            Width = Dim.Fill(2),
+            Y = 2,
             Visible = false,
         };
 
-        _inputField = new PromptTextField(OnInputTextChanged, OnInputSubmit, OnInputCancel)
+        _keyField = new EditFormField
         {
-            X = 1,
-            Y = 3,
+            X = Pos.Right(_keyLabel) + 2,
+            Y = 1,
             Width = Dim.Fill(2),
+            BorderStyle = LineStyle.Single,
+            ReadOnly = true,
+            Visible = false,
+        };
+
+        _valueLabel = new Label
+        {
+            Text = "Value",
+            X = 1,
+            Y = 5,
+            Visible = false,
+        };
+
+        _valueField = new EditFormField
+        {
+            X = Pos.Right(_keyLabel) + 2,
+            Y = 4,
+            Width = Dim.Fill(2),
+            BorderStyle = LineStyle.Single,
+            ReadOnly = true,
+            Visible = false,
+        };
+
+        _saveButton = new Button
+        {
+            Text = "Save",
+            X = Pos.Right(_keyLabel) + 2,
+            Y = 8,
             Visible = false,
         };
 
         _inputErrorLabel = new Label
         {
             X = 1,
-            Y = 5,
+            Y = 10,
             Width = Dim.Fill(2),
             Visible = false,
         };
 
-        // --- Hints ---
+        // Wire up edit form navigation and theming
+        WireEditFormField(_keyField, () => _saveButton, () => _valueField);
+        WireEditFormField(_valueField, () => _keyField, () => _saveButton);
 
-        _hintsLabel = new Label
+        _saveButton.Accepting += (_, _) => TrySave();
+        _saveButton.KeyDown += (_, key) =>
         {
-            Text = BrowseHints,
-            X = 1,
-            Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(2),
+            Rune rune = key.AsRune;
+            bool up = key == Key.CursorUp || rune.Value == 'k';
+            bool down = key == Key.CursorDown || rune.Value == 'j';
+
+            if (up) { key.Handled = true; _valueField?.SetFocus(); }
+            else if (down) { key.Handled = true; _keyField?.SetFocus(); }
+            else if (key == Key.Esc) { key.Handled = true; ExitEditMode(); }
         };
 
         frame.Add(
             _filterLabel, _filterField, _listView, _emptyLabel,
-            _inputPromptLabel, _inputField, _inputErrorLabel,
-            _hintsLabel);
+            _keyLabel, _keyField, _valueLabel, _valueField, _saveButton, _inputErrorLabel);
 
         RebuildList();
 
@@ -151,7 +187,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
                     _filterField?.SetFocus();
                     return true;
                 case 'a':
-                    EnterInputMode(Mode.EnteringName, "Name:", string.Empty);
+                    EnterEditMode(null, string.Empty, string.Empty);
                     return true;
                 case 'e':
                     EditSelected();
@@ -187,8 +223,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         string key = _keys[index.Value];
         string currentValue = Items.TryGetValue(key, out string? v) ? v : string.Empty;
-        _pendingKey = key;
-        EnterInputMode(Mode.EnteringValue, FormatValuePrompt(key, currentValue), currentValue);
+        EnterEditMode(key, key, currentValue);
     }
 
     private void DeleteSelected()
@@ -207,36 +242,58 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         }
     }
 
-    // --- Input mode ---
+    // --- Edit mode ---
 
-    private void EnterInputMode(Mode mode, string prompt, string initialValue)
+    private void WireEditFormField(EditFormField field, Func<View?> above, Func<View?> below)
     {
-        _mode = mode;
-        if (mode == Mode.EnteringName)
-            _pendingKey = null;
+        field.EditRequested += () => field.EnterEditMode();
+        field.EditCompleted += () =>
+        {
+            field.ExitEditMode();
+            below()?.SetFocus();
+        };
+        field.EditCancelled += () => field.ExitEditMode();
+        field.NavigateUp += () => above()?.SetFocus();
+        field.NavigateDown += () => below()?.SetFocus();
+        field.ExitRequested += ExitEditMode;
+    }
+
+    private void EnterEditMode(string? originalKey, string keyText, string valueText)
+    {
+        _mode = Mode.Editing;
+        _originalKey = originalKey;
 
         SetListViewsVisible(false);
-        SetInputViewsVisible(true);
+        SetEditViewsVisible(true);
 
-        if (_inputPromptLabel is not null)
-            _inputPromptLabel.Text = prompt;
+        _keyField?.ExitEditMode();
+        _valueField?.ExitEditMode();
 
-        if (_inputField is not null)
-        {
-            _inputField.Text = initialValue;
-            _inputField.SetFocus();
-        }
+        if (_keyField is not null)
+            _keyField.Text = keyText;
+
+        if (_valueField is not null)
+            _valueField.Text = valueText;
+
+        // Focus the key field for new entries, value field when editing existing
+        if (originalKey is null)
+            _keyField?.SetFocus();
+        else
+            _valueField?.SetFocus();
 
         HideInputError();
         UpdateHints();
     }
 
-    private void ExitInputMode()
+    private void ExitEditMode()
     {
-        _mode = Mode.Browsing;
-        _pendingKey = null;
+        _keyField?.ExitEditMode();
+        _valueField?.ExitEditMode();
 
-        SetInputViewsVisible(false);
+        _mode = Mode.Browsing;
+        _originalKey = null;
+
+        SetEditViewsVisible(false);
         SetListViewsVisible(true);
 
         RebuildList();
@@ -245,43 +302,25 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _listView?.SetFocus();
     }
 
-    private bool OnInputSubmit()
+    private bool TrySave()
     {
-        string value = _inputField?.Text?.Trim() ?? string.Empty;
+        string key = _keyField?.Text?.Trim() ?? string.Empty;
+        string value = _valueField?.Text?.Trim() ?? string.Empty;
 
-        if (_mode == Mode.EnteringName)
+        if (string.IsNullOrWhiteSpace(key))
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                ShowInputError("Name cannot be empty");
-                return true;
-            }
-
-            _pendingKey = value;
-            string existing = Items.TryGetValue(value, out string? v) ? v : string.Empty;
-            EnterInputMode(Mode.EnteringValue, FormatValuePrompt(value, existing), existing);
+            ShowInputError("Name cannot be empty");
+            _keyField?.SetFocus();
             return true;
         }
 
-        if (_mode == Mode.EnteringValue && _pendingKey is not null)
-        {
-            Items[_pendingKey] = value;
-            ExitInputMode();
-            return true;
-        }
+        // If renaming, remove the old key
+        if (_originalKey is not null && _originalKey != key)
+            Items.Remove(_originalKey);
 
+        Items[key] = value;
+        ExitEditMode();
         return true;
-    }
-
-    private bool OnInputCancel()
-    {
-        ExitInputMode();
-        return true;
-    }
-
-    private void OnInputTextChanged()
-    {
-        HideInputError();
     }
 
     // --- Filter callbacks ---
@@ -360,10 +399,13 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         if (_emptyLabel is not null) _emptyLabel.Visible = visible && _keys.Count == 0;
     }
 
-    private void SetInputViewsVisible(bool visible)
+    private void SetEditViewsVisible(bool visible)
     {
-        if (_inputPromptLabel is not null) _inputPromptLabel.Visible = visible;
-        if (_inputField is not null) _inputField.Visible = visible;
+        if (_keyLabel is not null) _keyLabel.Visible = visible;
+        if (_keyField is not null) _keyField.Visible = visible;
+        if (_valueLabel is not null) _valueLabel.Visible = visible;
+        if (_valueField is not null) _valueField.Visible = visible;
+        if (_saveButton is not null) _saveButton.Visible = visible;
         if (!visible) HideInputError();
     }
 
@@ -382,18 +424,12 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private void UpdateHints()
     {
-        if (_hintsLabel is null) return;
-        _hintsLabel.Text = _mode == Mode.Browsing ? BrowseHints : InputHints;
+        HintsChanged?.Invoke(_mode == Mode.Browsing ? BrowseHints : InputHints);
     }
 
     private static string FormatEntry(string key, string value)
         => $"{key} = {value}";
 
-    private static string FormatValuePrompt(string key, string currentValue)
-        => string.IsNullOrEmpty(currentValue)
-            ? $"Value for '{key}':"
-            : $"Value for '{key}' (current: {currentValue}):";
-
-    private const string BrowseHints = "j/k Navigate  a Add  e Edit  d Delete  / Filter  Esc Done";
-    private const string InputHints = "Enter Confirm  Esc Cancel";
+    internal const string BrowseHints = "j/k Navigate  a Add  e Edit  d Delete  / Filter  Esc Done";
+    internal const string InputHints = "Enter Edit/Next  j/k Navigate  Esc Back";
 }

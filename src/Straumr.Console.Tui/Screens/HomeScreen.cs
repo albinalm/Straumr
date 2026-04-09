@@ -7,24 +7,12 @@ namespace Straumr.Console.Tui.Screens;
 
 public class HomeScreen : Screen
 {
-    private const string Figlet = """
-                                       _
-                                   ___| |_ _ __ __ _ _   _ _ __ ___  _ __
-                                  / __| __| '__/ _` | | | | '_ ` _ \| '__|
-                                  \__ \ |_| | | (_| | |_| | | | | | | |
-                                  |___/\__|_|  \__,_|\__,_|_| |_| |_|_|
-
-                                  """;
-
     public HomeScreen(IReadOnlyList<string> workspaceLines)
     {
-        int figletWidth = Figlet.Split('\n').Max(l => l.Length);
-        int figletHeight = Figlet.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
-
         Add(new Banner
         {
-            Text = Figlet,
-            X = Pos.AnchorEnd(figletWidth + 1),
+            Text = Branding.Figlet,
+            X = Pos.AnchorEnd(Branding.FigletWidth + 1),
             Y = 0,
         });
 
@@ -32,7 +20,7 @@ public class HomeScreen : Screen
         {
             Title = "Workspaces",
             X = 1,
-            Y = figletHeight + 1,
+            Y = Branding.FigletHeight + 1,
             Width = Dim.Fill(2),
             Height = Dim.Fill(1),
             Items = workspaceLines,

@@ -56,15 +56,6 @@ internal sealed class TablePrompt : PromptComponent
             frame.Add(header, list);
         }
 
-        Label hints = new()
-        {
-            Text = "Press any key to close",
-            X = 1,
-            Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(2),
-        };
-
-        frame.Add(hints);
         return frame;
     }
 }

@@ -7,7 +7,6 @@ internal sealed class MessagePrompt : PromptComponent
 {
     public required string Title { get; init; }
     public required string Message { get; init; }
-    public string Hint { get; init; } = "Press any key to continue";
 
     public override View Build()
     {
@@ -24,15 +23,7 @@ internal sealed class MessagePrompt : PromptComponent
             Height = Dim.Fill(2),
         };
 
-        Label hint = new()
-        {
-            Text = Hint,
-            X = 1,
-            Y = Pos.AnchorEnd(1),
-            Width = Dim.Fill(2),
-        };
-
-        frame.Add(text, hint);
+        frame.Add(text);
         return frame;
     }
 }

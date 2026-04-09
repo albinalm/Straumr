@@ -17,7 +17,7 @@ public sealed class TuiInteractiveConsole : IInteractiveConsole
 
     public Task<string?> SelectAsync(string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
     {
-        var screen = new SelectionPromptScreen(title, choices, displayConverter);
+        var screen = new SelectionPromptScreen(title, choices, displayConverter, _theme);
         string? result = RunPrompt(screen);
         return Task.FromResult(result);
     }
@@ -57,7 +57,7 @@ public sealed class TuiInteractiveConsole : IInteractiveConsole
 
     public bool TryEditKeyValuePairs(string title, IDictionary<string, string> items)
     {
-        var screen = new KeyValueEditorScreen(title, items);
+        var screen = new KeyValueEditorScreen(title, items, _theme);
         RunScreen(screen);
         return true;
     }

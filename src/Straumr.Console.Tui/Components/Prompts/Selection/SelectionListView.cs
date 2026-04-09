@@ -1,3 +1,4 @@
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.Views;
 
@@ -7,9 +8,11 @@ internal sealed class SelectionListView : ListView
 {
     private readonly Func<Key, bool> _onKey;
 
-    public SelectionListView(Func<Key, bool> onKey)
+    public SelectionListView(Func<Key, bool> onKey, Scheme? scheme = null)
     {
         _onKey = onKey;
+        if (scheme is not null)
+            SetScheme(scheme);
     }
 
     protected override bool OnKeyDown(Key key)
