@@ -55,9 +55,9 @@ public sealed class TuiInteractiveConsole : IInteractiveConsole
         RunPrompt(screen);
     }
 
-    public bool TryEditKeyValuePairs(string title, IDictionary<string, string> items)
+    public bool TryEditKeyValuePairs(string title, IDictionary<string, string> items, Action? onSaved = null)
     {
-        var screen = new KeyValueEditorScreen(title, items, _theme);
+        var screen = new KeyValueEditorScreen(title, items, _theme, onSaved);
         RunScreen(screen);
         return true;
     }

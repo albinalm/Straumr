@@ -268,7 +268,7 @@ public class RequestEditCommand(
                 continue;
             }
 
-            await HandleEditActionAsync(state, action, cancellation);
+            await HandleEditActionAsync(request, state, action, cancellation);
         }
     }
 
@@ -306,6 +306,13 @@ public class RequestEditCommand(
             });
     }
 
+    private void SaveStateQuietly(StraumrRequest request, EditableRequestState state)
+    {
+        state.ApplyTo(request);
+        try { requestService.UpdateAsync(request).GetAwaiter().GetResult(); }
+        catch { /* shown in TUI status bar as failure if needed */ }
+    }
+
     private async Task<bool> TrySaveChangesAsync(StraumrRequest request, EditableRequestState state)
     {
         state.ApplyTo(request);
@@ -329,7 +336,7 @@ public class RequestEditCommand(
     }
 
     private async Task HandleEditActionAsync(
-        EditableRequestState state, string action, CancellationToken cancellation)
+        StraumrRequest request, EditableRequestState state, string action, CancellationToken cancellation)
     {
         switch (action)
         {
@@ -366,10 +373,12 @@ public class RequestEditCommand(
                 break;
             }
             case ActionParams:
-                await EditKeyValuePairsAsync(interactiveConsole, "Params", state.Params);
+                await EditKeyValuePairsAsync(interactiveConsole, "Params", state.Params,
+                    () => SaveStateQuietly(request, state));
                 break;
             case ActionHeaders:
-                await EditKeyValuePairsAsync(interactiveConsole, "Headers", state.Headers);
+                await EditKeyValuePairsAsync(interactiveConsole, "Headers", state.Headers,
+                    () => SaveStateQuietly(request, state));
                 break;
             case ActionBody:
                 state.BodyType =

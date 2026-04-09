@@ -16,6 +16,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     public required IDictionary<string, string> Items { get; init; }
 
     public event Action? DoneRequested;
+    public event Action? ItemSaved;
     public event Action<string>? HintsChanged;
 
     private readonly ObservableCollection<string> _displayItems = [];
@@ -35,6 +36,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private Mode _mode = Mode.Browsing;
     private string? _originalKey;
+    private bool _colonPressed;
 
     public override View Build()
     {
@@ -186,8 +188,23 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         if (!key.IsCtrl && !key.IsAlt)
         {
+            if (_colonPressed)
+            {
+                _colonPressed = false;
+                if (rune.Value == 's')
+                {
+                    ItemSaved?.Invoke();
+                    return true;
+                }
+
+                return true;
+            }
+
             switch (rune.Value)
             {
+                case ':':
+                    _colonPressed = true;
+                    return true;
                 case 'j':
                     MoveSelection(1);
                     return true;
@@ -470,6 +487,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private static string FormatEntry(string key, string value)
         => $"{key} = {value}";
 
-    internal const string BrowseHints = "j/k Navigate  a Add  e Edit  d Delete  / Filter  Esc Done";
+    internal const string BrowseHints = "j/k Navigate  a Add  e Edit  d Delete  / Filter  :s Save  Esc Done";
     internal const string InputHints = "Enter Edit/Next  j/k Navigate  Esc Back";
 }

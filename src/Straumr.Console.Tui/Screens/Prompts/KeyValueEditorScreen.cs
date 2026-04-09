@@ -7,7 +7,7 @@ namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class KeyValueEditorScreen : PromptScreen<bool>
 {
-    public KeyValueEditorScreen(string title, IDictionary<string, string> items, TuiTheme? theme = null)
+    public KeyValueEditorScreen(string title, IDictionary<string, string> items, TuiTheme? theme = null, Action? onSaved = null)
     {
         Add(new Banner
         {
@@ -16,7 +16,9 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
             Y = 0,
         });
 
-        var hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints });
+        var hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints, OffsetY = 1 });
+
+        var statusBar = Add(new StatusBar());
 
         var editor = Add(new KeyValueEditorComponent
         {
@@ -27,5 +29,10 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
 
         editor.HintsChanged += hints.UpdateText;
         editor.DoneRequested += () => Complete(true);
+        editor.ItemSaved += () =>
+        {
+            onSaved?.Invoke();
+            statusBar.ShowSuccess($"💾 {title} saved");
+        };
     }
 }

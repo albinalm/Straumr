@@ -11,6 +11,7 @@ public interface IInteractiveConsole
     /// <summary>
     /// Inline key-value pair editor. Returns true if the implementation handled it,
     /// false to fall back to the menu-based flow.
+    /// When <paramref name="onSaved"/> is provided it is called after each save so the caller can persist to disk.
     /// </summary>
-    bool TryEditKeyValuePairs(string title, IDictionary<string, string> items) => false;
+    bool TryEditKeyValuePairs(string title, IDictionary<string, string> items, Action? onSaved = null) => false;
 }
