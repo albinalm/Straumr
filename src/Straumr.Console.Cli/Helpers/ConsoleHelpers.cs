@@ -10,7 +10,7 @@ internal static class ConsoleHelpers
     {
         if (json)
         {
-            var envelope = new CliErrorMessage(new CliErrorMessageContent(message));
+            CliErrorMessage envelope = new CliErrorMessage(new CliErrorMessageContent(message));
             System.Console.Error.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.CliErrorMessage));
         }
         else

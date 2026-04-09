@@ -2,7 +2,6 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.Selection;
-using Terminal.Gui.ViewBase;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
@@ -17,7 +16,7 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
 
         Add(new HintsBar { Text = "j/k Navigate  Enter Select  / Filter  Esc Back" });
 
-        var prompt = Add(new SelectionPrompt
+        SelectionPrompt prompt = Add(new SelectionPrompt
         {
             Title = title,
             Items = items,
@@ -25,7 +24,7 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
             Theme = theme,
         });
 
-        prompt.SelectionAccepted += value => Complete(value);
+        prompt.SelectionAccepted += Complete;
         prompt.CancelRequested += Cancel;
     }
 }

@@ -2,7 +2,6 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.KeyValue;
-using Terminal.Gui.ViewBase;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
@@ -15,16 +14,16 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
             Theme = theme,
         });
 
-        var hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints });
+        HintsBar hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints });
 
-        var editor = Add(new KeyValueEditorComponent
+        KeyValueEditorComponent editor = Add(new KeyValueEditorComponent
         {
             Title = title,
             Items = items,
             Theme = theme,
         });
 
-        var statusBar = Add(new StatusBar());
+        StatusBar statusBar = Add(new StatusBar());
 
         editor.HintsChanged += hints.UpdateText;
         editor.DoneRequested += () => Complete(true);

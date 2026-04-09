@@ -166,7 +166,7 @@ public class AuthEditCommand(
                 authService.ApplyEdit(authId, tempPath);
                 if (json)
                 {
-                    var result = new AuthListItem(deserialized.Id.ToString(), deserialized.Name, AuthTypeName(deserialized.Config));
+                    AuthListItem result = new AuthListItem(deserialized.Id.ToString(), deserialized.Name, AuthTypeName(deserialized.Config));
                     System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.AuthListItem));
                 }
                 else
@@ -198,10 +198,10 @@ public class AuthEditCommand(
 
     private async Task<string?> PromptEditMenuAsync(EditableAuthState state)
     {
-        var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
+        string nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
         string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
-        var menuChoices = new List<string> { ActionSave, ActionName, ActionConfigure, ActionAutoRenew };
+        List<string> menuChoices = new List<string> { ActionSave, ActionName, ActionConfigure, ActionAutoRenew };
 
         if (SupportsAuthFetch(state.Auth))
         {

@@ -48,7 +48,7 @@ public class RequestCopyCommand(
 
             if (settings.Json)
             {
-                var result = new RequestCreateResult(copy.Id.ToString(), copy.Name, copy.Method.Method, copy.Uri);
+                RequestCreateResult result = new RequestCreateResult(copy.Id.ToString(), copy.Name, copy.Method.Method, copy.Uri);
                 System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
             }
             else

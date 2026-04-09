@@ -12,9 +12,9 @@ public static class ColorResolver
         if (value.StartsWith('#'))
         {
             string hex = value.TrimStart('#');
-            var r = Convert.ToInt32(hex[..2], 16);
-            var g = Convert.ToInt32(hex[2..4], 16);
-            var b = Convert.ToInt32(hex[4..6], 16);
+            int r = Convert.ToInt32(hex[..2], 16);
+            int g = Convert.ToInt32(hex[2..4], 16);
+            int b = Convert.ToInt32(hex[4..6], 16);
             return new Color(r, g, b);
         }
 

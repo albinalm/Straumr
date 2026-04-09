@@ -21,7 +21,7 @@ public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService)
         if (settings.Json)
         {
             StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
-            var result = new WorkspaceCreateResult(entry.Id.ToString(), workspace.Name, entry.Path);
+            WorkspaceCreateResult result = new WorkspaceCreateResult(entry.Id.ToString(), workspace.Name, entry.Path);
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
         }
         else

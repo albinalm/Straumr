@@ -49,7 +49,7 @@ public class AuthCopyCommand(
 
             if (settings.Json)
             {
-                var result = new AuthListItem(copy.Id.ToString(), copy.Name, AuthTypeName(copy.Config));
+                AuthListItem result = new AuthListItem(copy.Id.ToString(), copy.Name, AuthTypeName(copy.Config));
                 System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.AuthListItem));
             }
             else

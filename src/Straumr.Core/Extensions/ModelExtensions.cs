@@ -14,7 +14,7 @@ public static class ModelExtensions
             throw new ArgumentNullException(nameof(request));
         }
 
-        var uriBuilder = new UriBuilder(request.Uri);
+        UriBuilder uriBuilder = new UriBuilder(request.Uri);
         if (request.Params.Count > 0)
         {
             string existingQuery = uriBuilder.Query;
@@ -23,7 +23,7 @@ public static class ModelExtensions
                 existingQuery = existingQuery[1..];
             }
 
-            var queryParts = new List<string>();
+            List<string> queryParts = new List<string>();
             if (!string.IsNullOrEmpty(existingQuery))
             {
                 queryParts.Add(existingQuery);
@@ -39,7 +39,7 @@ public static class ModelExtensions
             uriBuilder.Query = string.Join('&', queryParts);
         }
 
-        var message = new HttpRequestMessage(request.Method, uriBuilder.Uri);
+        HttpRequestMessage message = new HttpRequestMessage(request.Method, uriBuilder.Uri);
 
         switch (auth)
         {
@@ -62,7 +62,7 @@ public static class ModelExtensions
                 break;
         }
 
-        var pendingContentHeaders = new List<KeyValuePair<string, string>>();
+        List<KeyValuePair<string, string>> pendingContentHeaders = new List<KeyValuePair<string, string>>();
 
         foreach (KeyValuePair<string, string> header in request.Headers)
         {
@@ -93,7 +93,7 @@ public static class ModelExtensions
                     message.Content = new FormUrlEncodedContent(formPairs);
                     break;
                 case BodyType.MultipartForm:
-                    var multipart = new MultipartFormDataContent();
+                    MultipartFormDataContent multipart = new MultipartFormDataContent();
                     foreach (KeyValuePair<string, string> field in ParseSerializedFields(body))
                     {
                         if (field.Value.StartsWith('@'))
@@ -105,7 +105,7 @@ public static class ModelExtensions
                             }
 
                             FileStream fileStream = File.OpenRead(path);
-                            var fileContent = new StreamContent(fileStream);
+                            StreamContent fileContent = new StreamContent(fileStream);
                             string extension = Path.GetExtension(path);
                             string mime = MimeTypes.GetMimeType(extension);
                             fileContent.Headers.ContentType = new MediaTypeHeaderValue(mime);

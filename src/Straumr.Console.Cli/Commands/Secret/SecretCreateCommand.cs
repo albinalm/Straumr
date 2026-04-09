@@ -25,7 +25,7 @@ public class SecretCreateCommand(IStraumrSecretService secretService) : AsyncCom
 
         try
         {
-            var secret = new StraumrSecret
+            StraumrSecret secret = new StraumrSecret
             {
                 Name = name,
                 Value = value

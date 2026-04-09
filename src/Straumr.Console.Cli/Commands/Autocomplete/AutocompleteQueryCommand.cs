@@ -68,7 +68,7 @@ public class AutocompleteQueryCommand(
         bool trailingSpace = parts[^1] == string.Empty;
         string[] tokens = parts.Where(p => p != string.Empty).ToArray();
 
-        var completions = new CompletionResult();
+        CompletionResult completions = new CompletionResult();
 
         // Position 1: complete top-level verb
         if (tokens.Length == 0 || (tokens.Length == 1 && !trailingSpace))

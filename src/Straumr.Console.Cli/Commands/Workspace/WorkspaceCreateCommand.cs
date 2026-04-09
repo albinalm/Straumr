@@ -16,7 +16,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        var workspace = new StraumrWorkspace { Name = settings.Name };
+        StraumrWorkspace workspace = new StraumrWorkspace { Name = settings.Name };
         await workspaceService.Create(workspace, settings.Output);
 
         string workspacePath = Path.GetDirectoryName(
@@ -24,7 +24,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
 
         if (settings.Json)
         {
-            var result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, workspacePath);
+            WorkspaceCreateResult result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, workspacePath);
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
         }
         else

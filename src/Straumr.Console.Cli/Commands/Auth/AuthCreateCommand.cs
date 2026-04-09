@@ -58,7 +58,7 @@ public class AuthCreateCommand(
             return await ExecuteInlineAsync(settings);
         }
 
-        var state = new CreateAuthState(settings.Name ?? string.Empty);
+        CreateAuthState state = new CreateAuthState(settings.Name ?? string.Empty);
 
         while (true)
         {
@@ -96,7 +96,7 @@ public class AuthCreateCommand(
             return 1;
         }
 
-        var auth = new StraumrAuth
+        StraumrAuth auth = new StraumrAuth
         {
             Name = settings.Name!,
             Config = config,
@@ -109,7 +109,7 @@ public class AuthCreateCommand(
 
             if (settings.Json)
             {
-                var result = new AuthListItem(auth.Id.ToString(), auth.Name, AuthTypeName(auth.Config));
+                AuthListItem result = new AuthListItem(auth.Id.ToString(), auth.Name, AuthTypeName(auth.Config));
                 System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.AuthListItem));
             }
             else
@@ -151,7 +151,7 @@ public class AuthCreateCommand(
             {
                 OAuth2GrantType grantType = ResolveOAuth2GrantType(settings);
 
-                var oauth2 = new OAuth2Config
+                OAuth2Config oauth2 = new OAuth2Config
                 {
                     GrantType = grantType,
                     TokenUrl = settings.TokenUrl ?? string.Empty,
@@ -192,7 +192,7 @@ public class AuthCreateCommand(
 
             case "custom":
             {
-                var custom = new CustomAuthConfig
+                CustomAuthConfig custom = new CustomAuthConfig
                 {
                     Url = settings.CustomUrl ?? string.Empty,
                     Method = settings.CustomMethod ?? "POST"
@@ -319,7 +319,7 @@ public class AuthCreateCommand(
             : $"[blue]{Markup.Escape(state.Name)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
         string autoRenewDisplay = state.AutoRenewAuth ? "[green]enabled[/]" : "[grey]disabled[/]";
-        var menuChoices = new List<string> { ActionFinish, ActionName, ActionConfigure, ActionAutoRenew };
+        List<string> menuChoices = new List<string> { ActionFinish, ActionName, ActionConfigure, ActionAutoRenew };
 
         if (SupportsAuthFetch(state.Auth))
         {

@@ -28,7 +28,7 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
         string title, string? initialValue = null, bool allowEmpty = false,
         Func<string, string?>? validate = null)
     {
-        var prompt = new TextPrompt<string>(title);
+        TextPrompt<string> prompt = new TextPrompt<string>(title);
 
         if (allowEmpty)
         {
@@ -82,7 +82,7 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
         }
         else
         {
-            var table = new Table();
+            Table table = new Table();
             table.AddColumn(col1);
             table.AddColumn(col2);
             foreach ((string key, string value) in items)

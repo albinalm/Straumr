@@ -13,7 +13,7 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IIn
 
     public Task<string?> SelectAsync(string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
     {
-        var screen = new SelectionPromptScreen(title, choices, displayConverter, _theme);
+        SelectionPromptScreen screen = new SelectionPromptScreen(title, choices, displayConverter, _theme);
         string? result = RunPrompt(screen);
         return Task.FromResult(result);
     }
@@ -24,14 +24,14 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IIn
         bool allowEmpty = false,
         Func<string, string?>? validate = null)
     {
-        var screen = new TextInputPromptScreen(title, initialValue, allowEmpty, false, validate);
+        TextInputPromptScreen screen = new TextInputPromptScreen(title, initialValue, allowEmpty, false, validate);
         string? result = RunPrompt(screen);
         return Task.FromResult(result);
     }
 
     public Task<string?> SecretInputAsync(string title)
     {
-        var screen = new TextInputPromptScreen(title, null, false, true, null);
+        TextInputPromptScreen screen = new TextInputPromptScreen(title, null, false, true, null);
         string? result = RunPrompt(screen);
         return Task.FromResult(result);
     }
@@ -47,13 +47,13 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IIn
         IEnumerable<(string Key, string Value)> rows,
         string emptyMessage)
     {
-        var screen = new TablePromptScreen("Details", col1, col2, rows.ToList(), emptyMessage);
+        TablePromptScreen screen = new TablePromptScreen("Details", col1, col2, rows.ToList(), emptyMessage);
         RunPrompt(screen);
     }
 
     public bool TryEditKeyValuePairs(string title, IDictionary<string, string> items, Action? onSaved = null)
     {
-        var screen = new KeyValueEditorScreen(title, items, _theme, onSaved);
+        KeyValueEditorScreen screen = new KeyValueEditorScreen(title, items, _theme, onSaved);
         RunScreen(screen);
         return true;
     }
@@ -66,7 +66,7 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IIn
 
     private void RunScreen(Screen screen)
     {
-        var app = new TuiApp(_theme);
+        TuiApp app = new TuiApp(_theme);
         app.Run(screen);
     }
 }

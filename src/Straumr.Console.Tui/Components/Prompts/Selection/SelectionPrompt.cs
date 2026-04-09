@@ -3,6 +3,7 @@ using System.Text;
 using Straumr.Console.Tui.Components.ListViews;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Factories;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -23,7 +24,7 @@ internal sealed class SelectionPrompt : PromptComponent
     private readonly List<string> _valueItems = [];
     private List<(string Value, string Display)> _sourceItems = [];
     private ListView? _listView;
-    private FilterTextField? _filterField;
+    private InteractiveTextField? _filterField;
     private Label? _emptyLabel;
 
     public override View Build()
@@ -39,12 +40,10 @@ internal sealed class SelectionPrompt : PromptComponent
             Y = 1,
         };
 
-        _filterField = new FilterTextField(OnFilterChanged, OnAcceptFilter, OnExitFilter)
-        {
-            X = Pos.Right(filterLabel) + 1,
-            Y = filterLabel.Y,
-            Width = Dim.Fill(3),
-        };
+        _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter, OnExitFilter);
+        _filterField.X = Pos.Right(filterLabel) + 1;
+        _filterField.Y = filterLabel.Y;
+        _filterField.Width = Dim.Fill(3);
 
         _listView = new SelectionListView(HandleListKeyDown, BuildListScheme())
         {

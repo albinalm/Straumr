@@ -81,7 +81,7 @@ public class RequestCreateCommand(
     private async Task<int> ExecutePromptMenuAsync(Settings settings, CancellationToken cancellation)
     {
         IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
-        var state = new CreateRequestState(settings.Name ?? string.Empty);
+        CreateRequestState state = new CreateRequestState(settings.Name ?? string.Empty);
 
         while (true)
         {
@@ -116,7 +116,7 @@ public class RequestCreateCommand(
         string tempPath = Path.GetTempFileName();
         try
         {
-            var request = new StraumrRequest
+            StraumrRequest request = new StraumrRequest
             {
                 Uri = string.Empty,
                 Method = HttpMethod.Get,
@@ -187,7 +187,7 @@ public class RequestCreateCommand(
         string urlDisplay = string.IsNullOrWhiteSpace(state.Uri)
             ? "[grey]not set[/]"
             : $"[blue]{Markup.Escape(state.Uri)}[/]";
-        var methodDisplay = $"[blue]{state.Method}[/]";
+        string methodDisplay = $"[blue]{state.Method}[/]";
         string paramsDisplay = state.Params.Count == 0 ? "[grey]none[/]" : $"[blue]{state.Params.Count}[/]";
         string headersDisplay = state.Headers.Count == 0 ? "[grey]none[/]" : $"[blue]{state.Headers.Count}[/]";
         string bodyDisplay = state.BodyType == BodyType.None
@@ -195,7 +195,7 @@ public class RequestCreateCommand(
             : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
         string authDisplay = AuthDisplayName(state.AuthId, auths);
 
-        var menuChoices = new List<string>
+        List<string> menuChoices = new List<string>
         {
             ActionFinish, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
@@ -298,7 +298,7 @@ public class RequestCreateCommand(
 
     private async Task<int> ExecuteInlineAsync(Settings settings)
     {
-        var request = new StraumrRequest
+        StraumrRequest request = new StraumrRequest
         {
             Name = settings.Name!,
             Uri = settings.Url!,
@@ -373,7 +373,7 @@ public class RequestCreateCommand(
 
             if (settings.Json)
             {
-                var result = new RequestCreateResult(
+                RequestCreateResult result = new RequestCreateResult(
                     request.Id.ToString(),
                     request.Name,
                     request.Method.Method,

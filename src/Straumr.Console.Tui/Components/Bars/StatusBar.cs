@@ -35,11 +35,11 @@ internal class StatusBar : TuiComponent
 
         _hideCts?.Cancel();
         _hideCts = new CancellationTokenSource();
-        var token = _hideCts.Token;
+        CancellationToken token = _hideCts.Token;
 
         _label.Text = message;
         _label.Visible = true;
-        var green = new TuiAttribute(Color.BrightGreen, Color.Black);
+        TuiAttribute green = new TuiAttribute(Color.BrightGreen, Color.Black);
        _label.SetScheme(new Scheme(green) { Focus = green });
 
         _ = HideAfterDelayAsync(token);

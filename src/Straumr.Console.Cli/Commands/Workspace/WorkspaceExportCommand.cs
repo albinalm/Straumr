@@ -19,7 +19,7 @@ public class WorkspaceExportCommand(IStraumrWorkspaceService workspaceService)
 
         if (settings.Json)
         {
-            var result = new WorkspaceExportResult(outputFile);
+            WorkspaceExportResult result = new WorkspaceExportResult(outputFile);
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceExportResult));
         }
         else

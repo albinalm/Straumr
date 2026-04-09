@@ -28,7 +28,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         await fileService.WriteStraumrModel(fullPath, workspace, StraumrJsonContext.Default.StraumrWorkspace);
 
-        var entry = new StraumrWorkspaceEntry
+        StraumrWorkspaceEntry entry = new StraumrWorkspaceEntry
         {
             Id = workspace.Id,
             Path = fullPath
@@ -93,7 +93,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         StraumrWorkspaceEntry sourceEntry = await ResolveWorkspaceEntryAsync(identifier);
         StraumrWorkspace sourceWorkspace = await PeekWorkspace(sourceEntry.Path);
 
-        var newWorkspace = new StraumrWorkspace
+        StraumrWorkspace newWorkspace = new StraumrWorkspace
         {
             Name = newName,
             Requests = sourceWorkspace.Requests,
@@ -120,7 +120,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         await fileService.WriteStraumrModel(newFullPath, newWorkspace, StraumrJsonContext.Default.StraumrWorkspace);
 
-        var newEntry = new StraumrWorkspaceEntry { Id = newWorkspace.Id, Path = newFullPath };
+        StraumrWorkspaceEntry newEntry = new StraumrWorkspaceEntry { Id = newWorkspace.Id, Path = newFullPath };
         optionsService.Options.Workspaces.Add(newEntry);
         await optionsService.Save();
         return newEntry;
@@ -296,7 +296,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         Directory.Move(extractedWorkspacePath, destinationPath);
 
-        var entry = new StraumrWorkspaceEntry
+        StraumrWorkspaceEntry entry = new StraumrWorkspaceEntry
         {
             Id = workspaceId,
             Path = WorkspacePath(workspaceId, workspaceName)

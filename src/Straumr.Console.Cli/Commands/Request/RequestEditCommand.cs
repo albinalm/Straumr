@@ -224,7 +224,7 @@ public class RequestEditCommand(
             await requestService.UpdateAsync(request);
             if (settings.Json)
             {
-                var result = new RequestCreateResult(request.Id.ToString(), request.Name, request.Method.Method, request.Uri);
+                RequestCreateResult result = new RequestCreateResult(request.Id.ToString(), request.Name, request.Method.Method, request.Uri);
                 System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
             }
             else
@@ -275,11 +275,11 @@ public class RequestEditCommand(
     private async Task<string?> PromptEditMenuAsync(
         EditableRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
-        var nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
+        string nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string urlDisplay = string.IsNullOrWhiteSpace(state.Uri)
             ? "[grey]not set[/]"
             : $"[blue]{Markup.Escape(state.Uri)}[/]";
-        var methodDisplay = $"[blue]{state.Method}[/]";
+        string methodDisplay = $"[blue]{state.Method}[/]";
         string paramsDisplay = state.Params.Count == 0 ? "[grey]none[/]" : $"[blue]{state.Params.Count}[/]";
         string headersDisplay = state.Headers.Count == 0 ? "[grey]none[/]" : $"[blue]{state.Headers.Count}[/]";
         string bodyDisplay = state.BodyType == BodyType.None
@@ -287,7 +287,7 @@ public class RequestEditCommand(
             : $"[blue]{BodyTypeDisplayName(state.BodyType)}[/]";
         string authDisplay = AuthDisplayName(state.AuthId, auths);
 
-        var menuChoices = new List<string>
+        List<string> menuChoices = new List<string>
         {
             ActionSave, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
@@ -456,7 +456,7 @@ public class RequestEditCommand(
                 requestService.ApplyEdit(requestId, tempPath);
                 if (json)
                 {
-                    var result = new RequestCreateResult(deserializedJson.Id.ToString(), deserializedJson.Name, deserializedJson.Method.Method, deserializedJson.Uri);
+                    RequestCreateResult result = new RequestCreateResult(deserializedJson.Id.ToString(), deserializedJson.Name, deserializedJson.Method.Method, deserializedJson.Uri);
                     System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
                 }
                 else

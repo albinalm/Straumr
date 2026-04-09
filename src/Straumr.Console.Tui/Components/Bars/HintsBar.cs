@@ -13,7 +13,7 @@ internal class HintsBar : TuiComponent
 
     public override View Build()
     {
-        var container = new View
+        View container = new View
         {
             X = 3,
             Width = Dim.Fill(Banner.FigletWidth + 6),

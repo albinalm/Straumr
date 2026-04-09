@@ -23,7 +23,7 @@ public class StraumrAuthService(
     public async Task<IReadOnlyList<StraumrAuth>> ListAsync()
     {
         (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
-        var auths = new List<StraumrAuth>();
+        List<StraumrAuth> auths = new List<StraumrAuth>();
         foreach (Guid id in workspace.Auths)
         {
             auths.Add(await PeekByIdAsync(id));
@@ -110,7 +110,7 @@ public class StraumrAuthService(
     public async Task<StraumrAuth> CopyAsync(string identifier, string newName)
     {
         StraumrAuth source = await GetAsync(identifier);
-        var copy = new StraumrAuth
+        StraumrAuth copy = new StraumrAuth
         {
             Name = newName,
             Config = source.Config,
@@ -162,7 +162,7 @@ public class StraumrAuthService(
 
     public async Task<string> ExecuteCustomAuthAsync(CustomAuthConfig config)
     {
-        var authRequest = new StraumrRequest
+        StraumrRequest authRequest = new StraumrRequest
         {
             Name = "__custom_auth__",
             Uri = config.Url,
@@ -173,7 +173,7 @@ public class StraumrAuthService(
             Bodies = new Dictionary<BodyType, string>(config.Bodies)
         };
 
-        var httpMessage = authRequest.ToHttpRequestMessage(null);
+        HttpRequestMessage httpMessage = authRequest.ToHttpRequestMessage(null);
         HttpResponseMessage response = await _client.SendAsync(httpMessage);
 
         if (!response.IsSuccessStatusCode)
@@ -204,7 +204,7 @@ public class StraumrAuthService(
             return await FetchTokenAsync(config);
         }
 
-        var parameters = new Dictionary<string, string>
+        Dictionary<string, string> parameters = new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = config.Token.RefreshToken,
@@ -280,7 +280,7 @@ public class StraumrAuthService(
 
     private async Task<OAuth2Token> FetchClientCredentialsAsync(OAuth2Config config)
     {
-        var parameters = new Dictionary<string, string>
+        Dictionary<string, string> parameters = new Dictionary<string, string>
         {
             ["grant_type"] = "client_credentials",
             ["client_id"] = config.ClientId,
@@ -299,7 +299,7 @@ public class StraumrAuthService(
     {
         string? codeVerifier = null;
 
-        var authParams = new Dictionary<string, string>
+        Dictionary<string, string> authParams = new Dictionary<string, string>
         {
             ["response_type"] = "code",
             ["client_id"] = config.ClientId,
@@ -325,7 +325,7 @@ public class StraumrAuthService(
         string authUrl = BuildUrlWithParams(config.AuthorizationUrl, authParams);
         string code = await ListenForAuthorizationCodeAsync(config.RedirectUri, authUrl, state);
 
-        var tokenParams = new Dictionary<string, string>
+        Dictionary<string, string> tokenParams = new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
@@ -348,7 +348,7 @@ public class StraumrAuthService(
 
     private async Task<OAuth2Token> FetchResourceOwnerPasswordAsync(OAuth2Config config)
     {
-        var parameters = new Dictionary<string, string>
+        Dictionary<string, string> parameters = new Dictionary<string, string>
         {
             ["grant_type"] = "password",
             ["client_id"] = config.ClientId,
@@ -371,7 +371,7 @@ public class StraumrAuthService(
 
     private async Task<OAuth2Token> RequestTokenAsync(string tokenUrl, Dictionary<string, string> parameters)
     {
-        using var content = new FormUrlEncodedContent(parameters);
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(parameters);
         HttpResponseMessage response = await _client.PostAsync(tokenUrl, content);
         string json = await response.Content.ReadAsStringAsync();
 
@@ -413,10 +413,10 @@ public class StraumrAuthService(
     private static async Task<string> ListenForAuthorizationCodeAsync(
         string redirectUri, string authUrl, string expectedState)
     {
-        var uri = new Uri(redirectUri);
-        var listenerPrefix = $"{uri.Scheme}://{uri.Host}:{uri.Port}/";
+        Uri uri = new Uri(redirectUri);
+        string listenerPrefix = $"{uri.Scheme}://{uri.Host}:{uri.Port}/";
 
-        var listener = new HttpListener();
+        HttpListener listener = new HttpListener();
         listener.Prefixes.Add(listenerPrefix);
         listener.Start();
 
@@ -499,8 +499,8 @@ public class StraumrAuthService(
 
     private static string BuildUrlWithParams(string baseUrl, Dictionary<string, string> parameters)
     {
-        var builder = new UriBuilder(baseUrl);
-        var queryParts = new List<string>();
+        UriBuilder builder = new UriBuilder(baseUrl);
+        List<string> queryParts = new List<string>();
 
         if (!string.IsNullOrEmpty(builder.Query) && builder.Query.Length > 1)
         {

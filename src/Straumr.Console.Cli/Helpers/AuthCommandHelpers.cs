@@ -418,7 +418,7 @@ internal static class AuthCommandHelpers
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.Scope)}[/]";
 
-            var choices = new List<string>
+            List<string> choices = new List<string>
                 { actionBack, actionGrant, actionTokenUrl, actionClientId, actionClientSecret, actionScope };
 
             Func<string, string> converter;
@@ -428,7 +428,7 @@ internal static class AuthCommandHelpers
                 string authUrlDisplay = string.IsNullOrWhiteSpace(config.AuthorizationUrl)
                     ? "[grey]not set[/]"
                     : $"[blue]{Markup.Escape(config.AuthorizationUrl)}[/]";
-                var redirectDisplay = $"[blue]{Markup.Escape(config.RedirectUri)}[/]";
+                string redirectDisplay = $"[blue]{Markup.Escape(config.RedirectUri)}[/]";
                 string pkceDisplay = config.UsePkce
                     ? $"[green]Enabled[/] ({config.CodeChallengeMethod})"
                     : "[grey]Disabled[/]";
@@ -634,7 +634,7 @@ internal static class AuthCommandHelpers
             string urlDisplay = string.IsNullOrWhiteSpace(config.Url)
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.Url)}[/]";
-            var methodDisplay = $"[blue]{config.Method}[/]";
+            string methodDisplay = $"[blue]{config.Method}[/]";
             string headersDisplay = config.Headers.Count == 0 ? "[grey]none[/]" : $"[blue]{config.Headers.Count}[/]";
             string paramsDisplay = config.Params.Count == 0 ? "[grey]none[/]" : $"[blue]{config.Params.Count}[/]";
             string bodyDisplay = config.BodyType == BodyType.None
@@ -650,8 +650,8 @@ internal static class AuthCommandHelpers
             string expressionDisplay = string.IsNullOrWhiteSpace(config.ExtractionExpression)
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.ExtractionExpression)}[/]";
-            var headerNameDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderName)}[/]";
-            var templateDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderTemplate)}[/]";
+            string headerNameDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderName)}[/]";
+            string templateDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderTemplate)}[/]";
 
             string? action = await console.SelectAsync("Custom auth",
                 [

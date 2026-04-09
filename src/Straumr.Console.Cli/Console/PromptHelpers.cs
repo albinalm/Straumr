@@ -94,7 +94,7 @@ public static class PromptHelpers
         }
         else
         {
-            var table = new Table();
+            Table table = new Table();
             table.AddColumn(col1);
             table.AddColumn(col2);
             foreach ((string key, string value) in items) table.AddRow(Markup.Escape(key), Markup.Escape(value));

@@ -120,7 +120,7 @@ public sealed class EscapeCancellableInput(IAnsiConsoleInput originalInput) : IA
     {
         if (char.IsLetter(ch))
         {
-            var name = char.ToUpperInvariant(ch).ToString();
+            string name = char.ToUpperInvariant(ch).ToString();
             if (Enum.TryParse(name, out ConsoleKey key))
             {
                 return key;

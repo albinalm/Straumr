@@ -17,7 +17,7 @@ public static partial class StringExtensions
 
         string kebaberized = name.Kebaberize().ToLowerInvariant();
 
-        var sb = new StringBuilder(kebaberized.Length);
+        StringBuilder sb = new StringBuilder(kebaberized.Length);
         foreach (char c in kebaberized)
         {
             if (invalidChars.Contains(c) || char.IsControl(c))

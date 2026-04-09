@@ -1,6 +1,5 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Straumr.Console.Shared.Console;
 using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Integrations;
@@ -29,7 +28,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.AddSingleton<StraumrThemeOptions>(provider =>
         {
-            var fileService = provider.GetRequiredService<IStraumrFileService>();
+            IStraumrFileService fileService = provider.GetRequiredService<IStraumrFileService>();
             return ThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult();
         });
         services.AddSingleton<IInteractiveConsole, TuiInteractiveConsole>();
@@ -47,15 +46,15 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             return 0;
         }
 
-        var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
+        IStraumrOptionsService optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.Load();
 
-        var workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
+        IStraumrWorkspaceService workspaceService = serviceProvider.GetRequiredService<IStraumrWorkspaceService>();
         StraumrThemeOptions theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
 
         List<string> lines = LoadWorkspaceLines(optionsService, workspaceService);
-        var screen = new HomeScreen(lines);
-        var app = new TuiApp(theme.Theme);
+        HomeScreen screen = new HomeScreen(lines);
+        TuiApp app = new TuiApp(theme.Theme);
         app.Run(screen);
 
         return 0;
@@ -85,7 +84,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         IStraumrOptionsService optionsService,
         IStraumrWorkspaceService workspaceService)
     {
-        var name = "Unknown";
+        string name = "Unknown";
         string status;
         DateTimeOffset? lastAccessed = null;
 
@@ -108,7 +107,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id;
         string idShort = entry.Id.ToString("N")[..8];
         string marker = isCurrent ? "* " : "  ";
-        var display = $"{marker}{name}  [{idShort}]  {status}";
+        string display = $"{marker}{name}  [{idShort}]  {status}";
 
         return new WorkspaceLine(display, lastAccessed);
     }

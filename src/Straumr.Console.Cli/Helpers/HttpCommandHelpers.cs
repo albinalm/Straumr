@@ -461,7 +461,7 @@ internal static class HttpCommandHelpers
 
     private static Dictionary<string, string> ParseFormFields(string? body)
     {
-        var fields = new Dictionary<string, string>();
+        Dictionary<string, string> fields = new Dictionary<string, string>();
         if (string.IsNullOrWhiteSpace(body))
         {
             return fields;
@@ -501,7 +501,7 @@ internal static class HttpCommandHelpers
             return string.Empty;
         }
 
-        var placeholders = new List<string>();
+        List<string> placeholders = new List<string>();
         string protectedValue = SecretPattern.Replace(value, match =>
         {
             string token = $"__STRAUMR_SECRET_{placeholders.Count}__";
@@ -510,7 +510,7 @@ internal static class HttpCommandHelpers
         });
 
         string escaped = Uri.EscapeDataString(protectedValue);
-        for (var i = 0; i < placeholders.Count; i++)
+        for (int i = 0; i < placeholders.Count; i++)
         {
             string token = Uri.EscapeDataString($"__STRAUMR_SECRET_{i}__");
             escaped = escaped.Replace(token, placeholders[i], StringComparison.Ordinal);

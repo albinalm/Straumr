@@ -64,7 +64,7 @@ public class RequestSendCommand(
                 return await ExecuteDryRunAsync(request, auth, settings);
             }
 
-            var options = new SendOptions
+            SendOptions options = new SendOptions
             {
                 Insecure = settings.Insecure,
                 FollowRedirects = settings.FollowRedirects
@@ -190,7 +190,7 @@ public class RequestSendCommand(
         if (settings.Json)
         {
             string? bodyContent = request.Bodies.TryGetValue(request.BodyType, out string? b) ? b : null;
-            var result = new DryRunResult(
+            DryRunResult result = new DryRunResult(
                 Method: request.Method.Method.ToUpperInvariant(),
                 Uri: resolvedUrl,
                 Auth: auth is not null ? $"{auth.Name} ({AuthTypeName(auth.Config)})" : null,
@@ -243,7 +243,7 @@ public class RequestSendCommand(
     {
         if (response.Exception is not null)
         {
-            var envelope = new CliErrorMessage(new CliErrorMessageContent(response.Exception.Message));
+            CliErrorMessage envelope = new CliErrorMessage(new CliErrorMessageContent(response.Exception.Message));
             System.Console.WriteLine(JsonSerializer.Serialize(envelope, CliJsonContext.Relaxed.CliErrorMessage));
             return 1;
         }
@@ -252,7 +252,7 @@ public class RequestSendCommand(
             kvp => kvp.Key,
             kvp => kvp.Value.ToArray());
 
-        var result = new SendResult(
+        SendResult result = new SendResult(
             Status: response.StatusCode.HasValue ? (int)response.StatusCode.Value : null,
             Reason: response.ReasonPhrase,
             Version: response.HttpVersion?.ToString(),
@@ -317,7 +317,7 @@ public class RequestSendCommand(
 
     private static void RenderVerbose(StraumrRequest request, StraumrResponse response)
     {
-        var requestLine =
+        string requestLine =
             $"{request.Method.ToString().ToUpperInvariant()} {request.Uri} HTTP/{response.HttpVersion?.ToString() ?? "Unknown"}";
 
         System.Console.Error.WriteLine(requestLine);
@@ -418,7 +418,7 @@ public class RequestSendCommand(
         table.AddColumn("[bold]Request[/]");
         table.AddColumn("[bold]Response[/]");
 
-        var requestLines = new StringBuilder();
+        StringBuilder requestLines = new StringBuilder();
         requestLines.AppendLine($"Name: {request.Name}");
         if (auth is not null)
         {
@@ -435,7 +435,7 @@ public class RequestSendCommand(
                 $"[grey]{Markup.Escape(header.Key)}:[/] {Markup.Escape(string.Join(", ", header.Value))}");
         }
 
-        var responseLines = new StringBuilder();
+        StringBuilder responseLines = new StringBuilder();
         if (response.StatusCode is not null)
         {
             responseLines.AppendLine(
@@ -472,8 +472,8 @@ public class RequestSendCommand(
         try
         {
             using JsonDocument doc = JsonDocument.Parse(content);
-            using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            using MemoryStream stream = new MemoryStream();
+            using (Utf8JsonWriter writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
             {
                 doc.WriteTo(writer);
             }
@@ -504,7 +504,7 @@ public class RequestSendCommand(
             return "[yellow]N/A[/]";
         }
 
-        var code = (int)response.StatusCode.Value;
+        int code = (int)response.StatusCode.Value;
         string reason = string.IsNullOrWhiteSpace(response.ReasonPhrase)
             ? response.StatusCode.Value.ToString()
             : response.ReasonPhrase!;
@@ -529,7 +529,7 @@ public class RequestSendCommand(
 
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         double size = bytes;
-        var unitIndex = 0;
+        int unitIndex = 0;
 
         while (size >= 1024 && unitIndex < units.Length - 1)
         {

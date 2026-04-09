@@ -45,7 +45,7 @@ public class RequestListCommand(
 
         StraumrWorkspace workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
 
-        var entries = new List<RequestListEntry>();
+        List<RequestListEntry> entries = new List<RequestListEntry>();
         foreach (Guid requestGuid in workspace.Requests)
         {
             RequestListEntry requestEntry = await GetRequest(requestGuid);
@@ -79,7 +79,7 @@ public class RequestListCommand(
             return 0;
         }
 
-        var table = new Table();
+        Table table = new Table();
         table.AddColumn("ID");
         table.AddColumn("Name");
         table.AddColumn("Method");

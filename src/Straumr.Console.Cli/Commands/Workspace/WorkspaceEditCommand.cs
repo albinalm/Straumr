@@ -61,7 +61,7 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
                     if (entry is not null)
                     {
                         StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
-                        var result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, entry.Path);
+                        WorkspaceCreateResult result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, entry.Path);
                         System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
                     }
                 }

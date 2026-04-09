@@ -1,6 +1,7 @@
 using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Factories;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using MarkupText = Straumr.Console.Tui.Helpers.MarkupText;
@@ -18,7 +19,7 @@ internal sealed class TextInputPrompt : PromptComponent
     public event Action<string>? Submitted;
     public event Action? CancelRequested;
 
-    private PromptTextField? _textField;
+    private InteractiveTextField? _textField;
     private Label? _errorLabel;
     private bool _confirming;
 
@@ -26,14 +27,12 @@ internal sealed class TextInputPrompt : PromptComponent
     {
         FrameView frame = CreateFrame(Title);
 
-        _textField = new PromptTextField(OnTextChanged, TrySubmit, RequestCancel)
-        {
-            X = 1,
-            Y = 1,
-            Width = Dim.Fill(2),
-            Text = InitialValue ?? string.Empty,
-            Secret = IsSecret,
-        };
+        _textField = TextFieldFactory.CreatePromptField(OnTextChanged, TrySubmit, RequestCancel);
+        _textField.X = 1;
+        _textField.Y = 1;
+        _textField.Width = Dim.Fill(2);
+        _textField.Text = InitialValue ?? string.Empty;
+        _textField.Secret = IsSecret;
 
         _errorLabel = new Label
         {
@@ -44,8 +43,7 @@ internal sealed class TextInputPrompt : PromptComponent
         };
 
         frame.Add(_textField, _errorLabel);
-
-        // Capture y/n during confirmation mode
+        
         frame.KeyDown += (_, key) =>
         {
             if (!_confirming)

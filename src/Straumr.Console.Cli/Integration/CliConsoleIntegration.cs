@@ -12,7 +12,6 @@ using Straumr.Console.Cli.Commands.Request;
 using Straumr.Console.Cli.Commands.Secret;
 using Straumr.Console.Cli.Commands.Workspace;
 using Straumr.Console.Cli.Infrastructure;
-using Straumr.Console.Shared.Console;
 using Straumr.Console.Shared.Integrations;
 using Straumr.Core.Services;
 using Straumr.Core.Services.Interfaces;
@@ -35,7 +34,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     {
         if (!_registryInitialized)
         {
-            var dryRunApp = new CommandApp(new StraumrTypeRegistrar(new ServiceCollection()));
+            CommandApp dryRunApp = new CommandApp(new StraumrTypeRegistrar(new ServiceCollection()));
             dryRunApp.Configure(ConfigureCommands);
             _registryInitialized = true;
         }
@@ -106,7 +105,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         if (_commandApp is null || _typeRegistrar is null)
             throw new InvalidOperationException("CLI integration has not been initialized.");
 
-        var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
+        IStraumrOptionsService optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.Load();
 
         _typeRegistrar.UseServiceProvider(serviceProvider);

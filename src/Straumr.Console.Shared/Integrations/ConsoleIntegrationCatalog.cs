@@ -13,7 +13,7 @@ public sealed class ConsoleIntegrationCatalog
 
     public IReadOnlyList<IConsoleIntegration> Build()
     {
-        var builder = new ConsoleIntegrationBuilder();
+        ConsoleIntegrationBuilder builder = new ConsoleIntegrationBuilder();
 
         foreach (Func<IConsoleIntegrationInstaller> factory in _installerFactories)
         {

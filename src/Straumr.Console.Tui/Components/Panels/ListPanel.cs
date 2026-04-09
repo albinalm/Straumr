@@ -18,7 +18,7 @@ public class ListPanel : TuiComponent
 
     public override View Build()
     {
-        var items = new ObservableCollection<string>(Items);
+        ObservableCollection<string> items = new ObservableCollection<string>(Items);
 
         ListView list = new()
         {

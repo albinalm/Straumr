@@ -89,7 +89,7 @@ public class AuthListCommand(
             return 0;
         }
 
-        var table = new Table();
+        Table table = new Table();
         table.AddColumn("Name");
         table.AddColumn("ID");
         table.AddColumn("Type");

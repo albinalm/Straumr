@@ -103,7 +103,7 @@ public class RequestGetCommand(
             }
 
             string? currentBody = req.Bodies.TryGetValue(req.BodyType, out string? b) ? b : null;
-            var result = new RequestGetResult(
+            RequestGetResult result = new RequestGetResult(
                 Id: req.Id.ToString(),
                 Name: req.Name,
                 Method: req.Method.Method,

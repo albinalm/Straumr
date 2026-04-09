@@ -41,7 +41,7 @@ public class StraumrRequestService(
     public async Task<StraumrRequest> CopyAsync(string identifier, string newName)
     {
         StraumrRequest source = await GetAsync(identifier);
-        var copy = new StraumrRequest
+        StraumrRequest copy = new StraumrRequest
         {
             Name = newName,
             Uri = source.Uri,
@@ -78,8 +78,8 @@ public class StraumrRequestService(
 
     public async Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(StraumrRequest request)
     {
-        var warnings = new List<string>();
-        var resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
+        List<string> warnings = new List<string>();
+        Dictionary<string, string> resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
         string resolvedUrl = await ResolveSecretReferencesAsync(request.Uri, resolvedSecrets, warnings);
         return (resolvedUrl, warnings);
     }
@@ -131,8 +131,8 @@ public class StraumrRequestService(
 
     public async Task<StraumrResponse> SendAsync(StraumrRequest request, SendOptions? options = null)
     {
-        var warnings = new List<string>();
-        var resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
+        List<string> warnings = new List<string>();
+        Dictionary<string, string> resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
 
         StraumrAuth? auth = request.AuthId.HasValue
             ? await authService.PeekByIdAsync(request.AuthId.Value)
@@ -193,7 +193,7 @@ public class StraumrRequestService(
 
             if (ShouldRetryCustomAuth(auth, resolvedAuthConfig, response))
             {
-                var custom = (CustomAuthConfig)resolvedAuthConfig!;
+                CustomAuthConfig custom = (CustomAuthConfig)resolvedAuthConfig!;
                 custom.CachedValue = null;
                 await authService.ExecuteCustomAuthAsync(custom);
                 if (auth is not null)
@@ -310,7 +310,7 @@ public class StraumrRequestService(
     private static async Task<StraumrResponse> SendWithMetadataAsync(
         HttpClient client, StraumrRequest request, StraumrAuthConfig? auth)
     {
-        var networkRequest = request.ToHttpRequestMessage(auth);
+        HttpRequestMessage networkRequest = request.ToHttpRequestMessage(auth);
         try
         {
             StraumrResponse response = await client.SendAsync(networkRequest).WithMetrics();
@@ -325,7 +325,7 @@ public class StraumrRequestService(
 
     private static void PopulateRequestMetadata(StraumrResponse response, HttpRequestMessage networkRequest)
     {
-        var requestHeaders = new Dictionary<string, IEnumerable<string>>();
+        Dictionary<string, IEnumerable<string>> requestHeaders = new Dictionary<string, IEnumerable<string>>();
         foreach (KeyValuePair<string, IEnumerable<string>> h in networkRequest.Headers)
         {
             requestHeaders[h.Key] = h.Value;
@@ -472,7 +472,7 @@ public class StraumrRequestService(
         List<string> warnings,
         IEqualityComparer<string> comparer)
     {
-        var resolved = new Dictionary<string, string>(comparer);
+        Dictionary<string, string> resolved = new Dictionary<string, string>(comparer);
         foreach (KeyValuePair<string, string> pair in source)
         {
             resolved[pair.Key] = await ResolveSecretReferencesAsync(pair.Value, resolvedSecrets, warnings);
@@ -486,7 +486,7 @@ public class StraumrRequestService(
         Dictionary<string, string> resolvedSecrets,
         List<string> warnings)
     {
-        var resolved = new Dictionary<BodyType, string>();
+        Dictionary<BodyType, string> resolved = new Dictionary<BodyType, string>();
         foreach (KeyValuePair<BodyType, string> pair in source)
         {
             resolved[pair.Key] = await ResolveSecretReferencesAsync(pair.Value, resolvedSecrets, warnings);

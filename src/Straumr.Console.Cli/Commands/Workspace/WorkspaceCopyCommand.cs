@@ -20,7 +20,7 @@ public class WorkspaceCopyCommand(IStraumrWorkspaceService workspaceService)
 
         if (settings.Json)
         {
-            var result = new WorkspaceCreateResult(newEntry.Id.ToString(), settings.NewName, newEntry.Path);
+            WorkspaceCreateResult result = new WorkspaceCreateResult(newEntry.Id.ToString(), settings.NewName, newEntry.Path);
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
         }
         else

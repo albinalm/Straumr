@@ -81,7 +81,7 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
                 secretService.ApplyEdit(secretId, tempPath);
                 if (settings.Json)
                 {
-                    var result = new SecretListItem(deserialized.Id.ToString(), deserialized.Name, "Valid");
+                    SecretListItem result = new SecretListItem(deserialized.Id.ToString(), deserialized.Name, "Valid");
                     System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.SecretListItem));
                 }
                 else

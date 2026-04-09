@@ -67,7 +67,7 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
 
     private static string BuildBlock(ShellKind shell, string function, string[] names)
     {
-        var sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         sb.AppendLine(BeginMarker);
         sb.AppendLine(function.Trim());
 
@@ -184,7 +184,7 @@ public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallComman
             return null!;
         }
 
-        using var reader = new StreamReader(stream);
+        using StreamReader reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }
 

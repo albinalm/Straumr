@@ -24,7 +24,7 @@ public class SecretListCommand(
         if (!string.IsNullOrEmpty(settings.Filter))
         {
             // Need to peek names for name-based filtering; filter by ID prefix first, then by name
-            var filtered = new List<(StraumrSecretEntry entry, StraumrSecret? secret, string status)>();
+            List<(StraumrSecretEntry entry, StraumrSecret? secret, string status)> filtered = new List<(StraumrSecretEntry entry, StraumrSecret? secret, string status)>();
             foreach (StraumrSecretEntry entry in entries)
             {
                 SecretListEntry secretEntry = await GetSecretAsync(entry.Id);
@@ -38,7 +38,7 @@ public class SecretListCommand(
             return await RenderAsync(settings, filtered.Select(f => (f.entry, f.secret, f.status)).ToArray());
         }
 
-        var all = new List<(StraumrSecretEntry entry, StraumrSecret? secret, string status)>();
+        List<(StraumrSecretEntry entry, StraumrSecret? secret, string status)> all = new List<(StraumrSecretEntry entry, StraumrSecret? secret, string status)>();
         foreach (StraumrSecretEntry entry in entries)
         {
             SecretListEntry secretEntry = await GetSecretAsync(entry.Id);
@@ -68,7 +68,7 @@ public class SecretListCommand(
             return Task.FromResult(0);
         }
 
-        var table = new Table();
+        Table table = new Table();
         table.AddColumn("ID");
         table.AddColumn("Name");
         table.AddColumn("Value");

@@ -56,7 +56,7 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
             return 0;
         }
 
-        var table = new Table();
+        Table table = new Table();
         table.AddColumn("ID");
         table.AddColumn("Name");
         table.AddColumn("Last Accessed");
