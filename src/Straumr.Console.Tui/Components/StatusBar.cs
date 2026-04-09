@@ -50,10 +50,7 @@ internal class StatusBar : TuiComponent
         try
         {
             await Task.Delay(2000, token);
-            if (_label is not null)
-            {
-                _label.Visible = false;
-            }
+            _label?.Visible = false;
         }
         catch (TaskCanceledException) { }
     }

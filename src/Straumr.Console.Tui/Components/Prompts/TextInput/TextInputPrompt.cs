@@ -135,10 +135,7 @@ internal sealed class TextInputPrompt : PromptComponent
     private void EnterConfirmMode()
     {
         _confirming = true;
-        if (_textField is not null)
-        {
-            _textField.Enabled = false;
-        }
+        _textField?.Enabled = false;
 
         ShowError("Discard changes? (y/n)");
     }

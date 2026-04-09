@@ -1,24 +1,20 @@
+using Straumr.Console.Tui.Components.Prompts.TextInput.Base;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
-using Terminal.Gui.Views;
-using TuiAttribute = Terminal.Gui.Drawing.Attribute;
+using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.Prompts.KeyValue;
 
-internal sealed class EditFormField : TextField
+internal sealed class EditFormField : BlackTextField
 {
     private bool _editing;
 
-    private Color _idleBorderColor = Color.Gray;
-    private Color _focusBorderColor = Color.BrightGreen;
-    private Color _editBorderColor = Color.White;
+    public Color IdleBorderColor { get; set; } = Color.Gray;
 
-    public bool IsEditing => _editing;
+    public Color FocusBorderColor { get; set; } = Color.BrightGreen;
 
-    public Color IdleBorderColor { get => _idleBorderColor; set { _idleBorderColor = value; Border?.SetNeedsDraw(); } }
-    public Color FocusBorderColor { get => _focusBorderColor; set { _focusBorderColor = value; Border?.SetNeedsDraw(); } }
-    public Color EditBorderColor { get => _editBorderColor; set { _editBorderColor = value; Border?.SetNeedsDraw(); } }
+    public Color EditBorderColor { get; set; } = Color.White;
 
     public event Action? EditRequested;
     public event Action? EditCompleted;
@@ -58,8 +54,8 @@ internal sealed class EditFormField : TextField
 
         Border.GettingAttributeForRole += (_, e) =>
         {
-            Color fg = _editing ? _editBorderColor : HasFocus ? _focusBorderColor : _idleBorderColor;
-            e.Result = new TuiAttribute(fg, Color.Black);
+            Color fg = _editing ? EditBorderColor : HasFocus ? FocusBorderColor : IdleBorderColor;
+            e.Result = new Attribute(fg, Color.Black);
             e.Handled = true;
         };
     }
@@ -89,7 +85,6 @@ internal sealed class EditFormField : TextField
             if (key == Key.Esc)
             {
                 ExitRequested?.Invoke();
-                return true;
             }
 
             return true;

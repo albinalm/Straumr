@@ -12,7 +12,6 @@ namespace Straumr.Console.Tui.Components.Prompts.KeyValue;
 internal sealed class KeyValueEditorComponent : PromptComponent
 {
     private enum Mode { Browsing, Editing }
-
     public required string Title { get; init; }
     public required IDictionary<string, string> Items { get; init; }
 
@@ -37,7 +36,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private Mode _mode = Mode.Browsing;
     private string? _originalKey;
-    private bool _colonPressed;
 
     public override View Build()
     {
@@ -137,8 +135,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Width = Dim.Fill(2),
             Visible = false,
         };
-
-        // Wire up edit form navigation and theming
+        
         WireEditFormField(_keyField, () => _saveButton, () => _valueField);
         WireEditFormField(_valueField, () => _keyField, () => _saveButton);
 
@@ -180,8 +177,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         return frame;
     }
 
-    // --- Browse mode key handling ---
-
     private bool HandleListKeyDown(Key key)
     {
         if (_listView is null)
@@ -192,26 +187,10 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         int count = _keys.Count;
 
         Rune rune = key.AsRune;
-
         if (!key.IsCtrl && !key.IsAlt)
         {
-            if (_colonPressed)
-            {
-                _colonPressed = false;
-                if (rune.Value == 's')
-                {
-                    ItemSaved?.Invoke();
-                    return true;
-                }
-
-                return true;
-            }
-
             switch (rune.Value)
             {
-                case ':':
-                    _colonPressed = true;
-                    return true;
                 case 'j':
                     MoveSelection(1);
                     return true;
@@ -247,6 +226,12 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             }
         }
 
+        if (key == Key.S.WithCtrl)
+        {
+            ItemSaved?.Invoke();
+            return true;
+        }
+
         if (key == Key.Enter)
         {
             EditSelected();
@@ -261,8 +246,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         return false;
     }
-
-    // --- CRUD operations ---
+    
 
     private void EditSelected()
     {
@@ -294,12 +278,10 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             _listView.SelectedItem = Math.Min(index.Value, _keys.Count - 1);
         }
     }
-
-    // --- Edit mode ---
-
+    
     private void WireEditFormField(EditFormField field, Func<View?> above, Func<View?> below)
     {
-        field.EditRequested += () => field.EnterEditMode();
+        field.EditRequested += field.EnterEditMode;
         field.EditCompleted += () =>
         {
             field.ExitEditMode();
@@ -310,7 +292,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
                 nextField.EnterEditMode();
             }
         };
-        field.EditCancelled += () => field.ExitEditMode();
+        field.EditCancelled += field.ExitEditMode;
         field.NavigateUp += () => FocusView(above());
         field.NavigateDown += () => FocusView(below());
         field.ExitRequested += ExitEditMode;
@@ -337,20 +319,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private void UpdateFieldIndicators()
     {
-        UpdateFieldIndicator(_keyField, _keyLabel, "Name");
-        UpdateFieldIndicator(_valueField, _valueLabel, "Value");
-    }
-
-    private static void UpdateFieldIndicator(EditFormField? field, Label? label, string labelText)
-    {
-        if (label is null)
-        {
-            return;
-        }
-
-        // Labels no longer carry extra suffix text for focus/edit state.
-        // Visual feedback is provided by the fields themselves.
-        label.Text = labelText;
+        _keyLabel?.Text = "Name";
+        _valueLabel?.Text = "Value";
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)
@@ -364,15 +334,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _keyField?.ExitEditMode();
         _valueField?.ExitEditMode();
 
-        if (_keyField is not null)
-        {
-            _keyField.Text = keyText;
-        }
+        _keyField?.Text = keyText;
 
-        if (_valueField is not null)
-        {
-            _valueField.Text = valueText;
-        }
+        _valueField?.Text = valueText;
 
         FocusView(_keyField);
         _keyField?.EnterEditMode();
@@ -398,19 +362,17 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         FocusView(_listView);
     }
 
-    private bool TrySave()
+    private void TrySave()
     {
-        string key = _keyField?.Text?.Trim() ?? string.Empty;
-        string value = _valueField?.Text?.Trim() ?? string.Empty;
+        string key = _keyField?.Text.Trim() ?? string.Empty;
+        string value = _valueField?.Text.Trim() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(key))
         {
             ShowInputError("Name cannot be empty");
             FocusView(_keyField);
-            return true;
         }
-
-        // If renaming, remove the old key
+        
         if (_originalKey is not null && _originalKey != key)
         {
             Items.Remove(_originalKey);
@@ -418,38 +380,27 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         Items[key] = value;
         ExitEditMode();
-        return true;
     }
-
-    // --- Filter callbacks ---
 
     private void OnFilterChanged(string text) => ApplyFilter(text);
     private void OnAcceptFilter() => FocusView(_listView);
     private void OnExitFilter() => FocusView(_listView);
-
-    // --- List management ---
 
     private void RebuildList()
     {
         _displayItems.Clear();
         _keys.Clear();
 
-        foreach (var kvp in Items.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (KeyValuePair<string, string> kvp in Items.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
         {
             _keys.Add(kvp.Key);
             _displayItems.Add(FormatEntry(kvp.Key, kvp.Value));
         }
 
         bool hasItems = _keys.Count > 0;
-        if (_listView is not null)
-        {
-            _listView.SelectedItem = hasItems ? 0 : null;
-        }
+        _listView?.SelectedItem = hasItems ? 0 : null;
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Visible = !hasItems;
-        }
+        _emptyLabel?.Visible = !hasItems;
     }
 
     private void ApplyFilter(string filter)
@@ -457,7 +408,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _displayItems.Clear();
         _keys.Clear();
 
-        foreach (var kvp in Items.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (KeyValuePair<string, string> kvp in Items.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
         {
             string display = FormatEntry(kvp.Key, kvp.Value);
             if (!string.IsNullOrEmpty(filter)
@@ -471,10 +422,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         }
 
         bool hasItems = _keys.Count > 0;
-        if (_listView is not null)
-        {
-            _listView.SelectedItem = hasItems ? 0 : null;
-        }
+        _listView?.SelectedItem = hasItems ? 0 : null;
 
         if (_emptyLabel is not null)
         {
@@ -497,57 +445,28 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _listView.SelectedItem = next;
     }
 
-    // --- View visibility helpers ---
-
     private void SetListViewsVisible(bool visible)
     {
-        if (_filterLabel is not null)
-        {
-            _filterLabel.Visible = visible;
-        }
+        _filterLabel?.Visible = visible;
 
-        if (_filterField is not null)
-        {
-            _filterField.Visible = visible;
-        }
+        _filterField?.Visible = visible;
 
-        if (_listView is not null)
-        {
-            _listView.Visible = visible;
-        }
+        _listView?.Visible = visible;
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Visible = visible && _keys.Count == 0;
-        }
+        _emptyLabel?.Visible = visible && _keys.Count == 0;
     }
 
     private void SetEditViewsVisible(bool visible)
     {
-        if (_keyLabel is not null)
-        {
-            _keyLabel.Visible = visible;
-        }
+        _keyLabel?.Visible = visible;
 
-        if (_keyField is not null)
-        {
-            _keyField.Visible = visible;
-        }
+        _keyField?.Visible = visible;
 
-        if (_valueLabel is not null)
-        {
-            _valueLabel.Visible = visible;
-        }
+        _valueLabel?.Visible = visible;
 
-        if (_valueField is not null)
-        {
-            _valueField.Visible = visible;
-        }
+        _valueField?.Visible = visible;
 
-        if (_saveButton is not null)
-        {
-            _saveButton.Visible = visible;
-        }
+        _saveButton?.Visible = visible;
 
         if (!visible)
         {
@@ -568,12 +487,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private void HideInputError()
     {
-        if (_inputErrorLabel is null)
-        {
-            return;
-        }
-
-        _inputErrorLabel.Visible = false;
+        _inputErrorLabel?.Visible = false;
     }
 
     private void UpdateHints()

@@ -175,10 +175,7 @@ internal sealed class SelectionPrompt : PromptComponent
             _listView.Visible = hasItems;
         }
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Visible = !hasItems;
-        }
+        _emptyLabel?.Visible = !hasItems;
     }
 
     private bool MatchesFilter(string display, string filter)
