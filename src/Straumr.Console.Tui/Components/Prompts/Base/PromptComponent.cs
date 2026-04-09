@@ -1,11 +1,12 @@
 using Straumr.Console.Shared.Theme;
+using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Base;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
-namespace Straumr.Console.Tui.Components.Prompts;
+namespace Straumr.Console.Tui.Components.Prompts.Base;
 
 internal abstract class PromptComponent : TuiComponent
 {
@@ -27,7 +28,7 @@ internal abstract class PromptComponent : TuiComponent
         {
             Title = title,
             X = 2,
-            Y = Branding.FigletHeight + 2,
+            Y = Banner.FigletHeight + 2,
             Width = Dim.Fill(4),
             Height = Dim.Fill(2),
         };

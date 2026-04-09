@@ -2,7 +2,7 @@ using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.Views;
 
-namespace Straumr.Console.Tui.Components.Prompts.Selection;
+namespace Straumr.Console.Tui.Components.ListViews;
 
 internal sealed class SelectionListView : ListView
 {

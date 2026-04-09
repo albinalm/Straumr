@@ -21,6 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Components\Text\" />
       <Folder Include="Infrastructure\" />
     </ItemGroup>
 

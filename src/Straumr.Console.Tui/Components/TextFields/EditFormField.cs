@@ -1,10 +1,10 @@
-using Straumr.Console.Tui.Components.Prompts.TextInput.Base;
+using Straumr.Console.Tui.Components.TextFields.Base;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Attribute = Terminal.Gui.Drawing.Attribute;
 
-namespace Straumr.Console.Tui.Components.Prompts.KeyValue;
+namespace Straumr.Console.Tui.Components.TextFields;
 
 internal sealed class EditFormField(Color background, Color foreground) : ThemedTextField(background, foreground)
 {

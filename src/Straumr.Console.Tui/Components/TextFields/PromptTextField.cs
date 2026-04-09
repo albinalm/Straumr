@@ -1,10 +1,10 @@
+using Straumr.Console.Tui.Components.TextFields.Base;
 using Terminal.Gui.Input;
-using Terminal.Gui.Views;
 
-namespace Straumr.Console.Tui.Components.Prompts.TextInput;
+namespace Straumr.Console.Tui.Components.TextFields;
 
 internal sealed class PromptTextField(Action textChanged, Func<bool> submit, Func<bool> requestCancel)
-    : TextField
+    : ThemedTextField
 {
     protected override bool OnKeyDown(Key key)
     {

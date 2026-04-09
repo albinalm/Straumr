@@ -1,8 +1,9 @@
 using Straumr.Console.Tui.Components.Base;
+using Straumr.Console.Tui.Components.Branding;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
-namespace Straumr.Console.Tui.Components;
+namespace Straumr.Console.Tui.Components.Bars;
 
 internal class HintsBar : TuiComponent
 {
@@ -15,8 +16,8 @@ internal class HintsBar : TuiComponent
         var container = new View
         {
             X = 3,
-            Width = Dim.Fill(Branding.FigletWidth + 6),
-            Height = Branding.FigletHeight + 1,
+            Width = Dim.Fill(Banner.FigletWidth + 6),
+            Height = Banner.FigletHeight + 1,
         };
 
         _textView = new TextView

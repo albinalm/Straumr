@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Straumr.Console.Tui.Components;
+namespace Straumr.Console.Tui.Helpers;
 
 internal static partial class MarkupText
 {

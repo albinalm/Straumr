@@ -3,7 +3,7 @@ using Straumr.Console.Tui.Components.Base;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
-namespace Straumr.Console.Tui.Components;
+namespace Straumr.Console.Tui.Components.Panels;
 
 public class ListPanel : TuiComponent
 {

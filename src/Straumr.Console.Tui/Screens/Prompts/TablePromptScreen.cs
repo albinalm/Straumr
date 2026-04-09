@@ -1,5 +1,6 @@
-using Straumr.Console.Tui.Components;
-using Straumr.Console.Tui.Components.Prompts;
+using Straumr.Console.Tui.Components.Bars;
+using Straumr.Console.Tui.Components.Branding;
+using Straumr.Console.Tui.Components.Prompts.Table;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 
@@ -9,11 +10,7 @@ internal sealed class TablePromptScreen : PromptScreen<bool>
 {
     public TablePromptScreen(string title, string column1, string column2, IReadOnlyList<(string Key, string Value)> rows, string emptyMessage)
     {
-        Add(new Banner
-        {
-            X = Pos.AnchorEnd(Branding.FigletWidth + 1),
-            Y = 0,
-        });
+        Add(new Banner());
 
         Add(new HintsBar { Text = "Press any key to close" });
 

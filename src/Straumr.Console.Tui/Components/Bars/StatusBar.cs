@@ -4,7 +4,7 @@ using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
-namespace Straumr.Console.Tui.Components;
+namespace Straumr.Console.Tui.Components.Bars;
 
 internal class StatusBar : TuiComponent
 {

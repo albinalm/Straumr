@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Text;
-using Straumr.Console.Tui.Components.Prompts.Selection;
+using Straumr.Console.Tui.Components.ListViews;
+using Straumr.Console.Tui.Components.Prompts.Base;
+using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;

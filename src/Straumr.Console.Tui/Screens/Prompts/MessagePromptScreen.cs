@@ -1,5 +1,6 @@
-using Straumr.Console.Tui.Components;
-using Straumr.Console.Tui.Components.Prompts;
+using Straumr.Console.Tui.Components.Bars;
+using Straumr.Console.Tui.Components.Branding;
+using Straumr.Console.Tui.Components.Prompts.Message;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 
@@ -9,11 +10,7 @@ internal sealed class MessagePromptScreen : PromptScreen<bool>
 {
     public MessagePromptScreen(string title, string message)
     {
-        Add(new Banner
-        {
-            X = Pos.AnchorEnd(Branding.FigletWidth + 1),
-            Y = 0,
-        });
+        Add(new Banner());
 
         Add(new HintsBar { Text = "Press any key to continue" });
 

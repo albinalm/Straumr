@@ -1,7 +1,9 @@
+using Straumr.Console.Tui.Components.Prompts.Base;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using MarkupText = Straumr.Console.Tui.Helpers.MarkupText;
 
-namespace Straumr.Console.Tui.Components.Prompts;
+namespace Straumr.Console.Tui.Components.Prompts.Message;
 
 internal sealed class MessagePrompt : PromptComponent
 {

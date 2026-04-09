@@ -1,9 +1,10 @@
+using Straumr.Console.Tui.Components.TextFields.Base;
 using Terminal.Gui.Input;
 using Terminal.Gui.Views;
 
-namespace Straumr.Console.Tui.Components.Prompts.Selection;
+namespace Straumr.Console.Tui.Components.TextFields;
 
-internal sealed class FilterTextField : TextField
+internal sealed class FilterTextField : ThemedTextField
 {
     private readonly Action _acceptFilter;
     private readonly Action _exitFilter;

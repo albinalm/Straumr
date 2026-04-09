@@ -1,4 +1,5 @@
-using Straumr.Console.Tui.Components;
+using Straumr.Console.Tui.Components.Bars;
+using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.TextInput;
 using Terminal.Gui.ViewBase;
 
@@ -15,11 +16,7 @@ internal sealed class TextInputPromptScreen : PromptScreen<string?>
         bool isSecret,
         Func<string, string?>? validate)
     {
-        Add(new Banner
-        {
-            X = Pos.AnchorEnd(Branding.FigletWidth + 1),
-            Y = 0,
-        });
+        Add(new Banner());
 
         Add(new HintsBar { Text = "Enter Save  Esc Cancel" });
 

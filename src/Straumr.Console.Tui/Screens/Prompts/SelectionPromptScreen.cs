@@ -1,5 +1,6 @@
 using Straumr.Console.Shared.Theme;
-using Straumr.Console.Tui.Components;
+using Straumr.Console.Tui.Components.Bars;
+using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.Selection;
 using Terminal.Gui.ViewBase;
 
@@ -11,8 +12,6 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
     {
         Add(new Banner
         {
-            X = Pos.AnchorEnd(Branding.FigletWidth + 1),
-            Y = 0,
             Theme = theme,
         });
 

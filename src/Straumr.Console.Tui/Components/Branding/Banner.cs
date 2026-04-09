@@ -6,11 +6,22 @@ using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
-namespace Straumr.Console.Tui.Components;
+namespace Straumr.Console.Tui.Components.Branding;
 
 public class Banner : TuiComponent
 {
-    public Pos X { get; init; } = 0;
+    private const string Figlet = """
+                                      _
+                                  ___| |_ _ __ __ _ _   _ _ __ ___  _ __
+                                 / __| __| '__/ _` | | | | '_ ` _ \| '__|
+                                 \__ \ |_| | | (_| | |_| | | | | | | |
+                                 |___/\__|_|  \__,_|\__,_|_| |_| |_|_|
+
+                                 """;
+
+    public static readonly int FigletWidth = Figlet.Split('\n').Max(l => l.Length);
+    public static readonly int FigletHeight = Figlet.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+    public Pos X { get; init; } = Pos.AnchorEnd(FigletWidth + 1);
     public Pos Y { get; init; } = 0;
     public StraumrTheme? Theme { get; init; }
 
@@ -18,7 +29,7 @@ public class Banner : TuiComponent
     {
         var label = new Label
         {
-            Text = Branding.Figlet,
+            Text = Figlet,
             X = X,
             Y = Y,
         };
