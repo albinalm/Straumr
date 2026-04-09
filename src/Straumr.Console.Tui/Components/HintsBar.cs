@@ -9,14 +9,12 @@ internal class HintsBar : TuiComponent
     private TextView? _textView;
 
     public required string Text { get; init; }
-    public int OffsetY { get; init; }
 
     public override View Build()
     {
         var container = new View
         {
             X = 3,
-            Y = OffsetY,
             Width = Dim.Fill(Branding.FigletWidth + 6),
             Height = Branding.FigletHeight + 1,
         };
@@ -28,7 +26,7 @@ internal class HintsBar : TuiComponent
             WordWrap = true,
             Enabled = false,
             X = 0,
-            Y = Pos.Center(),
+            Y = 2,
             Width = Dim.Fill(),
             Height = Dim.Auto(),
         };

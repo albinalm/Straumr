@@ -16,9 +16,7 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
             Y = 0,
         });
 
-        var hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints, OffsetY = 1 });
-
-        var statusBar = Add(new StatusBar());
+        var hints = Add(new HintsBar { Text = KeyValueEditorComponent.BrowseHints });
 
         var editor = Add(new KeyValueEditorComponent
         {
@@ -27,12 +25,14 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
             Theme = theme,
         });
 
+        var statusBar = Add(new StatusBar());
+
         editor.HintsChanged += hints.UpdateText;
         editor.DoneRequested += () => Complete(true);
         editor.ItemSaved += () =>
         {
             onSaved?.Invoke();
-            statusBar.ShowSuccess($"💾 {title} saved");
+            statusBar.ShowSuccess($" {title} saved");
         };
     }
 }
