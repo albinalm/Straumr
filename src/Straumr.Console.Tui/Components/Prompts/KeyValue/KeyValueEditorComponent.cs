@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text;
 using Straumr.Console.Tui.Components.ListViews;
 using Straumr.Console.Tui.Components.Prompts.Base;
+using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
@@ -30,12 +31,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private Label? _filterLabel;
     private Label? _emptyLabel;
 
-    private Label? _keyLabel;
-    private InteractiveTextField? _keyField;
-    private Label? _valueLabel;
-    private InteractiveTextField? _valueField;
-    private Button? _saveButton;
-    private Label? _inputErrorLabel;
+    private FormFieldsView? _editForm;
 
     private Mode _mode = Mode.Browsing;
     private string? _originalKey;
@@ -44,7 +40,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         FrameView frame = CreateFrame(Title);
         Scheme? listScheme = BuildListScheme();
-        Scheme? buttonScheme = BuildButtonScheme();
 
         // --- List mode views ---
 
@@ -81,100 +76,31 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         // --- Edit mode views ---
 
-        _keyLabel = new Label
+        _editForm = new FormFieldsView
         {
-            Text = "Name",
-            X = 1,
-            Y = 2,
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
             Visible = false,
+            Theme = Theme,
+            Fields =
+            [
+                new FormFieldSpec("key", "Name", Required: true),
+                new FormFieldSpec("value", "Value"),
+            ],
         };
 
-        Color fieldBackground = Theme != null ? ColorResolver.Resolve(Theme.Surface) : Color.Black;
-        Color fieldForeground = Theme != null ? ColorResolver.Resolve(Theme.OnSurface) : Color.White;
-        
-        _keyField = new InteractiveTextField
-        {
-            X = Pos.Right(_keyLabel) + 2,
-            Y = 1,
-            Width = Dim.Fill(2),
-            BorderStyle = LineStyle.Single,
-            Visible = false,
-        };
-        ApplyFieldTheme(_keyField, fieldBackground, fieldForeground);
-
-        _valueLabel = new Label
-        {
-            Text = "Value",
-            X = 1,
-            Y = 5,
-            Visible = false,
-        };
-
-        _valueField = new InteractiveTextField
-        {
-            X = Pos.Right(_keyLabel) + 2,
-            Y = 4,
-            Width = Dim.Fill(2),
-            BorderStyle = LineStyle.Single,
-            Visible = false,
-        };
-        ApplyFieldTheme(_valueField, fieldBackground, fieldForeground);
-
-        _saveButton = new Button
-        {
-            Text = "Save",
-            X = Pos.Right(_keyLabel) + 2,
-            Y = 8,
-            Visible = false,
-        };
-        if (buttonScheme is not null)
-        {
-            _saveButton.SetScheme(buttonScheme);
-        }
-
-        _inputErrorLabel = new Label
-        {
-            X = 1,
-            Y = 10,
-            Width = Dim.Fill(2),
-            Visible = false,
-        };
-        
-        ConfigureEditField(_keyField, () => _saveButton, () => _valueField);
-        ConfigureEditField(_valueField, () => _keyField, () => _saveButton);
-
-        _saveButton.Accepting += (_, _) => TrySave();
-        _saveButton.KeyDown += (_, key) =>
-        {
-            Rune rune = key.AsRune;
-            bool up = key == Key.CursorUp || rune.Value == 'k';
-            bool down = key == Key.CursorDown || rune.Value == 'j';
-
-            if (up)
-            {
-                key.Handled = true;
-                FocusView(_valueField);
-            }
-            else if (down)
-            {
-                key.Handled = true;
-                FocusView(_keyField);
-            }
-            else if (key == Key.Esc)
-            {
-                key.Handled = true;
-                ExitEditMode();
-            }
-        };
+        _editForm.Submitted += values => TrySave(values);
+        _editForm.CancelRequested += ExitEditMode;
 
         frame.Add(
-            _filterLabel, _filterField, _listView, _emptyLabel,
-            _keyLabel, _keyField, _valueLabel, _valueField, _saveButton, _inputErrorLabel);
+            _filterLabel, _filterField, _listView, _emptyLabel, _editForm);
 
         RebuildList();
 
         _listView.Initialized += (_, _) => FocusView(_listView);
-        UpdateFieldIndicators();
+
         return frame;
     }
 
@@ -280,98 +206,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         }
     }
     
-    private void ConfigureEditField(InteractiveTextField? field, Func<View?> above, Func<View?> below)
-    {
-        if (field is null)
-        {
-            return;
-        }
-
-        field.ExitEditMode();
-        field.EditingStateChanged += _ => UpdateFieldIndicators();
-
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && key == Key.Enter,
-            (f, _) =>
-            {
-                f.EnterEditMode();
-                return true;
-            }));
-
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && (key == Key.CursorUp || key.AsRune.Value == 'k'),
-            (_, _) =>
-            {
-                FocusView(above());
-                return true;
-            }));
-
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && (key == Key.CursorDown || key.AsRune.Value == 'j'),
-            (_, _) =>
-            {
-                FocusView(below());
-                return true;
-            }));
-
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && key == Key.Esc,
-            (_, _) =>
-            {
-                ExitEditMode();
-                return true;
-            }));
-
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => f.IsEditing && key == Key.Enter,
-            (f, _) =>
-            {
-                f.ExitEditMode();
-                View? next = below();
-                FocusView(next);
-                if (next is InteractiveTextField nextField)
-                {
-                    nextField.EnterEditMode();
-                }
-
-                return true;
-            }));
-
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => f.IsEditing && key == Key.Esc,
-            (f, _) =>
-            {
-                f.ExitEditMode();
-                return true;
-            }));
-    }
-
     private void FocusView(View? view)
     {
         view?.SetFocus();
-        UpdateFieldIndicators();
-    }
-
-    private void ApplyFieldTheme(InteractiveTextField field, Color background, Color foreground)
-    {
-        field.ApplyTheme(background, foreground);
-
-        if (Theme is null)
-        {
-            return;
-        }
-
-        Color idle = ColorResolver.Resolve(Theme.Secondary);
-        Color focus = ColorResolver.Resolve(Theme.Primary);
-        Color edit = ColorResolver.Resolve(Theme.OnSurface);
-
-        field.SetBorderColors(idle, focus, edit);
-    }
-
-    private void UpdateFieldIndicators()
-    {
-        _keyLabel?.Text = "Name";
-        _valueLabel?.Text = "Value";
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)
@@ -382,25 +219,17 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         SetListViewsVisible(false);
         SetEditViewsVisible(true);
 
-        _keyField?.ExitEditMode();
-        _valueField?.ExitEditMode();
-
-        _keyField?.Text = keyText;
-
-        _valueField?.Text = valueText;
-
-        FocusView(_keyField);
-        _keyField?.EnterEditMode();
-
-        HideInputError();
+        _editForm?.SetValues(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["key"] = keyText,
+            ["value"] = valueText,
+        });
+        _editForm?.FocusFirstField();
         UpdateHints();
     }
 
     private void ExitEditMode()
     {
-        _keyField?.ExitEditMode();
-        _valueField?.ExitEditMode();
-
         _mode = Mode.Browsing;
         _originalKey = null;
 
@@ -413,17 +242,11 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         FocusView(_listView);
     }
 
-    private void TrySave()
+    private void TrySave(Dictionary<string, string> values)
     {
-        string key = _keyField?.Text.Trim() ?? string.Empty;
-        string value = _valueField?.Text.Trim() ?? string.Empty;
+        string key = values.TryGetValue("key", out string? keyValue) ? keyValue.Trim() : string.Empty;
+        string value = values.TryGetValue("value", out string? valueValue) ? valueValue.Trim() : string.Empty;
 
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ShowInputError("Name cannot be empty");
-            FocusView(_keyField);
-        }
-        
         if (_originalKey is not null && _originalKey != key)
         {
             Items.Remove(_originalKey);
@@ -509,36 +332,10 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private void SetEditViewsVisible(bool visible)
     {
-        _keyLabel?.Visible = visible;
-
-        _keyField?.Visible = visible;
-
-        _valueLabel?.Visible = visible;
-
-        _valueField?.Visible = visible;
-
-        _saveButton?.Visible = visible;
-
-        if (!visible)
+        if (_editForm is not null)
         {
-            HideInputError();
+            _editForm.Visible = visible;
         }
-    }
-
-    private void ShowInputError(string message)
-    {
-        if (_inputErrorLabel is null)
-        {
-            return;
-        }
-
-        _inputErrorLabel.Text = message;
-        _inputErrorLabel.Visible = true;
-    }
-
-    private void HideInputError()
-    {
-        _inputErrorLabel?.Visible = false;
     }
 
     private void UpdateHints()

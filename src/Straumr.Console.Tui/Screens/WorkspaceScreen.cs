@@ -6,6 +6,7 @@ using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
+using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
 using Terminal.Gui.Input;
@@ -87,16 +88,21 @@ public sealed class WorkspaceScreen(
 
     private void CreateWorkspace()
     {
-        string? name = interactiveConsole.TextInput("Workspace name",
-            validate: v => string.IsNullOrWhiteSpace(v) ? "Name cannot be empty." : null);
+        List<FormFieldSpec> fields =
+        [
+            new("name", "Name", Required: true),
+            new("outputDir", "Output directory"),
+        ];
 
-        if (name is null)
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Create workspace", fields);
+        if (result is null)
         {
             return;
         }
 
-        string? outputDir = interactiveConsole.TextInput("Output directory (leave empty for default)", allowEmpty: true);
-        if (outputDir is not null && string.IsNullOrWhiteSpace(outputDir))
+        string name = result["name"];
+        string? outputDir = result.TryGetValue("outputDir", out string? value) ? value : null;
+        if (string.IsNullOrWhiteSpace(outputDir))
         {
             outputDir = null;
         }
@@ -127,7 +133,9 @@ public sealed class WorkspaceScreen(
 
         string? confirm = interactiveConsole.Select(
             $"Delete \"{selectedEntry.Identifier}\"?",
-            ["Cancel", "Delete"]);
+            ["Cancel", "Delete"],
+            enableFilter: false,
+            enableTypeahead: true);
 
         if (confirm is not "Delete")
         {
@@ -225,16 +233,21 @@ public sealed class WorkspaceScreen(
             return;
         }
 
-        string? newName = interactiveConsole.TextInput("New workspace name",
-            validate: v => string.IsNullOrWhiteSpace(v) ? "Name cannot be empty." : null);
+        List<FormFieldSpec> fields =
+        [
+            new("name", "New name", Required: true),
+            new("outputDir", "Output directory"),
+        ];
 
-        if (newName is null)
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Copy workspace", fields);
+        if (result is null)
         {
             return;
         }
 
-        string? outputDir = interactiveConsole.TextInput("Output directory (leave empty for default)", allowEmpty: true);
-        if (outputDir is not null && string.IsNullOrWhiteSpace(outputDir))
+        string newName = result["name"];
+        string? outputDir = result.TryGetValue("outputDir", out string? value) ? value : null;
+        if (string.IsNullOrWhiteSpace(outputDir))
         {
             outputDir = null;
         }

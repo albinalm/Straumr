@@ -1,6 +1,7 @@
 using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Interfaces;
 using Straumr.Console.Shared.Theme;
+using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Prompts;
 using Straumr.Core.Services.Interfaces;
@@ -11,9 +12,14 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
 {
     private readonly StraumrTheme _theme = ThemeLoader.Load(fileService).Theme;
 
-    public string? Select(string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
+    public string? Select(
+        string title,
+        IReadOnlyList<string> choices,
+        Func<string, string>? displayConverter = null,
+        bool enableFilter = true,
+        bool enableTypeahead = false)
     {
-        var screen = new SelectionPromptScreen(title, choices, displayConverter, _theme);
+        var screen = new SelectionPromptScreen(title, choices, displayConverter, _theme, enableFilter, enableTypeahead);
         return RunPrompt(screen);
     }
 
@@ -67,6 +73,12 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
         var screen = new KeyValueEditorScreen(title, items, _theme, onSaved);
         RunPrompt(screen);
         return true;
+    }
+
+    public Dictionary<string, string>? PromptForm(string title, IReadOnlyList<FormFieldSpec> fields)
+    {
+        var screen = new FormPromptScreen(title, fields, _theme);
+        return RunPrompt(screen);
     }
 
     private TResult? RunPrompt<TResult>(PromptScreen<TResult> screen)

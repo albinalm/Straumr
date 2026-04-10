@@ -7,14 +7,26 @@ namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class SelectionPromptScreen : PromptScreen<string?>
 {
-    public SelectionPromptScreen(string title, IReadOnlyList<string> items, Func<string, string>? converter, StraumrTheme? theme = null)
+    public SelectionPromptScreen(
+        string title,
+        IReadOnlyList<string> items,
+        Func<string, string>? converter,
+        StraumrTheme? theme = null,
+        bool enableFilter = true,
+        bool enableTypeahead = false)
     {
         Add(new Banner
         {
             Theme = theme,
         });
 
-        Add(new HintsBar { Text = "j/k Navigate  Enter Select  / Filter  Esc Back" });
+        string hints = enableFilter
+            ? "j/k Navigate  Enter Select  / Filter  Esc Back"
+            : (enableTypeahead
+                ? "j/k Navigate  Enter Select  Type to search  Esc Back"
+                : "j/k Navigate  Enter Select  Esc Back");
+
+        Add(new HintsBar { Text = hints });
 
         SelectionPrompt prompt = Add(new SelectionPrompt
         {
@@ -22,6 +34,8 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
             Items = items,
             DisplayConverter = converter,
             Theme = theme,
+            EnableFilter = enableFilter,
+            EnableTypeahead = enableTypeahead,
         });
 
         prompt.SelectionAccepted += Complete;

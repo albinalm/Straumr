@@ -195,7 +195,7 @@ internal sealed class SelectableDetailsView : View
         List<List<StyledCell>> lines = [];
         foreach ((string Key, string Value) row in _rows)
         {
-            List<StyledRun> runs = ParseRuns(row.Value);
+            List<MarkupText.MarkupRun> runs = MarkupText.ParseRuns(row.Value, _theme);
             List<List<StyledCell>> wrappedValueLines = WrapRuns(runs, valueWidth);
             if (wrappedValueLines.Count == 0)
             {
@@ -216,12 +216,12 @@ internal sealed class SelectableDetailsView : View
         return lines;
     }
 
-    private List<List<StyledCell>> WrapRuns(List<StyledRun> runs, int width)
+    private List<List<StyledCell>> WrapRuns(List<MarkupText.MarkupRun> runs, int width)
     {
         List<List<StyledCell>> lines = [[]];
         int col = 0;
 
-        foreach (StyledRun run in runs)
+        foreach (MarkupText.MarkupRun run in runs)
         {
             foreach (char ch in run.Text)
             {
@@ -244,98 +244,6 @@ internal sealed class SelectableDetailsView : View
         }
 
         return lines;
-    }
-
-    private List<StyledRun> ParseRuns(string? value)
-    {
-        string text = value ?? string.Empty;
-        List<StyledRun> runs = [];
-        var styleStack = new Stack<StyleState>();
-        StyleState currentStyle = StyleState.Default(_theme);
-        var buffer = new StringBuilder();
-
-        int index = 0;
-        while (index < text.Length)
-        {
-            if (text[index] != '[')
-            {
-                buffer.Append(text[index]);
-                index++;
-                continue;
-            }
-
-            int tagEnd = text.IndexOf(']', index);
-            if (tagEnd < 0)
-            {
-                buffer.Append(text[index]);
-                index++;
-                continue;
-            }
-
-            string tag = text[(index + 1)..tagEnd];
-            FlushBuffer();
-
-            if (tag == "/")
-            {
-                currentStyle = styleStack.Count > 0 ? styleStack.Pop() : StyleState.Default(_theme);
-            }
-            else if (!TryApplyTag(tag, currentStyle, out StyleState nextStyle))
-            {
-                buffer.Append(text[index..(tagEnd + 1)]);
-            }
-            else
-            {
-                styleStack.Push(currentStyle);
-                currentStyle = nextStyle;
-            }
-
-            index = tagEnd + 1;
-        }
-
-        FlushBuffer();
-        return runs;
-
-        void FlushBuffer()
-        {
-            if (buffer.Length == 0)
-            {
-                return;
-            }
-
-            runs.Add(new StyledRun(buffer.ToString(), currentStyle.ToAttribute()));
-            buffer.Clear();
-        }
-    }
-
-    private bool TryApplyTag(string tag, StyleState currentStyle, out StyleState nextStyle)
-    {
-        string? color = tag.ToLowerInvariant() switch
-        {
-            "grey" or "gray" or "secondary" => _theme?.Secondary,
-            "success" => _theme?.Success,
-            "info" => _theme?.Info,
-            "warning" => _theme?.Warning,
-            "danger" => _theme?.Danger,
-            "primary" => _theme?.Primary,
-            "accent" => _theme?.Accent,
-            "surface" => _theme?.OnSurface,
-            _ => null,
-        };
-
-        if (tag.Equals("bold", StringComparison.OrdinalIgnoreCase))
-        {
-            nextStyle = currentStyle with { Style = currentStyle.Style | TextStyle.Bold };
-            return true;
-        }
-
-        if (color is null)
-        {
-            nextStyle = currentStyle;
-            return false;
-        }
-
-        nextStyle = currentStyle with { Foreground = color };
-        return true;
     }
 
     private void SelectAll()
@@ -452,14 +360,5 @@ internal sealed class SelectableDetailsView : View
         ColorResolver.Resolve(_theme?.OnPrimary ?? "Black"),
         ColorResolver.Resolve(_theme?.Primary ?? "BrightGreen"));
 
-    private sealed record StyledRun(string Text, Attribute Attribute);
     private sealed record StyledCell(char Char, Attribute Attribute);
-    private sealed record StyleState(string Foreground, string Background, TextStyle Style)
-    {
-        public static StyleState Default(StraumrTheme? theme)
-            => new(theme?.OnSurface ?? "White", theme?.Surface ?? "Black", TextStyle.None);
-
-        public Attribute ToAttribute()
-            => new(ColorResolver.Resolve(Foreground), ColorResolver.Resolve(Background), Style);
-    }
 }

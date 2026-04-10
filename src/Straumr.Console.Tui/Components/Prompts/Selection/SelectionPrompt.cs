@@ -4,6 +4,7 @@ using Straumr.Console.Tui.Components.ListViews;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
+using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -16,6 +17,8 @@ internal sealed class SelectionPrompt : PromptComponent
     public required string Title { get; init; }
     public required IReadOnlyList<string> Items { get; init; }
     public Func<string, string>? DisplayConverter { get; init; }
+    public bool EnableFilter { get; init; } = true;
+    public bool EnableTypeahead { get; init; }
 
     public event Action<string>? SelectionAccepted;
     public event Action? CancelRequested;
@@ -26,6 +29,8 @@ internal sealed class SelectionPrompt : PromptComponent
     private ListView? _listView;
     private InteractiveTextField? _filterField;
     private Label? _emptyLabel;
+    private string _typeaheadBuffer = string.Empty;
+    private DateTimeOffset _lastTypeahead;
 
     public override View Build()
     {
@@ -33,24 +38,12 @@ internal sealed class SelectionPrompt : PromptComponent
 
         FrameView frame = CreateFrame(Title);
 
-        Label filterLabel = new()
-        {
-            Text = "Filter",
-            X = 1,
-            Y = 1,
-        };
-
-        _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter, OnExitFilter);
-        _filterField.X = Pos.Right(filterLabel) + 1;
-        _filterField.Y = filterLabel.Y;
-        _filterField.Width = Dim.Fill(3);
-
         _listView = new SelectionListView(HandleListKeyDown, BuildListScheme())
         {
             X = 1,
-            Y = 3,
+            Y = EnableFilter ? 3 : 1,
             Width = Dim.Fill(2),
-            Height = Dim.Fill(2),
+            Height = Dim.Fill(EnableFilter ? 2 : 1),
         };
 
         _listView.SetSource(_displayItems);
@@ -60,12 +53,29 @@ internal sealed class SelectionPrompt : PromptComponent
         {
             Text = "No results",
             X = 1,
-            Y = 3,
+            Y = EnableFilter ? 3 : 1,
             Width = Dim.Fill(2),
             Visible = false,
         };
 
-        frame.Add(filterLabel, _filterField, _listView, _emptyLabel);
+        if (EnableFilter)
+        {
+            Label filterLabel = new()
+            {
+                Text = "Filter",
+                X = 1,
+                Y = 1,
+            };
+
+            _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter, OnExitFilter);
+            _filterField.X = Pos.Right(filterLabel) + 1;
+            _filterField.Y = filterLabel.Y;
+            _filterField.Width = Dim.Fill(3);
+
+            frame.Add(filterLabel, _filterField);
+        }
+
+        frame.Add(_listView, _emptyLabel);
         ApplyFilter(string.Empty);
 
         // Defer focus until the view is attached to the window
@@ -107,9 +117,19 @@ internal sealed class SelectionPrompt : PromptComponent
                     _listView.SelectedItem = count - 1;
                     return true;
                 case '/':
-                    FocusFilter();
+                    if (EnableFilter)
+                    {
+                        FocusFilter();
+                        return true;
+                    }
+
                     return true;
             }
+        }
+
+        if (EnableTypeahead && !key.IsCtrl && !key.IsAlt && HandleTypeahead(key))
+        {
+            return true;
         }
 
         if (key == Key.Esc)
@@ -179,6 +199,124 @@ internal sealed class SelectionPrompt : PromptComponent
         }
 
         _emptyLabel?.Visible = !hasItems;
+    }
+
+    private bool HandleTypeahead(Key key)
+    {
+        if (_listView is null || _displayItems.Count == 0)
+        {
+            return false;
+        }
+
+        if (key == Key.Backspace || key == Key.Delete)
+        {
+            if (_typeaheadBuffer.Length == 0)
+            {
+                return false;
+            }
+
+            _typeaheadBuffer = _typeaheadBuffer[..^1];
+            return MoveSelectionToTypeahead();
+        }
+
+        if (!TryGetTypeaheadChar(key, out char ch))
+        {
+            return false;
+        }
+
+        if (DateTimeOffset.UtcNow - _lastTypeahead > TimeSpan.FromSeconds(1))
+        {
+            _typeaheadBuffer = string.Empty;
+        }
+
+        _lastTypeahead = DateTimeOffset.UtcNow;
+        _typeaheadBuffer += ch;
+
+        return MoveSelectionToTypeahead();
+    }
+
+    private static bool TryGetTypeaheadChar(Key key, out char ch)
+    {
+        Rune rune = key.AsRune;
+        if (rune.Value != 0)
+        {
+            var candidate = (char)rune.Value;
+            if (char.IsLetterOrDigit(candidate) || candidate == ' ')
+            {
+                ch = candidate;
+                return true;
+            }
+        }
+
+        KeyCode keyCode = key.KeyCode;
+        var keyValue = (int)keyCode;
+
+        if (keyValue is >= (int)KeyCode.A and <= (int)KeyCode.Z)
+        {
+            ch = (char)('a' + (keyValue - (int)KeyCode.A));
+            return true;
+        }
+
+        if (keyValue is >= (int)KeyCode.D0 and <= (int)KeyCode.D9)
+        {
+            ch = (char)('0' + (keyValue - (int)KeyCode.D0));
+            return true;
+        }
+
+        if (keyCode == KeyCode.Space)
+        {
+            ch = ' ';
+            return true;
+        }
+
+        ch = '\0';
+        return false;
+    }
+
+    private bool MoveSelectionToTypeahead()
+    {
+        if (_listView is null)
+        {
+            return false;
+        }
+
+        string filter = _typeaheadBuffer;
+        if (string.IsNullOrEmpty(filter))
+        {
+            return false;
+        }
+
+        int index = -1;
+        for (int i = 0; i < _displayItems.Count; i++)
+        {
+            if (_displayItems[i].StartsWith(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index >= 0)
+        {
+            _listView.SelectedItem = index;
+            return true;
+        }
+        
+        if (_typeaheadBuffer.Length > 0)
+        {
+            char last = _typeaheadBuffer[^1];
+            _typeaheadBuffer = last.ToString();
+            for (var i = 0; i < _displayItems.Count; i++)
+            {
+                if (_displayItems[i].StartsWith(_typeaheadBuffer, StringComparison.OrdinalIgnoreCase))
+                {
+                    _listView.SelectedItem = i;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private bool MatchesFilter(string display, string filter)

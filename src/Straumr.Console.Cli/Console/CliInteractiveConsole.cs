@@ -8,13 +8,21 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
     private readonly EscapeCancellableConsole _console = new(AnsiConsole.Console);
 
     public string? Select(
-        string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
+        string title,
+        IReadOnlyList<string> choices,
+        Func<string, string>? displayConverter = null,
+        bool enableFilter = true,
+        bool enableTypeahead = false)
     {
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
             .Title(title)
-            .EnableSearch()
             .SearchPlaceholderText("/")
             .AddChoices(choices);
+
+        if (enableFilter)
+        {
+            prompt.EnableSearch();
+        }
 
         if (displayConverter is not null)
         {
