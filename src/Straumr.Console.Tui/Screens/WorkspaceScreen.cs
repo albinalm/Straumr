@@ -92,11 +92,13 @@ public sealed class WorkspaceScreen(
         interactiveConsole.ShowDetails(
             $"Workspace {SelectedEntry.Identifier}",
             [
-                ("ID", SelectedEntry.Entry.Id.ToString()),
-                ("Name", SelectedEntry.Identifier ?? "N/A"),
+                ("ID", $"[secondary]{SelectedEntry.Entry.Id}[/]"),
+                ("Name", SelectedEntry.Identifier is not null ? $"[primary]{SelectedEntry.Identifier}[/]" : "[secondary]N/A[/]"),
                 ("Path", SelectedEntry.Entry.Path),
-                ("Status", SelectedEntry.IsDamaged ? "Damaged" : "Valid"),
-                ("Last Accessed", SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A"),
+                ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]"),
+                ("Last Accessed", SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") is { } lastAccessed
+                    ? $"[info]{lastAccessed}[/]"
+                    : "[secondary]N/A[/]"),
             ]);
     }
 

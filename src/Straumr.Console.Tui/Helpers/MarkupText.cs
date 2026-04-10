@@ -1,5 +1,9 @@
 using System.Text.RegularExpressions;
 
+using Straumr.Console.Shared.Theme;
+using Terminal.Gui.Drawing;
+using Attribute = Terminal.Gui.Drawing.Attribute;
+
 namespace Straumr.Console.Tui.Helpers;
 
 internal static partial class MarkupText
@@ -12,6 +16,112 @@ internal static partial class MarkupText
         }
 
         return MarkupRegex().Replace(value, string.Empty);
+    }
+
+    public static List<List<Cell>> ToLinesOfCells(string? value, StraumrTheme? theme)
+    {
+        string text = value ?? string.Empty;
+        if (text.Length == 0)
+        {
+            return [[]];
+        }
+
+        Attribute defaultAttribute = BuildAttribute(theme?.OnSurface, theme?.Surface);
+        Attribute currentAttribute = defaultAttribute;
+
+        List<List<Cell>> lines = [];
+        int index = 0;
+
+        while (index < text.Length)
+        {
+            int tagStart = text.IndexOf('[', index);
+            if (tagStart < 0)
+            {
+                AppendSegment(lines, text[index..], currentAttribute);
+                break;
+            }
+
+            if (tagStart > index)
+            {
+                AppendSegment(lines, text[index..tagStart], currentAttribute);
+            }
+
+            int tagEnd = text.IndexOf(']', tagStart);
+            if (tagEnd < 0)
+            {
+                AppendSegment(lines, text[tagStart..], currentAttribute);
+                break;
+            }
+
+            string tag = text[(tagStart + 1)..tagEnd];
+            if (tag == "/")
+            {
+                currentAttribute = defaultAttribute;
+            }
+            else if (TryResolveTagAttribute(tag, theme, out Attribute resolved))
+            {
+                currentAttribute = resolved;
+            }
+            else
+            {
+                AppendSegment(lines, text[tagStart..(tagEnd + 1)], currentAttribute);
+            }
+
+            index = tagEnd + 1;
+        }
+
+        return lines;
+    }
+
+    private static void AppendSegment(List<List<Cell>> lines, string segment, Attribute attribute)
+    {
+        if (lines.Count == 0)
+        {
+            lines.Add([]);
+        }
+
+        string[] split = segment.Split('\n');
+        for (var i = 0; i < split.Length; i++)
+        {
+            lines[^1].AddRange(Cell.ToCellList(split[i], attribute));
+            if (i < split.Length - 1)
+            {
+                lines.Add([]);
+            }
+        }
+    }
+
+    private static bool TryResolveTagAttribute(string tag, StraumrTheme? theme, out Attribute attribute)
+    {
+        string? color = tag.ToLowerInvariant() switch
+        {
+            "grey" or "gray" or "secondary" => theme?.Secondary,
+            "success" => theme?.Success,
+            "info" => theme?.Info,
+            "warning" => theme?.Warning,
+            "danger" => theme?.Danger,
+            "primary" => theme?.Primary,
+            "accent" => theme?.Accent,
+            "surface" => theme?.OnSurface,
+            "bold" => theme?.OnSurface,
+            _ => null,
+        };
+
+        if (color is null)
+        {
+            attribute = default;
+            return false;
+        }
+
+        attribute = BuildAttribute(color, theme?.Surface);
+        return true;
+    }
+
+    private static Attribute BuildAttribute(string? foreground, string? background)
+    {
+        Color fg = ColorResolver.Resolve(foreground ?? "White");
+        Color bg = ColorResolver.Resolve(background ?? "Black");
+        return new Attribute(fg, bg);
     }
 
     [GeneratedRegex(@"\[[^\[\]]+\]")]

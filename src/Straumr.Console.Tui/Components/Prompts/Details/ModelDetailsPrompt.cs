@@ -1,8 +1,5 @@
-using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Base;
-using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Helpers;
-using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using MarkupText = Straumr.Console.Tui.Helpers.MarkupText;
@@ -33,42 +30,16 @@ internal sealed class ModelDetailsPrompt : PromptComponent
             return frame;
         }
 
-        int maxKeyWidth = Math.Clamp(Rows.Max(r => r.Key.Length), 8, 24);
-        var textBuilder = new StringBuilder();
-        foreach ((string Key, string Value) row in Rows)
+        SelectableDetailsView detailsView = new(Rows, Theme)
         {
-            textBuilder.Append(row.Key.PadRight(maxKeyWidth));
-            textBuilder.Append("  ");
-            textBuilder.Append(MarkupText.ToPlain(row.Value));
-            textBuilder.AppendLine(" ");
-        }
-
-        InteractiveTextView detailsView = new()
-        {
-            Text = textBuilder.ToString().TrimEnd('\r', '\n'),
-            ReadOnly = true,
-            PreserveTrailingSpaces = true,
             X = 1,
             Y = 1,
             Width = Dim.Fill(2),
             Height = Dim.Fill(3),
         };
-        ApplyTextTheme(detailsView);
         detailsView.Initialized += (_, _) => detailsView.SetFocus();
 
         frame.Add(detailsView);
         return frame;
-    }
-
-    private void ApplyTextTheme(InteractiveTextView text)
-    {
-        if (Theme is null)
-        {
-            return;
-        }
-
-        Color background = ColorResolver.Resolve(Theme.Surface);
-        Color foreground = ColorResolver.Resolve(Theme.OnSurface);
-        text.ApplyTheme(background, foreground);
     }
 }
