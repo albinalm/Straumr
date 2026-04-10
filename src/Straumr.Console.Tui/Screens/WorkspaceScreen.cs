@@ -248,7 +248,7 @@ public sealed class WorkspaceScreen : Screen
                 ExecuteCommand(command);
             }
             return true;
-        }, clearText: true);
+        });
 
         _commandField.Bind(Key.Esc, (f, _) =>
         {
@@ -522,18 +522,14 @@ public sealed class WorkspaceScreen : Screen
 
     private void ExecuteCommand(string command)
     {
+        Debug.WriteLine(command);
     }
 
     private void ApplyCommandFieldTheme(InteractiveTextField field)
     {
-        Color background = _theme != null ? ColorResolver.Resolve(_theme.Surface) : Color.Black;
-        Color foreground = _theme != null ? ColorResolver.Resolve(_theme.OnSurface) : Color.White;
+        Color background = ColorResolver.Resolve(_theme.Surface);
+        Color foreground = ColorResolver.Resolve(_theme.OnSurface);
         field.ApplyTheme(background, foreground);
-
-        if (_theme is null)
-        {
-            return;
-        }
 
         Color accent = ColorResolver.Resolve(_theme.Accent);
         field.SetBorderColors(accent, accent, accent);
