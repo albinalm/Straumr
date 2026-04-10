@@ -172,6 +172,8 @@ internal sealed class SelectableDetailsView : View
         return base.OnMouseEvent(mouse);
     }
 
+    public int ComputeLineCount(int width) => BuildRenderedLines(Math.Max(1, width)).Count;
+
     private void BuildLinesIfNeeded()
     {
         int width = Math.Max(1, Viewport.Width);
@@ -204,7 +206,7 @@ internal sealed class SelectableDetailsView : View
             {
                 List<StyledCell> line = [];
                 string prefix = i == 0 ? row.Key.PadRight(keyWidth) : new string(' ', keyWidth);
-                line.AddRange(ToCells(prefix, SecondaryAttribute));
+                line.AddRange(ToCells(prefix, BaseAttribute));
                 line.AddRange(ToCells("  ", BaseAttribute));
                 line.AddRange(wrappedValueLines[i]);
                 lines.Add(line);
