@@ -118,10 +118,15 @@ internal sealed class SelectableDetailsView : View
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed))
         {
-            _isSelecting = true;
-            _selectionStart = (row, col);
+            if (!_isSelecting)
+            {
+                App?.Mouse.GrabMouse(this);
+                _isSelecting = true;
+                _selectionStart = (row, col);
+                SetFocus();
+            }
+
             _selectionEnd = (row, col);
-            SetFocus();
             SetNeedsDraw();
             return true;
         }
@@ -135,8 +140,17 @@ internal sealed class SelectableDetailsView : View
 
         if (_isSelecting && (mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased) || mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked)))
         {
-            _selectionEnd = (row, col);
+            App?.Mouse.UngrabMouse();
             _isSelecting = false;
+            if ((row, col) == _selectionStart)
+            {
+                _selectionStart = null;
+                _selectionEnd = null;
+            }
+            else
+            {
+                _selectionEnd = (row, col);
+            }
             SetNeedsDraw();
             return true;
         }
