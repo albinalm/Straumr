@@ -36,6 +36,7 @@ internal sealed class ModelDetailsScreen : PromptScreen<bool>
 
         if (key == Key.Enter)
         {
+            Cancel();
             return true;
         }
 
