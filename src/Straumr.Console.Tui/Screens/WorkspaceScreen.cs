@@ -5,6 +5,7 @@ using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
+using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
 using Terminal.Gui.Input;
 
@@ -15,23 +16,23 @@ public sealed class WorkspaceScreen(
     IStraumrWorkspaceService workspaceService,
     IStraumrOptionsService optionsService,
     StraumrTheme theme)
-    : ModelScreen<WorkspaceScreen.WorkspaceItem>(theme,
+    : ModelScreen<WorkspaceEntry>(theme,
         screenTitle: "Workspaces",
         hintsText: WorkspaceHintsText,
         emptyStateText: "No workspaces found",
         itemTypeNamePlural: "workspaces")
 {
-    private const string WorkspaceHintsText = "j/k Navigate  g/G Jump  s Set active  / Filter  Enter Open  : Command";
+    private const string WorkspaceHintsText = "j/k Navigate  g/G Jump  s Set active  i Inspect  / Filter  Enter Open  : Command";
 
-    protected override void OnInitialized(IReadOnlyList<WorkspaceItem> entries)
+    protected override void OnInitialized(IReadOnlyList<WorkspaceEntry> entries)
     {
         int workspaceCount = optionsService.Options.Workspaces.Count;
         ShowSuccess($" {workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");
     }
 
-    protected override string GetDisplayText(WorkspaceItem entry) => entry.Display;
+    protected override string GetDisplayText(WorkspaceEntry entry) => entry.Display;
 
-    protected override bool HandleModelKeyDown(Key key, WorkspaceItem? selectedEntry)
+    protected override bool HandleModelKeyDown(Key key, WorkspaceEntry? selectedEntry)
     {
         Rune rune = key.AsRune;
         if (key is { IsCtrl: false, IsAlt: false } && rune.Value == 's')
@@ -43,7 +44,7 @@ public sealed class WorkspaceScreen(
         return false;
     }
 
-    private void SetCurrentWorkspace(WorkspaceItem? selectedItem)
+    private void SetCurrentWorkspace(WorkspaceEntry? selectedItem)
     {
         if (selectedItem is null)
         {
@@ -51,7 +52,7 @@ public sealed class WorkspaceScreen(
         }
 
         if (optionsService.Options.CurrentWorkspace != null &&
-            selectedItem.Entry.Id == optionsService.Options.CurrentWorkspace?.Id)
+            selectedItem.StraumrEntry.Id == optionsService.Options.CurrentWorkspace?.Id)
         {
             ShowInfo($"🤔 {selectedItem.Identifier} is already the active workspace.");
             return;
@@ -63,7 +64,7 @@ public sealed class WorkspaceScreen(
             return;
         }
 
-        workspaceService.Activate(selectedItem.Entry.Id.ToString());
+        workspaceService.Activate(selectedItem.StraumrEntry.Id.ToString());
         ShowSuccess($"😎 {selectedItem.Identifier} is now the active workspace.");
     }
 
@@ -78,11 +79,9 @@ public sealed class WorkspaceScreen(
         {
             return;
         }
-
-        ShowWorkspaceChildren();
     }
-
-    private void ShowWorkspaceChildren()
+    
+    protected override void InspectSelectedEntry()
     {
         if (SelectedEntry is null)
         {
@@ -92,27 +91,30 @@ public sealed class WorkspaceScreen(
         interactiveConsole.ShowDetails(
             string.Empty,
             [
-                ("ID", $"[bold]{SelectedEntry.Entry.Id}[/]"),
-                ("Name", SelectedEntry.Identifier is not null ? $"{SelectedEntry.Identifier}" : "[secondary]N/A[/]"),
-                ("Path", SelectedEntry.Entry.Path),
-                ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]"),
+                ("ID", $"[bold]{SelectedEntry.StraumrEntry.Id}[/]"),
+                ("Name", SelectedEntry.Name is not null ? $"{SelectedEntry.Identifier}" : "[secondary]N/A[/]"),
+                ("Requests", SelectedEntry.RequestCount is not null ? $"{SelectedEntry.RequestCount}" : "[secondary]N/A[/]"),
+                ("Secrets", SelectedEntry.SecretCount is not null ? $"{SelectedEntry.SecretCount}" : "[secondary]N/A[/]"),
+                ("Authenticators", SelectedEntry.AuthCount is not null ? $"{SelectedEntry.AuthCount}" : "[secondary]N/A[/]"),
+                ("Path", SelectedEntry.StraumrEntry.Path),
                 ("Last Accessed", SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[warning]N/A[/]"),
+                ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]")
             ]);
     }
 
-    protected override async Task<IReadOnlyList<WorkspaceItem>> LoadEntriesAsync(CancellationToken cancellationToken)
+    protected override async Task<IReadOnlyList<WorkspaceEntry>> LoadEntriesAsync(CancellationToken cancellationToken)
     {
         if (optionsService.Options.Workspaces.Count == 0)
         {
             return [];
         }
 
-        var items = new List<WorkspaceItem>();
+        var items = new List<WorkspaceEntry>();
 
         foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            WorkspaceItem line = await BuildWorkspaceItemAsync(entry);
+            WorkspaceEntry line = await BuildWorkspaceEntryAsync(entry);
             items.Add(line);
         }
 
@@ -121,12 +123,18 @@ public sealed class WorkspaceScreen(
             .ToList();
     }
 
-    private async Task<WorkspaceItem> BuildWorkspaceItemAsync(StraumrWorkspaceEntry entry)
+    private async Task<WorkspaceEntry> BuildWorkspaceEntryAsync(StraumrWorkspaceEntry entry)
     {
         var lineBuilder = new StringBuilder();
         DateTimeOffset? lastAccessed = null;
         var isDamaged = false;
         string identifier;
+        string? name = null;
+        var status = "Valid";
+        int? requests = null;
+        int? secrets = null;
+        int? auths = null;
+        
         if (optionsService.Options.CurrentWorkspace != null && entry.Id == optionsService.Options.CurrentWorkspace.Id)
         {
             lineBuilder.Append("(Current) ");
@@ -138,27 +146,38 @@ public sealed class WorkspaceScreen(
             lineBuilder.Append(workspace.Name);
             lastAccessed = workspace.LastAccessed;
             identifier = workspace.Name;
+            requests = workspace.Requests.Count;
+            secrets = workspace.Secrets.Count;
+            auths = workspace.Auths.Count;
+            name = workspace.Name;
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {
             lineBuilder.Append($"{entry.Id} [Corrupt] ");
             isDamaged = true;
             identifier = entry.Id.ToString();
+            status = "Corrupt";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
         {
             lineBuilder.Append($"{entry.Id} [Missing] ");
             isDamaged = true;
             identifier = entry.Id.ToString();
+            status = "Missing";
         }
-
-        return new WorkspaceItem(entry, lineBuilder.ToString(), identifier, isDamaged, lastAccessed);
+        
+        return new WorkspaceEntry
+        {
+            StraumrEntry = entry,
+            Display = lineBuilder.ToString(),
+            Identifier = identifier,
+            Status = status,
+            IsDamaged = isDamaged,
+            RequestCount = requests,
+            SecretCount = secrets,
+            AuthCount = auths,
+            LastAccessed = lastAccessed,
+            Name = name
+        };
     }
-
-    public sealed record WorkspaceItem(
-        StraumrWorkspaceEntry Entry,
-        string Display,
-        string? Identifier,
-        bool IsDamaged,
-        DateTimeOffset? LastAccessed);
 }

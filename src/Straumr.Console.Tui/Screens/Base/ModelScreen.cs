@@ -91,6 +91,7 @@ public abstract class ModelScreen<TEntry> : Screen
     protected virtual bool HandleModelKeyDown(Key key, TEntry? selectedEntry) => false;
 
     protected virtual void OpenSelectedEntry() { }
+    protected virtual void InspectSelectedEntry() { }
 
     protected void ShowSuccess(string text) => _statusBar.ShowStatus(text,
         ColorResolver.Resolve(_theme.Success), ColorResolver.Resolve(_theme.Surface));
@@ -351,6 +352,9 @@ public abstract class ModelScreen<TEntry> : Screen
                 case 'G':
                     MoveSelectionToEnd();
                     return true;
+                case 'i':
+                    InspectSelectedEntry();
+                    return true;
                 case '/':
                     FocusFilter();
                     return true;
@@ -541,7 +545,7 @@ public abstract class ModelScreen<TEntry> : Screen
 
         if (!_commands.TryGetValue(commandName, out ModelCommand? command))
         {
-            ShowDanger($" Unknown command: {commandName}");
+            ShowDanger($"🧐 Unknown command: {commandName}");
             return;
         }
 
