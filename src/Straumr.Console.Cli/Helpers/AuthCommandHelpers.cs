@@ -108,7 +108,7 @@ internal static class AuthCommandHelpers
             .Prepend(noneOption)
             .ToList();
 
-        string? selected = await console.SelectAsync("Select auth", choices,
+        string? selected = console.Select("Select auth", choices,
             choice =>
             {
                 if (choice == noneOption)
@@ -167,7 +167,7 @@ internal static class AuthCommandHelpers
                 ? [actionBack, actionType]
                 : [actionBack, actionType, actionConfig, actionTokenStatus, actionClear];
 
-            string? action = await console.SelectAsync("Auth", choices,
+            string? action = console.Select("Auth", choices,
                 choice => choice switch
                 {
                     actionType => $"Type: {typeDisplay}",
@@ -182,7 +182,7 @@ internal static class AuthCommandHelpers
             switch (action)
             {
                 case actionType:
-                    current = await SelectAuthTypeAsync(console, current);
+                    current = SelectAuthType(console, current);
                     break;
                 case actionConfig:
                     await ConfigureAuthAsync(console, current);
@@ -197,10 +197,10 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task<StraumrAuthConfig?> SelectAuthTypeAsync(
+    private static StraumrAuthConfig? SelectAuthType(
         IInteractiveConsole console, StraumrAuthConfig? current)
     {
-        string? selected = await console.SelectAsync("Select auth type",
+        string? selected = console.Select("Select auth type",
             ["No auth", "Bearer", "Basic", "OAuth 2.0", "Custom"]);
 
         return selected switch
@@ -219,13 +219,13 @@ internal static class AuthCommandHelpers
         switch (auth)
         {
             case BearerAuthConfig bearer:
-                await EditBearerAuthAsync(console, bearer);
+                EditBearerAuth(console, bearer);
                 break;
             case BasicAuthConfig basic:
-                await EditBasicAuthAsync(console, basic);
+                EditBasicAuth(console, basic);
                 break;
             case OAuth2Config oauth2:
-                await EditOAuth2ConfigAsync(console, oauth2);
+                EditOAuth2Config(console, oauth2);
                 break;
             case CustomAuthConfig custom:
                 await EditCustomAuthConfigAsync(console, custom);
@@ -283,13 +283,13 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditBearerAuthAsync(IInteractiveConsole console, BearerAuthConfig config)
+    private static void EditBearerAuth(IInteractiveConsole console, BearerAuthConfig config)
     {
         const string actionBack = "Back";
         const string actionPrefix = "Header prefix";
         const string actionToken = "Token";
 
-        string? action = await console.SelectAsync("Bearer auth",
+        string? action = console.Select("Bearer auth",
             [actionBack, actionPrefix, actionToken],
             choice => choice switch
             {
@@ -308,7 +308,7 @@ internal static class AuthCommandHelpers
         {
             case actionPrefix:
             {
-                string? prefix = await console.TextInputAsync("Header prefix", config.Prefix,
+                string? prefix = console.TextInput("Header prefix", config.Prefix,
                     validate: value => string.IsNullOrWhiteSpace(value) ? "Prefix cannot be empty." : null);
 
                 if (prefix is not null)
@@ -320,7 +320,7 @@ internal static class AuthCommandHelpers
             }
             case actionToken:
             {
-                string? token = await console.SecretInputAsync("Token");
+                string? token = console.SecretInput("Token");
                 if (token is not null)
                 {
                     config.Token = token;
@@ -331,13 +331,13 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditBasicAuthAsync(IInteractiveConsole console, BasicAuthConfig config)
+    private static void EditBasicAuth(IInteractiveConsole console, BasicAuthConfig config)
     {
         const string actionBack = "Back";
         const string actionUsername = "Username";
         const string actionPassword = "Password";
 
-        string? action = await console.SelectAsync("Basic auth",
+        string? action = console.Select("Basic auth",
             [actionBack, actionUsername, actionPassword],
             choice => choice switch
             {
@@ -359,7 +359,7 @@ internal static class AuthCommandHelpers
         {
             case actionUsername:
             {
-                string? username = await console.TextInputAsync("Username", config.Username,
+                string? username = console.TextInput("Username", config.Username,
                     validate: value => string.IsNullOrWhiteSpace(value) ? "Username cannot be empty." : null);
                 if (username is not null)
                 {
@@ -370,7 +370,7 @@ internal static class AuthCommandHelpers
             }
             case actionPassword:
             {
-                string? password = await console.SecretInputAsync("Password");
+                string? password = console.SecretInput("Password");
                 if (password is not null)
                 {
                     config.Password = password;
@@ -381,7 +381,7 @@ internal static class AuthCommandHelpers
         }
     }
 
-    private static async Task EditOAuth2ConfigAsync(IInteractiveConsole console, OAuth2Config config)
+    private static void EditOAuth2Config(IInteractiveConsole console, OAuth2Config config)
     {
         while (true)
         {
@@ -484,24 +484,24 @@ internal static class AuthCommandHelpers
                 };
             }
 
-            string? action = await console.SelectAsync("OAuth 2.0 Configuration", choices, converter);
+            string? action = console.Select("OAuth 2.0 Configuration", choices, converter);
 
             if (action is null or actionBack)
             {
                 return;
             }
 
-            await HandleOAuth2Action(console, config, action);
+            HandleOAuth2Action(console, config, action);
         }
     }
 
-    private static async Task HandleOAuth2Action(IInteractiveConsole console, OAuth2Config config, string action)
+    private static void HandleOAuth2Action(IInteractiveConsole console, OAuth2Config config, string action)
     {
         switch (action)
         {
             case "Grant type":
             {
-                string? selected = await console.SelectAsync("Select grant type",
+                string? selected = console.Select("Select grant type",
                     ["Client Credentials", "Authorization Code", "Resource Owner Password"]);
 
                 if (selected is not null)
@@ -519,7 +519,7 @@ internal static class AuthCommandHelpers
             }
             case "Token URL":
             {
-                string? value = await console.TextInputAsync("Token URL", config.TokenUrl,
+                string? value = console.TextInput("Token URL", config.TokenUrl,
                     validate: v => IsValidAbsoluteUrl(v) ? null : "Enter a valid absolute URL.");
                 if (value is not null)
                 {
@@ -530,7 +530,7 @@ internal static class AuthCommandHelpers
             }
             case "Client ID":
             {
-                string? value = await console.TextInputAsync("Client ID", config.ClientId,
+                string? value = console.TextInput("Client ID", config.ClientId,
                     validate: v => string.IsNullOrWhiteSpace(v) ? "Client ID cannot be empty." : null);
                 if (value is not null)
                 {
@@ -541,7 +541,7 @@ internal static class AuthCommandHelpers
             }
             case "Client secret":
             {
-                string? value = await console.SecretInputAsync("Client secret");
+                string? value = console.SecretInput("Client secret");
                 if (value is not null)
                 {
                     config.ClientSecret = value;
@@ -551,7 +551,7 @@ internal static class AuthCommandHelpers
             }
             case "Scope":
             {
-                string? value = await console.TextInputAsync("Scope (optional)", config.Scope, allowEmpty: true);
+                string? value = console.TextInput("Scope (optional)", config.Scope, allowEmpty: true);
                 if (value is not null)
                 {
                     config.Scope = value;
@@ -561,7 +561,7 @@ internal static class AuthCommandHelpers
             }
             case "Authorization URL":
             {
-                string? value = await console.TextInputAsync("Authorization URL", config.AuthorizationUrl,
+                string? value = console.TextInput("Authorization URL", config.AuthorizationUrl,
                     validate: v => IsValidAbsoluteUrl(v) ? null : "Enter a valid absolute URL.");
                 if (value is not null)
                 {
@@ -572,7 +572,7 @@ internal static class AuthCommandHelpers
             }
             case "Redirect URI":
             {
-                string? value = await console.TextInputAsync("Redirect URI", config.RedirectUri,
+                string? value = console.TextInput("Redirect URI", config.RedirectUri,
                     validate: v => IsValidAbsoluteUrl(v) ? null : "Enter a valid absolute URL.");
                 if (value is not null)
                 {
@@ -583,7 +583,7 @@ internal static class AuthCommandHelpers
             }
             case "PKCE":
             {
-                string? mode = await console.SelectAsync("PKCE", ["Disabled", "S256", "plain"]);
+                string? mode = console.Select("PKCE", ["Disabled", "S256", "plain"]);
                 if (mode is not null)
                 {
                     config.UsePkce = mode != "Disabled";
@@ -594,7 +594,7 @@ internal static class AuthCommandHelpers
             }
             case "Username":
             {
-                string? value = await console.TextInputAsync("Username", config.Username,
+                string? value = console.TextInput("Username", config.Username,
                     validate: v => string.IsNullOrWhiteSpace(v) ? "Username cannot be empty." : null);
                 if (value is not null)
                 {
@@ -605,7 +605,7 @@ internal static class AuthCommandHelpers
             }
             case "Password":
             {
-                string? value = await console.SecretInputAsync("Password");
+                string? value = console.SecretInput("Password");
                 if (value is not null)
                 {
                     config.Password = value;
@@ -653,7 +653,7 @@ internal static class AuthCommandHelpers
             string headerNameDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderName)}[/]";
             string templateDisplay = $"[blue]{Markup.Escape(config.ApplyHeaderTemplate)}[/]";
 
-            string? action = await console.SelectAsync("Custom auth",
+            string? action = console.Select("Custom auth",
                 [
                     actionBack, actionUrl, actionMethod, actionHeaders, actionParams, actionBody,
                     actionSource, actionExpression, actionHeaderName, actionTemplate
@@ -681,7 +681,7 @@ internal static class AuthCommandHelpers
             {
                 case actionUrl:
                 {
-                    string? url = await PromptUrlAsync(console, config.Url);
+                    string? url = PromptUrl(console, config.Url);
                     if (url is not null)
                     {
                         config.Url = url;
@@ -691,7 +691,7 @@ internal static class AuthCommandHelpers
                 }
                 case actionMethod:
                 {
-                    string? selected = await PromptMethodAsync(console);
+                    string? selected = PromptMethod(console);
                     if (selected is not null)
                     {
                         config.Method = selected;
@@ -700,10 +700,10 @@ internal static class AuthCommandHelpers
                     break;
                 }
                 case actionHeaders:
-                    await EditKeyValuePairsAsync(console, "Auth headers", config.Headers);
+                    EditKeyValuePairs(console, "Auth headers", config.Headers);
                     break;
                 case actionParams:
-                    await EditKeyValuePairsAsync(console, "Auth params", config.Params);
+                    EditKeyValuePairs(console, "Auth params", config.Params);
                     break;
                 case actionBody:
                     config.BodyType = await EditBodyAsync(console, config.Headers, config.Bodies, config.BodyType,
@@ -711,7 +711,7 @@ internal static class AuthCommandHelpers
                     break;
                 case actionSource:
                 {
-                    string? selected = await console.SelectAsync("Extract value from",
+                    string? selected = console.Select("Extract value from",
                         ["JSON path (dot notation)", "Response header", "Regex (first capture group)"]);
 
                     if (selected is not null)
@@ -736,7 +736,7 @@ internal static class AuthCommandHelpers
                         ExtractionSource.Regex => "Regex with capture group (e.g. token\":\"([^\"]+)\")",
                         _ => "Expression"
                     };
-                    string? value = await console.TextInputAsync(hint, config.ExtractionExpression,
+                    string? value = console.TextInput(hint, config.ExtractionExpression,
                         validate: v => string.IsNullOrWhiteSpace(v) ? "Expression cannot be empty." : null);
                     if (value is not null)
                     {
@@ -747,7 +747,7 @@ internal static class AuthCommandHelpers
                 }
                 case actionHeaderName:
                 {
-                    string? value = await console.TextInputAsync("Header name (e.g. Authorization)",
+                    string? value = console.TextInput("Header name (e.g. Authorization)",
                         config.ApplyHeaderName,
                         validate: v => string.IsNullOrWhiteSpace(v) ? "Header name cannot be empty." : null);
                     if (value is not null)
@@ -759,7 +759,7 @@ internal static class AuthCommandHelpers
                 }
                 case actionTemplate:
                 {
-                    string? value = await console.TextInputAsync(
+                    string? value = console.TextInput(
                         "Header value template (use {{value}} as placeholder)",
                         config.ApplyHeaderTemplate,
                         validate: v => string.IsNullOrWhiteSpace(v) ? "Template cannot be empty." : null);

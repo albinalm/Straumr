@@ -13,9 +13,9 @@ namespace Straumr.Core.Services;
 public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOptionsService optionsService)
     : IStraumrWorkspaceService
 {
-    public async Task Activate(string name)
+    public async Task Activate(string identifier)
     {
-        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(name);
+        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(identifier);
         optionsService.Options.CurrentWorkspace = entry;
         await optionsService.Save();
         await fileService.StampAccessAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);

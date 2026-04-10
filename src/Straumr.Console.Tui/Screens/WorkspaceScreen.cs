@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text;
+using Straumr.Console.Shared.Console;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -20,13 +22,15 @@ namespace Straumr.Console.Tui.Screens;
 
 public sealed class WorkspaceScreen : Screen
 {
-    private const string HintsText = "j/k Navigate  g/G Jump  / Filter  Enter Open  q Quit  Esc Quit";
+    private const string HintsText = "j/k Navigate  g/G Jump  s Set active  / Filter  Enter Open  q Quit  Esc Quit";
 
+    private readonly IInteractiveConsole _interactiveConsole;
     private readonly IStraumrWorkspaceService _workspaceService;
     private readonly IStraumrOptionsService _optionsService;
     private readonly StraumrTheme _theme;
     private readonly ObservableCollection<string> _displayItems = [];
-    private readonly List<string> _sourceItems = [];
+    private readonly List<WorkspaceItem> _sourceItems = [];
+    private readonly List<WorkspaceItem> _displayEntries = [];
 
     private SelectionListView? _listView;
     private InteractiveTextField? _filterField;
@@ -36,10 +40,12 @@ public sealed class WorkspaceScreen : Screen
     private string _currentFilter = string.Empty;
 
     public WorkspaceScreen(
+        IInteractiveConsole interactiveConsole,
         IStraumrWorkspaceService workspaceService,
         IStraumrOptionsService optionsService,
         StraumrTheme theme)
     {
+        _interactiveConsole = interactiveConsole;
         _workspaceService = workspaceService;
         _optionsService = optionsService;
         _theme = theme;
@@ -53,18 +59,28 @@ public sealed class WorkspaceScreen : Screen
 
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        IReadOnlyList<string> lines = await LoadWorkspaceLinesAsync(cancellationToken);
+        IReadOnlyList<WorkspaceItem> lines = await LoadWorkspaceItemsAsync(cancellationToken);
         _sourceItems.Clear();
-        foreach (string line in lines)
+        foreach (WorkspaceItem line in lines)
         {
             _sourceItems.Add(line);
         }
 
         ApplyFilter(_currentFilter);
         int workspaceCount = _optionsService.Options.Workspaces.Count;
-        ShowStatus($" {workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");
+        ShowSuccess($" {workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");
+        
     }
-
+    
+    private void ShowSuccess(string text) =>  _statusBar.ShowStatus(text,
+        ColorResolver.Resolve(_theme.Success), ColorResolver.Resolve(_theme.Surface));
+    
+    private void ShowInfo(string text) =>  _statusBar.ShowStatus(text,
+        ColorResolver.Resolve(_theme.Info), ColorResolver.Resolve(_theme.Surface));
+    
+    private void ShowDanger(string text) =>  _statusBar.ShowStatus(text,
+        ColorResolver.Resolve(_theme.Danger), ColorResolver.Resolve(_theme.Surface));
+    
     public override bool OnKeyDown(Key key)
     {
         Rune rune = key.AsRune;
@@ -136,7 +152,7 @@ public sealed class WorkspaceScreen : Screen
         };
 
         list.SetSource(_displayItems);
-        list.Accepting += (_, _) => ActivateSelection();
+        list.Accepting += (_, _) => EnterWorkspace();
         return list;
     }
 
@@ -186,12 +202,14 @@ public sealed class WorkspaceScreen : Screen
     {
         _currentFilter = filter;
         _displayItems.Clear();
+        _displayEntries.Clear();
 
-        foreach (string workspace in _sourceItems)
+        foreach (WorkspaceItem workspace in _sourceItems)
         {
-            if (MatchesFilter(workspace, filter))
+            if (MatchesFilter(workspace.Display, filter))
             {
-                _displayItems.Add(workspace);
+                _displayItems.Add(workspace.Display);
+                _displayEntries.Add(workspace);
             }
         }
 
@@ -264,6 +282,9 @@ public sealed class WorkspaceScreen : Screen
                 case '/':
                     FocusFilter();
                     return true;
+                case 's':
+                    SetCurrentWorkspace();
+                    return true;
                 case 'q':
                 case 'Q':
                     Quit();
@@ -273,7 +294,7 @@ public sealed class WorkspaceScreen : Screen
 
         if (key == Key.Enter)
         {
-            ActivateSelection();
+            EnterWorkspace();
             return true;
         }
 
@@ -284,6 +305,47 @@ public sealed class WorkspaceScreen : Screen
         }
 
         return false;
+    }
+
+    private void SetCurrentWorkspace()
+    {
+        WorkspaceItem? selectedItem = GetSelectedItem();
+        if (selectedItem is null)
+        {
+            return;
+        }
+
+        if (_optionsService.Options.CurrentWorkspace != null &&
+            selectedItem.Entry.Id == _optionsService.Options.CurrentWorkspace?.Id)
+        {
+            ShowInfo($"🤔 {selectedItem.Identifier} is already the active workspace.");
+            return;
+        }
+
+        if (selectedItem.IsDamaged)
+        {
+            ShowDanger($"😬 {selectedItem.Identifier} is damaged and cannot be set as default workspace.");
+            return;
+        }
+
+        _workspaceService.Activate(selectedItem.Entry.Id.ToString());
+        ShowSuccess($"😎 {selectedItem.Identifier} is now the active workspace.");
+    }
+
+    private WorkspaceItem? GetSelectedItem()
+    {
+        if (_listView?.SelectedItem is null || _displayEntries.Count == 0)
+        {
+            return null;
+        }
+
+        int index = _listView.SelectedItem.Value;
+        if (index < 0 || index >= _displayEntries.Count)
+        {
+            return null;
+        }
+
+        return _displayEntries[index];
     }
 
     private void MoveSelection(int delta)
@@ -335,76 +397,81 @@ public sealed class WorkspaceScreen : Screen
         _listView?.SetFocus();
     }
 
-    private void ActivateSelection()
+    private void EnterWorkspace()
     {
-        if (_listView?.SelectedItem is null || _displayItems.Count == 0)
+        WorkspaceItem? workspace = GetSelectedItem();
+        if (workspace is null)
         {
             return;
         }
 
-        int index = _listView.SelectedItem.Value;
-        if (index < 0 || index >= _displayItems.Count)
-        {
-            return;
-        }
-
-        string workspace = _displayItems[index];
-        ShowStatus($" \"{workspace.Trim()}\" selected");
+        ShowWorkspaceChildren();
     }
 
-    private void ShowStatus(string message) => _statusBar.ShowSuccess(message);
+    private void ShowWorkspaceChildren()
+    {
+        string? select = _interactiveConsole.Select("Choose child", ["Test1", "Test2", "Test3"]);
+    }
 
-    private async Task<IReadOnlyList<string>> LoadWorkspaceLinesAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WorkspaceItem>> LoadWorkspaceItemsAsync(CancellationToken cancellationToken)
     {
         if (_optionsService.Options.Workspaces.Count == 0)
         {
-            return ["No workspaces found."];
+            return [];
         }
 
-        var items = new List<WorkspaceLine>();
+        var items = new List<WorkspaceItem>();
 
         foreach (StraumrWorkspaceEntry entry in _optionsService.Options.Workspaces)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            WorkspaceLine line = await BuildWorkspaceLineAsync(entry);
+            WorkspaceItem line = await BuildWorkspaceItemAsync(entry);
             items.Add(line);
         }
 
         return items
             .OrderByDescending(item => item.LastAccessed)
-            .Select(item => item.Display)
             .ToList();
     }
 
-    private async Task<WorkspaceLine> BuildWorkspaceLineAsync(StraumrWorkspaceEntry entry)
+    private async Task<WorkspaceItem> BuildWorkspaceItemAsync(StraumrWorkspaceEntry entry)
     {
-        var name = "Unknown";
-        string status;
+        var lineBuilder = new StringBuilder();
         DateTimeOffset? lastAccessed = null;
+        var isDamaged = false;
+        string identifier;
+        if (_optionsService.Options.CurrentWorkspace != null && entry.Id == _optionsService.Options.CurrentWorkspace.Id)
+        {
+            lineBuilder.Append("(Current) ");
+        }
 
         try
         {
             StraumrWorkspace workspace = await _workspaceService.PeekWorkspace(entry.Path);
-            name = workspace.Name;
-            status = "Valid";
+            lineBuilder.Append(workspace.Name);
             lastAccessed = workspace.LastAccessed;
+            identifier = workspace.Name;
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {
-            status = "Corrupt";
+            lineBuilder.Append($"{entry.Id} [Corrupt] ");
+            isDamaged = true;
+            identifier = entry.Id.ToString();
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
         {
-            status = "Missing";
+            lineBuilder.Append($"{entry.Id} [Missing] ");
+            isDamaged = true;
+            identifier = entry.Id.ToString();
         }
 
-        bool isCurrent = _optionsService.Options.CurrentWorkspace?.Id == entry.Id;
-        string idShort = entry.Id.ToString("N")[..8];
-        string marker = isCurrent ? "* " : "  ";
-        var display = $"{marker}{name} | {idShort}... | {status}";
-
-        return new WorkspaceLine(display, lastAccessed);
+        return new WorkspaceItem(entry, lineBuilder.ToString(), identifier, isDamaged, lastAccessed);
     }
 
-    private sealed record WorkspaceLine(string Display, DateTimeOffset? LastAccessed);
+    private sealed record WorkspaceItem(
+        StraumrWorkspaceEntry Entry,
+        string Display,
+        string? Identifier,
+        bool IsDamaged,
+        DateTimeOffset? LastAccessed);
 }

@@ -4,7 +4,7 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrWorkspaceService
 {
-    Task Activate(string name);
+    Task Activate(string identifier);
     Task Create(StraumrWorkspace workspace, string? outputDir = null);
     Task<StraumrWorkspaceEntry> Copy(string identifier, string newName, string? outputDir = null);
     Task<StraumrWorkspaceEntry> Import(string path);

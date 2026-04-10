@@ -62,7 +62,7 @@ public class AuthCreateCommand(
 
         while (true)
         {
-            string? action = await PromptCreateMenuAsync(state);
+            string? action = PromptCreateMenu(state);
             if (action is null)
             {
                 return 1;
@@ -312,7 +312,7 @@ public class AuthCreateCommand(
         };
     }
 
-    private async Task<string?> PromptCreateMenuAsync(CreateAuthState state)
+    private string? PromptCreateMenu(CreateAuthState state)
     {
         string nameDisplay = string.IsNullOrWhiteSpace(state.Name)
             ? "[grey]not set[/]"
@@ -326,7 +326,7 @@ public class AuthCreateCommand(
             menuChoices.Add(ActionFetch);
         }
 
-        return await interactiveConsole.SelectAsync("Auth setup", menuChoices,
+        return interactiveConsole.Select("Auth setup", menuChoices,
             choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
@@ -370,7 +370,7 @@ public class AuthCreateCommand(
         {
             case ActionName:
             {
-                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                string? updated = interactiveConsole.TextInput("Name", state.Name,
                     validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                 if (!string.IsNullOrWhiteSpace(updated))

@@ -2,12 +2,14 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.KeyValue;
+using Straumr.Console.Tui.Helpers;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class KeyValueEditorScreen : PromptScreen<bool>
 {
-    public KeyValueEditorScreen(string title, IDictionary<string, string> items, StraumrTheme? theme = null, Action? onSaved = null)
+    public KeyValueEditorScreen(string title, IDictionary<string, string> items, StraumrTheme? theme = null,
+        Action? onSaved = null)
     {
         Add(new Banner
         {
@@ -30,7 +32,8 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
         editor.ItemSaved += () =>
         {
             onSaved?.Invoke();
-            statusNotificationBar.ShowSuccess($" {title} saved");
+            statusNotificationBar.ShowStatus($" {title} saved", ColorResolver.Resolve(theme?.Success ?? "BrightGreen"),
+                ColorResolver.Resolve(theme?.Surface ?? "Black"));
         };
     }
 }

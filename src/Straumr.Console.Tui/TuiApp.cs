@@ -3,6 +3,7 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Base;
 using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Screens.Base;
+using Straumr.Console.Tui.Screens.Prompts;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
@@ -15,6 +16,7 @@ public sealed class TuiApp : IDisposable
 {
     private readonly IApplication _application;
     private readonly Window _window;
+    private readonly Scheme _scheme;
     private EventHandler<Key>? _keyHandler;
 
     [UnconditionalSuppressMessage("AOT",
@@ -31,7 +33,7 @@ public sealed class TuiApp : IDisposable
         _application = Application.Create();
         _application.Init();
 
-        Scheme scheme = ColorResolver.BuildScheme(theme);
+        _scheme = ColorResolver.BuildScheme(theme);
 
         _window = new Window
         {
@@ -39,7 +41,7 @@ public sealed class TuiApp : IDisposable
             Height = Dim.Fill(),
             BorderStyle = LineStyle.None,
         };
-        _window.SetScheme(scheme);
+        _window.SetScheme(_scheme);
     }
 
     public void Run(Screen screen)
@@ -79,6 +81,40 @@ public sealed class TuiApp : IDisposable
     internal void RunLoop() => _application.Run(_window);
 
     internal void RequestStop() => _application.RequestStop();
+
+    internal TResult? RunPrompt<TResult>(PromptScreen<TResult> screen)
+    {
+        Window promptWindow = new()
+        {
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            BorderStyle = LineStyle.None,
+        };
+        promptWindow.SetScheme(_scheme);
+
+        EventHandler<Key> handler = (_, key) =>
+        {
+            if (screen.OnKeyDown(key))
+            {
+                key.Handled = true;
+            }
+        };
+
+        promptWindow.KeyDown += handler;
+        screen.QuitAction = _application.RequestStop;
+
+        foreach (TuiComponent component in screen.Components)
+        {
+            promptWindow.Add(component.Build());
+        }
+
+        _application.Run(promptWindow);
+
+        promptWindow.KeyDown -= handler;
+        promptWindow.Dispose();
+
+        return screen.Result;
+    }
 
     public void Dispose()
     {

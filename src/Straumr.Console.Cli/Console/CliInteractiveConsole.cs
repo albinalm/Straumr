@@ -7,7 +7,7 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
 {
     private readonly EscapeCancellableConsole _console = new(AnsiConsole.Console);
 
-    public async Task<string?> SelectAsync(
+    public string? Select(
         string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
     {
         SelectionPrompt<string> prompt = new SelectionPrompt<string>()
@@ -21,10 +21,10 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
             prompt.UseConverter(displayConverter);
         }
 
-        return await PromptWithRetryAsync(prompt);
+        return PromptWithRetry(prompt);
     }
 
-    public async Task<string?> TextInputAsync(
+    public string? TextInput(
         string title, string? initialValue = null, bool allowEmpty = false,
         Func<string, string?>? validate = null)
     {
@@ -47,7 +47,7 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
         _console.PrefillInput(initialValue);
         try
         {
-            return await PromptWithRetryAsync(prompt);
+            return PromptWithRetry(prompt);
         }
         finally
         {
@@ -55,10 +55,10 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
         }
     }
 
-    public async Task<string?> SecretInputAsync(string title)
+    public string? SecretInput(string title)
     {
         TextPrompt<string> prompt = new TextPrompt<string>(title).Secret();
-        return await PromptWithRetryAsync(prompt);
+        return PromptWithRetry(prompt);
     }
 
     public void ShowMessage(string message)
@@ -98,13 +98,13 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
         EscapeCancellableConsole.ClearLines(listTop);
     }
 
-    private async Task<T?> PromptWithRetryAsync<T>(IPrompt<T> prompt)
+    private T? PromptWithRetry<T>(IPrompt<T> prompt)
     {
         while (true)
         {
             try
             {
-                return await _console.PromptAsync(prompt);
+                return _console.Prompt(prompt);
             }
             catch (OperationCanceledException) when (_console.WasSearchCancelled)
             {

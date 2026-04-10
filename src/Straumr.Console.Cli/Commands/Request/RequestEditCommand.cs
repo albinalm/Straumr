@@ -252,7 +252,7 @@ public class RequestEditCommand(
 
         while (true)
         {
-            string? action = await PromptEditMenuAsync(state, auths);
+            string? action = PromptEditMenu(state, auths);
             if (action is null)
             {
                 return 1;
@@ -272,7 +272,7 @@ public class RequestEditCommand(
         }
     }
 
-    private async Task<string?> PromptEditMenuAsync(
+    private string? PromptEditMenu(
         EditableRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
         string nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
@@ -292,7 +292,7 @@ public class RequestEditCommand(
             ActionSave, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
 
-        return await interactiveConsole.SelectAsync("Edit request", menuChoices,
+        return interactiveConsole.Select("Edit request", menuChoices,
             choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
@@ -342,7 +342,7 @@ public class RequestEditCommand(
         {
             case ActionName:
             {
-                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                string? updated = interactiveConsole.TextInput("Name", state.Name,
                     validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                 if (!string.IsNullOrWhiteSpace(updated))
@@ -354,7 +354,7 @@ public class RequestEditCommand(
             }
             case ActionUrl:
             {
-                string? updated = await PromptUrlAsync(interactiveConsole, state.Uri);
+                string? updated = PromptUrl(interactiveConsole, state.Uri);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
                     state.Uri = updated;
@@ -364,7 +364,7 @@ public class RequestEditCommand(
             }
             case ActionMethod:
             {
-                string? selected = await PromptMethodAsync(interactiveConsole);
+                string? selected = PromptMethod(interactiveConsole);
                 if (!string.IsNullOrWhiteSpace(selected))
                 {
                     state.Method = selected;
@@ -373,11 +373,11 @@ public class RequestEditCommand(
                 break;
             }
             case ActionParams:
-                await EditKeyValuePairsAsync(interactiveConsole, "Params", state.Params,
+                EditKeyValuePairs(interactiveConsole, "Params", state.Params,
                     () => SaveStateQuietly(request, state));
                 break;
             case ActionHeaders:
-                await EditKeyValuePairsAsync(interactiveConsole, "Headers", state.Headers,
+                EditKeyValuePairs(interactiveConsole, "Headers", state.Headers,
                     () => SaveStateQuietly(request, state));
                 break;
             case ActionBody:

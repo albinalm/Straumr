@@ -83,7 +83,7 @@ public class AuthEditCommand(
 
         while (true)
         {
-            string? action = await PromptEditMenuAsync(state);
+            string? action = PromptEditMenu(state);
             if (action is null)
             {
                 return 1;
@@ -196,7 +196,7 @@ public class AuthEditCommand(
         }
     }
 
-    private async Task<string?> PromptEditMenuAsync(EditableAuthState state)
+    private string? PromptEditMenu(EditableAuthState state)
     {
         string nameDisplay = $"[blue]{Markup.Escape(state.Name)}[/]";
         string authDisplay = AuthDisplayName(state.Auth);
@@ -208,7 +208,7 @@ public class AuthEditCommand(
             menuChoices.Add(ActionFetch);
         }
 
-        return await interactiveConsole.SelectAsync("Edit auth", menuChoices,
+        return interactiveConsole.Select("Edit auth", menuChoices,
             choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
@@ -252,7 +252,7 @@ public class AuthEditCommand(
         {
             case ActionName:
             {
-                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                string? updated = interactiveConsole.TextInput("Name", state.Name,
                     validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                 if (!string.IsNullOrWhiteSpace(updated))

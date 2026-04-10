@@ -30,6 +30,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             return ThemeLoader.LoadAsync(fileService).GetAwaiter().GetResult();
         });
         services.AddSingleton(provider => provider.GetRequiredService<StraumrThemeOptions>().Theme);
+        services.AddSingleton<TuiAppResolver>();
         services.AddTransient<WorkspaceScreen>();
         services.AddSingleton<IInteractiveConsole, TuiInteractiveConsole>();
     }
@@ -50,7 +51,8 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         await optionsService.Load();
 
         var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
-        var engine = new ScreenEngine(serviceProvider, theme.Theme);
+        var resolver = serviceProvider.GetRequiredService<TuiAppResolver>();
+        var engine = new ScreenEngine(serviceProvider, theme.Theme, resolver);
         await engine.RunAsync<WorkspaceScreen>(cancellationToken);
 
         return 0;

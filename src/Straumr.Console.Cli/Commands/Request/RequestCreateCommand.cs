@@ -85,7 +85,7 @@ public class RequestCreateCommand(
 
         while (true)
         {
-            string? action = await PromptCreateMenuAsync(state, auths);
+            string? action = PromptCreateMenu(state, auths);
             if (action is null)
             {
                 return 1;
@@ -178,7 +178,7 @@ public class RequestCreateCommand(
         }
     }
 
-    private async Task<string?> PromptCreateMenuAsync(
+    private string? PromptCreateMenu(
         CreateRequestState state, IReadOnlyList<StraumrAuth> auths)
     {
         string nameDisplay = string.IsNullOrWhiteSpace(state.Name)
@@ -200,7 +200,7 @@ public class RequestCreateCommand(
             ActionFinish, ActionName, ActionUrl, ActionMethod, ActionParams, ActionHeaders, ActionBody, ActionAuth
         };
 
-        return await interactiveConsole.SelectAsync("Request setup", menuChoices,
+        return interactiveConsole.Select("Request setup", menuChoices,
             choice => choice switch
             {
                 ActionName => $"Name: {nameDisplay}",
@@ -248,7 +248,7 @@ public class RequestCreateCommand(
         {
             case ActionName:
             {
-                string? updated = await interactiveConsole.TextInputAsync("Name", state.Name,
+                string? updated = interactiveConsole.TextInput("Name", state.Name,
                     validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
@@ -259,7 +259,7 @@ public class RequestCreateCommand(
             }
             case ActionUrl:
             {
-                string? updated = await PromptUrlAsync(interactiveConsole, state.Uri);
+                string? updated = PromptUrl(interactiveConsole, state.Uri);
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
                     state.Uri = updated;
@@ -269,7 +269,7 @@ public class RequestCreateCommand(
             }
             case ActionMethod:
             {
-                string? selected = await PromptMethodAsync(interactiveConsole);
+                string? selected = PromptMethod(interactiveConsole);
                 if (!string.IsNullOrWhiteSpace(selected))
                 {
                     state.Method = selected;
@@ -278,10 +278,10 @@ public class RequestCreateCommand(
                 break;
             }
             case ActionParams:
-                await EditKeyValuePairsAsync(interactiveConsole, "Params", state.Params);
+                EditKeyValuePairs(interactiveConsole, "Params", state.Params);
                 break;
             case ActionHeaders:
-                await EditKeyValuePairsAsync(interactiveConsole, "Headers", state.Headers);
+                EditKeyValuePairs(interactiveConsole, "Headers", state.Headers);
                 break;
             case ActionBody:
                 state.BodyType =

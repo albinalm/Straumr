@@ -29,6 +29,11 @@ public sealed class EscapeCancellableConsole(IAnsiConsole console) : IAnsiConsol
         _input.Prefill(text);
     }
 
+    public T Prompt<T>(IPrompt<T> prompt, CancellationToken cancellationToken = default)
+    {
+        return PromptAsync(prompt, cancellationToken).GetAwaiter().GetResult();
+    }
+
     public async Task<T> PromptAsync<T>(IPrompt<T> prompt, CancellationToken cancellationToken = default)
     {
         using CancellationTokenSource cts = new CancellationTokenSource();

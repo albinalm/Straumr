@@ -9,9 +9,9 @@ internal static class HttpCommandHelpers
 {
     private static readonly Regex SecretPattern = new(@"\{\{secret:[^}]+\}\}", RegexOptions.Compiled);
 
-    internal static async Task<string?> PromptUrlAsync(IInteractiveConsole console, string? current = null)
+    internal static string? PromptUrl(IInteractiveConsole console, string? current = null)
     {
-        return await console.TextInputAsync("URL", current,
+        return console.TextInput("URL", current,
             validate: value => IsValidAbsoluteUrl(value) ? null : "Please enter a valid absolute URL.");
     }
 
@@ -26,13 +26,13 @@ internal static class HttpCommandHelpers
         return Uri.TryCreate(normalized, UriKind.Absolute, out _);
     }
 
-    internal static async Task<string?> PromptMethodAsync(IInteractiveConsole console)
+    internal static string? PromptMethod(IInteractiveConsole console)
     {
-        return await console.SelectAsync("Method",
+        return console.Select("Method",
             ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"]);
     }
 
-    internal static async Task EditKeyValuePairsAsync(
+    internal static void EditKeyValuePairs(
         IInteractiveConsole console, string title, IDictionary<string, string> items, Action? onSaved = null)
     {
         if (console.TryEditKeyValuePairs(title, items, onSaved))
@@ -44,7 +44,7 @@ internal static class HttpCommandHelpers
 
         while (true)
         {
-            string? action = await console.SelectAsync(title, ["Back", "Add or update", "Remove", "List"]);
+            string? action = console.Select(title, ["Back", "Add or update", "Remove", "List"]);
 
             if (action is null or "Back")
             {
@@ -55,7 +55,7 @@ internal static class HttpCommandHelpers
             {
                 case "Add or update":
                 {
-                    string? key = await console.TextInputAsync("Name",
+                    string? key = console.TextInput("Name",
                         validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
 
                     if (key is null)
@@ -64,7 +64,7 @@ internal static class HttpCommandHelpers
                     }
 
                     string? existing = items.TryGetValue(key, out string? currentValue) ? currentValue : null;
-                    string? value = await console.TextInputAsync("Value", existing);
+                    string? value = console.TextInput("Value", existing);
                     if (value is null)
                     {
                         break;
@@ -81,7 +81,7 @@ internal static class HttpCommandHelpers
                         break;
                     }
 
-                    string? key = await console.SelectAsync("Select to remove",
+                    string? key = console.Select("Select to remove",
                         items.Keys.OrderBy(k => k).ToList());
 
                     if (key is not null)
@@ -120,7 +120,7 @@ internal static class HttpCommandHelpers
             const string actionContent = "Edit body";
             const string actionClear = "Clear body";
 
-            string? action = await console.SelectAsync("Body",
+            string? action = console.Select("Body",
                 [actionBack, actionType, actionContent, actionClear],
                 choice => choice switch
                 {
@@ -138,7 +138,7 @@ internal static class HttpCommandHelpers
             {
                 case actionType:
                 {
-                    string? selected = await console.SelectAsync("Select body type",
+                    string? selected = console.Select("Select body type",
                     [
                         "No body", "JSON", "XML", "Text",
                         "Form URL Encoded", "Multipart Form", "Raw"
@@ -169,7 +169,7 @@ internal static class HttpCommandHelpers
 
                     if (currentType == BodyType.FormUrlEncoded)
                     {
-                        string? edited = await EditFormBodyAsync(console, current);
+                        string? edited = EditFormBody(console, current);
                         if (edited is not null)
                         {
                             bodies[currentType] = edited;
@@ -181,7 +181,7 @@ internal static class HttpCommandHelpers
                     }
                     else if (currentType == BodyType.MultipartForm)
                     {
-                        string? edited = await EditMultipartBodyAsync(console, current);
+                        string? edited = EditMultipartBody(console, current);
                         if (edited is not null)
                         {
                             bodies[currentType] = edited;
@@ -217,7 +217,7 @@ internal static class HttpCommandHelpers
         }
     }
 
-    private static async Task<string?> EditFormBodyAsync(
+    private static string? EditFormBody(
         IInteractiveConsole console, string? currentBody)
     {
         Dictionary<string, string> fields = ParseFormFields(currentBody);
@@ -233,7 +233,7 @@ internal static class HttpCommandHelpers
             const string actionRemove = "Remove";
             const string actionList = "List";
 
-            string? action = await console.SelectAsync("Form fields",
+            string? action = console.Select("Form fields",
                 [actionBack, actionAdd, actionRemove, actionList],
                 choice => choice switch
                 {
@@ -250,7 +250,7 @@ internal static class HttpCommandHelpers
             {
                 case actionAdd:
                 {
-                    string? key = await console.TextInputAsync("Field name",
+                    string? key = console.TextInput("Field name",
                         validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
 
                     if (key is null)
@@ -259,7 +259,7 @@ internal static class HttpCommandHelpers
                     }
 
                     string? existing = fields.GetValueOrDefault(key);
-                    string? value = await console.TextInputAsync("Field value", existing);
+                    string? value = console.TextInput("Field value", existing);
                     if (value is null)
                     {
                         break;
@@ -276,7 +276,7 @@ internal static class HttpCommandHelpers
                         break;
                     }
 
-                    string? key = await console.SelectAsync("Select field to remove",
+                    string? key = console.Select("Select field to remove",
                         fields.Keys.OrderBy(k => k).ToList());
 
                     if (key is not null)
@@ -297,7 +297,7 @@ internal static class HttpCommandHelpers
         }
     }
 
-    private static async Task<string?> EditMultipartBodyAsync(
+    private static string? EditMultipartBody(
         IInteractiveConsole console, string? currentBody)
     {
         Dictionary<string, string> fields = ParseFormFields(currentBody);
@@ -316,7 +316,7 @@ internal static class HttpCommandHelpers
             const string actionRemove = "Remove";
             const string actionList = "List";
 
-            string? action = await console.SelectAsync("Multipart form fields",
+            string? action = console.Select("Multipart form fields",
                 [actionBack, actionAddText, actionAddFile, actionRemove, actionList],
                 choice => choice switch
                 {
@@ -333,7 +333,7 @@ internal static class HttpCommandHelpers
             {
                 case actionAddText:
                 {
-                    string? key = await console.TextInputAsync("Field name",
+                    string? key = console.TextInput("Field name",
                         validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
 
                     if (key is null)
@@ -342,7 +342,7 @@ internal static class HttpCommandHelpers
                     }
 
                     string? existing = fields.GetValueOrDefault(key);
-                    string? value = await console.TextInputAsync("Field value", existing);
+                    string? value = console.TextInput("Field value", existing);
                     if (value is null)
                     {
                         break;
@@ -353,7 +353,7 @@ internal static class HttpCommandHelpers
                 }
                 case actionAddFile:
                 {
-                    string? key = await console.TextInputAsync("Field name",
+                    string? key = console.TextInput("Field name",
                         validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
 
                     if (key is null)
@@ -361,7 +361,7 @@ internal static class HttpCommandHelpers
                         break;
                     }
 
-                    string? path = await console.TextInputAsync("File path",
+                    string? path = console.TextInput("File path",
                         validate: value => string.IsNullOrWhiteSpace(value)
                             ? "File path cannot be empty."
                             : !File.Exists(value)
@@ -384,7 +384,7 @@ internal static class HttpCommandHelpers
                         break;
                     }
 
-                    string? key = await console.SelectAsync("Select field to remove",
+                    string? key = console.Select("Select field to remove",
                         fields.Keys.OrderBy(k => k).ToList());
 
                     if (key is not null)

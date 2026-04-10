@@ -9,4 +9,8 @@ public class StraumrTheme
     public string OnPrimary { get; set; } = "Black";
     public string Secondary { get; set; } = "Gray";
     public string Accent { get; set; } = "BrightGreen";
+    public string Success { get; set; } = "BrightGreen";
+    public string Info { get; set; } = "BrightBlue";
+    public string Warning { get; set; } = "Yellow";
+    public string Danger { get; set; } = "Red";
 }

@@ -1,39 +1,37 @@
 using Straumr.Console.Shared.Console;
 using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Theme;
-using Straumr.Console.Tui.Screens.Base;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Prompts;
 using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Tui.Console;
 
-public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IInteractiveConsole
+public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAppResolver appResolver) : IInteractiveConsole
 {
     private readonly StraumrTheme _theme = ThemeLoader.Load(fileService).Theme;
+    private readonly TuiAppResolver _appResolver = appResolver;
 
-    public Task<string?> SelectAsync(string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
+    public string? Select(string title, IReadOnlyList<string> choices, Func<string, string>? displayConverter = null)
     {
         var screen = new SelectionPromptScreen(title, choices, displayConverter, _theme);
-        string? result = RunPrompt(screen);
-        return Task.FromResult(result);
+        return RunPrompt(screen);
     }
 
-    public Task<string?> TextInputAsync(
+    public string? TextInput(
         string title,
         string? initialValue = null,
         bool allowEmpty = false,
         Func<string, string?>? validate = null)
     {
         var screen = new TextInputPromptScreen(title, initialValue, allowEmpty, false, validate);
-        string? result = RunPrompt(screen);
-        return Task.FromResult(result);
+        return RunPrompt(screen);
     }
 
-    public Task<string?> SecretInputAsync(string title)
+    public string? SecretInput(string title)
     {
         var screen = new TextInputPromptScreen(title, null, false, true, null);
-        string? result = RunPrompt(screen);
-        return Task.FromResult(result);
+        return RunPrompt(screen);
     }
 
     public void ShowMessage(string message)
@@ -54,19 +52,24 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService) : IIn
     public bool TryEditKeyValuePairs(string title, IDictionary<string, string> items, Action? onSaved = null)
     {
         var screen = new KeyValueEditorScreen(title, items, _theme, onSaved);
-        RunScreen(screen);
+        RunPrompt(screen);
         return true;
     }
 
     private TResult? RunPrompt<TResult>(PromptScreen<TResult> screen)
     {
-        RunScreen(screen);
-        return screen.Result;
-    }
-
-    private void RunScreen(Screen screen)
-    {
-        using var app = new TuiApp(_theme);
-        app.Run(screen);
+        TuiApp app = _appResolver.GetOrCreate(_theme, out bool ownsApp);
+        try
+        {
+            return app.RunPrompt(screen);
+        }
+        finally
+        {
+            if (ownsApp)
+            {
+                app.Dispose();
+                _appResolver.Clear(app);
+            }
+        }
     }
 }

@@ -11,6 +11,7 @@ internal class StatusNotificationBar : TuiComponent
     private Label? _label;
     private CancellationTokenSource? _hideCts;
     private string? _pendingMessage;
+    private (Color Foreground, Color Background)? _pendingColors;
 
     public override View Build()
     {
@@ -28,9 +29,10 @@ internal class StatusNotificationBar : TuiComponent
         return _label;
     }
 
-    public void ShowSuccess(string message)
+    public void ShowStatus(string message, Color foreground, Color background)
     {
         _pendingMessage = message;
+        _pendingColors = (foreground, background);
         TryShowPendingMessage();
     }
 
@@ -42,11 +44,18 @@ internal class StatusNotificationBar : TuiComponent
         }
 
         string message = _pendingMessage;
+        if (_pendingColors is null)
+        {
+            return;
+        }
+
+        (Color Foreground, Color Background) colors = _pendingColors.Value;
         _pendingMessage = null;
-        ApplyMessage(message);
+        _pendingColors = null;
+        ApplyMessage(message, colors.Foreground, colors.Background);
     }
 
-    private void ApplyMessage(string message)
+    private void ApplyMessage(string message, Color foreground, Color background)
     {
         _hideCts?.Cancel();
         _hideCts = new CancellationTokenSource();
@@ -54,8 +63,8 @@ internal class StatusNotificationBar : TuiComponent
 
         _label.Text = message;
         _label.Visible = true;
-        var green = new TuiAttribute(Color.BrightGreen, Color.Black);
-        _label.SetScheme(new Scheme(green) { Focus = green });
+        var scheme = new TuiAttribute(foreground, background);
+        _label.SetScheme(new Scheme(scheme) { Focus = scheme });
 
         _ = HideAfterDelayAsync(token);
     }
