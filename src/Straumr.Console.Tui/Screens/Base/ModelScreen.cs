@@ -102,6 +102,15 @@ public abstract class ModelScreen<TEntry> : Screen
     protected void ShowDanger(string text) => _statusBar.ShowStatus(text,
         ColorResolver.Resolve(_theme.Danger), ColorResolver.Resolve(_theme.Surface));
 
+    protected async Task RefreshAsync()
+    {
+        IReadOnlyList<TEntry> entries = await LoadEntriesAsync(CancellationToken.None);
+        _sourceEntries.Clear();
+        _sourceEntries.AddRange(entries);
+        ApplyFilter(_currentFilter);
+        OnInitialized(entries);
+    }
+
     protected sealed record ModelCommand(
         string Name,
         string Description,

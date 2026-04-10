@@ -23,8 +23,15 @@ public abstract class Screen
     internal IReadOnlyList<TuiComponent> Components => _components;
     internal Action? QuitAction { get; set; }
     internal Action<Type>? NavigateAction { get; set; }
+    internal Func<Task>? PendingExternalAction { get; private set; }
 
     protected void Quit() => QuitAction?.Invoke();
+
+    protected void RequestExternalAndRefresh(Func<Task> action)
+    {
+        PendingExternalAction = action;
+        Quit();
+    }
 
     protected void NavigateTo<TScreen>() where TScreen : Screen
     {

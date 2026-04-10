@@ -47,7 +47,22 @@ internal sealed class ScreenEngine
                 using CancellationTokenRegistration registration = cancellationToken.Register(app.RequestStop);
                 app.RunLoop();
 
-                nextScreen = requestedNavigation;
+                if (screen.PendingExternalAction is { } externalAction)
+                {
+                    if (ownsApp)
+                    {
+                        app.Dispose();
+                        _appResolver.Clear(app);
+                    }
+
+                    await externalAction();
+                    app = _appResolver.GetOrCreate(_theme, out ownsApp);
+                    nextScreen = screenType;
+                }
+                else
+                {
+                    nextScreen = requestedNavigation;
+                }
             }
         }
         finally
