@@ -14,7 +14,7 @@ internal static class Program
             .AddInstaller<TuiConsoleIntegrationInstaller>();
 
         IReadOnlyList<IConsoleIntegration> integrations = catalog.Build();
-        ServiceCollection services = new ServiceCollection();
+        var services = new ServiceCollection();
         foreach (IConsoleIntegration consoleIntegration in integrations)
         {
             consoleIntegration.ConfigureServices(services);
@@ -23,13 +23,7 @@ internal static class Program
         await using ServiceProvider provider = services.BuildServiceProvider();
         (IConsoleIntegration integration, string[] integrationArgs) = ConsoleIntegrationResolver.Resolve(integrations, args);
 
-        using CancellationTokenSource cts = new CancellationTokenSource();
-        System.Console.CancelKeyPress += (_, eventArgs) =>
-        {
-            cts.Cancel();
-            eventArgs.Cancel = true;
-        };
-
+        using var cts = new CancellationTokenSource();
         return await integration.RunAsync(provider, integrationArgs, cts.Token);
     }
 }

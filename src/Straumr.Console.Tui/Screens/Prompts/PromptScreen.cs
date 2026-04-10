@@ -25,7 +25,7 @@ internal abstract class PromptScreen<TResult> : Screen
 
     public override bool OnKeyDown(Key key)
     {
-        if (key == Key.Esc || key == Key.C.WithCtrl)
+        if (key == Key.Esc)
         {
             Cancel();
             return true;

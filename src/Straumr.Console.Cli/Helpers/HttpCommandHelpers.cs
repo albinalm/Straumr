@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Straumr.Console.Shared.Console;
+using Straumr.Console.Shared.Interfaces;
 using Straumr.Core.Enums;
 
 namespace Straumr.Console.Cli.Helpers;

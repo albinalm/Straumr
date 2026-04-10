@@ -44,6 +44,7 @@ internal sealed class ScreenEngine
                 }
 
                 app.LoadScreen(screen);
+                using CancellationTokenRegistration registration = cancellationToken.Register(app.RequestStop);
                 app.RunLoop();
 
                 nextScreen = requestedNavigation;

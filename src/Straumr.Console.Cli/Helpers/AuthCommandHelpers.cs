@@ -1,5 +1,5 @@
 using Spectre.Console;
-using Straumr.Console.Shared.Console;
+using Straumr.Console.Shared.Interfaces;
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;

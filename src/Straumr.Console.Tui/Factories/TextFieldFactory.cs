@@ -41,7 +41,6 @@ internal static class TextFieldFactory
 
         field.Bind(Key.Enter, (_, _) => submit());
         field.Bind(Key.Esc, (_, _) => requestCancel());
-        field.Bind(Key.C.WithCtrl, (_, _) => requestCancel());
         field.TextChanged += (_, _) => onChanged();
 
         return field;

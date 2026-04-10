@@ -1,8 +1,8 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using Straumr.Console.Shared.Console;
 using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Integrations;
+using Straumr.Console.Shared.Interfaces;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Infrastructure;
@@ -32,7 +32,8 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton(provider => provider.GetRequiredService<StraumrThemeOptions>().Theme);
         services.AddSingleton<TuiAppResolver>();
         services.AddTransient<WorkspaceScreen>();
-        services.AddSingleton<IInteractiveConsole, TuiInteractiveConsole>();
+        services.AddSingleton<TuiInteractiveConsole>();
+        services.AddSingleton<IInteractiveConsole>(provider => provider.GetRequiredService<TuiInteractiveConsole>());
     }
 
     public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken)

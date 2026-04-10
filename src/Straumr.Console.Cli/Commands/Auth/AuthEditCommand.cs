@@ -4,7 +4,7 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
-using Straumr.Console.Shared.Console;
+using Straumr.Console.Shared.Interfaces;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;

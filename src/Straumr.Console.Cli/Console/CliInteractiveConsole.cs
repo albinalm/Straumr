@@ -1,5 +1,5 @@
 using Spectre.Console;
-using Straumr.Console.Shared.Console;
+using Straumr.Console.Shared.Interfaces;
 
 namespace Straumr.Console.Cli.Console;
 
@@ -59,6 +59,16 @@ public sealed class CliInteractiveConsole : IInteractiveConsole
     {
         TextPrompt<string> prompt = new TextPrompt<string>(title).Secret();
         return PromptWithRetry(prompt);
+    }
+    
+    public void ShowMessage(string title, string message)
+    {
+        int msgTop = System.Console.CursorTop;
+        AnsiConsole.MarkupLine(title);
+        AnsiConsole.MarkupLine(message);
+        AnsiConsole.MarkupLine("[grey]Press any key to continue...[/]");
+        System.Console.ReadKey(true);
+        EscapeCancellableConsole.ClearLines(msgTop);
     }
 
     public void ShowMessage(string message)

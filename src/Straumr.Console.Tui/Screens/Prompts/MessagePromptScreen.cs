@@ -1,22 +1,21 @@
-using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.Message;
+using Straumr.Console.Shared.Theme;
 using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class MessagePromptScreen : PromptScreen<bool>
 {
-    public MessagePromptScreen(string title, string message)
+    public MessagePromptScreen(string title, string message, StraumrTheme? theme = null)
     {
         Add(new Banner());
-
-        Add(new HintsBar { Text = "Press any key to continue" });
 
         Add(new MessagePrompt
         {
             Title = title,
             Message = message,
+            Theme = theme,
         });
     }
 
