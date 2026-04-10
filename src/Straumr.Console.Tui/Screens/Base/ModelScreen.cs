@@ -37,6 +37,8 @@ public abstract class ModelScreen<TEntry> : Screen
     private readonly StatusNotificationBar _statusBar;
     private string _currentFilter = string.Empty;
     private bool _commandsConfigured;
+    private TEntry? _pendingSelection;
+    private bool _hasPendingSelection;
 
     protected ModelScreen(
         StraumrTheme theme,
@@ -89,6 +91,7 @@ public abstract class ModelScreen<TEntry> : Screen
     protected virtual IEnumerable<ModelCommand> GetCommands() => [];
 
     protected virtual bool HandleModelKeyDown(Key key, TEntry? selectedEntry) => false;
+    protected virtual bool IsSameEntry(TEntry? left, TEntry? right) => EqualityComparer<TEntry>.Default.Equals(left, right);
 
     protected virtual void OpenSelectedEntry() { }
     protected virtual void InspectSelectedEntry() { }
@@ -102,13 +105,18 @@ public abstract class ModelScreen<TEntry> : Screen
     protected void ShowDanger(string text) => _statusBar.ShowStatus(text,
         ColorResolver.Resolve(_theme.Danger), ColorResolver.Resolve(_theme.Surface));
 
-    protected async Task RefreshAsync()
+    protected async Task RefreshAsync(bool notifyInitialized = false)
     {
+        _pendingSelection = GetSelectedEntry();
+        _hasPendingSelection = true;
         IReadOnlyList<TEntry> entries = await LoadEntriesAsync(CancellationToken.None);
         _sourceEntries.Clear();
         _sourceEntries.AddRange(entries);
         ApplyFilter(_currentFilter);
-        OnInitialized(entries);
+        if (notifyInitialized)
+        {
+            OnInitialized(entries);
+        }
     }
 
     protected sealed record ModelCommand(
@@ -300,7 +308,7 @@ public abstract class ModelScreen<TEntry> : Screen
         if (_listView is not null)
         {
             _listView.Visible = hasItems;
-            _listView.SelectedItem = hasItems ? 0 : null;
+            _listView.SelectedItem = hasItems ? GetSelectedIndex() : null;
         }
 
         if (_emptyLabel is not null)
@@ -310,6 +318,33 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         UpdateSummary();
+    }
+
+    private int GetSelectedIndex()
+    {
+        if (_displayEntries.Count == 0)
+        {
+            _hasPendingSelection = false;
+            _pendingSelection = default;
+            return 0;
+        }
+
+        if (_hasPendingSelection)
+        {
+            for (int index = 0; index < _displayEntries.Count; index++)
+            {
+                if (IsSameEntry(_displayEntries[index], _pendingSelection))
+                {
+                    _hasPendingSelection = false;
+                    _pendingSelection = default;
+                    return index;
+                }
+            }
+        }
+
+        _hasPendingSelection = false;
+        _pendingSelection = default;
+        return 0;
     }
 
     private static bool MatchesFilter(string value, string filter)

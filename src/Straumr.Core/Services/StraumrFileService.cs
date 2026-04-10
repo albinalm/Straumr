@@ -54,7 +54,7 @@ public class StraumrFileService : IStraumrFileService
         EnsureDirectoryExists(path);
 
         string json = JsonSerializer.Serialize(value, typeInfo);
-        await File.WriteAllTextAsync(path, json);
+        await WriteTextAtomicAsync(path, json);
     }
 
     public async Task<T> ReadGenericAsync<T>(string path, JsonTypeInfo<T> typeInfo)
@@ -82,7 +82,7 @@ public class StraumrFileService : IStraumrFileService
         }
 
         string json = JsonSerializer.Serialize(value, typeInfo);
-        await File.WriteAllTextAsync(path, json);
+        await WriteTextAtomicAsync(path, json);
     }
 
     private void EnsureDirectoryExists(string path)
@@ -91,6 +91,25 @@ public class StraumrFileService : IStraumrFileService
         if (dir != null)
         {
             Directory.CreateDirectory(dir);
+        }
+    }
+
+    private static async Task WriteTextAtomicAsync(string path, string content)
+    {
+        string directory = Path.GetDirectoryName(path) ?? Directory.GetCurrentDirectory();
+        string tempPath = Path.Combine(directory, Path.GetRandomFileName());
+
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, content);
+            File.Move(tempPath, path, true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
         }
     }
 }

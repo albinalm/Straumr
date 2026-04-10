@@ -24,7 +24,7 @@ public sealed class WorkspaceScreen(
         emptyStateText: "No workspaces found",
         itemTypeNamePlural: "workspaces")
 {
-    private const string WorkspaceHintsText = "j/k Navigate  g/G Jump  s Set active  c Create  d Delete  e Edit  y Copy  i Inspect  / Filter  : Command";
+    private const string WorkspaceHintsText = "j/k Navigate  g/G Jump  s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export  i Inspect  / Filter  : Command";
 
     protected override void OnInitialized(IReadOnlyList<WorkspaceEntry> entries)
     {
@@ -33,6 +33,9 @@ public sealed class WorkspaceScreen(
     }
 
     protected override string GetDisplayText(WorkspaceEntry entry) => entry.Display;
+
+    protected override bool IsSameEntry(WorkspaceEntry? left, WorkspaceEntry? right)
+        => left?.StraumrEntry.Id == right?.StraumrEntry.Id;
 
     protected override bool HandleModelKeyDown(Key key, WorkspaceEntry? selectedEntry)
     {
@@ -55,6 +58,12 @@ public sealed class WorkspaceScreen(
                     return true;
                 case 'y':
                     CopyWorkspace(selectedEntry);
+                    return true;
+                case 'I':
+                    ImportWorkspace();
+                    return true;
+                case 'x':
+                    ExportWorkspace(selectedEntry);
                     return true;
             }
         }
@@ -83,6 +92,7 @@ public sealed class WorkspaceScreen(
         }
 
         workspaceService.Activate(selectedItem.StraumrEntry.Id.ToString());
+        RefreshAsync().GetAwaiter().GetResult();
         ShowSuccess($"😎 {selectedItem.Identifier} is now the active workspace.");
     }
 
@@ -396,7 +406,9 @@ public sealed class WorkspaceScreen(
         }
 
         return items
-            .OrderByDescending(item => item.LastAccessed)
+            .OrderBy(item => item.Name is null ? 1 : 0)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.StraumrEntry.Id)
             .ToList();
     }
 
