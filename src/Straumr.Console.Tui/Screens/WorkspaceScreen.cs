@@ -14,6 +14,8 @@ using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Screens.Base;
+using Terminal.Gui.App;
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -34,6 +36,10 @@ public sealed class WorkspaceScreen : Screen
 
     private SelectionListView? _listView;
     private InteractiveTextField? _filterField;
+    private View? _commandContainer;
+    private Label? _commandLabel;
+    private InteractiveTextField? _commandField;
+    private bool _commandActive;
     private Label? _emptyLabel;
     private Label? _summaryLabel;
     private readonly StatusNotificationBar _statusBar;
@@ -53,6 +59,7 @@ public sealed class WorkspaceScreen : Screen
         Add(new Banner { Theme = _theme });
         Add(new HintsBar { Text = HintsText });
         AddView(BuildWorkspaceFrame());
+        AddView(BuildCommandBar());
 
         _statusBar = Add(new StatusNotificationBar());
     }
@@ -83,6 +90,11 @@ public sealed class WorkspaceScreen : Screen
     
     public override bool OnKeyDown(Key key)
     {
+        if (_commandActive)
+        {
+            return false;
+        }
+
         Rune rune = key.AsRune;
         if (key == Key.Esc || (!key.IsCtrl && !key.IsAlt && (rune.Value == 'q' || rune.Value == 'Q')))
         {
@@ -116,7 +128,7 @@ public sealed class WorkspaceScreen : Screen
         {
             Title = "Workspaces",
             X = 2,
-            Y = Banner.FigletHeight + 2,
+            Y = Banner.FigletHeight + 5,
             Width = Dim.Fill(4),
             Height = Dim.Fill(2),
         };
@@ -194,6 +206,61 @@ public sealed class WorkspaceScreen : Screen
         };
     }
 
+    private View BuildCommandBar()
+    {
+        _commandContainer = new View
+        {
+            X = 2,
+            Y = Banner.FigletHeight + 1,
+            Width = Dim.Fill(4),
+            Height = 4,
+            Visible = false,
+            CanFocus = true,
+        };
+
+        _commandLabel = new Label
+        {
+            Text = ":",
+            X = 1,
+            Y = 2,
+            Visible = false,
+        };
+
+        _commandField = new InteractiveTextField
+        {
+            X = Pos.Right(_commandLabel) + 1,
+            Y = 1,
+            Width = Dim.Fill(2),
+            BorderStyle = LineStyle.Single,
+            Visible = false,
+        };
+        _commandField.CanFocus = true;
+        _commandField.Enabled = true;
+        ApplyCommandFieldTheme(_commandField);
+
+        _commandField.Bind(Key.Enter, (f, _) =>
+        {
+            string command = f.Text;
+            f.Text = string.Empty;
+            HideCommandField();
+            if (!string.IsNullOrWhiteSpace(command))
+            {
+                ExecuteCommand(command);
+            }
+            return true;
+        }, clearText: true);
+
+        _commandField.Bind(Key.Esc, (f, _) =>
+        {
+            f.Text = string.Empty;
+            HideCommandField();
+            return true;
+        }, clearText: true);
+
+        _commandContainer.Add(_commandLabel, _commandField);
+        return _commandContainer;
+    }
+
     private void OnFilterChanged(string text) => ApplyFilter(text);
     private void OnAcceptFilter() => FocusList();
     private void OnExitFilter() => FocusList();
@@ -256,6 +323,11 @@ public sealed class WorkspaceScreen : Screen
 
     private bool HandleListKeyDown(Key key)
     {
+        if (_commandActive)
+        {
+            return false;
+        }
+
         if (_listView is null)
         {
             return false;
@@ -281,6 +353,9 @@ public sealed class WorkspaceScreen : Screen
                     return true;
                 case '/':
                     FocusFilter();
+                    return true;
+                case ':':
+                    ShowCommandField();
                     return true;
                 case 's':
                     SetCurrentWorkspace();
@@ -395,6 +470,73 @@ public sealed class WorkspaceScreen : Screen
         }
 
         _listView?.SetFocus();
+    }
+
+    private void ShowCommandField()
+    {
+        if (_commandContainer is null || _commandField is null || _commandLabel is null)
+        {
+            return;
+        }
+
+        _commandActive = true;
+        if (_listView is not null)
+        {
+            _listView.CanFocus = false;
+        }
+        if (_filterField is not null)
+        {
+            _filterField.CanFocus = false;
+        }
+
+        _commandContainer.Visible = true;
+        _commandLabel.Visible = true;
+        _commandField.Visible = true;
+        _commandField.Text = string.Empty;
+        _commandField.SetFocus();
+        _commandField.EnterEditMode();
+    }
+
+    private void HideCommandField()
+    {
+        if (_commandContainer is null || _commandField is null || _commandLabel is null)
+        {
+            return;
+        }
+
+        _commandActive = false;
+        if (_listView is not null)
+        {
+            _listView.CanFocus = true;
+        }
+        if (_filterField is not null)
+        {
+            _filterField.CanFocus = true;
+        }
+
+        _commandContainer.Visible = false;
+        _commandField.Visible = false;
+        _commandLabel.Visible = false;
+        FocusList();
+    }
+
+    private void ExecuteCommand(string command)
+    {
+    }
+
+    private void ApplyCommandFieldTheme(InteractiveTextField field)
+    {
+        Color background = _theme != null ? ColorResolver.Resolve(_theme.Surface) : Color.Black;
+        Color foreground = _theme != null ? ColorResolver.Resolve(_theme.OnSurface) : Color.White;
+        field.ApplyTheme(background, foreground);
+
+        if (_theme is null)
+        {
+            return;
+        }
+
+        Color accent = ColorResolver.Resolve(_theme.Accent);
+        field.SetBorderColors(accent, accent, accent);
     }
 
     private void EnterWorkspace()
