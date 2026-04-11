@@ -72,7 +72,7 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
         foreach (MarkupText.MarkupRun run in runs)
         {
             TuiAttribute attribute = isSelected
-                ? new(run.Attribute.Foreground, rowBase.Background, run.Attribute.Style)
+                ? new TuiAttribute(rowBase.Foreground, rowBase.Background, run.Attribute.Style)
                 : run.Attribute;
 
             foreach (char ch in run.Text)
