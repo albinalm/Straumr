@@ -426,7 +426,7 @@ public sealed class WorkspaceScreen(
 
         if (optionsService.Options.CurrentWorkspace != null && entry.Id == optionsService.Options.CurrentWorkspace.Id)
         {
-            lineBuilder.Append("(Current) ");
+            lineBuilder.Append("[bold](Current)[/] ");
         }
 
         try

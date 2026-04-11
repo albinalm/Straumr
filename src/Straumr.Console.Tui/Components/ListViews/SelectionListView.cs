@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using Straumr.Console.Tui.Components.Text;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.Views;
@@ -15,6 +17,11 @@ internal sealed class SelectionListView : ListView
         {
             SetScheme(scheme);
         }
+    }
+
+    public void SetMarkupSource(ObservableCollection<MarkupLabel> source)
+    {
+        Source = new MarkupLabelListDataSource(source);
     }
 
     protected override bool OnKeyDown(Key key)

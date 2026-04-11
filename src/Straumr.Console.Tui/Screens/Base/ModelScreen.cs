@@ -4,6 +4,7 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.ListViews;
+using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
@@ -18,7 +19,7 @@ namespace Straumr.Console.Tui.Screens.Base;
 public abstract class ModelScreen<TEntry> : Screen
 {
     private readonly Dictionary<string, ModelCommand> _commands = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ObservableCollection<string> _displayItems = [];
+    private readonly ObservableCollection<MarkupLabel> _displayItems = [];
     private readonly List<TEntry> _sourceEntries = [];
     private readonly List<TEntry> _displayEntries = [];
     private readonly StraumrTheme _theme;
@@ -86,6 +87,7 @@ public abstract class ModelScreen<TEntry> : Screen
 
     protected abstract Task<IReadOnlyList<TEntry>> LoadEntriesAsync(CancellationToken cancellationToken);
     protected abstract string GetDisplayText(TEntry entry);
+    protected virtual string GetFilterText(TEntry entry) => MarkupText.ToPlain(GetDisplayText(entry));
 
     protected virtual void OnInitialized(IReadOnlyList<TEntry> entries) { }
     protected virtual IEnumerable<ModelCommand> GetCommands() => [];
@@ -183,7 +185,7 @@ public abstract class ModelScreen<TEntry> : Screen
             Height = Dim.Fill(4),
         };
 
-        list.SetSource(_displayItems);
+        list.SetMarkupSource(_displayItems);
         list.Accepting += (_, _) => OpenSelectedEntry();
         return list;
     }
@@ -296,9 +298,13 @@ public abstract class ModelScreen<TEntry> : Screen
         foreach (TEntry entry in _sourceEntries)
         {
             string displayText = GetDisplayText(entry);
-            if (MatchesFilter(displayText, filter))
+            if (MatchesFilter(GetFilterText(entry), filter))
             {
-                _displayItems.Add(displayText);
+                _displayItems.Add(new MarkupLabel
+                {
+                    Markup = displayText,
+                    Theme = _theme,
+                });
                 _displayEntries.Add(entry);
             }
         }
