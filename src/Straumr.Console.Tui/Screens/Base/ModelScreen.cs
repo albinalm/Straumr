@@ -343,7 +343,7 @@ public abstract class ModelScreen<TEntry> : Screen
                 {
                     _hasPendingSelection = false;
                     _pendingSelection = default;
-                    return index;
+                    return index * MarkupLabelListDataSource.RowsPerItem;
                 }
             }
         }
@@ -430,7 +430,7 @@ public abstract class ModelScreen<TEntry> : Screen
             return default;
         }
 
-        int index = _listView.SelectedItem.Value;
+        int index = _listView.SelectedItem.Value / MarkupLabelListDataSource.RowsPerItem;
         if (index < 0 || index >= _displayEntries.Count)
         {
             return default;
@@ -446,9 +446,9 @@ public abstract class ModelScreen<TEntry> : Screen
             return;
         }
 
-        int current = _listView.SelectedItem ?? 0;
-        int next = Math.Clamp(current + delta, 0, _displayItems.Count - 1);
-        _listView.SelectedItem = next;
+        int currentLogical = (_listView.SelectedItem ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+        int nextLogical = Math.Clamp(currentLogical + delta, 0, _displayItems.Count - 1);
+        _listView.SelectedItem = nextLogical * MarkupLabelListDataSource.RowsPerItem;
     }
 
     private void MoveSelectionToStart()
@@ -468,7 +468,7 @@ public abstract class ModelScreen<TEntry> : Screen
             return;
         }
 
-        _listView.SelectedItem = _displayItems.Count - 1;
+        _listView.SelectedItem = (_displayItems.Count - 1) * MarkupLabelListDataSource.RowsPerItem;
     }
 
     private void FocusFilter()

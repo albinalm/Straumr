@@ -414,51 +414,58 @@ public sealed class WorkspaceScreen(
 
     private async Task<WorkspaceEntry> BuildWorkspaceEntryAsync(StraumrWorkspaceEntry entry)
     {
-        var lineBuilder = new StringBuilder();
         DateTimeOffset? lastAccessed = null;
-        var isDamaged = false;
-        string identifier;
+        bool isDamaged = false;
+        string identifier = entry.Id.ToString();
         string? name = null;
-        var status = "Valid";
+        string status = "Valid";
         int? requests = null;
         int? secrets = null;
         int? auths = null;
+        string display;
 
-        if (optionsService.Options.CurrentWorkspace != null && entry.Id == optionsService.Options.CurrentWorkspace.Id)
-        {
-            lineBuilder.Append("[bold](Current)[/] ");
-        }
+        bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id;
 
         try
         {
             StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
-            lineBuilder.Append(workspace.Name);
             lastAccessed = workspace.LastAccessed;
             identifier = workspace.Name;
             requests = workspace.Requests.Count;
             secrets = workspace.Secrets.Count;
             auths = workspace.Auths.Count;
             name = workspace.Name;
+
+            string line0 = isCurrent
+                ? $"[accent]▸[/] [bold]{workspace.Name}[/]  [accent](current)[/]"
+                : $"[secondary]◇[/] [bold]{workspace.Name}[/]";
+
+            string line1 = $"  [secondary]{entry.Id}[/]";
+
+            string statsRight = lastAccessed.HasValue
+                ? $"{requests} req · {secrets} sec · {auths} auth  [/][info]{lastAccessed.Value.LocalDateTime:yyyy-MM-dd}[/]"
+                : $"{requests} req · {secrets} sec · {auths} auth[/]";
+            string line2 = $"  [secondary]{statsRight}";
+
+            display = $"{line0}\n{line1}\n{line2}";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {
-            lineBuilder.Append($"{entry.Id} [Corrupt] ");
             isDamaged = true;
-            identifier = entry.Id.ToString();
             status = "Corrupt";
+            display = $"[danger]✖[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [secondary]{entry.Path}[/]\n  [danger]Workspace file is corrupt[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
         {
-            lineBuilder.Append($"{entry.Id} [Missing] ");
             isDamaged = true;
-            identifier = entry.Id.ToString();
             status = "Missing";
+            display = $"[danger]✖[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [secondary]{entry.Path}[/]\n  [warning]Workspace file is missing[/]";
         }
 
         return new WorkspaceEntry
         {
             StraumrEntry = entry,
-            Display = lineBuilder.ToString(),
+            Display = display,
             Identifier = identifier,
             Status = status,
             IsDamaged = isDamaged,

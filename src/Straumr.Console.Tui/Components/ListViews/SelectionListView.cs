@@ -31,12 +31,40 @@ internal sealed class SelectionListView : ListView
             return true;
         }
 
-        // Only allow arrow keys and Enter through to the base ListView.
-        // Block everything else (letters, etc.) to prevent type-ahead search.
-        if (key == Key.CursorUp || key == Key.CursorDown
-            || key == Key.PageUp || key == Key.PageDown
-            || key == Key.Home || key == Key.End
-            || key == Key.Enter)
+        if (key == Key.CursorUp || key == Key.CursorDown)
+        {
+            int logicalCount = (Source?.Count ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+            if (logicalCount == 0)
+            {
+                return true;
+            }
+
+            int currentLogical = (SelectedItem ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+            int nextLogical = key == Key.CursorUp
+                ? Math.Max(0, currentLogical - 1)
+                : Math.Min(logicalCount - 1, currentLogical + 1);
+            SelectedItem = nextLogical * MarkupLabelListDataSource.RowsPerItem;
+            return true;
+        }
+
+        if (key == Key.Home)
+        {
+            SelectedItem = 0;
+            return true;
+        }
+
+        if (key == Key.End)
+        {
+            int logicalCount = (Source?.Count ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+            if (logicalCount > 0)
+            {
+                SelectedItem = (logicalCount - 1) * MarkupLabelListDataSource.RowsPerItem;
+            }
+
+            return true;
+        }
+
+        if (key == Key.PageUp || key == Key.PageDown || key == Key.Enter)
         {
             return base.OnKeyDown(key);
         }
