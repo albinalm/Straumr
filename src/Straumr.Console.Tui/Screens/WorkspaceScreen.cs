@@ -28,7 +28,7 @@ public sealed class WorkspaceScreen(
     protected override void OnInitialized(IReadOnlyList<WorkspaceEntry> entries)
     {
         int workspaceCount = optionsService.Options.Workspaces.Count;
-        ShowSuccess($" {workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");
+        ShowSuccess($"{workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");
     }
 
     protected override string GetDisplayText(WorkspaceEntry entry) => entry.Display;
