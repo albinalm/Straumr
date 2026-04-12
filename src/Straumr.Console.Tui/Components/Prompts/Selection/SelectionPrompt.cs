@@ -4,6 +4,7 @@ using Straumr.Console.Tui.Components.ListViews;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -92,17 +93,14 @@ internal sealed class SelectionPrompt : PromptComponent
         }
 
         int count = _valueItems.Count;
-        if (count == 0 && key != Key.Esc && key.AsRune.Value != '/')
+        if (count == 0 && key != Key.Esc && KeyHelpers.GetCharValue(key) != '/')
         {
             return false;
         }
 
-        // VIM motions
-        Rune rune = key.AsRune;
-
         if (!key.IsCtrl && !key.IsAlt)
         {
-            switch (rune.Value)
+            switch (KeyHelpers.GetCharValue(key))
             {
                 case 'j':
                     MoveSelection(1);

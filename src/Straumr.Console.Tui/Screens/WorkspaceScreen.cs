@@ -6,6 +6,7 @@ using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
+using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
@@ -38,10 +39,9 @@ public sealed class WorkspaceScreen(
 
     protected override bool HandleModelKeyDown(Key key, WorkspaceEntry? selectedEntry)
     {
-        Rune rune = key.AsRune;
         if (key is { IsCtrl: false, IsAlt: false })
         {
-            switch (rune.Value)
+            switch (KeyHelpers.GetCharValue(key))
             {
                 case 's':
                     SetCurrentWorkspace(selectedEntry);

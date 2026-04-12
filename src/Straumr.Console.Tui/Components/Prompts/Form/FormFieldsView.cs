@@ -97,9 +97,8 @@ internal sealed class FormFieldsView : View
         _saveButton.Accepting += (_, _) => TrySave();
         _saveButton.KeyDown += (_, key) =>
         {
-            Rune rune = key.AsRune;
-            bool up = key == Key.CursorUp || rune.Value == 'k';
-            bool down = key == Key.CursorDown || rune.Value == 'j';
+            bool up = key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k';
+            bool down = key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j';
 
             if (up)
             {
@@ -185,7 +184,7 @@ internal sealed class FormFieldsView : View
             }));
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && (key == Key.CursorUp || key.AsRune.Value == 'k'),
+            (f, key) => !f.IsEditing && (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k'),
             (_, _) =>
             {
                 FocusView(above());
@@ -193,7 +192,7 @@ internal sealed class FormFieldsView : View
             }));
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && (key == Key.CursorDown || key.AsRune.Value == 'j'),
+            (f, key) => !f.IsEditing && (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j'),
             (_, _) =>
             {
                 FocusView(below());

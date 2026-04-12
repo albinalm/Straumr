@@ -113,10 +113,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         int count = _keys.Count;
 
-        Rune rune = key.AsRune;
         if (!key.IsCtrl && !key.IsAlt)
         {
-            switch (rune.Value)
+            switch (KeyHelpers.GetCharValue(key))
             {
                 case 'j':
                     MoveSelection(1);

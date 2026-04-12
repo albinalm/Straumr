@@ -2,6 +2,7 @@ using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using MarkupText = Straumr.Console.Tui.Helpers.MarkupText;
@@ -52,9 +53,8 @@ internal sealed class TextInputPrompt : PromptComponent
             }
 
             key.Handled = true;
-            Rune rune = key.AsRune;
 
-            if (rune.Value is 'y' or 'Y')
+            if (KeyHelpers.GetCharValue(key) is 'y' or 'Y')
             {
                 _confirming = false;
                 CancelRequested?.Invoke();
