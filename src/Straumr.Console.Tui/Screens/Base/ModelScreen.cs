@@ -41,10 +41,13 @@ public abstract class ModelScreen<TEntry> : Screen
     private TEntry? _pendingSelection;
     private bool _hasPendingSelection;
 
+    protected abstract string ModelHintsText { get; }
+
+    private string InternalHintsText => $"j/k Navigate  g/G Jump  {ModelHintsText}  i Inspect  / Filter  : Command";
+
     protected ModelScreen(
         StraumrTheme theme,
         string screenTitle,
-        string hintsText,
         string emptyStateText,
         string itemTypeNamePlural)
     {
@@ -54,7 +57,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _itemTypeNamePlural = itemTypeNamePlural;
 
         Add(new Banner { Theme = _theme });
-        Add(new HintsBar { Text = hintsText });
+        Add(new HintsBar { Text = InternalHintsText });
         AddView(BuildModelFrame());
         AddView(BuildCommandBar());
 

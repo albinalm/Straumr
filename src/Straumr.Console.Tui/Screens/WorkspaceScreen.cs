@@ -20,11 +20,10 @@ public sealed class WorkspaceScreen(
     StraumrTheme theme)
     : ModelScreen<WorkspaceEntry>(theme,
         screenTitle: "Workspaces",
-        hintsText: WorkspaceHintsText,
         emptyStateText: "No workspaces found",
         itemTypeNamePlural: "workspaces")
 {
-    private const string WorkspaceHintsText = "j/k Navigate  g/G Jump  s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export  i Inspect  / Filter  : Command";
+    protected override string ModelHintsText => "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
 
     protected override void OnInitialized(IReadOnlyList<WorkspaceEntry> entries)
     {
