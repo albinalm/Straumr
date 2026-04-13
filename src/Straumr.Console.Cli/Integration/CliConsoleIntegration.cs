@@ -30,6 +30,8 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     public IReadOnlyCollection<string> Commands => EnsureRegistry();
     public bool IsDefault => false;
 
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Spectre.Console.Cli requires dynamic code; CLI assembly is fully preserved via CliRoots.xml.")]
     private IReadOnlyCollection<string> EnsureRegistry()
     {
         if (!_registryInitialized)
@@ -42,7 +44,8 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         return _registry.Commands;
     }
 
-    [RequiresDynamicCode("Calls Spectre.Console.Cli.CommandApp.CommandApp(ITypeRegistrar)")]
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Spectre.Console.Cli requires dynamic code; CLI assembly is fully preserved via CliRoots.xml.")]
     public void ConfigureServices(IServiceCollection services)
     {
         services.TryAddSingleton<IStraumrFileService, StraumrFileService>();
@@ -67,8 +70,8 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         RegisterCommandTypes(services);
     }
 
-    [UnconditionalSuppressMessage("AOT", "IL2067",
-        Justification = "Command types are preserved via CliRoots.xml trimmer descriptor")]
+    [UnconditionalSuppressMessage("Trimming", "IL2062",
+        Justification = "Command types are preserved via CliRoots.xml trimmer descriptor.")]
     private static void RegisterCommandTypes(IServiceCollection services)
     {
         Assembly assembly = typeof(CliConsoleIntegration).Assembly;
