@@ -10,5 +10,6 @@ public interface IStraumrFileService
     Task<T> PeekStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
     Task StampAccessAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
     Task WriteGeneric<T>(string path, T value, JsonTypeInfo<T> typeInfo);
-    Task<T> ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo);
+    Task<T> ReadGenericAsync<T>(string path, JsonTypeInfo<T> typeInfo);
+    T ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo);
 }

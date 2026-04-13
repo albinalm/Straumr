@@ -13,9 +13,9 @@ namespace Straumr.Core.Services;
 public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOptionsService optionsService)
     : IStraumrWorkspaceService
 {
-    public async Task Activate(string name)
+    public async Task Activate(string identifier)
     {
-        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(name);
+        StraumrWorkspaceEntry entry = await ResolveWorkspaceEntryAsync(identifier);
         optionsService.Options.CurrentWorkspace = entry;
         await optionsService.Save();
         await fileService.StampAccessAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
@@ -28,7 +28,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         await fileService.WriteStraumrModel(fullPath, workspace, StraumrJsonContext.Default.StraumrWorkspace);
 
-        var entry = new StraumrWorkspaceEntry
+        StraumrWorkspaceEntry entry = new StraumrWorkspaceEntry
         {
             Id = workspace.Id,
             Path = fullPath
@@ -93,7 +93,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         StraumrWorkspaceEntry sourceEntry = await ResolveWorkspaceEntryAsync(identifier);
         StraumrWorkspace sourceWorkspace = await PeekWorkspace(sourceEntry.Path);
 
-        var newWorkspace = new StraumrWorkspace
+        StraumrWorkspace newWorkspace = new StraumrWorkspace
         {
             Name = newName,
             Requests = sourceWorkspace.Requests,
@@ -111,13 +111,16 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         foreach (string file in Directory.EnumerateFiles(sourceDir))
         {
             if (Path.GetExtension(file).Equals(".straumr", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
+
             File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)));
         }
 
         await fileService.WriteStraumrModel(newFullPath, newWorkspace, StraumrJsonContext.Default.StraumrWorkspace);
 
-        var newEntry = new StraumrWorkspaceEntry { Id = newWorkspace.Id, Path = newFullPath };
+        StraumrWorkspaceEntry newEntry = new StraumrWorkspaceEntry { Id = newWorkspace.Id, Path = newFullPath };
         optionsService.Options.Workspaces.Add(newEntry);
         await optionsService.Save();
         return newEntry;
@@ -258,7 +261,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
         {
-            if (!File.Exists(entry.Path)) continue;
+            if (!File.Exists(entry.Path))
+            {
+                continue;
+            }
 
             string workspaceName = await GetWorkspaceName(entry.Path);
 
@@ -290,7 +296,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
 
         Directory.Move(extractedWorkspacePath, destinationPath);
 
-        var entry = new StraumrWorkspaceEntry
+        StraumrWorkspaceEntry entry = new StraumrWorkspaceEntry
         {
             Id = workspaceId,
             Path = WorkspacePath(workspaceId, workspaceName)

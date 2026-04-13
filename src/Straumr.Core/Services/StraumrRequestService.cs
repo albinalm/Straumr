@@ -1,12 +1,13 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Extensions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using Straumr.Core.Helpers;
 
 namespace Straumr.Core.Services;
 
@@ -17,31 +18,34 @@ public class StraumrRequestService(
     IStraumrAuthService authService,
     IStraumrSecretService secretService) : IStraumrRequestService
 {
-    private static readonly Regex SecretPattern = new(@"\{\{secret:(?<name>[^}]+)\}\}", RegexOptions.Compiled);
+    private static readonly Regex SecretPattern = SecretHelpers.SecretPattern;
     private readonly HttpClient _client = httpClientFactory.CreateClient();
 
-    public async Task<StraumrRequest> GetAsync(string identifier)
+    public async Task<StraumrRequest> GetAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
     {
-        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
         RequestLookup lookup =
-            await RequireRequestAsync(workspace, identifier,
-                $"No request found with the identifier: {identifier}");
+            await RequireRequestAsync(workspaceModel, identifier,
+                $"No request found with the identifier: {identifier}", entry);
 
-        return await ResolveRequestAsync(lookup);
+        return await ResolveRequestAsync(lookup, entry);
     }
 
-    public async Task DeleteAsync(string identifier)
+    public async Task DeleteAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
     {
-        (StraumrWorkspaceEntry entry, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
-        RequestLookup lookup = await RequireRequestAsync(workspace, identifier, "No request found");
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
+        RequestLookup lookup = await RequireRequestAsync(workspaceModel, identifier, "No request found", entry);
 
-        await RemoveRequestAsync(entry, workspace, lookup.Id);
+        await RemoveRequestAsync(entry, workspaceModel, lookup.Id);
     }
 
-    public async Task<StraumrRequest> CopyAsync(string identifier, string newName)
+    public async Task<StraumrRequest> CopyAsync(string identifier, string newName, StraumrWorkspaceEntry? workspace = null)
     {
-        StraumrRequest source = await GetAsync(identifier);
-        var copy = new StraumrRequest
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        StraumrRequest source = await GetAsync(identifier, entry);
+        StraumrRequest copy = new StraumrRequest
         {
             Name = newName,
             Uri = source.Uri,
@@ -52,14 +56,14 @@ public class StraumrRequestService(
             Bodies = new Dictionary<BodyType, string>(source.Bodies),
             AuthId = source.AuthId
         };
-        await CreateAsync(copy);
+        await CreateAsync(copy, entry);
         return copy;
     }
 
-    public async Task<StraumrRequest> PeekByIdAsync(Guid id)
+    public async Task<StraumrRequest> PeekByIdAsync(Guid id, StraumrWorkspaceEntry? workspace = null)
     {
-        GetCurrentWorkspaceEntry();
-        string fullPath = RequestPath(id);
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        string fullPath = RequestPath(id, entry);
 
         if (!File.Exists(fullPath))
         {
@@ -78,64 +82,67 @@ public class StraumrRequestService(
 
     public async Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(StraumrRequest request)
     {
-        var warnings = new List<string>();
-        var resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
+        List<string> warnings = new List<string>();
+        Dictionary<string, string> resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
         string resolvedUrl = await ResolveSecretReferencesAsync(request.Uri, resolvedSecrets, warnings);
         return (resolvedUrl, warnings);
     }
 
-    public async Task CreateAsync(StraumrRequest request)
+    public async Task CreateAsync(StraumrRequest request, StraumrWorkspaceEntry? workspace = null)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
 
-        string fullPath = RequestPath(request.Id);
+        string fullPath = RequestPath(request.Id, entry);
         if (File.Exists(fullPath))
         {
             throw new StraumrException("Request already exists", StraumrError.EntryConflict);
         }
 
-        await EnsureNoNameConflictAsync(request.Name);
+        await EnsureNoNameConflictAsync(request.Name, entry);
 
         await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
         await AddRequestToWorkspace(entry, request.Id);
     }
 
-    public async Task UpdateAsync(StraumrRequest request)
+    public async Task UpdateAsync(StraumrRequest request, StraumrWorkspaceEntry? workspace = null)
     {
-        GetCurrentWorkspaceEntry();
-        string fullPath = RequestPath(request.Id);
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        string fullPath = RequestPath(request.Id, entry);
 
         if (!File.Exists(fullPath))
         {
             throw new StraumrException("Request not found", StraumrError.EntryNotFound);
         }
 
-        await EnsureNoNameConflictAsync(request.Name, request.Id);
+        await EnsureNoNameConflictAsync(request.Name, entry, request.Id);
 
         await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
     }
 
-    public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
+    public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
     {
-        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
-        RequestLookup lookup = await RequireRequestAsync(workspace, identifier, "No request found");
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
+        RequestLookup lookup = await RequireRequestAsync(workspaceModel, identifier, "No request found", entry);
         string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-        File.Copy(RequestPath(lookup.Id), tempPath, true);
+        File.Copy(RequestPath(lookup.Id, entry), tempPath, true);
         return (lookup.Id, tempPath);
     }
 
-    public void ApplyEdit(Guid requestId, string tempPath)
+    public void ApplyEdit(Guid requestId, string tempPath, StraumrWorkspaceEntry? workspace = null)
     {
-        File.Copy(tempPath, RequestPath(requestId), true);
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        File.Copy(tempPath, RequestPath(requestId, entry), true);
     }
 
-    public async Task<StraumrResponse> SendAsync(StraumrRequest request, SendOptions? options = null)
+    public async Task<StraumrResponse> SendAsync(StraumrRequest request, SendOptions? options = null, StraumrWorkspaceEntry? workspace = null)
     {
-        var warnings = new List<string>();
-        var resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
+        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
+        List<string> warnings = new List<string>();
+        Dictionary<string, string> resolvedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
 
         StraumrAuth? auth = request.AuthId.HasValue
-            ? await authService.PeekByIdAsync(request.AuthId.Value)
+            ? await authService.PeekByIdAsync(request.AuthId.Value, entry)
             : null;
 
         StraumrRequest resolvedRequest = await ResolveSecretsAsync(request, resolvedSecrets, warnings);
@@ -153,14 +160,14 @@ public class StraumrRequestService(
                     OAuth2Token token = await authService.EnsureTokenAsync(oauth2);
                     oauth2.Token = token;
                     ((OAuth2Config)auth.Config).Token = token;
-                    await authService.UpdateAsync(auth);
+                    await authService.UpdateAsync(auth, entry);
                     break;
                 }
                 case CustomAuthConfig { CachedValue: null } custom:
                 {
                     await authService.ExecuteCustomAuthAsync(custom);
                     ((CustomAuthConfig)auth.Config).CachedValue = custom.CachedValue;
-                    await authService.UpdateAsync(auth);
+                    await authService.UpdateAsync(auth, entry);
                     break;
                 }
             }
@@ -193,27 +200,24 @@ public class StraumrRequestService(
 
             if (ShouldRetryCustomAuth(auth, resolvedAuthConfig, response))
             {
-                var custom = (CustomAuthConfig)resolvedAuthConfig!;
+                CustomAuthConfig custom = (CustomAuthConfig)resolvedAuthConfig!;
                 custom.CachedValue = null;
                 await authService.ExecuteCustomAuthAsync(custom);
                 if (auth is not null)
                 {
                     ((CustomAuthConfig)auth.Config).CachedValue = custom.CachedValue;
-                    await authService.UpdateAsync(auth);
+                    await authService.UpdateAsync(auth, entry);
                 }
 
                 response = await SendWithMetadataAsync(client, resolvedRequest, resolvedAuthConfig);
                 response.Warnings = warnings;
             }
 
-            // Stamp LastAccessed on the request, workspace, and auth (if any).
-            // Secrets are already stamped during resolution via secretService.GetAsync.
-            StraumrWorkspaceEntry workspaceEntry = GetCurrentWorkspaceEntry();
-            await fileService.StampAccessAsync(workspaceEntry.Path, StraumrJsonContext.Default.StraumrWorkspace);
-            await fileService.StampAccessAsync(RequestPath(request.Id), StraumrJsonContext.Default.StraumrRequest);
+            await fileService.StampAccessAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.StampAccessAsync(RequestPath(request.Id, entry), StraumrJsonContext.Default.StraumrRequest);
             if (request.AuthId.HasValue)
             {
-                await authService.StampAccessAsync(request.AuthId.Value);
+                await authService.StampAccessAsync(request.AuthId.Value, entry);
             }
 
             return response;
@@ -227,9 +231,9 @@ public class StraumrRequestService(
         }
     }
 
-    private async Task EnsureNoNameConflictAsync(string name, Guid excludeId = default)
+    private async Task EnsureNoNameConflictAsync(string name, StraumrWorkspaceEntry entry, Guid excludeId = default)
     {
-        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync();
+        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync(entry);
         foreach (Guid id in workspace.Requests)
         {
             if (id == excludeId)
@@ -239,7 +243,7 @@ public class StraumrRequestService(
 
             try
             {
-                StraumrRequest request = await PeekByIdAsync(id);
+                StraumrRequest request = await PeekByIdAsync(id, entry);
                 if (string.Equals(request.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new StraumrException("A request with this name already exists", StraumrError.EntryConflict);
@@ -249,40 +253,16 @@ public class StraumrRequestService(
         }
     }
 
-    private string RequestPath(Guid id)
+    private static string RequestPath(Guid id, StraumrWorkspaceEntry entry)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
         string? directory = Path.GetDirectoryName(entry.Path);
         return Path.Combine(directory!, id + ".json");
     }
 
-    private void RemoveRequestFile(Guid id)
+    private StraumrWorkspaceEntry ResolveWorkspaceEntry(StraumrWorkspaceEntry? workspace)
     {
-        string requestPath = RequestPath(id);
-        if (File.Exists(requestPath))
-        {
-            File.Delete(requestPath);
-        }
-    }
-
-    private async Task<StraumrRequest> GetByIdAsync(Guid id)
-    {
-        GetCurrentWorkspaceEntry();
-        string fullPath = RequestPath(id);
-
-        try
-        {
-            return await fileService.ReadStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
-        }
-        catch (JsonException jex)
-        {
-            throw new StraumrException("Invalid request", StraumrError.CorruptEntry, jex);
-        }
-    }
-
-    private StraumrWorkspaceEntry GetCurrentWorkspaceEntry()
-    {
-        return optionsService.Options.CurrentWorkspace
+        return workspace
+               ?? optionsService.Options.CurrentWorkspace
                ?? throw new StraumrException("No workspace loaded", StraumrError.MissingEntry);
     }
 
@@ -294,23 +274,22 @@ public class StraumrRequestService(
         await PersistWorkspaceAsync(entry, workspace);
     }
 
-    private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync()
+    private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync(StraumrWorkspaceEntry entry)
     {
-        StraumrWorkspaceEntry entry = GetCurrentWorkspaceEntry();
         StraumrWorkspace workspace =
             await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         return (entry, workspace);
     }
 
-    private async Task<StraumrRequest> ResolveRequestAsync(RequestLookup lookup)
+    private async Task<StraumrRequest> ResolveRequestAsync(RequestLookup lookup, StraumrWorkspaceEntry entry)
     {
-        return lookup.Request ?? await PeekByIdAsync(lookup.Id);
+        return lookup.Request ?? await PeekByIdAsync(lookup.Id, entry);
     }
 
     private static async Task<StraumrResponse> SendWithMetadataAsync(
         HttpClient client, StraumrRequest request, StraumrAuthConfig? auth)
     {
-        var networkRequest = request.ToHttpRequestMessage(auth);
+        HttpRequestMessage networkRequest = request.ToHttpRequestMessage(auth);
         try
         {
             StraumrResponse response = await client.SendAsync(networkRequest).WithMetrics();
@@ -325,7 +304,7 @@ public class StraumrRequestService(
 
     private static void PopulateRequestMetadata(StraumrResponse response, HttpRequestMessage networkRequest)
     {
-        var requestHeaders = new Dictionary<string, IEnumerable<string>>();
+        Dictionary<string, IEnumerable<string>> requestHeaders = new Dictionary<string, IEnumerable<string>>();
         foreach (KeyValuePair<string, IEnumerable<string>> h in networkRequest.Headers)
         {
             requestHeaders[h.Key] = h.Value;
@@ -472,7 +451,7 @@ public class StraumrRequestService(
         List<string> warnings,
         IEqualityComparer<string> comparer)
     {
-        var resolved = new Dictionary<string, string>(comparer);
+        Dictionary<string, string> resolved = new Dictionary<string, string>(comparer);
         foreach (KeyValuePair<string, string> pair in source)
         {
             resolved[pair.Key] = await ResolveSecretReferencesAsync(pair.Value, resolvedSecrets, warnings);
@@ -486,7 +465,7 @@ public class StraumrRequestService(
         Dictionary<string, string> resolvedSecrets,
         List<string> warnings)
     {
-        var resolved = new Dictionary<BodyType, string>();
+        Dictionary<BodyType, string> resolved = new Dictionary<BodyType, string>();
         foreach (KeyValuePair<BodyType, string> pair in source)
         {
             resolved[pair.Key] = await ResolveSecretReferencesAsync(pair.Value, resolvedSecrets, warnings);
@@ -505,7 +484,12 @@ public class StraumrRequestService(
 
     private async Task RemoveRequestAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace, Guid id)
     {
-        RemoveRequestFile(id);
+        string requestPath = RequestPath(id, entry);
+        if (File.Exists(requestPath))
+        {
+            File.Delete(requestPath);
+        }
+
         workspace.Requests.Remove(id);
         await PersistWorkspaceAsync(entry, workspace);
     }
@@ -515,7 +499,7 @@ public class StraumrRequestService(
         await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
-    private async Task<RequestLookup?> LookupRequestAsync(StraumrWorkspace workspace, string identifier)
+    private async Task<RequestLookup?> LookupRequestAsync(StraumrWorkspace workspace, string identifier, StraumrWorkspaceEntry entry)
     {
         if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
         {
@@ -526,7 +510,7 @@ public class StraumrRequestService(
         {
             try
             {
-                StraumrRequest request = await PeekByIdAsync(id);
+                StraumrRequest request = await PeekByIdAsync(id, entry);
                 if (request.Name == identifier)
                 {
                     return new RequestLookup(id, request);
@@ -539,9 +523,9 @@ public class StraumrRequestService(
     }
 
     private async Task<RequestLookup> RequireRequestAsync(StraumrWorkspace workspace, string identifier,
-        string errorMessage)
+        string errorMessage, StraumrWorkspaceEntry entry)
     {
-        RequestLookup? lookup = await LookupRequestAsync(workspace, identifier);
+        RequestLookup? lookup = await LookupRequestAsync(workspace, identifier, entry);
         if (lookup.HasValue)
         {
             return lookup.Value;

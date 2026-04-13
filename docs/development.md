@@ -10,6 +10,7 @@ Current package highlights:
 
 - `Spectre.Console`
 - `Spectre.Console.Cli`
+- `Terminal.Gui` (v2, used by the interactive TUI)
 - `Microsoft.Extensions.DependencyInjection`
 - `Microsoft.Extensions.Http`
 - `Humanizer.Core`
@@ -25,14 +26,18 @@ src/Straumr.sln
 
 Projects:
 
-- `src/Straumr.Cli/Straumr.Cli.csproj`
-- `src/Straumr.Core/Straumr.Core.csproj`
+- `src/Straumr.Console.App/Straumr.Console.App.csproj` — host executable (the `straumr` binary)
+- `src/Straumr.Console.Cli/Straumr.Console.Cli.csproj` — Spectre.Console CLI integration
+- `src/Straumr.Console.Tui/Straumr.Console.Tui.csproj` — Terminal.Gui TUI integration
+- `src/Straumr.Console.Shared/Straumr.Console.Shared.csproj` — shared integration/theme/editor plumbing
+- `src/Straumr.Core/Straumr.Core.csproj` — storage, models, HTTP, auth, and secret services
 
 Typical commands:
 
 ```sh
 dotnet build src/Straumr.sln
-dotnet run --project src/Straumr.Cli -- --help
+dotnet run --project src/Straumr.Console.App -- --help
+dotnet run --project src/Straumr.Console.App -- list workspace --json
 ```
 
 Notes:
@@ -45,14 +50,20 @@ Example isolated session:
 
 ```sh
 HOME=/tmp/straumr-home DOTNET_CLI_HOME=/tmp/straumr-home \
-  src/Straumr.Cli/bin/Debug/net10.0/linux-x64/straumr --help
+  src/Straumr.Console.App/bin/Debug/net10.0/linux-x64/straumr --help
 ```
 
 Using the built binary avoids triggering a new NuGet restore when network access is restricted.
 
 ## Important Source Files
 
-- `src/Straumr.Cli/Program.cs`: command registration and DI container setup
+- `src/Straumr.Console.App/Program.cs`: integration catalog, DI composition, and dispatch
+- `src/Straumr.Console.Shared/Integrations/ConsoleIntegrationResolver.cs`: picks CLI vs TUI per invocation
+- `src/Straumr.Console.Cli/Integration/CliConsoleIntegration.cs`: CLI service registration and Spectre command tree
+- `src/Straumr.Console.Cli/Infrastructure/StraumrCommandRegistry.cs`: command-name catalog used by the resolver
+- `src/Straumr.Console.Tui/Integration/TuiConsoleIntegration.cs`: TUI service registration and boot sequence
+- `src/Straumr.Console.Tui/Infrastructure/ScreenEngine.cs`: TUI screen stack and DI-driven screen resolution
+- `src/Straumr.Console.Tui/TuiApp.cs`: Terminal.Gui lifetime and window/scheme wiring
 - `src/Straumr.Core/Services/StraumrRequestService.cs`: request orchestration and send pipeline
 - `src/Straumr.Core/Services/StraumrAuthService.cs`: OAuth/custom auth implementation
 - `src/Straumr.Core/Services/StraumrWorkspaceService.cs`: workspace registry and package import/export
@@ -115,11 +126,14 @@ Release artifacts are produced for:
 
 ### Publish Settings
 
-The CLI project publishes with:
+The host project (`Straumr.Console.App`) publishes with:
 
 - `PublishSingleFile=true`
 - `SelfContained=true`
 - `PublishAot=true`
+- `InvariantGlobalization=true`
+
+The host aggregates trimmer root descriptors from each integration (`CliRoots.xml`, `TuiRoots.xml`) alongside its own `MyRoots.xml` so Spectre.Console.Cli and Terminal.Gui types survive trimming.
 
 Linux packaging creates:
 

@@ -10,6 +10,32 @@ Straumr is a CLI tool for managing and sending HTTP requests. You define request
 It handles authentication templates, secrets, and multiple workspaces, so you can keep work, staging, and personal projects separate without duplicating config.
 <!-- ABOUT:END -->
 
+## A look at the TUI
+
+Running `straumr` with no arguments drops you into a full-screen terminal UI. Pick a workspace, browse its requests, and send them without leaving the keyboard. Navigation uses vim motions (`h`/`j`/`k`/`l`) alongside the usual arrow keys.
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/media/tui-workspaces.png" alt="Workspace list in the Straumr TUI" />
+      <br />
+      <sub><b>Workspaces</b> — pick which workspace to work in.</sub>
+    </td>
+    <td align="center">
+      <img src="docs/media/tui-requests.png" alt="Requests list in the Straumr TUI" />
+      <br />
+      <sub><b>Requests</b> — saved requests in the active workspace.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <img src="docs/media/tui-send.png" alt="Send and response view in the Straumr TUI" />
+      <br />
+      <sub><b>Send</b> — the resolved request and the response it got back, side by side.</sub>
+    </td>
+  </tr>
+</table>
+
 ## Documentation
 
 Detailed documentation lives in [`docs/`](docs/README.md):
@@ -44,6 +70,10 @@ Attach an auth template to a request and it's applied automatically on send. OAu
 **Secrets**
 
 Store API keys, tokens, and other sensitive values as named secrets. Reference them in request URLs, headers, body, or auth templates using `{{secret:<name>}}`. Secrets are global across all workspaces.
+
+**Interactive TUI**
+
+Running `straumr` with no arguments drops you into a full-screen terminal UI backed by [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Browse and edit workspaces, requests, auths, and secrets, and send requests without leaving the keyboard. The CLI and the TUI share the exact same underlying services, so anything you can do in one is reflected in the other.
 
 **Shell completion**
 
@@ -95,34 +125,30 @@ Verify downloads using the provided `sha256sums.txt` and `.minisig` signature fi
 
 ## Quick start
 
+Launch the interactive TUI:
+
 ```sh
-# Create a workspace and activate it
+straumr
+```
+
+Any CLI invocation starts by getting a workspace in place:
+
+```sh
 straumr create workspace myapi
 straumr use workspace myapi
 ```
 
-Creating a request opens an interactive TUI by default:
-
-```sh
-straumr create request get-users
-```
-
-Use `-e` to open the request in your editor as a JSON. To understand values and structure you'll need to adhere to the documentation:
-
-```sh
-straumr create request get-users -e
-```
-
-You can also pass everything inline, which is useful for scripting:
+Create a request and send it:
 
 ```sh
 straumr create request get-users https://api.example.com/users --method GET
+straumr send get-users --pretty
 ```
 
-Then send it:
+Use `-e` on `create request` / `edit request` to open the raw request JSON in `$EDITOR` instead:
 
 ```sh
-straumr send get-users --pretty
+straumr create request get-users -e
 ```
 
 ## Commands
@@ -132,7 +158,7 @@ straumr send get-users --pretty
 | `workspace` | via `create`, `use`, `list`, `get`, `edit`, `export`, `import`, `delete`, `copy` |
 | `request` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
 | `auth` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
-| `secret` | via `create`, `edit`, `list`, `get`, `delete` |
+| `secret` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
 | `config` | `workspace-path` |
 | `autocomplete` | `install` |
 | top-level | `send` |

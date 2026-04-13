@@ -148,9 +148,10 @@ Sets the global active workspace. Prefer `--workspace` in scripts to avoid mutat
 straumr copy workspace|ws <Identifier> <NewName> [--output <DIR>] [-j|--json]
 straumr copy request|rq <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
 straumr copy auth|au <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
+straumr copy secret|sc <Identifier> <NewName> [-j|--json]
 ```
 
-`copy workspace --json` emits `{Id, Name, Path}`. `copy request --json` emits `{Id, Name, Method, Uri}`. `copy auth --json` emits `{Id, Name, Type}`.
+`copy workspace --json` emits `{Id, Name, Path}`. `copy request --json` emits `{Id, Name, Method, Uri}`. `copy auth --json` emits `{Id, Name, Type}`. `copy secret --json` emits `{Id, Name, Status}` (status is always `Valid` for the newly created secret).
 
 ### `import`
 

@@ -7,14 +7,14 @@ public static class HttpExtensions
 {
     public static async Task<StraumrResponse> WithMetrics(this Task<HttpResponseMessage> requestTask)
     {
-        var stopwatch = Stopwatch.StartNew();
+        Stopwatch stopwatch = Stopwatch.StartNew();
         try
         {
             HttpResponseMessage response = await requestTask;
             stopwatch.Stop();
             string body = await response.Content.ReadAsStringAsync();
 
-            var headers = new Dictionary<string, IEnumerable<string>>();
+            Dictionary<string, IEnumerable<string>> headers = new Dictionary<string, IEnumerable<string>>();
             foreach (KeyValuePair<string, IEnumerable<string>> h in response.Headers)
             {
                 headers[h.Key] = h.Value;

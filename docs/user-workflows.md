@@ -13,6 +13,17 @@ Straumr has four primary object types:
 
 Straumr is workspace-centric. Most `request` and `auth` commands require an active workspace before they can run. Commands that operate on requests or auths accept a `-w|--workspace <name-or-id>` flag to target a workspace for that invocation without changing the globally active one.
 
+## Two Frontends
+
+Straumr ships two interactive surfaces that share the same underlying services:
+
+- **TUI**: a full-screen Terminal.Gui experience for browsing and editing workspaces, requests, auths, and secrets, and for sending requests interactively.
+- **CLI**: a Spectre.Console command tree for everything scriptable and automation-friendly.
+
+Running `straumr` with no arguments launches the TUI. If a workspace is already active, the TUI boots into the requests screen; otherwise it starts on the workspaces screen. Anything you change inside the TUI is written through the same storage the CLI uses, so you can switch between them freely.
+
+Running `straumr` with any command-noun argument (`list`, `create`, `send`, …) dispatches to the CLI. The rest of this document focuses on CLI usage, since that is the surface that appears in scripts and documentation-worthy procedures.
+
 ## First-Time Setup
 
 Before creating a workspace without `-o`, set the default workspace root:
@@ -107,11 +118,11 @@ Important behavior:
 
 ## Request Workflow
 
-Straumr supports three request-authoring modes.
+Straumr supports three request-authoring modes from the CLI.
 
-### Interactive TUI Mode
+### Interactive Prompt Mode
 
-Default `create request` opens a menu-driven prompt flow:
+Running `create request` with just a name opens an in-CLI menu-driven prompt flow (this is the Spectre prompt flow, not the full-screen TUI):
 
 ```sh
 straumr create request get-users
@@ -132,6 +143,8 @@ Prompt UX details:
 - menus support search
 - `Escape` backs out of the current prompt
 - body editing for freeform content uses `$EDITOR`
+
+For a full-screen request editor with keyboard navigation across workspaces, requests, auths, and secrets at once, launch the TUI instead by running `straumr` with no arguments.
 
 ### Editor Mode
 
@@ -354,6 +367,7 @@ straumr create secret api-token supersecret
 straumr list secret
 straumr get secret api-token
 straumr edit secret api-token
+straumr copy secret api-token api-token-backup
 straumr delete secret api-token
 ```
 

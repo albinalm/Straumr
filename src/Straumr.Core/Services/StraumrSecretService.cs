@@ -59,6 +59,21 @@ public class StraumrSecretService(
         await fileService.WriteStraumrModel(fullPath, secret, StraumrJsonContext.Default.StraumrSecret);
     }
 
+    public async Task<StraumrSecret> CopyAsync(string identifier, string newName)
+    {
+        SecretLookup lookup = await RequireSecretAsync(identifier, "No secret found");
+        StraumrSecret source = await GetByIdAsync(lookup.Id);
+
+        StraumrSecret copy = new StraumrSecret
+        {
+            Name = newName,
+            Value = source.Value
+        };
+
+        await CreateAsync(copy);
+        return copy;
+    }
+
     public async Task DeleteAsync(string identifier)
     {
         SecretLookup lookup = await RequireSecretAsync(identifier, "No secret found");

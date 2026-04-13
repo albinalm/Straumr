@@ -1,0 +1,3 @@
+<linker>
+    <assembly fullname="Terminal.Gui" preserve="all" />
+</linker>
