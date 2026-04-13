@@ -514,7 +514,7 @@ public sealed class SendScreen : Screen
 
 private void CopyBodyToClipboard()
 {
-        TryCopyToClipboard(_bodyView?.Text?.ToString());
+        TryCopyToClipboard(_bodyView?.Text);
 }
 
     private void CopyRequestTemplateToClipboard()
@@ -532,7 +532,7 @@ private void CopyBodyToClipboard()
     {
         if (_isBodyBeautified && _bodyView is not null)
         {
-            return _bodyView.Text?.ToString() ?? string.Empty;
+            return _bodyView.Text;
         }
 
         if (_rawBodyContent is not null)
@@ -540,7 +540,7 @@ private void CopyBodyToClipboard()
             return _rawBodyContent;
         }
 
-        return _bodyView?.Text?.ToString() ?? string.Empty;
+        return _bodyView?.Text ?? string.Empty;
     }
 
     private void BeautifyBody()
@@ -573,12 +573,6 @@ private void CopyBodyToClipboard()
 
     private bool HandleKeyBinding(Key key)
     {
-        if (key == Key.Tab || key == Key.Tab.WithShift)
-        {
-            SwitchScrollFocus(key == Key.Tab.WithShift);
-            return true;
-        }
-
         if (key == Key.Esc)
         {
             _sendTokenSource?.Cancel();
@@ -592,6 +586,22 @@ private void CopyBodyToClipboard()
         }
 
         int charValue = KeyHelpers.GetCharValue(key);
+        switch (charValue)
+        {
+            case 'j':
+                SwitchScrollFocus(reverse: false);
+                return true;
+            case 'k':
+                SwitchScrollFocus(reverse: true);
+                return true;
+        }
+
+        if (key == Key.Tab || key == Key.Tab.WithShift)
+        {
+            SwitchScrollFocus(key == Key.Tab.WithShift);
+            return true;
+        }
+
         switch (charValue)
         {
             case 'y':
@@ -618,7 +628,7 @@ private void CopyBodyToClipboard()
             return;
         }
 
-        View current = _bodyView.HasFocus ? _bodyView : _summaryView.HasFocus ? _summaryView : null;
+        View? current = _bodyView.HasFocus ? _bodyView : _summaryView.HasFocus ? _summaryView : null;
         if (current is null)
         {
             _summaryView.SetFocus();
@@ -845,10 +855,7 @@ private void CopyBodyToClipboard()
     private void UpdateSummary(string text)
         => InvokeOnUi(() =>
         {
-            if (_summaryView is not null)
-            {
-                _summaryView.Text = Straumr.Console.Tui.Helpers.MarkupText.ToPlain(text);
-            }
+            _summaryView?.Text = MarkupText.ToPlain(text);
         });
 
     private void UpdateBody(string text, string? responseBody = null)
