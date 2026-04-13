@@ -217,64 +217,55 @@ jobs:
         shell: pwsh
         run: iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
 
-      - name: Sync winget-pkgs fork
+      - name: Generate winget manifest
         shell: pwsh
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
-        run: |
-          $headers = @{
-            Authorization = "Bearer $env:WINGET_PAT"
-            Accept = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
-
-          $user = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/user"
-          $owner = $user.login
-          Write-Host "Resolved GitHub owner for winget submission token: $owner"
-
-          try {
-            $fork = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$owner/winget-pkgs"
-          }
-          catch {
-            if ($_.Exception.Response.StatusCode.value__ -eq 404) {
-              Write-Host "No existing fork at $owner/winget-pkgs. wingetcreate will create one if needed."
-              exit 0
-            }
-
-            throw
-          }
-
-          if (-not $fork.fork) {
-            Write-Host "$owner/winget-pkgs exists but is not marked as a fork. Skipping sync."
-            exit 0
-          }
-
-          try {
-            $body = @{ branch = "master" } | ConvertTo-Json
-            $sync = Invoke-RestMethod -Method Post -Headers $headers -Uri "https://api.github.com/repos/$owner/winget-pkgs/merge-upstream" -Body $body
-            Write-Host "Fork sync result: $($sync.message)"
-          }
-          catch {
-            $statusCode = $_.Exception.Response.StatusCode.value__
-
-            if ($statusCode -eq 422) {
-              Write-Host "Fork already appears current or could not be synced automatically. Proceeding to wingetcreate."
-              exit 0
-            }
-
-            throw
-          }
-
-      - name: Update winget package
-        shell: pwsh
         run: |
           .\wingetcreate.exe update AlbinAlm.Straumr `
             --version $env:VERSION `
             --urls "https://github.com/albinalm/straumr/releases/download/v$env:VERSION/straumr-$env:VERSION-win-x64-setup.exe" `
-            --submit `
             --token $env:WINGET_PAT
+
+      - name: Submit winget PR manually
+        shell: pwsh
         env:
-          WINGET_PAT: ${{ secrets.WINGET_PAT }}
+          GH_TOKEN: ${{ secrets.WINGET_PAT }}
+        run: |
+          $owner = gh api user --jq .login
+          $manifestRoot = "manifests\a\AlbinAlm\Straumr\$env:VERSION"
+          $branch = "straumr-$env:VERSION"
+
+          if (-not (Test-Path $manifestRoot)) {
+            throw "Expected generated manifest directory '$manifestRoot' was not found."
+          }
+
+          gh repo view "$owner/winget-pkgs" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh repo fork microsoft/winget-pkgs --clone=false --remote=false
+          }
+
+          gh repo sync "$owner/winget-pkgs" --source microsoft/winget-pkgs --branch master --force
+          gh repo clone "$owner/winget-pkgs" winget-pkgs -- --depth=1
+
+          Set-Location winget-pkgs
+          git checkout -b $branch
+          $targetDir = "manifests/a/AlbinAlm/Straumr/$env:VERSION"
+          New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+          Copy-Item -Path "..\$manifestRoot\*" -Destination $targetDir -Recurse -Force
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add $targetDir
+          git commit -m "Add AlbinAlm.Straumr version $env:VERSION"
+          git push --set-upstream origin $branch
+
+          gh pr create `
+            --repo microsoft/winget-pkgs `
+            --base master `
+            --head "${owner}:$branch" `
+            --title "Add AlbinAlm.Straumr version $env:VERSION" `
+            --body "Automated submission for Straumr version $env:VERSION."
 
   copr:
     needs: [version, release]
