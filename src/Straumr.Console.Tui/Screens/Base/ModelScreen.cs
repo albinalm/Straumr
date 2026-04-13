@@ -16,6 +16,11 @@ namespace Straumr.Console.Tui.Screens.Base;
 
 public abstract class ModelScreen<TEntry> : Screen
 {
+    private const int FrameBaseOffset = 3;
+    private const int CommandBarHeight = 4;
+    private const int CommandPanelGap = 1;
+    private const int CommandBarTopOffset = 0;
+
     private readonly Dictionary<string, ModelCommand> _commands = new(StringComparer.OrdinalIgnoreCase);
     private readonly ObservableCollection<MarkupLabel> _displayItems = [];
     private readonly List<TEntry> _sourceEntries = [];
@@ -153,6 +158,7 @@ public abstract class ModelScreen<TEntry> : Screen
 
         ApplyFilter(_currentFilter);
         RefreshFilterRowLayout();
+        UpdateFramePosition();
         WireInitialFocus();
 
         return frame;
@@ -164,7 +170,7 @@ public abstract class ModelScreen<TEntry> : Screen
         {
             Title = _screenTitle,
             X = 2,
-            Y = Banner.FigletHeight + 5,
+            Y = Banner.FigletHeight + FrameBaseOffset,
             Width = Dim.Fill(4),
             Height = Dim.Fill(2),
         };
@@ -249,9 +255,9 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandContainer = new View
         {
             X = 2,
-            Y = Banner.FigletHeight + 1,
+            Y = Banner.FigletHeight + CommandBarTopOffset,
             Width = Dim.Fill(4),
-            Height = 4,
+            Height = CommandBarHeight,
             Visible = false,
             CanFocus = true,
         };
@@ -527,6 +533,8 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandLabel.Visible = true;
         _commandField.Visible = true;
         _commandField.Text = string.Empty;
+        UpdateFramePosition();
+        RefreshFilterRowLayout();
         _commandField.SetFocus();
         _commandField.EnterEditMode();
     }
@@ -552,7 +560,11 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandContainer.Visible = false;
         _commandField.Visible = false;
         _commandLabel.Visible = false;
+        _commandField.Text = string.Empty;
+        _commandField.ExitEditMode();
+        UpdateFramePosition();
         FocusList();
+        RefreshFilterRowLayout();
     }
 
     private void ApplyCommandFieldTheme(InteractiveTextField field)
@@ -579,6 +591,9 @@ public abstract class ModelScreen<TEntry> : Screen
             return;
         }
 
+        bool commandVisible = _commandActive && _commandContainer?.Visible == true;
+        int baseYOffset = commandVisible ? 2 : 0;
+
         string text = _filterField.Text?.ToString() ?? string.Empty;
         bool hasText = text.Length > 0;
         bool hasFocus = _filterField.HasFocus;
@@ -589,19 +604,36 @@ public abstract class ModelScreen<TEntry> : Screen
         if (_filterLabel is not null)
         {
             _filterLabel.Visible = shouldShow;
+            _filterLabel.Y = 1;
         }
+
+        _filterField.Y = 1;
 
         int listOffset = shouldShow ? 3 : 1;
 
         if (_listView is not null)
         {
             _listView.Y = listOffset;
+            _listView.Height = Dim.Fill(4);
         }
 
         if (_emptyLabel is not null)
         {
             _emptyLabel.Y = listOffset;
         }
+    }
+
+    private void UpdateFramePosition()
+    {
+        if (_frameView is null)
+        {
+            return;
+        }
+
+        int baseY = Banner.FigletHeight + FrameBaseOffset;
+        _frameView.Y = _commandActive && _commandContainer is not null
+            ? Pos.Bottom(_commandContainer) + CommandPanelGap
+            : baseY;
     }
 
     private void EnsureCommandsConfigured()
