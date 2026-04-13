@@ -360,13 +360,13 @@ public sealed class AuthsScreen(
         {
             isDamaged = true;
             status = "Corrupt";
-            display = $"[danger]✖[/] [bold]{authId}[/]  [danger](Corrupt)[/]\n  [danger]Auth file is corrupt[/]";
+            display = $"[danger]X[/] [bold]{authId}[/]  [danger](Corrupt)[/]\n  [danger]Auth file is corrupt[/]";
         }
         catch (StraumrException ex) when (ex.Reason is StraumrError.MissingEntry or StraumrError.EntryNotFound)
         {
             isDamaged = true;
             status = "Missing";
-            display = $"[danger]✖[/] [bold]{authId}[/]  [warning](Missing)[/]\n  [warning]Auth file is missing[/]";
+            display = $"[danger]X[/] [bold]{authId}[/]  [warning](Missing)[/]\n  [warning]Auth file is missing[/]";
         }
 
         return new AuthEntry

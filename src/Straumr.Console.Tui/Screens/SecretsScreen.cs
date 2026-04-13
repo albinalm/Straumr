@@ -259,13 +259,13 @@ public sealed class SecretsScreen(
         {
             isDamaged = true;
             status = "Corrupt";
-            display = $"[danger]✖[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [danger]Secret file is corrupt[/]";
+            display = $"[danger]X[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [danger]Secret file is corrupt[/]";
         }
         catch (StraumrException ex) when (ex.Reason is StraumrError.EntryNotFound or StraumrError.MissingEntry)
         {
             isDamaged = true;
             status = "Missing";
-            display = $"[danger]✖[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [warning]Secret file is missing[/]";
+            display = $"[danger]X[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [warning]Secret file is missing[/]";
         }
 
         return new SecretEntry

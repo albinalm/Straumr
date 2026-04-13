@@ -496,14 +496,14 @@ public sealed class WorkspacesScreen(
             isDamaged = true;
             status = "Corrupt";
             display =
-                $"[danger]✖[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [secondary]{entry.Path}[/]\n  [danger]Workspace file is corrupt[/]";
+                $"[danger]X[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [secondary]{entry.Path}[/]\n  [danger]Workspace file is corrupt[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
         {
             isDamaged = true;
             status = "Missing";
             display =
-                $"[danger]✖[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [secondary]{entry.Path}[/]\n  [warning]Workspace file is missing[/]";
+                $"[danger]X[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [secondary]{entry.Path}[/]\n  [warning]Workspace file is missing[/]";
         }
 
         return new WorkspaceEntry

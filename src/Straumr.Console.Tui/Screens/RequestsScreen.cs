@@ -413,13 +413,13 @@ public sealed class RequestsScreen(
         {
             isDamaged = true;
             status = "Corrupt";
-            display = $"[danger]✖[/] [bold]{requestId}[/]  [danger](Corrupt)[/]\n  [danger]Request file is corrupt[/]";
+            display = $"[danger]X[/] [bold]{requestId}[/]  [danger](Corrupt)[/]\n  [danger]Request file is corrupt[/]";
         }
         catch (StraumrException ex) when (ex.Reason is StraumrError.MissingEntry or StraumrError.EntryNotFound)
         {
             isDamaged = true;
             status = "Missing";
-            display = $"[danger]✖[/] [bold]{requestId}[/]  [warning](Missing)[/]\n  [warning]Request file is missing[/]";
+            display = $"[danger]X[/] [bold]{requestId}[/]  [warning](Missing)[/]\n  [warning]Request file is missing[/]";
         }
 
         return new RequestEntry
