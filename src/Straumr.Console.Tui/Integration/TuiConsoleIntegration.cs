@@ -31,7 +31,8 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         });
         services.AddSingleton(provider => provider.GetRequiredService<StraumrThemeOptions>().Theme);
         services.AddSingleton<TuiAppResolver>();
-        services.AddTransient<WorkspaceScreen>();
+        services.AddTransient<WorkspacesScreen>();
+        services.AddTransient<RequestsScreen>();
         services.AddSingleton<TuiInteractiveConsole>();
         services.AddSingleton<IInteractiveConsole>(provider => provider.GetRequiredService<TuiInteractiveConsole>());
     }
@@ -54,7 +55,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
         var resolver = serviceProvider.GetRequiredService<TuiAppResolver>();
         var engine = new ScreenEngine(serviceProvider, theme.Theme, resolver);
-        await engine.RunAsync<WorkspaceScreen>(cancellationToken);
+        await engine.RunAsync<WorkspacesScreen>(cancellationToken);
 
         return 0;
     }

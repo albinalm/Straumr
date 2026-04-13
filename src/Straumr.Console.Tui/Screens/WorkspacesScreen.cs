@@ -14,7 +14,7 @@ using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens;
 
-public sealed class WorkspaceScreen(
+public sealed class WorkspacesScreen(
     TuiInteractiveConsole interactiveConsole,
     IStraumrWorkspaceService workspaceService,
     IStraumrOptionsService optionsService,
@@ -110,7 +110,7 @@ public sealed class WorkspaceScreen(
         }
 
         string name = result["name"];
-        string? outputDir = result.TryGetValue("outputDir", out string? value) ? value : null;
+        string? outputDir = result.GetValueOrDefault("outputDir");
         if (string.IsNullOrWhiteSpace(outputDir))
         {
             outputDir = null;

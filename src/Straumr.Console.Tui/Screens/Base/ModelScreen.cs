@@ -28,6 +28,7 @@ public abstract class ModelScreen<TEntry> : Screen
     private readonly string _itemTypeNamePlural;
 
     private SelectionListView? _listView;
+    private Label? _filterLabel;
     private InteractiveTextField? _filterField;
     private View? _commandContainer;
     private Label? _commandLabel;
@@ -85,6 +86,14 @@ public abstract class ModelScreen<TEntry> : Screen
             return false;
         }
 
+        if (_sourceEntries.Count == 0
+            && key is { IsCtrl: false, IsAlt: false }
+            && KeyHelpers.GetCharValue(key) == ':')
+        {
+            ShowCommandField();
+            return true;
+        }
+
         return false;
     }
 
@@ -133,13 +142,13 @@ public abstract class ModelScreen<TEntry> : Screen
     private FrameView BuildModelFrame()
     {
         FrameView frame = CreateFrame();
-        Label filterLabel = CreateFilterLabel();
-        _filterField = CreateFilterField(filterLabel);
+        _filterLabel = CreateFilterLabel();
+        _filterField = CreateFilterField(_filterLabel);
         _listView = CreateListView();
         _emptyLabel = CreateEmptyLabel();
         _summaryLabel = CreateSummaryLabel();
 
-        frame.Add(filterLabel, _filterField, _listView, _emptyLabel, _summaryLabel);
+        frame.Add(_filterLabel, _filterField, _listView, _emptyLabel, _summaryLabel);
 
         ApplyFilter(_currentFilter);
         WireInitialFocus();
@@ -224,7 +233,7 @@ public abstract class ModelScreen<TEntry> : Screen
             {
                 _listView.SetFocus();
             }
-            else
+            else if (_sourceEntries.Count > 0)
             {
                 _filterField?.SetFocus();
             }
@@ -313,6 +322,18 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         bool hasItems = _displayItems.Count > 0;
+        bool sourceHasItems = _sourceEntries.Count > 0;
+
+        if (_filterLabel is not null)
+        {
+            _filterLabel.Visible = sourceHasItems;
+        }
+
+        if (_filterField is not null)
+        {
+            _filterField.Visible = sourceHasItems;
+            _filterField.CanFocus = sourceHasItems;
+        }
 
         if (_listView is not null)
         {
@@ -482,7 +503,10 @@ public abstract class ModelScreen<TEntry> : Screen
     {
         if (_displayItems.Count == 0)
         {
-            _filterField?.SetFocus();
+            if (_sourceEntries.Count > 0)
+            {
+                _filterField?.SetFocus();
+            }
             return;
         }
 
@@ -569,6 +593,8 @@ public abstract class ModelScreen<TEntry> : Screen
     private void RegisterDefaultCommands()
     {
         RegisterCommand(new ModelCommand("q", "Exit the screen", _ => Quit(), "quit", "exit"));
+        RegisterCommand(new ModelCommand("requests", "Exit the screen", _ => NavigateTo<RequestsScreen>(), "rq"));
+        RegisterCommand(new ModelCommand("workspaces", "Exit the screen", _ => NavigateTo<WorkspacesScreen>(), "ws"));
     }
 
     private void RegisterCommand(ModelCommand command)
