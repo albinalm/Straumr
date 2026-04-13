@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Text;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
@@ -8,7 +7,6 @@ using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
-using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -27,6 +25,7 @@ public abstract class ModelScreen<TEntry> : Screen
     private readonly string _emptyStateText;
     private readonly string _itemTypeNamePlural;
 
+    private FrameView? _frameView;
     private SelectionListView? _listView;
     private Label? _filterLabel;
     private InteractiveTextField? _filterField;
@@ -133,15 +132,17 @@ public abstract class ModelScreen<TEntry> : Screen
         }
     }
 
+    protected void UpdateTitle(string title) => _frameView!.Title = title;
+
     protected sealed record ModelCommand(
         string Name,
-        string Description,
         Action<string[]> Handler,
         params string[] Aliases);
 
     private FrameView BuildModelFrame()
     {
         FrameView frame = CreateFrame();
+        _frameView = frame;
         _filterLabel = CreateFilterLabel();
         _filterField = CreateFilterField(_filterLabel);
         _listView = CreateListView();
@@ -589,9 +590,9 @@ public abstract class ModelScreen<TEntry> : Screen
 
     private void RegisterDefaultCommands()
     {
-        RegisterCommand(new ModelCommand("q", "Exit the screen", _ => Quit(), "quit", "exit"));
-        RegisterCommand(new ModelCommand("requests", "Exit the screen", _ => NavigateTo<RequestsScreen>(), "rq"));
-        RegisterCommand(new ModelCommand("workspaces", "Exit the screen", _ => NavigateTo<WorkspacesScreen>(), "ws"));
+        RegisterCommand(new ModelCommand("q", _ => Quit(), "quit", "exit"));
+        RegisterCommand(new ModelCommand("requests", _ => NavigateTo<RequestsScreen>(), "rq"));
+        RegisterCommand(new ModelCommand("workspaces", _ => NavigateTo<WorkspacesScreen>(), "ws"));
     }
 
     private void RegisterCommand(ModelCommand command)

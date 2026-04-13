@@ -1,4 +1,3 @@
-using System.Text;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;

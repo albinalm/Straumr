@@ -1,4 +1,3 @@
-using System.Text;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;

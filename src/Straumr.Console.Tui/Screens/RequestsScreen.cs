@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -7,7 +5,6 @@ using Straumr.Core.Services.Interfaces;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Helpers;
-using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
@@ -135,13 +132,13 @@ public sealed class RequestsScreen(
 
     protected override IEnumerable<ModelCommand> GetCommands()
     {
-        yield return new ModelCommand("set", "Set selected workspace as active",
+        yield return new ModelCommand("set",
             _ => SetCurrentWorkspace(SelectedEntry), "use");
-        yield return new ModelCommand("create", "Create a new workspace", _ => CreateRequest(), "new");
-        yield return new ModelCommand("delete", "Delete selected workspace", _ => DeleteRequest(SelectedEntry), "rm",
+        yield return new ModelCommand("create", _ => CreateRequest(), "new");
+        yield return new ModelCommand("delete", _ => DeleteRequest(SelectedEntry), "rm",
             "remove");
-        yield return new ModelCommand("edit", "Edit selected workspace in $EDITOR", _ => EditRequest(SelectedEntry));
-        yield return new ModelCommand("copy", "Copy selected workspace to a new name", _ => CopyRequest(SelectedEntry),
+        yield return new ModelCommand("edit", _ => EditRequest(SelectedEntry));
+        yield return new ModelCommand("copy", _ => CopyRequest(SelectedEntry),
             "cp");
     }
 
@@ -202,6 +199,11 @@ public sealed class RequestsScreen(
             NavigateTo<WorkspacesScreen>();
             return [];
         }
+
+        string workspaceName = string.IsNullOrWhiteSpace(workspace.Name)
+            ? _workspaceEntry.Id.ToString()
+            : workspace.Name;
+        UpdateTitle($"Requests - {workspaceName}");
 
         var items = new List<RequestEntry>();
         foreach (Guid requestId in workspace.Requests)

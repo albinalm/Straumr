@@ -1,9 +1,7 @@
 using System.Text;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Helpers;
-using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
-using Terminal.Gui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.Text;

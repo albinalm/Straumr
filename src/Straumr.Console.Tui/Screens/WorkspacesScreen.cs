@@ -355,16 +355,16 @@ public sealed class WorkspacesScreen(
 
     protected override IEnumerable<ModelCommand> GetCommands()
     {
-        yield return new ModelCommand("set", "Set selected workspace as active",
+        yield return new ModelCommand("set",
             _ => SetCurrentWorkspace(SelectedEntry), "use");
-        yield return new ModelCommand("create", "Create a new workspace", _ => CreateWorkspace(), "new");
-        yield return new ModelCommand("delete", "Delete selected workspace", _ => DeleteWorkspace(SelectedEntry), "rm",
+        yield return new ModelCommand("create", _ => CreateWorkspace(), "new");
+        yield return new ModelCommand("delete", _ => DeleteWorkspace(SelectedEntry), "rm",
             "remove");
-        yield return new ModelCommand("edit", "Edit selected workspace in $EDITOR", _ => EditWorkspace(SelectedEntry));
-        yield return new ModelCommand("copy", "Copy selected workspace to a new name",
+        yield return new ModelCommand("edit", _ => EditWorkspace(SelectedEntry));
+        yield return new ModelCommand("copy",
             _ => CopyWorkspace(SelectedEntry), "cp");
-        yield return new ModelCommand("import", "Import a workspace from a file", _ => ImportWorkspace());
-        yield return new ModelCommand("export", "Export selected workspace to a file",
+        yield return new ModelCommand("import", _ => ImportWorkspace());
+        yield return new ModelCommand("export",
             _ => ExportWorkspace(SelectedEntry));
     }
 

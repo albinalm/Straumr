@@ -1,5 +1,4 @@
 using Straumr.Console.Tui.Components.Prompts.Base;
-using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using MarkupText = Straumr.Console.Tui.Helpers.MarkupText;
