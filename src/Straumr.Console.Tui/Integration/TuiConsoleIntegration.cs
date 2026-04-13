@@ -34,6 +34,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<ScreenNavigationContext>();
         services.AddTransient<WorkspacesScreen>();
         services.AddTransient<RequestsScreen>();
+        services.AddTransient<SendScreen>();
         services.AddSingleton<TuiInteractiveConsole>();
         services.AddSingleton<IInteractiveConsole>(provider => provider.GetRequiredService<TuiInteractiveConsole>());
     }

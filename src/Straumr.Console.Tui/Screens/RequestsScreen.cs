@@ -88,9 +88,27 @@ public sealed class RequestsScreen(
         return false;
     }
 
-    private void SendRequest(RequestEntry? selectedItem)
+    private void SendRequest(RequestEntry? selectedEntry)
     {
-     //Send later
+        if (selectedEntry is null)
+        {
+            return;
+        }
+
+        if (selectedEntry.IsDamaged)
+        {
+            ShowDanger($"Cannot send damaged request \"{selectedEntry.Identifier}\".");
+            return;
+        }
+
+        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        {
+            return;
+        }
+
+        navigationContext.SetWorkspace(workspaceEntry);
+        navigationContext.SetRequest(selectedEntry.Id);
+        NavigateTo<SendScreen>();
     }
 
     private void CreateRequest()
