@@ -32,7 +32,7 @@ public sealed class SendScreen : Screen
     ];
 
     private const string HintText =
-        "j/k Scroll  g Top  G Bottom  Tab Switch pane  y Copy body  Y Copy all  b Beautify  B Revert";
+        "j/k Scroll  g Top  G Bottom  Tab Switch pane  y Copy pane  Y Copy all  b Beautify  B Revert";
     private const string IdleGlyph = "◆";
     private const string DoneGlyph = "✓";
     private const string FailGlyph = "✖";
@@ -507,10 +507,16 @@ public sealed class SendScreen : Screen
         }
     }
 
-private void CopyBodyToClipboard()
-{
-        TryCopyToClipboard(_bodyView?.Text);
-}
+    private void CopyActivePaneToClipboard()
+    {
+        TextView? target = GetActiveTextView() ?? _bodyView ?? _summaryView;
+        if (target is null)
+        {
+            return;
+        }
+
+        TryCopyToClipboard(target.Text);
+    }
 
     private void CopyRequestTemplateToClipboard()
     {
@@ -618,7 +624,7 @@ private void CopyBodyToClipboard()
         switch (charValue)
         {
             case 'y':
-                CopyBodyToClipboard();
+                CopyActivePaneToClipboard();
                 return true;
             case 'Y':
                 CopyRequestTemplateToClipboard();
