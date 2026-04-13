@@ -478,9 +478,10 @@ public sealed class WorkspacesScreen(
             auths = workspace.Auths.Count;
             name = workspace.Name;
 
+            string icon = isCurrent ? "[accent]◇[/]" : "[secondary]◇[/]";
             string line0 = isCurrent
-                ? $"[accent]▸[/] [bold]{workspace.Name}[/]  [accent](current)[/]"
-                : $"[secondary]◇[/] [bold]{workspace.Name}[/]";
+                ? $"{icon} [bold]{workspace.Name}[/]  [accent](current)[/]"
+                : $"{icon} [bold]{workspace.Name}[/]";
 
             var line1 = $"  [secondary]{entry.Id}[/]";
 

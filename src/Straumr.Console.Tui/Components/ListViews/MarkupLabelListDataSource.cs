@@ -59,6 +59,7 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
 
         string[] lines = markup.Split('\n');
         string lineMarkup = lineIndex < lines.Length ? lines[lineIndex] : string.Empty;
+        lineMarkup = ApplySelectionGlyph(lineMarkup, isSelected, lineIndex);
 
         List<MarkupText.MarkupRun> runs = MarkupText.ParseRuns(lineMarkup, theme);
 
@@ -138,5 +139,45 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
         {
             CollectionChanged?.Invoke(sender, e);
         }
+    }
+
+    private static string ApplySelectionGlyph(string markup, bool isSelected, int lineIndex)
+    {
+        if (!isSelected || lineIndex != 0 || string.IsNullOrEmpty(markup))
+        {
+            return markup;
+        }
+
+        StringBuilder buffer = new(markup.Length);
+        bool insideTag = false;
+        bool replaced = false;
+
+        foreach (char ch in markup)
+        {
+            if (ch == '[')
+            {
+                insideTag = true;
+                buffer.Append(ch);
+                continue;
+            }
+
+            if (ch == ']')
+            {
+                insideTag = false;
+                buffer.Append(ch);
+                continue;
+            }
+
+            if (!insideTag && !replaced && ch == '◇')
+            {
+                buffer.Append('▸');
+                replaced = true;
+                continue;
+            }
+
+            buffer.Append(ch);
+        }
+
+        return replaced ? buffer.ToString() : markup;
     }
 }

@@ -1529,12 +1529,12 @@ public sealed class AuthsScreen(
     {
         return config switch
         {
-            null => "[secondary]none[/]",
-            BearerAuthConfig => "[blue]Bearer[/]",
-            BasicAuthConfig => "[blue]Basic[/]",
-            OAuth2Config => "[blue]OAuth 2.0[/]",
-            CustomAuthConfig => "[blue]Custom[/]",
-            _ => "[secondary]none[/]"
+            null => "None",
+            BearerAuthConfig => "Bearer",
+            BasicAuthConfig => "Basic",
+            OAuth2Config => "OAuth 2.0",
+            CustomAuthConfig => "Custom",
+            _ => "Unknown"
         };
     }
 
