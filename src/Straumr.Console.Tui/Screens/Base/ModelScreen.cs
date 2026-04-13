@@ -663,8 +663,8 @@ public abstract class ModelScreen<TEntry> : Screen
         RegisterCommand(new ModelCommand("q", _ => Quit(), "quit", "exit"));
         RegisterCommand(new ModelCommand("requests", _ => NavigateTo<RequestsScreen>(), "rq", "request"));
         RegisterCommand(new ModelCommand("workspaces", _ => NavigateTo<WorkspacesScreen>(), "ws", "workspace"));
-        RegisterCommand(new ModelCommand("secrets", _ => NavigateTo<SecretsScreen>(), "secret"));
-        RegisterCommand(new ModelCommand("auths", _ => NavigateTo<AuthsScreen>(), "auth"));
+        RegisterCommand(new ModelCommand("secrets", _ => NavigateTo<SecretsScreen>(), "sc", "secret"));
+        RegisterCommand(new ModelCommand("auths", _ => NavigateTo<AuthsScreen>(), "au", "auth"));
     }
 
     private void RegisterCommand(ModelCommand command)
