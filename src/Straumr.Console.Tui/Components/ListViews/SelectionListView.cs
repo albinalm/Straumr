@@ -33,17 +33,18 @@ internal sealed class SelectionListView : ListView
 
         if (key == Key.CursorUp || key == Key.CursorDown)
         {
-            int logicalCount = (Source?.Count ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+            int rowsPerItem = GetRowsPerItem();
+            int logicalCount = rowsPerItem == 0 ? 0 : (Source?.Count ?? 0) / rowsPerItem;
             if (logicalCount == 0)
             {
                 return true;
             }
 
-            int currentLogical = (SelectedItem ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+            int currentLogical = rowsPerItem == 0 ? 0 : (SelectedItem ?? 0) / rowsPerItem;
             int nextLogical = key == Key.CursorUp
                 ? Math.Max(0, currentLogical - 1)
                 : Math.Min(logicalCount - 1, currentLogical + 1);
-            SelectedItem = nextLogical * MarkupLabelListDataSource.RowsPerItem;
+            SelectedItem = nextLogical * Math.Max(1, rowsPerItem);
             return true;
         }
 
@@ -55,10 +56,11 @@ internal sealed class SelectionListView : ListView
 
         if (key == Key.End)
         {
-            int logicalCount = (Source?.Count ?? 0) / MarkupLabelListDataSource.RowsPerItem;
+            int rowsPerItem = GetRowsPerItem();
+            int logicalCount = rowsPerItem == 0 ? 0 : (Source?.Count ?? 0) / rowsPerItem;
             if (logicalCount > 0)
             {
-                SelectedItem = (logicalCount - 1) * MarkupLabelListDataSource.RowsPerItem;
+                SelectedItem = (logicalCount - 1) * Math.Max(1, rowsPerItem);
             }
 
             return true;
@@ -71,4 +73,7 @@ internal sealed class SelectionListView : ListView
 
         return true;
     }
+
+    private int GetRowsPerItem()
+        => Source is MarkupLabelListDataSource ? MarkupLabelListDataSource.RowsPerItem : 1;
 }
