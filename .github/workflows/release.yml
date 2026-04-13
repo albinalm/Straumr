@@ -249,6 +249,7 @@ jobs:
           gh repo clone "$owner/winget-pkgs" winget-pkgs -- --depth=1
 
           Set-Location winget-pkgs
+          git remote set-url origin "https://x-access-token:$env:GH_TOKEN@github.com/$owner/winget-pkgs.git"
           git checkout -b $branch
           $targetDir = "manifests/a/AlbinAlm/Straumr/$env:VERSION"
           New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
