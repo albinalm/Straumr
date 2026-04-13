@@ -2,7 +2,7 @@ namespace Straumr.Console.Shared.Theme;
 
 public class StraumrTheme
 {
-    public string Surface { get; set; } = "Black";
+    public string Surface { get; set; } = "";
     public string SurfaceVariant { get; set; } = "DarkGray";
     public string OnSurface { get; set; } = "White";
     public string Primary { get; set; } = "BrightGreen";

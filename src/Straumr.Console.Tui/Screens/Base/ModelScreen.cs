@@ -75,7 +75,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _sourceEntries.AddRange(entries);
 
         ApplyFilter(_currentFilter);
-        OnInitialized(entries);
+        OnInitialized();
     }
 
     public override bool OnKeyDown(Key key)
@@ -98,9 +98,9 @@ public abstract class ModelScreen<TEntry> : Screen
 
     protected abstract Task<IReadOnlyList<TEntry>> LoadEntriesAsync(CancellationToken cancellationToken);
     protected abstract string GetDisplayText(TEntry entry);
-    protected virtual string GetFilterText(TEntry entry) => MarkupText.ToPlain(GetDisplayText(entry));
+    private string GetFilterText(TEntry entry) => MarkupText.ToPlain(GetDisplayText(entry));
 
-    protected virtual void OnInitialized(IReadOnlyList<TEntry> entries) { }
+    protected virtual void OnInitialized() { }
     protected virtual IEnumerable<ModelCommand> GetCommands() => [];
 
     protected virtual bool HandleModelKeyDown(Key key, TEntry? selectedEntry) => false;
@@ -128,7 +128,7 @@ public abstract class ModelScreen<TEntry> : Screen
         ApplyFilter(_currentFilter);
         if (notifyInitialized)
         {
-            OnInitialized(entries);
+            OnInitialized();
         }
     }
 
@@ -519,15 +519,9 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         _commandActive = true;
-        if (_listView is not null)
-        {
-            _listView.CanFocus = false;
-        }
-
-        if (_filterField is not null)
-        {
-            _filterField.CanFocus = false;
-        }
+        
+        _listView?.CanFocus = false;
+        _filterField?.CanFocus = false;
 
         _commandContainer.Visible = true;
         _commandLabel.Visible = true;
@@ -591,8 +585,8 @@ public abstract class ModelScreen<TEntry> : Screen
     private void RegisterDefaultCommands()
     {
         RegisterCommand(new ModelCommand("q", _ => Quit(), "quit", "exit"));
-        RegisterCommand(new ModelCommand("requests", _ => NavigateTo<RequestsScreen>(), "rq"));
-        RegisterCommand(new ModelCommand("workspaces", _ => NavigateTo<WorkspacesScreen>(), "ws"));
+        RegisterCommand(new ModelCommand("requests", _ => NavigateTo<RequestsScreen>(), "rq", "request"));
+        RegisterCommand(new ModelCommand("workspaces", _ => NavigateTo<WorkspacesScreen>(), "ws", "workspace"));
     }
 
     private void RegisterCommand(ModelCommand command)

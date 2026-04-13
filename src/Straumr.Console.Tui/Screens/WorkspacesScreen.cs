@@ -27,7 +27,7 @@ public sealed class WorkspacesScreen(
 {
     protected override string ModelHintsText => "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
 
-    protected override void OnInitialized(IReadOnlyList<WorkspaceEntry> entries)
+    protected override void OnInitialized()
     {
         int workspaceCount = optionsService.Options.Workspaces.Count;
         ShowSuccess($"{workspaceCount} workspace{(workspaceCount == 1 ? string.Empty : "s")} loaded");

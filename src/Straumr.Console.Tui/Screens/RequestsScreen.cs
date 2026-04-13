@@ -45,7 +45,7 @@ public sealed class RequestsScreen(
 
     protected override string ModelHintsText => "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
 
-    protected override void OnInitialized(IReadOnlyList<RequestEntry> entries)
+    protected override void OnInitialized()
     {
         int requestCount = optionsService.Options.Workspaces.Count;
         ShowSuccess($"{requestCount} request{(requestCount == 1 ? string.Empty : "s")} loaded");
@@ -1119,8 +1119,6 @@ public sealed class RequestsScreen(
                 headers[contentTypeHeader] = "multipart/form-data";
                 break;
             case BodyType.Raw:
-                headers.Remove(contentTypeHeader);
-                break;
             default:
                 headers.Remove(contentTypeHeader);
                 break;
