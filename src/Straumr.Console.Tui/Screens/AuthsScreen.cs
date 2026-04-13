@@ -42,7 +42,7 @@ public sealed class AuthsScreen(
         _workspaceEntry ??= navigationContext.GetWorkspaceEntry();
         if (_workspaceEntry is null)
         {
-            ShowInfo("No workspace selected. Use the workspaces screen to activate one.");
+            ShowInfo("No workspace selected. Use the workspaces screen to activate one");
             return;
         }
 
@@ -177,7 +177,7 @@ public sealed class AuthsScreen(
         {
             authService.DeleteAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Deleted auth \"{selectedEntry.Identifier}\".");
+            ShowSuccess($"Deleted auth \"{selectedEntry.Identifier}\"");
         }
         catch (StraumrException ex)
         {
@@ -198,7 +198,7 @@ public sealed class AuthsScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot copy damaged auth \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot copy damaged auth \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -220,7 +220,7 @@ public sealed class AuthsScreen(
         {
             authService.CopyAsync(selectedEntry.Id.ToString(), newName, workspaceEntry).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Copied auth to \"{newName}\".");
+            ShowSuccess($"Copied auth to \"{newName}\"");
         }
         catch (StraumrException ex)
         {
@@ -499,7 +499,7 @@ public sealed class AuthsScreen(
                 };
                 authService.CreateAsync(auth, workspaceEntry).GetAwaiter().GetResult();
                 _ = RefreshAsync();
-                ShowSuccess($"Created auth \"{auth.Name}\".");
+                ShowSuccess($"Created auth \"{auth.Name}\"");
             }
             else
             {
@@ -508,7 +508,7 @@ public sealed class AuthsScreen(
                 existingAuth.AutoRenewAuth = state.AutoRenew;
                 authService.UpdateAsync(existingAuth, workspaceEntry).GetAwaiter().GetResult();
                 _ = RefreshAsync();
-                ShowSuccess($"Updated auth \"{existingAuth.Name}\".");
+                ShowSuccess($"Updated auth \"{existingAuth.Name}\"");
             }
 
             return true;

@@ -97,7 +97,7 @@ public sealed class RequestsScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot send damaged request \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot send damaged request \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -154,7 +154,7 @@ public sealed class RequestsScreen(
         {
             requestService.DeleteAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Deleted request \"{selectedEntry.Identifier}\".");
+            ShowSuccess($"Deleted request \"{selectedEntry.Identifier}\"");
         }
         catch (StraumrException ex)
         {
@@ -212,7 +212,7 @@ public sealed class RequestsScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot copy damaged request \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot copy damaged request \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -235,7 +235,7 @@ public sealed class RequestsScreen(
         {
             requestService.CopyAsync(selectedEntry.Id.ToString(), newName, workspaceEntry).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Copied request to \"{newName}\".");
+            ShowSuccess($"Copied request to \"{newName}\"");
         }
         catch (StraumrException ex)
         {
@@ -532,13 +532,13 @@ public sealed class RequestsScreen(
             {
                 StraumrRequest request = state.ToRequest();
                 requestService.CreateAsync(request, workspaceEntry).GetAwaiter().GetResult();
-                ShowSuccess($"Created request \"{request.Name}\".");
+                ShowSuccess($"Created request \"{request.Name}\"");
             }
             else
             {
                 state.ApplyTo(existingRequest);
                 requestService.UpdateAsync(existingRequest, workspaceEntry).GetAwaiter().GetResult();
-                ShowSuccess($"Updated request \"{existingRequest.Name}\".");
+                ShowSuccess($"Updated request \"{existingRequest.Name}\"");
             }
 
             RefreshAsync().GetAwaiter().GetResult();

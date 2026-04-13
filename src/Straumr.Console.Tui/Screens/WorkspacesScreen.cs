@@ -81,19 +81,19 @@ public sealed class WorkspacesScreen(
         if (optionsService.Options.CurrentWorkspace != null &&
             selectedItem.StraumrEntry.Id == optionsService.Options.CurrentWorkspace?.Id)
         {
-            ShowInfo($"{selectedItem.Identifier} is already the active workspace.");
+            ShowInfo($"{selectedItem.Identifier} is already the active workspace");
             return;
         }
 
         if (selectedItem.IsDamaged)
         {
-            ShowDanger($"{selectedItem.Identifier} is damaged and cannot be set as default workspace.");
+            ShowDanger($"{selectedItem.Identifier} is damaged and cannot be set as default workspace");
             return;
         }
 
         workspaceService.Activate(selectedItem.StraumrEntry.Id.ToString());
         RefreshAsync().GetAwaiter().GetResult();
-        ShowSuccess($"{selectedItem.Identifier} is now the active workspace.");
+        ShowSuccess($"{selectedItem.Identifier} is now the active workspace");
     }
 
     private void CreateWorkspace()
@@ -122,7 +122,7 @@ public sealed class WorkspacesScreen(
             StraumrWorkspace workspace = new() { Name = name };
             workspaceService.Create(workspace, outputDir).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Created workspace \"{name}\".");
+            ShowSuccess($"Created workspace \"{name}\"");
         }
         catch (StraumrException ex)
         {
@@ -156,7 +156,7 @@ public sealed class WorkspacesScreen(
         {
             workspaceService.Delete(selectedEntry.Identifier).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Deleted workspace \"{selectedEntry.Identifier}\".");
+            ShowSuccess($"Deleted workspace \"{selectedEntry.Identifier}\"");
         }
         catch (StraumrException ex)
         {
@@ -177,14 +177,14 @@ public sealed class WorkspacesScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot edit damaged workspace \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot edit damaged workspace \"{selectedEntry.Identifier}\"");
             return;
         }
 
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (string.IsNullOrWhiteSpace(editor))
         {
-            ShowDanger("$EDITOR is not set.");
+            ShowDanger("$EDITOR is not set");
             return;
         }
 
@@ -239,7 +239,7 @@ public sealed class WorkspacesScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot copy damaged workspace \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot copy damaged workspace \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -266,7 +266,7 @@ public sealed class WorkspacesScreen(
         {
             workspaceService.Copy(selectedEntry.Identifier, newName, outputDir).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Copied workspace to \"{newName}\".");
+            ShowSuccess($"Copied workspace to \"{newName}\"");
         }
         catch (StraumrException ex)
         {
@@ -305,7 +305,7 @@ public sealed class WorkspacesScreen(
         {
             workspaceService.Import(path).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Imported workspace from \"{path}\".");
+            ShowSuccess($"Imported workspace from \"{path}\"");
         }
         catch (StraumrException ex)
         {
@@ -326,7 +326,7 @@ public sealed class WorkspacesScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot export damaged workspace \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot export damaged workspace \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -341,7 +341,7 @@ public sealed class WorkspacesScreen(
         try
         {
             string outputFile = workspaceService.Export(selectedEntry.Identifier, outputDir).GetAwaiter().GetResult();
-            ShowSuccess($"Exported workspace to \"{outputFile}\".");
+            ShowSuccess($"Exported workspace to \"{outputFile}\"");
         }
         catch (StraumrException ex)
         {
@@ -377,7 +377,7 @@ public sealed class WorkspacesScreen(
 
         if (SelectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot open damaged workspace \"{SelectedEntry.Identifier}\".");
+            ShowDanger($"Cannot open damaged workspace \"{SelectedEntry.Identifier}\"");
             return;
         }
 

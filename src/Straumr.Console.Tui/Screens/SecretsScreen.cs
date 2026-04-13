@@ -118,7 +118,7 @@ public sealed class SecretsScreen(
         {
             secretService.DeleteAsync(selectedEntry.Identifier).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Deleted secret \"{selectedEntry.Identifier}\".");
+            ShowSuccess($"Deleted secret \"{selectedEntry.Identifier}\"");
         }
         catch (StraumrException ex)
         {
@@ -139,7 +139,7 @@ public sealed class SecretsScreen(
 
         if (selectedEntry.IsDamaged)
         {
-            ShowDanger($"Cannot copy damaged secret \"{selectedEntry.Identifier}\".");
+            ShowDanger($"Cannot copy damaged secret \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -157,7 +157,7 @@ public sealed class SecretsScreen(
         {
             secretService.CopyAsync(selectedEntry.Identifier, newName).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Copied secret to \"{newName}\".");
+            ShowSuccess($"Copied secret to \"{newName}\"");
         }
         catch (StraumrException ex)
         {
@@ -355,7 +355,7 @@ public sealed class SecretsScreen(
                 };
                 secretService.CreateAsync(secret).GetAwaiter().GetResult();
                 _ = RefreshAsync();
-                ShowSuccess($"Created secret \"{secret.Name}\".");
+                ShowSuccess($"Created secret \"{secret.Name}\"");
             }
             else
             {
@@ -364,7 +364,7 @@ public sealed class SecretsScreen(
                 existingSecret.Modified = DateTimeOffset.UtcNow;
                 secretService.UpdateAsync(existingSecret).GetAwaiter().GetResult();
                 _ = RefreshAsync();
-                ShowSuccess($"Updated secret \"{existingSecret.Name}\".");
+                ShowSuccess($"Updated secret \"{existingSecret.Name}\"");
             }
 
             return true;
