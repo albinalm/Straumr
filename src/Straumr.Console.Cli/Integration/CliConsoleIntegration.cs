@@ -208,6 +208,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
             copy.AddCommand<AuthCopyCommand>("auth");
             copy.AddCommand<AuthCopyCommand>("au");
+
+            copy.AddCommand<SecretCopyCommand>("secret");
+            copy.AddCommand<SecretCopyCommand>("sc");
         });
 
         config.AddStraumrBranch(_registry, "import", import =>

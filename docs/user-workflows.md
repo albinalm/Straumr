@@ -354,6 +354,7 @@ straumr create secret api-token supersecret
 straumr list secret
 straumr get secret api-token
 straumr edit secret api-token
+straumr copy secret api-token api-token-backup
 straumr delete secret api-token
 ```
 

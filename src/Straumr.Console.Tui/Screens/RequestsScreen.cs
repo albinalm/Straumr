@@ -250,6 +250,7 @@ public sealed class RequestsScreen(
 
     protected override IEnumerable<ModelCommand> GetCommands()
     {
+        yield return new ModelCommand("send", _ => SendRequest(SelectedEntry), "run");
         yield return new ModelCommand("create", _ => CreateRequest(), "new");
         yield return new ModelCommand("delete", _ => DeleteRequest(SelectedEntry), "rm",
             "remove");

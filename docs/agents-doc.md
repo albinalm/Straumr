@@ -258,6 +258,7 @@ straumr edit request <id> --url https://api.example.com/v2/users --json --worksp
 - `straumr copy auth <name-or-id> <new-name> --json [--workspace <ws>]`
 - `straumr get auth <id> --json [--workspace <ws>]`
 - `straumr list secret --json`
+- `straumr copy secret <name-or-id> <new-name> --json`
 - `straumr get secret <id> --json`
 - `straumr send <request-id> --dry-run --json [--workspace <ws>]`
 - `straumr send <request-id> --json [--workspace <ws>]`

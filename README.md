@@ -132,7 +132,7 @@ straumr send get-users --pretty
 | `workspace` | via `create`, `use`, `list`, `get`, `edit`, `export`, `import`, `delete`, `copy` |
 | `request` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
 | `auth` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
-| `secret` | via `create`, `edit`, `list`, `get`, `delete` |
+| `secret` | via `create`, `edit`, `list`, `get`, `delete`, `copy` |
 | `config` | `workspace-path` |
 | `autocomplete` | `install` |
 | top-level | `send` |

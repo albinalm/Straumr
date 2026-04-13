@@ -26,7 +26,7 @@ public sealed class SecretsScreen(
     private const string ActionName = "Edit name";
     private const string ActionValue = "Edit value";
 
-    protected override string ModelHintsText => "c Create  d Delete  e Edit";
+    protected override string ModelHintsText => "c Create  d Delete  e Edit  y Copy";
 
     protected override void OnInitialized()
     {
@@ -53,6 +53,9 @@ public sealed class SecretsScreen(
                     return true;
                 case 'e':
                     EditSecret(selectedEntry);
+                    return true;
+                case 'y':
+                    CopySecret(selectedEntry);
                     return true;
             }
         }
@@ -127,6 +130,45 @@ public sealed class SecretsScreen(
         }
     }
 
+    private void CopySecret(SecretEntry? selectedEntry)
+    {
+        if (selectedEntry is null)
+        {
+            return;
+        }
+
+        if (selectedEntry.IsDamaged)
+        {
+            ShowDanger($"Cannot copy damaged secret \"{selectedEntry.Identifier}\".");
+            return;
+        }
+
+        string? newName = interactiveConsole.TextInput(
+            "New name",
+            selectedEntry.Name ?? selectedEntry.Identifier,
+            validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
+
+        if (newName is null)
+        {
+            return;
+        }
+
+        try
+        {
+            secretService.CopyAsync(selectedEntry.Identifier, newName).GetAwaiter().GetResult();
+            _ = RefreshAsync();
+            ShowSuccess($"Copied secret to \"{newName}\".");
+        }
+        catch (StraumrException ex)
+        {
+            ShowDanger(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowDanger(ex.Message);
+        }
+    }
+
     protected override void OpenSelectedEntry() { }
 
     protected override void InspectSelectedEntry()
@@ -141,8 +183,10 @@ public sealed class SecretsScreen(
         {
             secret = secretService.PeekByIdAsync(SelectedEntry.Id).GetAwaiter().GetResult();
         }
-        catch (StraumrException) { }
-        catch (Exception) { }
+        catch (Exception)
+        {
+            // ignored
+        }
 
         string valueDisplay = secret is not null
             ? MarkupText.ToPlain(secret.Value)
@@ -167,6 +211,7 @@ public sealed class SecretsScreen(
         yield return new ModelCommand("create", _ => CreateSecret(), "new");
         yield return new ModelCommand("delete", _ => DeleteSecret(SelectedEntry), "rm", "remove");
         yield return new ModelCommand("edit", _ => EditSecret(SelectedEntry));
+        yield return new ModelCommand("copy", _ => CopySecret(SelectedEntry), "cp");
     }
 
     protected override async Task<IReadOnlyList<SecretEntry>> LoadEntriesAsync(CancellationToken cancellationToken)
@@ -206,7 +251,7 @@ public sealed class SecretsScreen(
             string line0 = $"[accent]◇[/] [bold]{secret.Name}[/]";
             string line1 = $"  [secondary]{secret.Id}[/]";
             string statsRight =
-                $"{MaskSecretValue(secret.Value)}  [/][info]{secret.Modified.LocalDateTime:yyyy-MM-dd}[/]";
+                $"{FormatSecretValue(secret.Value)}  [/][info]{secret.Modified.LocalDateTime:yyyy-MM-dd}[/]";
             string line2 = $"  [secondary]{statsRight}";
             display = $"{line0}\n{line1}\n{line2}";
         }
@@ -366,19 +411,14 @@ public sealed class SecretsScreen(
         }
     }
 
-    private static string MaskSecretValue(string value)
+    private static string FormatSecretValue(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
             return "[grey]empty[/]";
         }
 
-        if (value.Length <= 4)
-        {
-            return $"{new string('•', value.Length)}";
-        }
-
-        return $"{value[..2]}•••{value[^2..]}";
+        return MarkupText.ToPlain(value);
     }
 
     private sealed class SecretEditorState
