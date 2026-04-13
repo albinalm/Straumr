@@ -20,6 +20,12 @@ namespace Straumr.Console.Cli.Integration;
 
 internal sealed class CliConsoleIntegration : IConsoleIntegration
 {
+    private static readonly HashSet<string> HelpAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "-h",
+        "--help"
+    };
+
     private readonly StraumrCommandRegistry _registry = new();
     private bool _registryInitialized;
     private CommandApp? _commandApp;
@@ -38,6 +44,11 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         {
             CommandApp dryRunApp = new CommandApp(new StraumrTypeRegistrar(new ServiceCollection()));
             dryRunApp.Configure(ConfigureCommands);
+            foreach (string alias in HelpAliases)
+            {
+                _registry.Add(alias);
+            }
+
             _registryInitialized = true;
         }
 
@@ -88,6 +99,11 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (args.Length > 0 && HelpAliases.Contains(args[0]))
+        {
+            args[0] = "--help";
+        }
 
         if (args.Contains("--version"))
         {

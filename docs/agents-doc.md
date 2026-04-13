@@ -472,11 +472,13 @@ All commands that support `--json` write this envelope to **stderr** on failure:
 
 ```json
 {
-  "Error": {
+  "Contents": {
     "Message": "..."
   }
 }
 ```
+
+Read the error message from `Contents.Message`.
 
 Plain-text error output also goes to stderr in all commands, regardless of `--json`.
 

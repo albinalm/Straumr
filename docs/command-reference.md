@@ -261,11 +261,13 @@ On failure in JSON mode, all commands write an error envelope to stderr:
 
 ```json
 {
-  "Error": {
+  "Contents": {
     "Message": "..."
   }
 }
 ```
+
+Read the error message from `Contents.Message`.
 
 ### Create JSON Output
 

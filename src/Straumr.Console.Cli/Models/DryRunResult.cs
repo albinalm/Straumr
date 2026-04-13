@@ -6,5 +6,5 @@ public record DryRunResult(
     string? Auth,
     Dictionary<string, string> Headers,
     Dictionary<string, string> Params,
-    string? BodyType,
+    string BodyType,
     string? Body);

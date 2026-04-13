@@ -196,7 +196,7 @@ public class RequestSendCommand(
                 Auth: auth is not null ? $"{auth.Name} ({AuthTypeName(auth.Config)})" : null,
                 Headers: request.Headers,
                 Params: request.Params,
-                BodyType: request.BodyType == BodyType.None ? null : request.BodyType.ToString(),
+                BodyType: request.BodyType.ToString(),
                 Body: bodyContent
             );
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.DryRunResult));
