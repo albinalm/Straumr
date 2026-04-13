@@ -53,6 +53,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _filterField.X = Pos.Right(_filterLabel) + 1;
         _filterField.Y = _filterLabel.Y;
         _filterField.Width = Dim.Fill(3);
+        ApplyFilterFieldTheme(_filterField);
 
         _listView = new SelectionListView(HandleListKeyDown, listScheme)
         {
@@ -207,6 +208,13 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private void FocusView(View? view)
     {
         view?.SetFocus();
+    }
+
+    private void ApplyFilterFieldTheme(InteractiveTextField field)
+    {
+        string background = Theme?.Surface ?? "Black";
+        string foreground = Theme?.OnSurface ?? "White";
+        field.ApplyTheme(ColorResolver.Resolve(background), ColorResolver.Resolve(foreground));
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)

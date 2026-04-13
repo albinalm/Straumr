@@ -28,7 +28,7 @@ internal sealed class TextInputPromptScreen : PromptScreen<string?>
             Validate = validate,
         });
 
-        _prompt.Submitted += value => Complete(value);
+        _prompt.Submitted += Complete;
         _prompt.CancelRequested += Cancel;
     }
 }

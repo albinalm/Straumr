@@ -185,6 +185,7 @@ public abstract class ModelScreen<TEntry> : Screen
         field.X = Pos.Right(filterLabel) + 1;
         field.Y = filterLabel.Y;
         field.Width = Dim.Fill(3);
+        ApplyFilterFieldTheme(field);
         return field;
     }
 
@@ -563,6 +564,13 @@ public abstract class ModelScreen<TEntry> : Screen
 
         Color accent = ColorResolver.Resolve(_theme.Accent);
         field.SetBorderColors(accent, accent, accent);
+    }
+
+    private void ApplyFilterFieldTheme(InteractiveTextField field)
+    {
+        Color background = ColorResolver.Resolve(_theme.Surface);
+        Color foreground = ColorResolver.Resolve(_theme.OnSurface);
+        field.ApplyTheme(background, foreground);
     }
 
     private void EnsureCommandsConfigured()

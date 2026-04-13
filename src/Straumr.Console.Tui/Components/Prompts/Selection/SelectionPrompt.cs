@@ -72,6 +72,7 @@ internal sealed class SelectionPrompt : PromptComponent
             _filterField.X = Pos.Right(filterLabel) + 1;
             _filterField.Y = filterLabel.Y;
             _filterField.Width = Dim.Fill(3);
+            ApplyFilterFieldTheme(_filterField);
 
             frame.Add(filterLabel, _filterField);
         }
@@ -154,6 +155,13 @@ internal sealed class SelectionPrompt : PromptComponent
     private void FocusFilter()
     {
         _filterField?.SetFocus();
+    }
+
+    private void ApplyFilterFieldTheme(InteractiveTextField field)
+    {
+        string background = Theme?.Surface ?? "Black";
+        string foreground = Theme?.OnSurface ?? "White";
+        field.ApplyTheme(ColorResolver.Resolve(background), ColorResolver.Resolve(foreground));
     }
 
     private void FocusList()
