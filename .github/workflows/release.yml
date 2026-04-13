@@ -217,6 +217,54 @@ jobs:
         shell: pwsh
         run: iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
 
+      - name: Sync winget-pkgs fork
+        shell: pwsh
+        env:
+          WINGET_PAT: ${{ secrets.WINGET_PAT }}
+        run: |
+          $headers = @{
+            Authorization = "Bearer $env:WINGET_PAT"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+
+          $user = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/user"
+          $owner = $user.login
+          Write-Host "Resolved GitHub owner for winget submission token: $owner"
+
+          try {
+            $fork = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$owner/winget-pkgs"
+          }
+          catch {
+            if ($_.Exception.Response.StatusCode.value__ -eq 404) {
+              Write-Host "No existing fork at $owner/winget-pkgs. wingetcreate will create one if needed."
+              exit 0
+            }
+
+            throw
+          }
+
+          if (-not $fork.fork) {
+            Write-Host "$owner/winget-pkgs exists but is not marked as a fork. Skipping sync."
+            exit 0
+          }
+
+          try {
+            $body = @{ branch = "master" } | ConvertTo-Json
+            $sync = Invoke-RestMethod -Method Post -Headers $headers -Uri "https://api.github.com/repos/$owner/winget-pkgs/merge-upstream" -Body $body
+            Write-Host "Fork sync result: $($sync.message)"
+          }
+          catch {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+
+            if ($statusCode -eq 422) {
+              Write-Host "Fork already appears current or could not be synced automatically. Proceeding to wingetcreate."
+              exit 0
+            }
+
+            throw
+          }
+
       - name: Update winget package
         shell: pwsh
         run: |
