@@ -43,7 +43,7 @@ public sealed class RequestsScreen(
     private string? _workspaceDir;
     private bool _editorActive;
 
-    protected override string ModelHintsText => "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
+    protected override string ModelHintsText => "s Send  c Create  d Delete  e Edit  y Copy";
 
     protected override void OnInitialized()
     {
@@ -116,6 +116,11 @@ public sealed class RequestsScreen(
             return;
         }
 
+        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        {
+            return;
+        }
+
         string? confirm = interactiveConsole.Select(
             $"Delete \"{selectedEntry.Identifier}\"?",
             ["Cancel", "Delete"],
@@ -129,8 +134,9 @@ public sealed class RequestsScreen(
 
         try
         {
+            requestService.DeleteAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult();
             _ = RefreshAsync();
-            ShowSuccess($"Deleted workspace \"{selectedEntry.Identifier}\".");
+            ShowSuccess($"Deleted request \"{selectedEntry.Identifier}\".");
         }
         catch (StraumrException ex)
         {
@@ -181,6 +187,46 @@ public sealed class RequestsScreen(
 
     private void CopyRequest(RequestEntry? selectedEntry)
     {
+        if (selectedEntry is null)
+        {
+            return;
+        }
+
+        if (selectedEntry.IsDamaged)
+        {
+            ShowDanger($"Cannot copy damaged request \"{selectedEntry.Identifier}\".");
+            return;
+        }
+
+        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        {
+            return;
+        }
+
+        string? newName = interactiveConsole.TextInput(
+            "New name",
+            selectedEntry.Name ?? selectedEntry.Identifier,
+            validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
+
+        if (newName is null)
+        {
+            return;
+        }
+
+        try
+        {
+            requestService.CopyAsync(selectedEntry.Id.ToString(), newName, workspaceEntry).GetAwaiter().GetResult();
+            _ = RefreshAsync();
+            ShowSuccess($"Copied request to \"{newName}\".");
+        }
+        catch (StraumrException ex)
+        {
+            ShowDanger($"{ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ShowDanger($"{ex.Message}");
+        }
 
     }
 
