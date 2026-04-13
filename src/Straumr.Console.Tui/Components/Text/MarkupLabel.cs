@@ -12,9 +12,38 @@ internal sealed class MarkupLabel : View
     private int _cachedWidth = -1;
     private string _cachedMarkup = string.Empty;
     private StraumrTheme? _cachedTheme;
+    private string _markup = string.Empty;
+    private StraumrTheme? _theme;
 
-    public string Markup { get; set; } = string.Empty;
-    public StraumrTheme? Theme { get; set; }
+    public string Markup
+    {
+        get => _markup;
+        set
+        {
+            if (_markup == value)
+            {
+                return;
+            }
+
+            _markup = value ?? string.Empty;
+            SetNeedsDraw();
+        }
+    }
+
+    public StraumrTheme? Theme
+    {
+        get => _theme;
+        set
+        {
+            if (ReferenceEquals(_theme, value))
+            {
+                return;
+            }
+
+            _theme = value;
+            SetNeedsDraw();
+        }
+    }
 
     protected override bool OnDrawingContent(DrawContext? context)
     {

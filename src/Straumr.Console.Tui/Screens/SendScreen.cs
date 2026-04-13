@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
+using Straumr.Console.Tui.Components.Text;
+using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Helpers;
+using Terminal.Gui.Drawing;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Base;
 using Straumr.Core.Exceptions;
@@ -21,21 +25,33 @@ namespace Straumr.Console.Tui.Screens;
 
 public sealed class SendScreen : Screen
 {
-    private static readonly string[] SpinnerFrames = ["|", "/", "-", "\\"];
+    private static readonly string[] SpinnerFrames =
+    [
+        "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"
+    ];
+
+    private const string IdleGlyph = "◆";
+    private const string DoneGlyph = "✔";
+    private const string FailGlyph = "✖";
+    private const string CancelGlyph = "◌";
 
     private readonly IStraumrRequestService _requestService;
     private readonly IStraumrAuthService _authService;
     private readonly ScreenNavigationContext _navigationContext;
     private readonly StraumrTheme _theme;
 
-    private Label? _statusLabel;
-    private Label? _spinnerLabel;
-    private TextView? _summaryView;
-    private TextView? _bodyView;
+    private MarkupLabel? _statusLabel;
+    private MarkupLabel? _heroLabel;
+    private MarkupLabel? _metaLabel;
+    private InteractiveTextView? _summaryView;
+    private InteractiveTextView? _bodyView;
     private Timer? _spinnerTimer;
     private int _spinnerIndex;
     private CancellationTokenSource? _sendTokenSource;
     private bool _sendScheduled;
+
+    private SendStage _stage = SendStage.Idle;
+    private string _stageText = "Waiting for request";
 
     public SendScreen(
         IStraumrRequestService requestService,
@@ -60,8 +76,11 @@ public sealed class SendScreen : Screen
         _sendTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _sendScheduled = true;
 
-        UpdateStatus("Preparing request...");
-        UpdateSummary("Waiting for request context...");
+        SetStage(SendStage.Preparing, "Preparing request");
+        StartSpinner();
+        UpdateHero(null, null);
+        UpdateMeta(null);
+        UpdateSummary("[secondary]Waiting for request context...[/]");
         UpdateBody(string.Empty);
         return Task.CompletedTask;
     }
@@ -85,26 +104,27 @@ public sealed class SendScreen : Screen
 
         if (requestId is null)
         {
-            UpdateStatus("No request selected.");
-            UpdateSummary("No request details were provided via the navigation context. Return to the list and try again.");
+            SetStage(SendStage.Failed, "No request selected");
+            UpdateSummary("[danger]No request details were provided via the navigation context.[/]\n[secondary]Return to the list and try again.[/]");
             return;
         }
 
         if (workspaceEntry is null)
         {
-            UpdateStatus("No active workspace.");
-            UpdateSummary("Unable to resolve an active workspace. Load a workspace before sending requests.");
+            SetStage(SendStage.Failed, "No active workspace");
+            UpdateSummary("[danger]Unable to resolve an active workspace.[/]\n[secondary]Load a workspace before sending requests.[/]");
             return;
         }
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            StartSpinner();
 
-            UpdateStatus("Loading request...");
+            SetStage(SendStage.Loading, "Loading request");
             StraumrRequest request = await _requestService.GetAsync(requestId.Value.ToString(), workspaceEntry);
             cancellationToken.ThrowIfCancellationRequested();
+
+            UpdateHero(request.Method.Method, request.Uri);
 
             List<string> notes = [];
             StraumrAuth? auth = null;
@@ -130,32 +150,33 @@ public sealed class SendScreen : Screen
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            UpdateStatus("Sending request...");
+            SetStage(SendStage.Sending, "Sending request");
             StraumrResponse response = await _requestService.SendAsync(request, new SendOptions(), workspaceEntry);
             cancellationToken.ThrowIfCancellationRequested();
 
-            UpdateStatus("Processing response...");
+            SetStage(SendStage.Processing, "Processing response");
+            UpdateMeta(response);
             UpdateSummary(BuildSummary(request, auth, response, notes));
             UpdateBody(string.IsNullOrEmpty(response.Content)
                 ? "No content returned from the server."
                 : response.Content);
-            UpdateStatus("Request completed.");
+            SetStage(SendStage.Completed, "Request completed");
         }
         catch (OperationCanceledException)
         {
-            UpdateStatus("Send canceled.");
+            SetStage(SendStage.Canceled, "Send canceled");
         }
         catch (StraumrException ex)
         {
             UpdateSummary(BuildErrorSummary(ex.Message));
             UpdateBody(string.Empty);
-            UpdateStatus("Failed to send request.");
+            SetStage(SendStage.Failed, "Failed to send request");
         }
         catch (Exception ex)
         {
             UpdateSummary(BuildErrorSummary(ex.Message));
             UpdateBody(string.Empty);
-            UpdateStatus("Failed to send request.");
+            SetStage(SendStage.Failed, "Failed to send request");
         }
         finally
         {
@@ -169,72 +190,94 @@ public sealed class SendScreen : Screen
     {
         FrameView frame = new()
         {
-            Title = "Send Request",
+            BorderStyle = LineStyle.None,
             X = 2,
-            Y = Banner.FigletHeight + 5,
+            Y = Banner.FigletHeight + 2,
             Width = Dim.Fill(4),
-            Height = Dim.Fill(2),
+            Height = Dim.Fill(1),
         };
 
-        _spinnerLabel = new Label
+        _statusLabel = new MarkupLabel
         {
-            X = 2,
+            Theme = _theme,
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = 1,
+            Markup = string.Empty,
+        };
+
+        _heroLabel = new MarkupLabel
+        {
+            Theme = _theme,
+            X = 0,
             Y = 1,
-            Width = 2,
-            Text = string.Empty,
+            Width = Dim.Fill(),
+            Height = 1,
+            Markup = string.Empty,
         };
 
-        _statusLabel = new Label
+        _metaLabel = new MarkupLabel
         {
-            X = Pos.Right(_spinnerLabel) + 1,
-            Y = _spinnerLabel.Y,
-            Width = Dim.Fill(2),
-            Text = "Waiting for request...",
+            Theme = _theme,
+            X = 0,
+            Y = 2,
+            Width = Dim.Fill(),
+            Height = 1,
+            Markup = string.Empty,
         };
 
         FrameView summaryFrame = new()
         {
-            Title = "Request details",
-            X = 1,
-            Y = 3,
-            Width = Dim.Fill(2),
+            X = 0,
+            Y = 4,
+            Width = Dim.Fill(),
             Height = Dim.Percent(45),
         };
 
-        _summaryView = new TextView
+        _summaryView = new InteractiveTextView
         {
             ReadOnly = true,
-            Enabled = false,
-            WordWrap = true,
+            WordWrap = false,
+            CanFocus = true,
             X = 1,
             Y = 0,
-            Width = Dim.Fill(2),
+            Width = Dim.Fill(3),
             Height = Dim.Fill(),
             Text = string.Empty,
         };
-        summaryFrame.Add(_summaryView);
+        _summaryView.ApplyTheme(
+            ColorResolver.Resolve(_theme.Surface),
+            ColorResolver.Resolve(_theme.OnSurface));
+
+        ScrollBar summaryScrollBar = BuildSiblingScrollBar(_summaryView);
+        summaryFrame.Add(_summaryView, summaryScrollBar);
 
         FrameView bodyFrame = new()
         {
-            Title = "Response body",
-            X = 1,
-            Y = Pos.Bottom(summaryFrame) + 1,
-            Width = Dim.Fill(2),
-            Height = Dim.Fill(2),
+            X = 0,
+            Y = Pos.Bottom(summaryFrame),
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
         };
 
-        _bodyView = new TextView
+        _bodyView = new InteractiveTextView
         {
             ReadOnly = true,
-            Enabled = false,
-            WordWrap = true,
+            WordWrap = false,
+            CanFocus = true,
             X = 1,
             Y = 0,
-            Width = Dim.Fill(2),
+            Width = Dim.Fill(3),
             Height = Dim.Fill(),
             Text = string.Empty,
         };
-        bodyFrame.Add(_bodyView);
+        _bodyView.ApplyTheme(
+            ColorResolver.Resolve(_theme.Surface),
+            ColorResolver.Resolve(_theme.OnSurface));
+
+        ScrollBar bodyScrollBar = BuildSiblingScrollBar(_bodyView);
+        bodyFrame.Add(_bodyView, bodyScrollBar);
 
         frame.DrawComplete += (_, _) =>
         {
@@ -247,8 +290,41 @@ public sealed class SendScreen : Screen
             _ = RunSendFlowAsync(_sendTokenSource.Token);
         };
 
-        frame.Add(_spinnerLabel, _statusLabel, summaryFrame, bodyFrame);
+        frame.Add(_statusLabel, _heroLabel, _metaLabel, summaryFrame, bodyFrame);
         return frame;
+    }
+
+    private static ScrollBar BuildSiblingScrollBar(TextView textView)
+    {
+        ScrollBar scrollBar = new()
+        {
+            Orientation = Orientation.Vertical,
+            X = Pos.Right(textView),
+            Y = Pos.Top(textView),
+            Width = 1,
+            Height = Dim.Height(textView),
+        };
+
+        void Sync()
+        {
+            scrollBar.ScrollableContentSize = textView.GetContentSize().Height;
+            scrollBar.VisibleContentSize = textView.Viewport.Height;
+            scrollBar.Value = textView.Viewport.Y;
+        }
+
+        textView.ContentSizeChanged += (_, _) => Sync();
+        textView.ViewportChanged += (_, _) => Sync();
+
+        scrollBar.ValueChanged += (_, args) =>
+        {
+            int delta = args.NewValue - textView.Viewport.Y;
+            if (delta != 0)
+            {
+                textView.ScrollVertical(delta);
+            }
+        };
+
+        return scrollBar;
     }
 
     private string BuildSummary(
@@ -258,24 +334,26 @@ public sealed class SendScreen : Screen
         IReadOnlyCollection<string> notes)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"Request: {request.Method.Method.ToUpperInvariant()} {request.Uri}");
-        builder.AppendLine($"Auth: {auth?.Name ?? "None"}");
-        builder.AppendLine($"Status: {FormatStatus(response)}");
+        
+        builder.AppendLine($"  ▸ Method    {request.Method.Method.ToUpperInvariant()}");
+        builder.AppendLine($"  ▸ URL       {request.Uri}");
+        builder.AppendLine($"  ▸ Auth      {auth?.Name ?? "None"}");
+        builder.AppendLine($"  ▸ Status    {FormatStatus(response)}");
         if (!string.IsNullOrEmpty(response.ReasonPhrase))
         {
-            builder.AppendLine($"Reason: {response.ReasonPhrase}");
+            builder.AppendLine($"  ▸ Reason    {response.ReasonPhrase}");
         }
 
-        builder.AppendLine($"Duration: {Math.Max(0, response.Duration.TotalMilliseconds):N0} ms");
+        builder.AppendLine($"  ▸ Duration  {Math.Max(0, response.Duration.TotalMilliseconds):N0} ms");
         if (response.HttpVersion is not null)
         {
-            builder.AppendLine($"HTTP Version: {response.HttpVersion}");
+            builder.AppendLine($"  ▸ HTTP      {response.HttpVersion}");
         }
 
         if (notes.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Notes:");
+            AppendSection(builder, "Notes");
             foreach (string note in notes)
             {
                 builder.AppendLine($"  • {note}");
@@ -285,7 +363,7 @@ public sealed class SendScreen : Screen
         if (response.Warnings.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Warnings:");
+            AppendSection(builder, "Warnings");
             foreach (string warning in response.Warnings)
             {
                 builder.AppendLine($"  • {warning}");
@@ -295,21 +373,21 @@ public sealed class SendScreen : Screen
         if (response.Exception is not null)
         {
             builder.AppendLine();
-            builder.AppendLine("Response exception:");
-            builder.AppendLine(response.Exception.Message);
+            AppendSection(builder, "Response exception");
+            builder.AppendLine($"  {response.Exception.Message}");
         }
 
         if (response.RequestHeaders.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Request headers:");
+            AppendSection(builder, "Request headers");
             AppendHeaderLines(builder, response.RequestHeaders);
         }
 
         if (response.ResponseHeaders.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Response headers:");
+            AppendSection(builder, "Response headers");
             AppendHeaderLines(builder, response.ResponseHeaders);
         }
 
@@ -319,12 +397,19 @@ public sealed class SendScreen : Screen
     private static string BuildErrorSummary(string message)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("An error occurred while sending the request.");
+        AppendSection(builder, "Error");
+        builder.AppendLine("  An error occurred while sending the request.");
         builder.AppendLine();
-        builder.AppendLine(message);
+        builder.AppendLine($"  {message}");
         builder.AppendLine();
-        builder.Append("Press Esc to return and try again.");
+        builder.Append("  Press Esc to return and try again.");
         return builder.ToString();
+    }
+
+    private static void AppendSection(StringBuilder builder, string title)
+    {
+        const int underlineWidth = 48;
+        builder.AppendLine($"── {title} " + new string('─', Math.Max(1, underlineWidth - title.Length - 4)));
     }
 
     private static void AppendHeaderLines(
@@ -364,37 +449,114 @@ public sealed class SendScreen : Screen
                 normalized += SpinnerFrames.Length;
             }
 
-            string frame = SpinnerFrames[normalized];
-            InvokeOnUi(() =>
-            {
-                if (_spinnerLabel is not null)
-                {
-                    _spinnerLabel.Text = frame;
-                }
-            });
-        }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(120));
+            InvokeOnUi(() => RenderStatus(SpinnerFrames[normalized]));
+        }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(80));
     }
 
     private void StopSpinner()
     {
         _spinnerTimer?.Dispose();
         _spinnerTimer = null;
-        InvokeOnUi(() =>
-        {
-            if (_spinnerLabel is not null)
-            {
-                _spinnerLabel.Text = string.Empty;
-            }
-        });
+        InvokeOnUi(() => RenderStatus(null));
     }
 
-    private void UpdateStatus(string text)
+    private void SetStage(SendStage stage, string text)
+    {
+        _stage = stage;
+        _stageText = text;
+        InvokeOnUi(() => RenderStatus(null));
+    }
+
+    private void RenderStatus(string? spinnerFrame)
+    {
+        if (_statusLabel is null)
+        {
+            return;
+        }
+
+        string color = _stage switch
+        {
+            SendStage.Idle => "secondary",
+            SendStage.Preparing or SendStage.Loading or SendStage.Sending => "info",
+            SendStage.Processing => "accent",
+            SendStage.Completed => "success",
+            SendStage.Canceled => "warning",
+            SendStage.Failed => "danger",
+            _ => "secondary",
+        };
+
+        string glyph = _stage switch
+        {
+            SendStage.Completed => DoneGlyph,
+            SendStage.Failed => FailGlyph,
+            SendStage.Canceled => CancelGlyph,
+            SendStage.Idle => IdleGlyph,
+            _ => spinnerFrame ?? SpinnerFrames[0],
+        };
+
+        _statusLabel.Markup = $"[{color}][bold]{glyph}[/]  {_stageText}[/]";
+    }
+
+    private void UpdateHero(string? method, string? uri)
         => InvokeOnUi(() =>
         {
-            if (_statusLabel is not null)
+            if (_heroLabel is null)
             {
-                _statusLabel.Text = text;
+                return;
             }
+
+            if (method is null || uri is null)
+            {
+                _heroLabel.Markup = string.Empty;
+                return;
+            }
+
+            string upper = method.ToUpperInvariant();
+            string methodColor = upper switch
+            {
+                "GET" => "info",
+                "POST" => "success",
+                "PUT" => "warning",
+                "PATCH" => "accent",
+                "DELETE" => "danger",
+                "HEAD" or "OPTIONS" => "secondary",
+                _ => "primary",
+            };
+
+            _heroLabel.Markup = $"[{methodColor}][bold]{upper,-6}[/][/] [surface]{uri}[/]";
+        });
+
+    private void UpdateMeta(StraumrResponse? response)
+        => InvokeOnUi(() =>
+        {
+            if (_metaLabel is null)
+            {
+                return;
+            }
+
+            if (response is null)
+            {
+                _metaLabel.Markup = string.Empty;
+                return;
+            }
+
+            string statusText = FormatStatus(response);
+            string statusColor = response.StatusCode is { } code
+                ? ((int)code) switch
+                {
+                    >= 200 and < 300 => "success",
+                    >= 300 and < 400 => "accent",
+                    >= 400 and < 500 => "warning",
+                    >= 500 => "danger",
+                    _ => "info",
+                }
+                : "danger";
+
+            string duration = $"{Math.Max(0, response.Duration.TotalMilliseconds):N0} ms";
+            string http = response.HttpVersion?.ToString() is { Length: > 0 } v ? $"HTTP/{v}" : "HTTP/?";
+
+            _metaLabel.Markup =
+                $"[{statusColor}][bold]{statusText}[/][/]  [secondary]·[/]  [info]{duration}[/]  [secondary]·[/]  [secondary]{http}[/]";
         });
 
     private void UpdateSummary(string text)
@@ -402,7 +564,7 @@ public sealed class SendScreen : Screen
         {
             if (_summaryView is not null)
             {
-                _summaryView.Text = text;
+                _summaryView.Text = Straumr.Console.Tui.Helpers.MarkupText.ToPlain(text);
             }
         });
 
@@ -425,5 +587,17 @@ public sealed class SendScreen : Screen
         {
             action();
         }
+    }
+
+    private enum SendStage
+    {
+        Idle,
+        Preparing,
+        Loading,
+        Sending,
+        Processing,
+        Completed,
+        Canceled,
+        Failed,
     }
 }
