@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using Straumr.Core.Enums;
-using Straumr.Core.Models;
 using Straumr.Core.Helpers;
 
 namespace Straumr.Console.Shared.Helpers;

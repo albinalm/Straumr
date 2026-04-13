@@ -183,15 +183,9 @@ internal sealed class SelectionPrompt : PromptComponent
         _filterField.Visible = shouldShow;
 
         int listOffset = shouldShow ? 3 : 1;
-        if (_listView is not null)
-        {
-            _listView.Y = listOffset;
-        }
+        _listView?.Y = listOffset;
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Y = listOffset;
-        }
+        _emptyLabel?.Y = listOffset;
     }
 
     private void FocusList()

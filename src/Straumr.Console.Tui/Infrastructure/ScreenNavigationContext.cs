@@ -1,4 +1,3 @@
-using System;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 

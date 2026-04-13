@@ -241,15 +241,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _filterLabel.Visible = shouldShow;
         _filterField.Visible = shouldShow;
 
-        if (_listView is not null)
-        {
-            _listView.Y = shouldShow ? 3 : 1;
-        }
+        _listView?.Y = shouldShow ? 3 : 1;
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Y = shouldShow ? 3 : 1;
-        }
+        _emptyLabel?.Y = shouldShow ? 3 : 1;
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)
@@ -379,10 +373,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
     private void SetEditViewsVisible(bool visible)
     {
-        if (_editForm is not null)
-        {
-            _editForm.Visible = visible;
-        }
+        _editForm?.Visible = visible;
     }
 
     private void UpdateHints()

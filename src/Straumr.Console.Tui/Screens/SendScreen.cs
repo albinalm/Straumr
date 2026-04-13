@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Straumr.Console.Shared.Theme;
@@ -13,6 +8,7 @@ using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Enums;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Straumr.Console.Tui.Infrastructure;
@@ -46,6 +42,7 @@ public sealed class SendScreen : Screen
     private readonly IStraumrAuthService _authService;
     private readonly ScreenNavigationContext _navigationContext;
     private readonly StraumrTheme _theme;
+    private readonly TuiApplicationContext _applicationContext;
 
     private MarkupLabel? _statusLabel;
     private MarkupLabel? _heroLabel;
@@ -54,6 +51,7 @@ public sealed class SendScreen : Screen
     private InteractiveTextView? _bodyView;
     private FrameView? _summaryFrame;
     private FrameView? _bodyFrame;
+    private readonly Dictionary<Border, View> _frameBorderTargets = new();
     private Timer? _spinnerTimer;
     private int _spinnerIndex;
     private CancellationTokenSource? _sendTokenSource;
@@ -70,12 +68,14 @@ public sealed class SendScreen : Screen
         IStraumrRequestService requestService,
         IStraumrAuthService authService,
         ScreenNavigationContext navigationContext,
-        StraumrTheme theme)
+        StraumrTheme theme,
+        TuiApplicationContext applicationContext)
     {
         _requestService = requestService;
         _authService = authService;
         _navigationContext = navigationContext;
         _theme = theme;
+        _applicationContext = applicationContext;
 
         Add(new Banner { Theme = _theme });
         Add(new HintsBar { Text = HintText });
@@ -321,15 +321,8 @@ public sealed class SendScreen : Screen
             VisibilityMode = ScrollBarVisibilityMode.Auto,
         };
 
-        void Sync()
-        {
-            scrollBar.ScrollableContentSize = textView.GetContentSize().Height;
-            scrollBar.VisibleContentSize = textView.Viewport.Height;
-            scrollBar.Value = textView.Viewport.Y;
-        }
-
-        textView.ContentSizeChanged += (_, _) => Sync();
-        textView.ViewportChanged += (_, _) => Sync();
+        textView.ContentSizeChanged += (_, _) => SyncScrollBar(textView, scrollBar);
+        textView.ViewportChanged += (_, _) => SyncScrollBar(textView, scrollBar);
 
         scrollBar.ValueChanged += (_, args) =>
         {
@@ -343,44 +336,46 @@ public sealed class SendScreen : Screen
         return scrollBar;
     }
 
+    private static void SyncScrollBar(TextView textView, ScrollBar scrollBar)
+    {
+        scrollBar.ScrollableContentSize = textView.GetContentSize().Height;
+        scrollBar.VisibleContentSize = textView.Viewport.Height;
+        scrollBar.Value = textView.Viewport.Y;
+    }
+
     private void ApplyFocusAwareBorder(FrameView? frame, View? child)
     {
-        if (frame is null || child is null)
+        if (frame?.Border is null || child is null)
         {
             return;
         }
 
-        void AttachBorderEvents(Border border)
+        ConfigureFrameBorder(frame.Border, child);
+    }
+
+    private void ConfigureFrameBorder(Border border, View child)
+    {
+        _frameBorderTargets[border] = child;
+        border.GettingAttributeForRole -= BorderOnGettingAttributeForRole;
+        border.GettingAttributeForRole += BorderOnGettingAttributeForRole;
+    }
+
+    private void BorderOnGettingAttributeForRole(object? sender, VisualRoleEventArgs args)
+    {
+        if (sender is not Border border)
         {
-            border.GettingAttributeForRole -= OnBorderAttributeRequested;
-            border.GettingAttributeForRole += OnBorderAttributeRequested;
+            return;
         }
 
-        void OnBorderAttributeRequested(object? sender, VisualRoleEventArgs args)
+        if (!_frameBorderTargets.TryGetValue(border, out View? child))
         {
-            Color foreground = ColorResolver.Resolve(child.HasFocus ? _theme.Accent : _theme.Secondary);
-            Color background = ColorResolver.Resolve(_theme.Surface);
-            args.Result = new Attribute(foreground, background);
-            args.Handled = true;
+            return;
         }
 
-        if (frame.Border is { } border)
-        {
-            AttachBorderEvents(border);
-        }
-        else
-        {
-            frame.Initialized += OnFrameInitialized;
-        }
-
-        void OnFrameInitialized(object? sender, EventArgs e)
-        {
-            frame.Initialized -= OnFrameInitialized;
-            if (frame.Border is { } initializedBorder)
-            {
-                AttachBorderEvents(initializedBorder);
-            }
-        }
+        Color foreground = ColorResolver.Resolve(child.HasFocus ? _theme.Accent : _theme.Secondary);
+        Color background = ColorResolver.Resolve(_theme.Surface);
+        args.Result = new Attribute(foreground, background);
+        args.Handled = true;
     }
 
     private void AttachKeyHandler(View? view)
@@ -861,36 +856,27 @@ private void CopyBodyToClipboard()
     private void UpdateBody(string text, string? responseBody = null)
         => InvokeOnUi(() =>
         {
-            if (_bodyView is not null)
-            {
-                _bodyView.Text = text;
-            }
+            _bodyView?.Text = text;
 
             _rawBodyContent = responseBody;
             _isBodyBeautified = false;
         });
 
-    private static void InvokeOnUi(Action action)
+    private void InvokeOnUi(Action action)
     {
         try
         {
-            Application.Invoke(action);
+            if (_applicationContext.Application is { } app)
+            {
+                app.Invoke(action);
+                return;
+            }
         }
         catch (InvalidOperationException)
         {
-            action();
+            // Fallback to direct invocation below.
         }
-    }
 
-    private enum SendStage
-    {
-        Idle,
-        Preparing,
-        Loading,
-        Sending,
-        Processing,
-        Completed,
-        Canceled,
-        Failed,
+        action();
     }
 }

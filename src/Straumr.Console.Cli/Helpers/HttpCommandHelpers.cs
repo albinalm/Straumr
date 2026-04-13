@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Straumr.Console.Shared.Interfaces;
 using Straumr.Console.Shared.Helpers;
 using Straumr.Core.Enums;

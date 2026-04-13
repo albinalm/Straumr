@@ -1,8 +1,6 @@
 using System.Text;
-using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.Views;
-using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Components.TextFields;
 

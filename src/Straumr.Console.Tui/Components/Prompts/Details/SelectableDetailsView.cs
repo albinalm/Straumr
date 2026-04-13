@@ -1,7 +1,6 @@
 using System.Text;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Helpers;
-using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Attribute = Terminal.Gui.Drawing.Attribute;

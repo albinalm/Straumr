@@ -46,6 +46,8 @@ public sealed class TuiApp : IDisposable
         _window.SetScheme(_scheme);
     }
 
+    internal IApplication ApplicationInstance => _application;
+
     internal void LoadScreen(Screen screen)
     {
         _window.RemoveAll();

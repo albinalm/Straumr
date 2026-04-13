@@ -560,15 +560,9 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         _commandActive = false;
-        if (_listView is not null)
-        {
-            _listView.CanFocus = true;
-        }
+        _listView?.CanFocus = true;
 
-        if (_filterField is not null)
-        {
-            _filterField.CanFocus = true;
-        }
+        _filterField?.CanFocus = true;
 
         _commandContainer.Visible = false;
         _commandField.Visible = false;
@@ -630,10 +624,7 @@ public abstract class ModelScreen<TEntry> : Screen
             _listView.Height = Dim.Fill(4);
         }
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Y = listOffset;
-        }
+        _emptyLabel?.Y = listOffset;
     }
 
     private void UpdateFramePosition()
