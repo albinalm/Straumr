@@ -266,16 +266,7 @@ internal sealed class SelectableDetailsView : View
             return;
         }
 
-        try
-        {
-#pragma warning disable CS0618
-            Application.Clipboard?.TrySetClipboardData(selected);
-#pragma warning restore CS0618
-        }
-        catch
-        {
-            // Ignore clipboard failures; selection remains available visually.
-        }
+        TryCopyToClipboard(selected);
     }
 
     private string GetSelectedText()
@@ -357,6 +348,23 @@ internal sealed class SelectableDetailsView : View
     private Attribute SelectionAttribute => new(
         ColorResolver.Resolve(_theme?.OnPrimary ?? "Black"),
         ColorResolver.Resolve(_theme?.Primary ?? "BrightGreen"));
+
+    private void TryCopyToClipboard(string text)
+    {
+        if (string.IsNullOrEmpty(text) || App?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            clipboard.TrySetClipboardData(text);
+        }
+        catch
+        {
+            // Ignore clipboard failures; selection remains available visually.
+        }
+    }
 
     private sealed record StyledCell(char Char, Attribute Attribute);
 }

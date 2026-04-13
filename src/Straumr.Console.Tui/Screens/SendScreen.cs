@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
@@ -30,8 +34,10 @@ public sealed class SendScreen : Screen
         "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"
     ];
 
+    private const string HintText =
+        "y Copy body  Y Copy all  b Beautify body  B Revert formatting";
     private const string IdleGlyph = "◆";
-    private const string DoneGlyph = "✔";
+    private const string DoneGlyph = "✓";
     private const string FailGlyph = "✖";
     private const string CancelGlyph = "◌";
 
@@ -52,6 +58,10 @@ public sealed class SendScreen : Screen
 
     private SendStage _stage = SendStage.Idle;
     private string _stageText = "Waiting for request";
+    private string? _rawBodyContent;
+    private bool _isBodyBeautified;
+    private StraumrRequest? _currentRequest;
+    private StraumrResponse? _currentResponse;
 
     public SendScreen(
         IStraumrRequestService requestService,
@@ -65,7 +75,7 @@ public sealed class SendScreen : Screen
         _theme = theme;
 
         Add(new Banner { Theme = _theme });
-        Add(new HintsBar { Text = "esc Back to requests" });
+        Add(new HintsBar { Text = HintText });
         AddView(BuildLayout());
     }
 
@@ -78,6 +88,7 @@ public sealed class SendScreen : Screen
 
         SetStage(SendStage.Preparing, "Preparing request");
         StartSpinner();
+        UpdateRequestContext(null, null);
         UpdateHero(null, null);
         UpdateMeta(null);
         UpdateSummary("[secondary]Waiting for request context...[/]");
@@ -85,20 +96,11 @@ public sealed class SendScreen : Screen
         return Task.CompletedTask;
     }
 
-    public override bool OnKeyDown(Key key)
-    {
-        if (key == Key.Esc)
-        {
-            _sendTokenSource?.Cancel();
-            NavigateTo<RequestsScreen>();
-            return true;
-        }
-
-        return base.OnKeyDown(key);
-    }
+    public override bool OnKeyDown(Key key) => HandleKeyBinding(key) || base.OnKeyDown(key);
 
     private async Task RunSendFlowAsync(CancellationToken cancellationToken)
     {
+        UpdateRequestContext(null, null);
         Guid? requestId = _navigationContext.ConsumeRequestId();
         StraumrWorkspaceEntry? workspaceEntry = _navigationContext.GetWorkspaceEntry();
 
@@ -157,9 +159,11 @@ public sealed class SendScreen : Screen
             SetStage(SendStage.Processing, "Processing response");
             UpdateMeta(response);
             UpdateSummary(BuildSummary(request, auth, response, notes));
-            UpdateBody(string.IsNullOrEmpty(response.Content)
+            string bodyText = string.IsNullOrEmpty(response.Content)
                 ? "No content returned from the server."
-                : response.Content);
+                : response.Content!;
+            UpdateRequestContext(request, response);
+            UpdateBody(bodyText, response.Content ?? string.Empty);
             SetStage(SendStage.Completed, "Request completed");
         }
         catch (OperationCanceledException)
@@ -290,6 +294,12 @@ public sealed class SendScreen : Screen
             _ = RunSendFlowAsync(_sendTokenSource.Token);
         };
 
+        AttachKeyHandler(frame);
+        AttachKeyHandler(summaryFrame);
+        AttachKeyHandler(bodyFrame);
+        AttachKeyHandler(_summaryView);
+        AttachKeyHandler(_bodyView);
+
         frame.Add(_statusLabel, _heroLabel, _metaLabel, summaryFrame, bodyFrame);
         return frame;
     }
@@ -326,6 +336,22 @@ public sealed class SendScreen : Screen
         };
 
         return scrollBar;
+    }
+
+    private void AttachKeyHandler(View? view)
+    {
+        if (view is null)
+        {
+            return;
+        }
+
+        view.KeyDown += (_, key) =>
+        {
+            if (HandleKeyBinding(key))
+            {
+                key.Handled = true;
+            }
+        };
     }
 
     private string BuildSummary(
@@ -395,6 +421,23 @@ public sealed class SendScreen : Screen
         return builder.ToString().TrimEnd();
     }
 
+    private static string BuildRequestTemplate(StraumrRequest request, StraumrResponse response, string body)
+    {
+        var builder = new StringBuilder();
+        string method = request.Method.Method.ToUpperInvariant();
+        string http = response.HttpVersion?.ToString() is { Length: > 0 } v ? $"HTTP/{v}" : "HTTP/?";
+        builder.AppendLine($"{method} {request.Uri} {http}");
+
+        foreach ((string key, IEnumerable<string> value) in response.RequestHeaders)
+        {
+            builder.AppendLine($"{key}: {string.Join(", ", value)}");
+        }
+
+        builder.AppendLine();
+        builder.Append(body);
+        return builder.ToString().TrimEnd();
+    }
+
     private static string BuildErrorSummary(string message)
     {
         var builder = new StringBuilder();
@@ -421,6 +464,153 @@ public sealed class SendScreen : Screen
         {
             string joined = string.Join(", ", value);
             builder.AppendLine($"  {key}: {joined}");
+        }
+    }
+
+private void CopyBodyToClipboard()
+{
+        TryCopyToClipboard(_bodyView?.Text?.ToString());
+}
+
+    private void CopyRequestTemplateToClipboard()
+    {
+        if (_currentRequest is null || _currentResponse is null)
+        {
+            return;
+        }
+
+        string template = BuildRequestTemplate(_currentRequest, _currentResponse, GetBodyForTemplate());
+        TryCopyToClipboard(template);
+    }
+
+    private string GetBodyForTemplate()
+    {
+        if (_isBodyBeautified && _bodyView is not null)
+        {
+            return _bodyView.Text?.ToString() ?? string.Empty;
+        }
+
+        if (_rawBodyContent is not null)
+        {
+            return _rawBodyContent;
+        }
+
+        return _bodyView?.Text?.ToString() ?? string.Empty;
+    }
+
+    private void BeautifyBody()
+    {
+        if (_bodyView is null || _rawBodyContent is null || _isBodyBeautified)
+        {
+            return;
+        }
+
+        string beautified = BeautifyContent(_rawBodyContent);
+        if (string.Equals(beautified, _rawBodyContent, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _bodyView.Text = beautified;
+        _isBodyBeautified = true;
+    }
+
+    private void RevertBeautifiedBody()
+    {
+        if (!_isBodyBeautified || _bodyView is null || _rawBodyContent is null)
+        {
+            return;
+        }
+
+        _bodyView.Text = _rawBodyContent;
+        _isBodyBeautified = false;
+    }
+
+    private bool HandleKeyBinding(Key key)
+    {
+        if (key == Key.Esc)
+        {
+            _sendTokenSource?.Cancel();
+            NavigateTo<RequestsScreen>();
+            return true;
+        }
+
+        if (key.IsCtrl || key.IsAlt)
+        {
+            return false;
+        }
+
+        int charValue = KeyHelpers.GetCharValue(key);
+        switch (charValue)
+        {
+            case 'y':
+                CopyBodyToClipboard();
+                return true;
+            case 'Y':
+                CopyRequestTemplateToClipboard();
+                return true;
+            case 'b':
+                BeautifyBody();
+                return true;
+            case 'B':
+                RevertBeautifiedBody();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void UpdateRequestContext(StraumrRequest? request, StraumrResponse? response)
+        => InvokeOnUi(() =>
+        {
+            _currentRequest = request;
+            _currentResponse = response;
+        });
+
+    private static string BeautifyContent(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return content;
+        }
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(content);
+            using MemoryStream stream = new();
+            using (Utf8JsonWriter writer = new(stream, new JsonWriterOptions { Indented = true }))
+            {
+                doc.WriteTo(writer);
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+        catch (JsonException) { }
+
+        try
+        {
+            XDocument doc = XDocument.Parse(content);
+            return doc.ToString();
+        }
+        catch (XmlException) { }
+
+        return content;
+    }
+
+    private void TryCopyToClipboard(string? text)
+    {
+        if (string.IsNullOrEmpty(text) || _bodyView?.App?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            clipboard.TrySetClipboardData(text);
+        }
+        catch
+        {
+            // Ignore clipboard errors; UI remains unchanged.
         }
     }
 
@@ -569,13 +759,16 @@ public sealed class SendScreen : Screen
             }
         });
 
-    private void UpdateBody(string text)
+    private void UpdateBody(string text, string? responseBody = null)
         => InvokeOnUi(() =>
         {
             if (_bodyView is not null)
             {
                 _bodyView.Text = text;
             }
+
+            _rawBodyContent = responseBody;
+            _isBodyBeautified = false;
         });
 
     private static void InvokeOnUi(Action action)
