@@ -33,6 +33,8 @@ public sealed class TuiApp : IDisposable
         _application = Application.Create();
         _application.Init();
 
+        _application.Driver?.Force16Colors = !ColorResolver.ThemeHasTrueColor(theme);
+
         _scheme = ColorResolver.BuildScheme(theme);
 
         _window = new Window

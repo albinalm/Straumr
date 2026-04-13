@@ -1,3 +1,4 @@
+using System.Globalization;
 using Straumr.Console.Shared.Theme;
 using Terminal.Gui.Drawing;
 
@@ -7,37 +8,74 @@ using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
 public static class ColorResolver
 {
+
     public static Color Resolve(string value)
     {
-        if (value.StartsWith('#'))
+        if (string.IsNullOrWhiteSpace(value))
         {
-            string hex = value.TrimStart('#');
-            var r = Convert.ToInt32(hex[..2], 16);
-            var g = Convert.ToInt32(hex[2..4], 16);
-            var b = Convert.ToInt32(hex[4..6], 16);
-            return new Color(r, g, b);
+            return Color.None;
         }
 
-        return value switch
+        string trimmed = value.Trim();
+
+        if (trimmed.StartsWith('#'))
         {
-            "Black" => Color.Black,
-            "Blue" => Color.Blue,
-            "Green" => Color.Green,
-            "Cyan" => Color.Cyan,
-            "Red" => Color.Red,
-            "Magenta" => Color.Magenta,
-            "Yellow" => Color.Yellow,
-            "Gray" => Color.Gray,
-            "DarkGray" => Color.DarkGray,
-            "BrightBlue" => Color.BrightBlue,
-            "BrightGreen" => Color.BrightGreen,
-            "BrightCyan" => Color.BrightCyan,
-            "BrightRed" => Color.BrightRed,
-            "BrightMagenta" => Color.BrightMagenta,
-            "BrightYellow" => Color.BrightYellow,
-            _ => Color.White
-        };
+            string hex = trimmed.TrimStart('#');
+            if (hex.Length == 6)
+            {
+                var r = Convert.ToInt32(hex[..2], 16);
+                var g = Convert.ToInt32(hex[2..4], 16);
+                var b = Convert.ToInt32(hex[4..6], 16);
+                return new Color(r, g, b);
+            }
+
+            if (hex.Length == 3)
+            {
+                string expanded = new string(new[]
+                {
+                    hex[0], hex[0],
+                    hex[1], hex[1],
+                    hex[2], hex[2]
+                });
+                var r = Convert.ToInt32(expanded[..2], 16);
+                var g = Convert.ToInt32(expanded[2..4], 16);
+                var b = Convert.ToInt32(expanded[4..6], 16);
+                return new Color(r, g, b);
+            }
+        }
+
+        if (Enum.TryParse(trimmed, true, out ColorName16 ansiColor))
+        {
+            return new Color(ansiColor);
+        }
+
+        if (Color.TryParse(trimmed, CultureInfo.InvariantCulture, out Color parsed))
+        {
+            return parsed;
+        }
+
+        return new Color(ColorName16.White);
     }
+
+    public static bool ThemeHasTrueColor(StraumrTheme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+
+        return HasTrueColor(theme.Surface)
+               || HasTrueColor(theme.SurfaceVariant)
+               || HasTrueColor(theme.OnSurface)
+               || HasTrueColor(theme.Primary)
+               || HasTrueColor(theme.OnPrimary)
+               || HasTrueColor(theme.Secondary)
+               || HasTrueColor(theme.Accent)
+               || HasTrueColor(theme.Success)
+               || HasTrueColor(theme.Info)
+               || HasTrueColor(theme.Warning)
+               || HasTrueColor(theme.Danger);
+    }
+
+    private static bool HasTrueColor(string? value)
+        => !string.IsNullOrWhiteSpace(value) && value.TrimStart().StartsWith('#');
 
     public static Scheme BuildScheme(StraumrTheme theme)
     {
