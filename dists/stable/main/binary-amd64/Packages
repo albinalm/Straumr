@@ -29,6 +29,21 @@ Homepage: https://github.com/albinalm/Straumr
 Description: CLI tool for managing, saving, and sending HTTP requests across workspaces
 
 Package: straumr
+Version: 2026.4.13.30
+Architecture: amd64
+Maintainer: Albin Alm <albinalm@proton.me>
+Installed-Size: 26291
+Filename: pool/main/straumr_2026.4.13.30_amd64.deb
+Size: 12478918
+MD5sum: 65ea0b59046cd8ecf12866ca611d2012
+SHA1: 23789c785dd0272db3524f3d2d5cb4f54491f1f1
+SHA256: 0693ee2f65363685423ed78cdb2c14faae0730df01252e1bef47076a3aad648f
+Section: utils
+Priority: optional
+Homepage: https://github.com/albinalm/Straumr
+Description: CLI tool for managing, saving, and sending HTTP requests across workspaces
+
+Package: straumr
 Version: 2026.4.7.22
 Architecture: amd64
 Maintainer: Albin Alm <albinalm@proton.me>
