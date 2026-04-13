@@ -23,6 +23,8 @@ public class AuthGetCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -33,10 +35,9 @@ public class AuthGetCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
             WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
@@ -67,7 +68,7 @@ public class AuthGetCommand(
             {
                 try
                 {
-                    StraumrAuth a = await authService.PeekByIdAsync(id);
+                    StraumrAuth a = await authService.PeekByIdAsync(id, workspaceEntry);
                     if (!string.Equals(a.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -90,7 +91,7 @@ public class AuthGetCommand(
         {
             try
             {
-                StraumrAuth jsonAuth = await authService.PeekByIdAsync(foundId.Value);
+                StraumrAuth jsonAuth = await authService.PeekByIdAsync(foundId.Value, workspaceEntry);
                 System.Console.WriteLine(JsonSerializer.Serialize(jsonAuth,
                     StraumrJsonContext.Default.StraumrAuth));
                 return 0;
@@ -106,7 +107,7 @@ public class AuthGetCommand(
         string status;
         try
         {
-            auth = await authService.PeekByIdAsync(foundId.Value);
+            auth = await authService.PeekByIdAsync(foundId.Value, workspaceEntry);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

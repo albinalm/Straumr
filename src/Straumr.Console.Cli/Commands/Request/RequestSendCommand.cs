@@ -28,6 +28,8 @@ public class RequestSendCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -38,12 +40,10 @@ public class RequestSendCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
-
-        if (!hasWorkspace)
+        if (workspaceEntry is null)
         {
             WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
@@ -51,12 +51,12 @@ public class RequestSendCommand(
 
         try
         {
-            StraumrRequest request = await requestService.GetAsync(settings.Identifier);
+            StraumrRequest request = await requestService.GetAsync(settings.Identifier, workspaceEntry);
 
             ApplyOverrides(request, settings.SendHeaders, settings.SendParams);
 
             StraumrAuth? auth = request.AuthId.HasValue
-                ? await authService.PeekByIdAsync(request.AuthId.Value)
+                ? await authService.PeekByIdAsync(request.AuthId.Value, workspaceEntry)
                 : null;
 
             if (settings.DryRun)
@@ -70,7 +70,7 @@ public class RequestSendCommand(
                 FollowRedirects = settings.FollowRedirects
             };
 
-            StraumrResponse response = await requestService.SendAsync(request, options);
+            StraumrResponse response = await requestService.SendAsync(request, options, workspaceEntry);
 
             if (settings.Json)
             {

@@ -433,13 +433,10 @@ public abstract class ModelScreen<TEntry> : Screen
                 case ':':
                     ShowCommandField();
                     return true;
+                case 'o':
+                    OpenSelectedEntry();
+                    return true;
             }
-        }
-
-        if (key == Key.Enter)
-        {
-            OpenSelectedEntry();
-            return true;
         }
 
         return HandleModelKeyDown(key, GetSelectedEntry());

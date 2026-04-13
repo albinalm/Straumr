@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -8,6 +7,7 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Components.Prompts.Form;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
 using Terminal.Gui.Input;
@@ -18,6 +18,7 @@ public sealed class WorkspacesScreen(
     TuiInteractiveConsole interactiveConsole,
     IStraumrWorkspaceService workspaceService,
     IStraumrOptionsService optionsService,
+    ScreenNavigationContext navigationContext,
     StraumrTheme theme)
     : ModelScreen<WorkspaceEntry>(theme,
         screenTitle: "Workspaces",
@@ -354,17 +355,54 @@ public sealed class WorkspacesScreen(
 
     protected override IEnumerable<ModelCommand> GetCommands()
     {
-        yield return new ModelCommand("set", "Set selected workspace as active", _ => SetCurrentWorkspace(SelectedEntry), "use");
+        yield return new ModelCommand("set", "Set selected workspace as active",
+            _ => SetCurrentWorkspace(SelectedEntry), "use");
         yield return new ModelCommand("create", "Create a new workspace", _ => CreateWorkspace(), "new");
-        yield return new ModelCommand("delete", "Delete selected workspace", _ => DeleteWorkspace(SelectedEntry), "rm", "remove");
+        yield return new ModelCommand("delete", "Delete selected workspace", _ => DeleteWorkspace(SelectedEntry), "rm",
+            "remove");
         yield return new ModelCommand("edit", "Edit selected workspace in $EDITOR", _ => EditWorkspace(SelectedEntry));
-        yield return new ModelCommand("copy", "Copy selected workspace to a new name", _ => CopyWorkspace(SelectedEntry), "cp");
+        yield return new ModelCommand("copy", "Copy selected workspace to a new name",
+            _ => CopyWorkspace(SelectedEntry), "cp");
         yield return new ModelCommand("import", "Import a workspace from a file", _ => ImportWorkspace());
-        yield return new ModelCommand("export", "Export selected workspace to a file", _ => ExportWorkspace(SelectedEntry));
+        yield return new ModelCommand("export", "Export selected workspace to a file",
+            _ => ExportWorkspace(SelectedEntry));
     }
 
     protected override void OpenSelectedEntry()
     {
+        if (SelectedEntry is null)
+        {
+            return;
+        }
+
+        if (SelectedEntry.IsDamaged)
+        {
+            ShowDanger($"😬 Cannot open damaged workspace \"{SelectedEntry.Identifier}\".");
+            return;
+        }
+
+        string? choice = interactiveConsole.Select(
+            $"Open \"{SelectedEntry.Identifier}\"",
+            ["Requests", "Secrets", "Auths", "Set as active"],
+            enableFilter: false,
+            enableTypeahead: true);
+
+        switch (choice)
+        {
+            case "Requests":
+                navigationContext.SetWorkspace(SelectedEntry.StraumrEntry);
+                NavigateTo<RequestsScreen>();
+                break;
+            case "Secrets":
+                ShowInfo("Secrets screen is not yet implemented.");
+                break;
+            case "Auths":
+                ShowInfo("Auths screen is not yet implemented.");
+                break;
+            case "Set as active":
+                SetCurrentWorkspace(SelectedEntry);
+                break;
+        }
     }
 
     protected override void InspectSelectedEntry()
@@ -379,11 +417,15 @@ public sealed class WorkspacesScreen(
             [
                 ("ID", $"[bold]{SelectedEntry.StraumrEntry.Id}[/]"),
                 ("Name", SelectedEntry.Name is not null ? $"{SelectedEntry.Identifier}" : "[secondary]N/A[/]"),
-                ("Requests", SelectedEntry.RequestCount is not null ? $"{SelectedEntry.RequestCount}" : "[secondary]N/A[/]"),
-                ("Secrets", SelectedEntry.SecretCount is not null ? $"{SelectedEntry.SecretCount}" : "[secondary]N/A[/]"),
-                ("Authenticators", SelectedEntry.AuthCount is not null ? $"{SelectedEntry.AuthCount}" : "[secondary]N/A[/]"),
+                ("Requests",
+                    SelectedEntry.RequestCount is not null ? $"{SelectedEntry.RequestCount}" : "[secondary]N/A[/]"),
+                ("Secrets",
+                    SelectedEntry.SecretCount is not null ? $"{SelectedEntry.SecretCount}" : "[secondary]N/A[/]"),
+                ("Authenticators",
+                    SelectedEntry.AuthCount is not null ? $"{SelectedEntry.AuthCount}" : "[secondary]N/A[/]"),
                 ("Path", SelectedEntry.StraumrEntry.Path),
-                ("Last Accessed", SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[warning]N/A[/]"),
+                ("Last Accessed",
+                    SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[warning]N/A[/]"),
                 ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]")
             ]);
     }
@@ -414,10 +456,10 @@ public sealed class WorkspacesScreen(
     private async Task<WorkspaceEntry> BuildWorkspaceEntryAsync(StraumrWorkspaceEntry entry)
     {
         DateTimeOffset? lastAccessed = null;
-        bool isDamaged = false;
-        string identifier = entry.Id.ToString();
+        var isDamaged = false;
+        var identifier = entry.Id.ToString();
         string? name = null;
-        string status = "Valid";
+        var status = "Valid";
         int? requests = null;
         int? secrets = null;
         int? auths = null;
@@ -439,12 +481,11 @@ public sealed class WorkspacesScreen(
                 ? $"[accent]▸[/] [bold]{workspace.Name}[/]  [accent](current)[/]"
                 : $"[secondary]◇[/] [bold]{workspace.Name}[/]";
 
-            string line1 = $"  [secondary]{entry.Id}[/]";
+            var line1 = $"  [secondary]{entry.Id}[/]";
 
-            string statsRight = lastAccessed.HasValue
-                ? $"{requests} req · {secrets} sec · {auths} auth  [/][info]{lastAccessed.Value.LocalDateTime:yyyy-MM-dd}[/]"
-                : $"{requests} req · {secrets} sec · {auths} auth[/]";
-            string line2 = $"  [secondary]{statsRight}";
+            var statsRight =
+                $"{requests} req · {secrets} sec · {auths} auth  [/][info]{lastAccessed.Value.LocalDateTime:yyyy-MM-dd}[/]";
+            var line2 = $"  [secondary]{statsRight}";
 
             display = $"{line0}\n{line1}\n{line2}";
         }
@@ -452,13 +493,15 @@ public sealed class WorkspacesScreen(
         {
             isDamaged = true;
             status = "Corrupt";
-            display = $"[danger]✖[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [secondary]{entry.Path}[/]\n  [danger]Workspace file is corrupt[/]";
+            display =
+                $"[danger]✖[/] [bold]{entry.Id}[/]  [danger](Corrupt)[/]\n  [secondary]{entry.Path}[/]\n  [danger]Workspace file is corrupt[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
         {
             isDamaged = true;
             status = "Missing";
-            display = $"[danger]✖[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [secondary]{entry.Path}[/]\n  [warning]Workspace file is missing[/]";
+            display =
+                $"[danger]✖[/] [bold]{entry.Id}[/]  [warning](Missing)[/]\n  [secondary]{entry.Path}[/]\n  [warning]Workspace file is missing[/]";
         }
 
         return new WorkspaceEntry

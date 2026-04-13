@@ -32,6 +32,8 @@ public class AuthEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -42,10 +44,10 @@ public class AuthEditCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+        bool hasWorkspace = workspaceEntry != null;
 
         if (!hasWorkspace)
         {
@@ -55,13 +57,13 @@ public class AuthEditCommand(
 
         if (settings.UseEditor || settings.Json)
         {
-            return await ExecuteEditorAsync(settings.Identifier, settings.Json, cancellation);
+            return await ExecuteEditorAsync(settings.Identifier, settings.Json, workspaceEntry!, cancellation);
         }
 
         StraumrAuth auth;
         try
         {
-            auth = await authService.GetAsync(settings.Identifier);
+            auth = await authService.GetAsync(settings.Identifier, workspaceEntry);
         }
         catch (StraumrException ex)
         {
@@ -74,10 +76,10 @@ public class AuthEditCommand(
             return -1;
         }
 
-        return await ExecutePromptMenuAsync(auth);
+        return await ExecutePromptMenuAsync(auth, workspaceEntry!);
     }
 
-    private async Task<int> ExecutePromptMenuAsync(StraumrAuth auth)
+    private async Task<int> ExecutePromptMenuAsync(StraumrAuth auth, StraumrWorkspaceEntry workspaceEntry)
     {
         EditableAuthState state = EditableAuthState.FromAuth(auth);
 
@@ -91,7 +93,7 @@ public class AuthEditCommand(
 
             if (action == ActionSave)
             {
-                if (await TrySaveChangesAsync(auth, state))
+                if (await TrySaveChangesAsync(auth, state, workspaceEntry))
                 {
                     return 0;
                 }
@@ -103,7 +105,11 @@ public class AuthEditCommand(
         }
     }
 
-    private async Task<int> ExecuteEditorAsync(string identifier, bool json, CancellationToken cancellation)
+    private async Task<int> ExecuteEditorAsync(
+        string identifier,
+        bool json,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
@@ -115,7 +121,7 @@ public class AuthEditCommand(
         string tempPath;
         try
         {
-            (authId, tempPath) = await authService.PrepareEditAsync(identifier);
+            (authId, tempPath) = await authService.PrepareEditAsync(identifier, workspaceEntry);
         }
         catch (StraumrException ex)
         {
@@ -163,7 +169,7 @@ public class AuthEditCommand(
 
             try
             {
-                authService.ApplyEdit(authId, tempPath);
+                authService.ApplyEdit(authId, tempPath, workspaceEntry);
                 if (json)
                 {
                     AuthListItem result = new AuthListItem(deserialized.Id.ToString(), deserialized.Name, AuthTypeName(deserialized.Config));
@@ -218,7 +224,10 @@ public class AuthEditCommand(
             });
     }
 
-    private async Task<bool> TrySaveChangesAsync(StraumrAuth auth, EditableAuthState state)
+    private async Task<bool> TrySaveChangesAsync(
+        StraumrAuth auth,
+        EditableAuthState state,
+        StraumrWorkspaceEntry workspaceEntry)
     {
         if (state.Auth is null)
         {
@@ -230,7 +239,7 @@ public class AuthEditCommand(
 
         try
         {
-            await authService.UpdateAsync(auth);
+            await authService.UpdateAsync(auth, workspaceEntry);
             AnsiConsole.MarkupLine($"[green]Updated auth[/] [bold]{auth.Name}[/] ({auth.Id})");
             return true;
         }

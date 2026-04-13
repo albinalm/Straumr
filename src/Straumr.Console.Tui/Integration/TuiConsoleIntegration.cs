@@ -31,6 +31,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         });
         services.AddSingleton(provider => provider.GetRequiredService<StraumrThemeOptions>().Theme);
         services.AddSingleton<TuiAppResolver>();
+        services.AddSingleton<ScreenNavigationContext>();
         services.AddTransient<WorkspacesScreen>();
         services.AddTransient<RequestsScreen>();
         services.AddSingleton<TuiInteractiveConsole>();

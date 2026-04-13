@@ -2,7 +2,7 @@ namespace Straumr.Console.Shared.Integrations;
 
 public static class ConsoleIntegrationResolver
 {
-    public static (IConsoleIntegration Integration, string[] RemainingArgs) Resolve(
+    public static (IConsoleIntegration DefaultIntegration, string[] RemainingArgs) Resolve(
         IReadOnlyList<IConsoleIntegration> integrations,
         string[] args)
     {
@@ -16,6 +16,7 @@ public static class ConsoleIntegrationResolver
 
         if (args.Length == 0)
         {
+            //Will return the default integration
             return (defaultIntegration, args);
         }
 
@@ -34,10 +35,13 @@ public static class ConsoleIntegrationResolver
 
         if (byCommand is not null)
         {
+            //Will return the console integration that has a matching command
             return (byCommand, args);
         }
 
-        return (defaultIntegration, args);
+        //Will default to return CLI if it has been built when args > 0
+        //Otherwise will execute TUI
+        return (integrations.FirstOrDefault(x => x.Commands.Count > 0) ?? defaultIntegration, args);
     }
 
     private static bool NameMatches(string left, string right) =>

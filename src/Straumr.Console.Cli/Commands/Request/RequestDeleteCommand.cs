@@ -20,6 +20,8 @@ public class RequestDeleteCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -30,12 +32,10 @@ public class RequestDeleteCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
-
-        if (!hasWorkspace)
+        if (workspaceEntry is null)
         {
             throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
                 StraumrError.MissingEntry);
@@ -43,7 +43,7 @@ public class RequestDeleteCommand(
 
         try
         {
-            await requestService.DeleteAsync(settings.Identifier);
+            await requestService.DeleteAsync(settings.Identifier, workspaceEntry);
             if (!settings.Json)
             {
                 AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");

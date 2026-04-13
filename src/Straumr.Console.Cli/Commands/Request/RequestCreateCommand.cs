@@ -38,6 +38,8 @@ public class RequestCreateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -48,10 +50,10 @@ public class RequestCreateCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+        bool hasWorkspace = workspaceEntry != null;
 
         if (!hasWorkspace)
         {
@@ -67,20 +69,23 @@ public class RequestCreateCommand(
                 return 1;
             }
 
-            return await ExecuteInlineAsync(settings);
+            return await ExecuteInlineAsync(settings, workspaceEntry!);
         }
 
         if (!settings.UseEditor)
         {
-            return await ExecutePromptMenuAsync(settings, cancellation);
+            return await ExecutePromptMenuAsync(settings, workspaceEntry!, cancellation);
         }
 
-        return await ExecuteFileEditAsync(settings, cancellation);
+        return await ExecuteFileEditAsync(settings, workspaceEntry!, cancellation);
     }
 
-    private async Task<int> ExecutePromptMenuAsync(Settings settings, CancellationToken cancellation)
+    private async Task<int> ExecutePromptMenuAsync(
+        Settings settings,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
-        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
+        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync(workspaceEntry);
         CreateRequestState state = new CreateRequestState(settings.Name ?? string.Empty);
 
         while (true)
@@ -93,7 +98,7 @@ public class RequestCreateCommand(
 
             if (action == ActionFinish)
             {
-                if (await TryCreateRequestAsync(state))
+                if (await TryCreateRequestAsync(state, workspaceEntry))
                 {
                     return 0;
                 }
@@ -101,11 +106,14 @@ public class RequestCreateCommand(
                 continue;
             }
 
-            await HandleCreateActionAsync(state, action, cancellation);
+            await HandleCreateActionAsync(state, action, workspaceEntry, cancellation);
         }
     }
 
-    private async Task<int> ExecuteFileEditAsync(Settings settings, CancellationToken cancellation)
+    private async Task<int> ExecuteFileEditAsync(
+        Settings settings,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
@@ -153,7 +161,7 @@ public class RequestCreateCommand(
 
             try
             {
-                await requestService.CreateAsync(deserializedJson);
+                await requestService.CreateAsync(deserializedJson, workspaceEntry);
                 AnsiConsole.MarkupLine(
                     $"[green]Created request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
                 return 0;
@@ -214,7 +222,7 @@ public class RequestCreateCommand(
             });
     }
 
-    private async Task<bool> TryCreateRequestAsync(CreateRequestState state)
+    private async Task<bool> TryCreateRequestAsync(CreateRequestState state, StraumrWorkspaceEntry workspaceEntry)
     {
         if (string.IsNullOrWhiteSpace(state.Name))
         {
@@ -225,7 +233,7 @@ public class RequestCreateCommand(
         StraumrRequest request = state.ToRequest();
         try
         {
-            await requestService.CreateAsync(request);
+            await requestService.CreateAsync(request, workspaceEntry);
             AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{request.Name}[/] ({request.Id})");
             return true;
         }
@@ -242,7 +250,10 @@ public class RequestCreateCommand(
     }
 
     private async Task HandleCreateActionAsync(
-        CreateRequestState state, string action, CancellationToken cancellation)
+        CreateRequestState state,
+        string action,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
         switch (action)
         {
@@ -289,14 +300,14 @@ public class RequestCreateCommand(
                 break;
             case ActionAuth:
             {
-                StraumrAuth? selected = await SelectAuthAsync(interactiveConsole, authService);
+                StraumrAuth? selected = await SelectAuthAsync(interactiveConsole, authService, workspaceEntry);
                 state.AuthId = selected?.Id;
                 break;
             }
         }
     }
 
-    private async Task<int> ExecuteInlineAsync(Settings settings)
+    private async Task<int> ExecuteInlineAsync(Settings settings, StraumrWorkspaceEntry workspaceEntry)
     {
         StraumrRequest request = new StraumrRequest
         {
@@ -357,7 +368,7 @@ public class RequestCreateCommand(
         {
             try
             {
-                StraumrAuth auth = await authService.GetAsync(settings.Auth);
+                StraumrAuth auth = await authService.GetAsync(settings.Auth, workspaceEntry);
                 request.AuthId = auth.Id;
             }
             catch (StraumrException ex)
@@ -369,7 +380,7 @@ public class RequestCreateCommand(
 
         try
         {
-            await requestService.CreateAsync(request);
+            await requestService.CreateAsync(request, workspaceEntry);
 
             if (settings.Json)
             {

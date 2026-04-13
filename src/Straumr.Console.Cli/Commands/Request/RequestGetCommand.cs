@@ -26,6 +26,8 @@ public class RequestGetCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -36,10 +38,9 @@ public class RequestGetCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry is null)
         {
             WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
@@ -70,7 +71,7 @@ public class RequestGetCommand(
             {
                 try
                 {
-                    StraumrRequest r = await requestService.PeekByIdAsync(id);
+                    StraumrRequest r = await requestService.PeekByIdAsync(id, workspaceEntry);
                     if (!string.Equals(r.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -94,7 +95,7 @@ public class RequestGetCommand(
             StraumrRequest req;
             try
             {
-                req = await requestService.PeekByIdAsync(foundId.Value);
+                req = await requestService.PeekByIdAsync(foundId.Value, workspaceEntry);
             }
             catch (StraumrException ex)
             {
@@ -126,7 +127,7 @@ public class RequestGetCommand(
         string status;
         try
         {
-            request = await requestService.PeekByIdAsync(foundId.Value);
+            request = await requestService.PeekByIdAsync(foundId.Value, workspaceEntry);
             (resolvedUrl, warnings) = await requestService.ResolveUrlAsync(request);
             status = "[green]Valid[/]";
         }
@@ -144,7 +145,7 @@ public class RequestGetCommand(
         {
             try
             {
-                auths = await authService.ListAsync();
+                auths = await authService.ListAsync(workspaceEntry);
             }
             catch (StraumrException) { }
         }

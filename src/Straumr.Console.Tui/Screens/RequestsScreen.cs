@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Text;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -8,6 +8,7 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Components.Prompts.Form;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
 using Terminal.Gui.Input;
@@ -16,14 +17,20 @@ namespace Straumr.Console.Tui.Screens;
 
 public sealed class RequestsScreen(
     TuiInteractiveConsole interactiveConsole,
+    IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
+    IStraumrAuthService authService,
     IStraumrOptionsService optionsService,
+    ScreenNavigationContext navigationContext,
     StraumrTheme theme)
     : ModelScreen<RequestEntry>(theme,
         screenTitle: "Requests",
         emptyStateText: "No requests found",
         itemTypeNamePlural: "requests")
 {
+    private StraumrWorkspaceEntry? _workspaceEntry;
+    private string? _workspaceDir;
+
     protected override string ModelHintsText => "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
 
     protected override void OnInitialized(IReadOnlyList<RequestEntry> entries)
@@ -35,7 +42,7 @@ public sealed class RequestsScreen(
     protected override string GetDisplayText(RequestEntry entry) => entry.Display;
 
     protected override bool IsSameEntry(RequestEntry? left, RequestEntry? right)
-        => left?.StraumrEntry.Id == right?.StraumrEntry.Id;
+        => left?.Id == right?.Id;
 
     protected override bool HandleModelKeyDown(Key key, RequestEntry? selectedEntry)
     {
@@ -68,13 +75,6 @@ public sealed class RequestsScreen(
     {
         if (selectedItem is null)
         {
-            return;
-        }
-
-        if (optionsService.Options.CurrentWorkspace != null &&
-            selectedItem.StraumrEntry.Id == optionsService.Options.CurrentWorkspace?.Id)
-        {
-            ShowInfo($"🤔 {selectedItem.Identifier} is already the active workspace.");
             return;
         }
 
@@ -125,110 +125,12 @@ public sealed class RequestsScreen(
 
     private void EditRequest(RequestEntry? selectedEntry)
     {
-        if (selectedEntry is null)
-        {
-            return;
-        }
 
-        if (selectedEntry.IsDamaged)
-        {
-            ShowDanger($" Cannot edit damaged workspace \"{selectedEntry.Identifier}\".");
-            return;
-        }
-
-        string? editor = Environment.GetEnvironmentVariable("EDITOR");
-        if (string.IsNullOrWhiteSpace(editor))
-        {
-            ShowDanger(" $EDITOR is not set.");
-            return;
-        }
-
-        string identifier = selectedEntry.Identifier;
-        RequestExternalAndRefresh(async () =>
-        {
-            string tempPath;
-            try
-            {
-                tempPath = "";
-            }
-            catch
-            {
-                return;
-            }
-
-            try
-            {
-                Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
-                {
-                    UseShellExecute = false,
-                });
-
-                if (process is null)
-                {
-                    return;
-                }
-
-                await process.WaitForExitAsync();
-
-                if (process.ExitCode == 0)
-                {
-                }
-            }
-            finally
-            {
-                if (File.Exists(tempPath))
-                {
-                    File.Delete(tempPath);
-                }
-            }
-        });
     }
 
     private void CopyRequest(RequestEntry? selectedEntry)
     {
-        if (selectedEntry is null)
-        {
-            return;
-        }
 
-        if (selectedEntry.IsDamaged)
-        {
-            ShowDanger($" Cannot copy damaged workspace \"{selectedEntry.Identifier}\".");
-            return;
-        }
-
-        List<FormFieldSpec> fields =
-        [
-            new("name", "New name", Required: true),
-            new("outputDir", "Output directory"),
-        ];
-
-        Dictionary<string, string>? result = interactiveConsole.PromptForm("Copy workspace", fields);
-        if (result is null)
-        {
-            return;
-        }
-
-        string newName = result["name"];
-        string? outputDir = result.TryGetValue("outputDir", out string? value) ? value : null;
-        if (string.IsNullOrWhiteSpace(outputDir))
-        {
-            outputDir = null;
-        }
-
-        try
-        {
-            _ = RefreshAsync();
-            ShowSuccess($" Copied workspace to \"{newName}\".");
-        }
-        catch (StraumrException ex)
-        {
-            ShowDanger($" {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            ShowDanger($" {ex.Message}");
-        }
     }
 
     protected override IEnumerable<ModelCommand> GetCommands()
@@ -255,15 +157,12 @@ public sealed class RequestsScreen(
         interactiveConsole.ShowDetails(
             string.Empty,
             [
-                ("ID", $"[bold]{SelectedEntry.StraumrEntry.Id}[/]"),
+                ("ID", $"[bold]{SelectedEntry.Id}[/]"),
                 ("Name", SelectedEntry.Name is not null ? $"{SelectedEntry.Identifier}" : "[secondary]N/A[/]"),
-                ("Requests",
-                    SelectedEntry.RequestCount is not null ? $"{SelectedEntry.RequestCount}" : "[secondary]N/A[/]"),
-                ("Secrets",
-                    SelectedEntry.SecretCount is not null ? $"{SelectedEntry.SecretCount}" : "[secondary]N/A[/]"),
-                ("Authenticators",
-                    SelectedEntry.AuthCount is not null ? $"{SelectedEntry.AuthCount}" : "[secondary]N/A[/]"),
-                ("Path", SelectedEntry.StraumrEntry.Path),
+                ("Method", SelectedEntry.Method?.ToString() ?? "[secondary]N/A[/]"),
+                ("Host", SelectedEntry.ShortUriHostname ?? "[secondary]N/A[/]"),
+                ("Body", SelectedEntry.BodyTypeText ?? "[secondary]N/A[/]"),
+                ("Auth", SelectedEntry.Auth ?? "[secondary]N/A[/]"),
                 ("Last Accessed",
                     SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[warning]N/A[/]"),
                 ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]")
@@ -272,13 +171,142 @@ public sealed class RequestsScreen(
 
     protected override async Task<IReadOnlyList<RequestEntry>> LoadEntriesAsync(CancellationToken cancellationToken)
     {
-        if (optionsService.Options.CurrentWorkspace is null)
+        _workspaceEntry ??= navigationContext.GetWorkspaceEntry();
+        if (_workspaceEntry is null)
         {
-             interactiveConsole.ShowMessage("No workspace selected.",
+            interactiveConsole.ShowMessage("No workspace selected.",
                 "You will now be navigated to workspaces menu. Set an active workspace to load underlying entities");
-             NavigateTo<WorkspacesScreen>();
+            NavigateTo<WorkspacesScreen>();
+            return [];
         }
 
-        return [];
+        _workspaceDir = Path.GetDirectoryName(_workspaceEntry.Path);
+
+        StraumrWorkspace workspace;
+        try
+        {
+            workspace = await workspaceService.GetWorkspace(_workspaceEntry.Path);
+        }
+        catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
+        {
+            interactiveConsole.ShowMessage("Workspace corrupt",
+                "Your selected workspace is corrupt. Your active workspace will be cleared and you will be navigated to the workspaces menu. " +
+                "From there you can attempt to rescue your workspace using the edit tool.");
+            NavigateTo<WorkspacesScreen>();
+            return [];
+        }
+        catch (StraumrException ex) when (ex.Reason == StraumrError.MissingEntry)
+        {
+            interactiveConsole.ShowMessage("Workspace missing",
+                "Your selected workspace is missing from disk. Your active workspace will be cleared and you will be navigated to the workspaces menu.");
+            NavigateTo<WorkspacesScreen>();
+            return [];
+        }
+
+        var items = new List<RequestEntry>();
+        foreach (Guid requestId in workspace.Requests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            items.Add(await BuildRequestEntryAsync(requestId));
+        }
+
+        return items
+            .OrderBy(item => item.Name is null ? 1 : 0)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Id)
+            .ToList();
+    }
+
+    private async Task<RequestEntry> BuildRequestEntryAsync(Guid requestId)
+    {
+        string identifier = requestId.ToString();
+        string? name = null;
+        string status = "Valid";
+        bool isDamaged = false;
+        HttpMethod? method = null;
+        string? shortUri = null;
+        string? bodyTypeText = null;
+        string? authText = null;
+        DateTimeOffset? lastAccessed = null;
+        string display;
+
+        try
+        {
+            string requestPath = Path.Combine(_workspaceDir!, $"{requestId}.json");
+            if (!File.Exists(requestPath))
+            {
+                throw new StraumrException("Request file missing", StraumrError.MissingEntry);
+            }
+
+            StraumrRequest request = await requestService.GetAsync(requestId.ToString(), _workspaceEntry);
+            identifier = request.Name;
+            name = request.Name;
+            method = request.Method;
+            Uri.TryCreate(request.Uri, UriKind.Absolute, out Uri? uri);
+            shortUri = uri?.Host ?? request.Uri;
+            bodyTypeText = request.BodyType == BodyType.None ? "No body" : request.BodyType.ToString();
+            authText = await GetAuthText(request.AuthId?.ToString());
+            lastAccessed = request.LastAccessed;
+
+            string line0 = $"[accent]◇ {request.Method}[/] [bold]{request.Name}[/]";
+            string line1 = $"  [secondary]{request.Id}[/]";
+            string statsRight =
+                $"{shortUri} · {bodyTypeText} · {authText}  [/][info]{request.LastAccessed.LocalDateTime:yyyy-MM-dd}[/]";
+            string line2 = $"  [secondary]{statsRight}";
+            display = $"{line0}\n{line1}\n{line2}";
+        }
+        catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
+        {
+            isDamaged = true;
+            status = "Corrupt";
+            display = $"[danger]✖[/] [bold]{requestId}[/]  [danger](Corrupt)[/]\n  [danger]Request file is corrupt[/]";
+        }
+        catch (StraumrException ex) when (ex.Reason is StraumrError.MissingEntry or StraumrError.EntryNotFound)
+        {
+            isDamaged = true;
+            status = "Missing";
+            display = $"[danger]✖[/] [bold]{requestId}[/]  [warning](Missing)[/]\n  [warning]Request file is missing[/]";
+        }
+
+        return new RequestEntry
+        {
+            Id = requestId,
+            Display = display,
+            Identifier = identifier,
+            Status = status,
+            IsDamaged = isDamaged,
+            Method = method,
+            ShortUriHostname = shortUri,
+            BodyTypeText = bodyTypeText,
+            Auth = authText,
+            LastAccessed = lastAccessed,
+            Name = name,
+        };
+    }
+
+    private async Task<string> GetAuthText(string? authId)
+    {
+        var authText = "No auth";
+        if (authId == null) return authText;
+
+        try
+        {
+            StraumrAuth auth = await authService.GetAsync(authId);
+            return $"{auth.Name}({auth.Config.Type})";
+        }
+        catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
+        {
+            authText = "Corrupted auth";
+        }
+        catch (StraumrException ex) when (ex.Reason is StraumrError.MissingEntry or StraumrError.EntryNotFound)
+        {
+            authText = "Missing auth";
+        }
+        catch (Exception ex)
+        {
+            authText = "Failed to read auth";
+        }
+
+        return authText;
     }
 }

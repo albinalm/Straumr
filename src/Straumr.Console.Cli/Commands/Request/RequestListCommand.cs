@@ -23,6 +23,8 @@ public class RequestListCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -33,10 +35,9 @@ public class RequestListCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
         if (workspaceEntry == null)
         {
             WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
@@ -48,7 +49,7 @@ public class RequestListCommand(
         List<RequestListEntry> entries = new List<RequestListEntry>();
         foreach (Guid requestGuid in workspace.Requests)
         {
-            RequestListEntry requestEntry = await GetRequest(requestGuid);
+            RequestListEntry requestEntry = await GetRequest(requestGuid, workspaceEntry);
             entries.Add(requestEntry);
         }
 
@@ -100,13 +101,13 @@ public class RequestListCommand(
         return 0;
     }
 
-    private async Task<RequestListEntry> GetRequest(Guid requestId)
+    private async Task<RequestListEntry> GetRequest(Guid requestId, StraumrWorkspaceEntry workspaceEntry)
     {
         string status;
         StraumrRequest? request = null;
         try
         {
-            request = await requestService.PeekByIdAsync(requestId);
+            request = await requestService.PeekByIdAsync(requestId, workspaceEntry);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

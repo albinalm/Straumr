@@ -97,9 +97,10 @@ internal static class AuthCommandHelpers
 
     internal static async Task<StraumrAuth?> SelectAuthAsync(
         IInteractiveConsole console,
-        IStraumrAuthService authService)
+        IStraumrAuthService authService,
+        StraumrWorkspaceEntry workspaceEntry)
     {
-        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
+        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync(workspaceEntry);
 
         const string noneOption = "None";
 

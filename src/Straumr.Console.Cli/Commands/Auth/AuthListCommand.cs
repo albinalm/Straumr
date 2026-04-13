@@ -25,6 +25,8 @@ public class AuthListCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -35,12 +37,10 @@ public class AuthListCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
-
-        if (!hasWorkspace)
+        if (workspaceEntry is null)
         {
             WriteError("No workspace loaded. Please load a workspace using 'workspace use <name>'", settings.Json);
             return 1;
@@ -49,7 +49,7 @@ public class AuthListCommand(
         IReadOnlyList<StraumrAuth> auths;
         try
         {
-            auths = await authService.ListAsync();
+            auths = await authService.ListAsync(workspaceEntry);
         }
         catch (StraumrException ex)
         {

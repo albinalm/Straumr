@@ -38,6 +38,8 @@ public class RequestEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -48,10 +50,10 @@ public class RequestEditCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+        bool hasWorkspace = workspaceEntry != null;
 
         if (!hasWorkspace)
         {
@@ -67,18 +69,18 @@ public class RequestEditCommand(
 
         if (settings.UseEditor || (settings.Json && !hasInlineFlags))
         {
-            return await ExecuteEditorAsync(settings.Identifier, settings.Json, cancellation);
+            return await ExecuteEditorAsync(settings.Identifier, settings.Json, workspaceEntry!, cancellation);
         }
 
         if (hasInlineFlags)
         {
-            return await ExecuteInlineAsync(settings);
+            return await ExecuteInlineAsync(settings, workspaceEntry!);
         }
 
         StraumrRequest request;
         try
         {
-            request = await requestService.GetAsync(settings.Identifier);
+            request = await requestService.GetAsync(settings.Identifier, workspaceEntry);
         }
         catch (StraumrException ex)
         {
@@ -91,15 +93,15 @@ public class RequestEditCommand(
             return -1;
         }
 
-        return await ExecutePromptMenuAsync(request, cancellation);
+        return await ExecutePromptMenuAsync(request, workspaceEntry!, cancellation);
     }
 
-    private async Task<int> ExecuteInlineAsync(Settings settings)
+    private async Task<int> ExecuteInlineAsync(Settings settings, StraumrWorkspaceEntry workspaceEntry)
     {
         StraumrRequest request;
         try
         {
-            request = await requestService.GetAsync(settings.Identifier);
+            request = await requestService.GetAsync(settings.Identifier, workspaceEntry);
         }
         catch (StraumrException ex)
         {
@@ -208,7 +210,7 @@ public class RequestEditCommand(
             {
                 try
                 {
-                    StraumrAuth auth = await authService.GetAsync(settings.Auth);
+                    StraumrAuth auth = await authService.GetAsync(settings.Auth, workspaceEntry);
                     request.AuthId = auth.Id;
                 }
                 catch (StraumrException ex)
@@ -221,7 +223,7 @@ public class RequestEditCommand(
 
         try
         {
-            await requestService.UpdateAsync(request);
+            await requestService.UpdateAsync(request, workspaceEntry);
             if (settings.Json)
             {
                 RequestCreateResult result = new RequestCreateResult(request.Id.ToString(), request.Name, request.Method.Method, request.Uri);
@@ -245,9 +247,12 @@ public class RequestEditCommand(
         }
     }
 
-    private async Task<int> ExecutePromptMenuAsync(StraumrRequest request, CancellationToken cancellation)
+    private async Task<int> ExecutePromptMenuAsync(
+        StraumrRequest request,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
-        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync();
+        IReadOnlyList<StraumrAuth> auths = await authService.ListAsync(workspaceEntry);
         EditableRequestState state = EditableRequestState.FromRequest(request);
 
         while (true)
@@ -260,7 +265,7 @@ public class RequestEditCommand(
 
             if (action == ActionSave)
             {
-                if (await TrySaveChangesAsync(request, state))
+                if (await TrySaveChangesAsync(request, state, workspaceEntry))
                 {
                     return 0;
                 }
@@ -268,7 +273,7 @@ public class RequestEditCommand(
                 continue;
             }
 
-            await HandleEditActionAsync(request, state, action, cancellation);
+            await HandleEditActionAsync(request, state, action, workspaceEntry, cancellation);
         }
     }
 
@@ -306,20 +311,26 @@ public class RequestEditCommand(
             });
     }
 
-    private void SaveStateQuietly(StraumrRequest request, EditableRequestState state)
+    private void SaveStateQuietly(
+        StraumrRequest request,
+        EditableRequestState state,
+        StraumrWorkspaceEntry workspaceEntry)
     {
         state.ApplyTo(request);
-        try { requestService.UpdateAsync(request).GetAwaiter().GetResult(); }
+        try { requestService.UpdateAsync(request, workspaceEntry).GetAwaiter().GetResult(); }
         catch { /* shown in TUI status bar as failure if needed */ }
     }
 
-    private async Task<bool> TrySaveChangesAsync(StraumrRequest request, EditableRequestState state)
+    private async Task<bool> TrySaveChangesAsync(
+        StraumrRequest request,
+        EditableRequestState state,
+        StraumrWorkspaceEntry workspaceEntry)
     {
         state.ApplyTo(request);
 
         try
         {
-            await requestService.UpdateAsync(request);
+            await requestService.UpdateAsync(request, workspaceEntry);
             AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
             return true;
         }
@@ -336,7 +347,11 @@ public class RequestEditCommand(
     }
 
     private async Task HandleEditActionAsync(
-        StraumrRequest request, EditableRequestState state, string action, CancellationToken cancellation)
+        StraumrRequest request,
+        EditableRequestState state,
+        string action,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
         switch (action)
         {
@@ -374,11 +389,11 @@ public class RequestEditCommand(
             }
             case ActionParams:
                 EditKeyValuePairs(interactiveConsole, "Params", state.Params,
-                    () => SaveStateQuietly(request, state));
+                    () => SaveStateQuietly(request, state, workspaceEntry));
                 break;
             case ActionHeaders:
                 EditKeyValuePairs(interactiveConsole, "Headers", state.Headers,
-                    () => SaveStateQuietly(request, state));
+                    () => SaveStateQuietly(request, state, workspaceEntry));
                 break;
             case ActionBody:
                 state.BodyType =
@@ -386,14 +401,18 @@ public class RequestEditCommand(
                 break;
             case ActionAuth:
             {
-                StraumrAuth? selected = await SelectAuthAsync(interactiveConsole, authService);
+                StraumrAuth? selected = await SelectAuthAsync(interactiveConsole, authService, workspaceEntry);
                 state.AuthId = selected?.Id;
                 break;
             }
         }
     }
 
-    private async Task<int> ExecuteEditorAsync(string identifier, bool json, CancellationToken cancellation)
+    private async Task<int> ExecuteEditorAsync(
+        string identifier,
+        bool json,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
@@ -405,7 +424,7 @@ public class RequestEditCommand(
         string tempPath;
         try
         {
-            (requestId, tempPath) = await requestService.PrepareEditAsync(identifier);
+            (requestId, tempPath) = await requestService.PrepareEditAsync(identifier, workspaceEntry);
         }
         catch (StraumrException ex)
         {
@@ -453,7 +472,7 @@ public class RequestEditCommand(
 
             try
             {
-                requestService.ApplyEdit(requestId, tempPath);
+                requestService.ApplyEdit(requestId, tempPath, workspaceEntry);
                 if (json)
                 {
                     RequestCreateResult result = new RequestCreateResult(deserializedJson.Id.ToString(), deserializedJson.Name, deserializedJson.Method.Method, deserializedJson.Uri);

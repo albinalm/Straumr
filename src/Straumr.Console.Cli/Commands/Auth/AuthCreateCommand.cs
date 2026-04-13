@@ -32,6 +32,8 @@ public class AuthCreateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -42,10 +44,10 @@ public class AuthCreateCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        bool hasWorkspace = optionsService.Options.CurrentWorkspace != null;
+        bool hasWorkspace = workspaceEntry != null;
 
         if (!hasWorkspace)
         {
@@ -53,9 +55,9 @@ public class AuthCreateCommand(
                 StraumrError.MissingEntry);
         }
 
-        if (settings.Type is not null)
+        if (settings.Type is not null && workspaceEntry is not null)
         {
-            return await ExecuteInlineAsync(settings);
+            return await ExecuteInlineAsync(settings, workspaceEntry);
         }
 
         CreateAuthState state = new CreateAuthState(settings.Name ?? string.Empty);
@@ -68,9 +70,9 @@ public class AuthCreateCommand(
                 return 1;
             }
 
-            if (action == ActionFinish)
+            if (action == ActionFinish && workspaceEntry is not null)
             {
-                if (await TryCreateAuthAsync(state))
+                if (await TryCreateAuthAsync(state, workspaceEntry))
                 {
                     return 0;
                 }
@@ -82,7 +84,7 @@ public class AuthCreateCommand(
         }
     }
 
-    private async Task<int> ExecuteInlineAsync(Settings settings)
+    private async Task<int> ExecuteInlineAsync(Settings settings, StraumrWorkspaceEntry workspaceEntry)
     {
         if (string.IsNullOrWhiteSpace(settings.Name))
         {
@@ -105,7 +107,7 @@ public class AuthCreateCommand(
 
         try
         {
-            await authService.CreateAsync(auth);
+            await authService.CreateAsync(auth, workspaceEntry);
 
             if (settings.Json)
             {
@@ -336,7 +338,7 @@ public class AuthCreateCommand(
             });
     }
 
-    private async Task<bool> TryCreateAuthAsync(CreateAuthState state)
+    private async Task<bool> TryCreateAuthAsync(CreateAuthState state, StraumrWorkspaceEntry workspaceEntry)
     {
         if (string.IsNullOrWhiteSpace(state.Name))
         {
@@ -353,7 +355,7 @@ public class AuthCreateCommand(
         StraumrAuth auth = state.ToAuth();
         try
         {
-            await authService.CreateAsync(auth);
+            await authService.CreateAsync(auth, workspaceEntry);
             AnsiConsole.MarkupLine($"[green]Created auth[/] [bold]{auth.Name}[/] ({auth.Id})");
             return true;
         }

@@ -23,6 +23,8 @@ public class RequestCopyCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
@@ -33,10 +35,10 @@ public class RequestCopyCommand(
                 return 1;
             }
 
-            optionsService.Options.CurrentWorkspace = resolved;
+            workspaceEntry = resolved;
         }
 
-        if (optionsService.Options.CurrentWorkspace is null)
+        if (workspaceEntry is null)
         {
             throw new StraumrException("No workspace loaded. Please load a workspace using 'workspace use <name>'",
                 StraumrError.MissingEntry);
@@ -44,11 +46,11 @@ public class RequestCopyCommand(
 
         try
         {
-            StraumrRequest copy = await requestService.CopyAsync(settings.Identifier, settings.NewName);
+            StraumrRequest copy = await requestService.CopyAsync(settings.Identifier, settings.NewName, workspaceEntry);
 
             if (settings.Json)
             {
-                RequestCreateResult result = new RequestCreateResult(copy.Id.ToString(), copy.Name, copy.Method.Method, copy.Uri);
+                var result = new RequestCreateResult(copy.Id.ToString(), copy.Name, copy.Method.Method, copy.Uri);
                 System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestCreateResult));
             }
             else
