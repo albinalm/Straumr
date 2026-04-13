@@ -32,7 +32,7 @@ public sealed class SendScreen : Screen
     ];
 
     private const string HintText =
-        "y Copy body  Y Copy all  b Beautify body  B Revert formatting";
+        "j/k Scroll  g Top  G Bottom  Tab Switch pane  y Copy body  Y Copy all  b Beautify  B Revert";
     private const string IdleGlyph = "◆";
     private const string DoneGlyph = "✓";
     private const string FailGlyph = "✖";
@@ -584,11 +584,29 @@ private void CopyBodyToClipboard()
         switch (charValue)
         {
             case 'j':
-                SwitchScrollFocus(reverse: false);
-                return true;
+                if (ScrollActiveTextView(reverse: false))
+                {
+                    return true;
+                }
+                break;
             case 'k':
-                SwitchScrollFocus(reverse: true);
-                return true;
+                if (ScrollActiveTextView(reverse: true))
+                {
+                    return true;
+                }
+                break;
+            case 'g':
+                if (ScrollActiveTextViewToBoundary(toBottom: false))
+                {
+                    return true;
+                }
+                break;
+            case 'G':
+                if (ScrollActiveTextViewToBoundary(toBottom: true))
+                {
+                    return true;
+                }
+                break;
         }
 
         if (key == Key.Tab || key == Key.Tab.WithShift)
@@ -655,6 +673,56 @@ private void CopyBodyToClipboard()
 
         _summaryFrame?.SetNeedsDraw();
         _bodyFrame?.SetNeedsDraw();
+    }
+
+    private bool ScrollActiveTextViewToBoundary(bool toBottom)
+    {
+        TextView? target = GetActiveTextView();
+        if (target is null)
+        {
+            return false;
+        }
+
+        int contentHeight = target.GetContentSize().Height;
+        int viewportHeight = target.Viewport.Height;
+        int desired = toBottom
+            ? Math.Max(0, contentHeight - viewportHeight)
+            : 0;
+        int delta = desired - target.Viewport.Y;
+        if (delta != 0)
+        {
+            target.ScrollVertical(delta);
+        }
+
+        return true;
+    }
+
+    private bool ScrollActiveTextView(bool reverse)
+    {
+        TextView? target = GetActiveTextView();
+        if (target is null)
+        {
+            return false;
+        }
+
+        int delta = reverse ? -1 : 1;
+        target.ScrollVertical(delta);
+        return true;
+    }
+
+    private TextView? GetActiveTextView()
+    {
+        if (_bodyView?.HasFocus == true)
+        {
+            return _bodyView;
+        }
+
+        if (_summaryView?.HasFocus == true)
+        {
+            return _summaryView;
+        }
+
+        return null;
     }
 
     private void UpdateRequestContext(StraumrRequest? request, StraumrResponse? response)
