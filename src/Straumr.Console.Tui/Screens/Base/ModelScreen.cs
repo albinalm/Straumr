@@ -152,6 +152,7 @@ public abstract class ModelScreen<TEntry> : Screen
         frame.Add(_filterLabel, _filterField, _listView, _emptyLabel, _summaryLabel);
 
         ApplyFilter(_currentFilter);
+        UpdateFilterLabelVisibility();
         WireInitialFocus();
 
         return frame;
@@ -173,7 +174,7 @@ public abstract class ModelScreen<TEntry> : Screen
     {
         return new Label
         {
-            Text = "Filter",
+            Text = "Filter:",
             X = 1,
             Y = 1,
         };
@@ -238,6 +239,7 @@ public abstract class ModelScreen<TEntry> : Screen
             else if (_sourceEntries.Count > 0)
             {
                 _filterField?.SetFocus();
+                UpdateFilterLabelVisibility();
             }
         };
     }
@@ -297,7 +299,11 @@ public abstract class ModelScreen<TEntry> : Screen
         return _commandContainer;
     }
 
-    private void OnFilterChanged(string text) => ApplyFilter(text);
+    private void OnFilterChanged(string text)
+    {
+        ApplyFilter(text);
+        UpdateFilterLabelVisibility();
+    }
 
     private void OnAcceptFilter() => FocusList();
 
@@ -324,18 +330,6 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         bool hasItems = _displayItems.Count > 0;
-        bool sourceHasItems = _sourceEntries.Count > 0;
-
-        if (_filterLabel is not null)
-        {
-            _filterLabel.Visible = sourceHasItems;
-        }
-
-        if (_filterField is not null)
-        {
-            _filterField.Visible = sourceHasItems;
-            _filterField.CanFocus = sourceHasItems;
-        }
 
         if (_listView is not null)
         {
@@ -496,6 +490,7 @@ public abstract class ModelScreen<TEntry> : Screen
     {
         _filterField?.SetFocus();
         _filterField?.EnterEditMode();
+        UpdateFilterLabelVisibility();
     }
 
     protected void FocusList()
@@ -510,6 +505,7 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         _listView?.SetFocus();
+        UpdateFilterLabelVisibility();
     }
 
     private void ShowCommandField()
@@ -571,6 +567,19 @@ public abstract class ModelScreen<TEntry> : Screen
         Color background = ColorResolver.Resolve(_theme.Surface);
         Color foreground = ColorResolver.Resolve(_theme.OnSurface);
         field.ApplyTheme(background, foreground);
+    }
+
+    private void UpdateFilterLabelVisibility()
+    {
+        if (_filterLabel is null || _filterField is null)
+        {
+            return;
+        }
+
+        string text = _filterField.Text ?? string.Empty;
+        bool hasText = text.Length > 0;
+        bool hasFocus = _filterField.HasFocus;
+        _filterLabel.Visible = hasText || hasFocus;
     }
 
     private void EnsureCommandsConfigured()

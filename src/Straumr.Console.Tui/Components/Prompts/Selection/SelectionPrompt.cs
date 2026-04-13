@@ -29,6 +29,7 @@ internal sealed class SelectionPrompt : PromptComponent
     private List<(string Value, string Display)> _sourceItems = [];
     private ListView? _listView;
     private InteractiveTextField? _filterField;
+    private Label? _filterLabel;
     private Label? _emptyLabel;
     private string _typeaheadBuffer = string.Empty;
     private DateTimeOffset _lastTypeahead;
@@ -61,20 +62,21 @@ internal sealed class SelectionPrompt : PromptComponent
 
         if (EnableFilter)
         {
-            Label filterLabel = new()
+            _filterLabel = new Label
             {
-                Text = "Filter",
+                Text = "Filter:",
                 X = 1,
                 Y = 1,
             };
 
             _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter, OnExitFilter);
-            _filterField.X = Pos.Right(filterLabel) + 1;
-            _filterField.Y = filterLabel.Y;
+            _filterField.X = Pos.Right(_filterLabel) + 1;
+            _filterField.Y = _filterLabel.Y;
             _filterField.Width = Dim.Fill(3);
             ApplyFilterFieldTheme(_filterField);
+            UpdateFilterLabelVisibility();
 
-            frame.Add(filterLabel, _filterField);
+            frame.Add(_filterLabel, _filterField);
         }
 
         frame.Add(_listView, _emptyLabel);
@@ -155,6 +157,7 @@ internal sealed class SelectionPrompt : PromptComponent
     private void FocusFilter()
     {
         _filterField?.SetFocus();
+        UpdateFilterLabelVisibility();
     }
 
     private void ApplyFilterFieldTheme(InteractiveTextField field)
@@ -164,9 +167,23 @@ internal sealed class SelectionPrompt : PromptComponent
         field.ApplyTheme(ColorResolver.Resolve(background), ColorResolver.Resolve(foreground));
     }
 
+    private void UpdateFilterLabelVisibility()
+    {
+        if (_filterLabel is null || _filterField is null)
+        {
+            return;
+        }
+
+        string text = _filterField.Text ?? string.Empty;
+        bool hasText = text.Length > 0;
+        bool hasFocus = _filterField.HasFocus;
+        _filterLabel.Visible = hasText || hasFocus;
+    }
+
     private void FocusList()
     {
         _listView?.SetFocus();
+        UpdateFilterLabelVisibility();
     }
 
     private void OnAcceptFilter()
@@ -179,7 +196,11 @@ internal sealed class SelectionPrompt : PromptComponent
         FocusList();
     }
 
-    private void OnFilterChanged(string text) => ApplyFilter(text);
+    private void OnFilterChanged(string text)
+    {
+        ApplyFilter(text);
+        UpdateFilterLabelVisibility();
+    }
 
     private void ApplyFilter(string filter)
     {
