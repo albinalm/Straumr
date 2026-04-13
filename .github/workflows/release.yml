@@ -35,6 +35,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      APP_PROJECT: src/Straumr.Console.App/Straumr.Console.App.csproj
     steps:
       - uses: actions/checkout@v4
 
@@ -47,7 +48,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          dotnet publish src/Straumr.Cli/Straumr.Cli.csproj \
+          dotnet publish "${APP_PROJECT}" \
             -c Release -r ${{ matrix.rid }} \
             -o artifacts/${{ matrix.rid }} \
             /p:Version=${VERSION} \
@@ -71,7 +72,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          dotnet publish src/Straumr.Cli/Straumr.Cli.csproj `
+          dotnet publish $env:APP_PROJECT `
             -c Release -r ${{ matrix.rid }} `
             -o artifacts/${{ matrix.rid }} `
             /p:Version=${env:VERSION} `
@@ -90,7 +91,7 @@ jobs:
                /DMySourceDir="${env:GITHUB_WORKSPACE}\artifacts\${{ matrix.rid }}" `
                /DMyOutputDir="${env:GITHUB_WORKSPACE}\dist" `
                /DMyLicenseFile="${env:GITHUB_WORKSPACE}\LICENSE" `
-               /DMyIconFile="${env:GITHUB_WORKSPACE}\src\Straumr.Cli\icon.ico" `
+               /DMyIconFile="${env:GITHUB_WORKSPACE}\src\Straumr.Console.App\icon.ico" `
                installer\straumr.iss
 
       - name: Upload artifacts
