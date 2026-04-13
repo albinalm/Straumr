@@ -42,6 +42,7 @@ Detailed documentation lives in [`docs/`](docs/README.md):
 
 - [User Workflows](docs/user-workflows.md)
 - [Command Reference](docs/command-reference.md)
+- [Themes](docs/themes.md)
 - [Data Model](docs/data-model.md)
 - [Architecture](docs/architecture.md)
 - [Development](docs/development.md)

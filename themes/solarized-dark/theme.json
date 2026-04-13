@@ -1,0 +1,24 @@
+{
+  "Theme": {
+    "Surface": "#002B36",
+    "SurfaceVariant": "#073642",
+    "OnSurface": "#EEE8D5",
+    "Primary": "#268BD2",
+    "OnPrimary": "#002B36",
+    "Secondary": "#586E75",
+    "Accent": "#2AA198",
+    "Success": "#859900",
+    "Info": "#268BD2",
+    "Warning": "#B58900",
+    "Danger": "#DC322F",
+    "MethodGet": "#268BD2",
+    "MethodPost": "#859900",
+    "MethodPut": "#B58900",
+    "MethodPatch": "#2AA198",
+    "MethodDelete": "#DC322F",
+    "MethodHead": "#586E75",
+    "MethodOptions": "#586E75",
+    "MethodTrace": "#586E75",
+    "MethodConnect": "#586E75"
+  }
+}
