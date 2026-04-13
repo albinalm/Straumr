@@ -200,7 +200,7 @@ public sealed class SendScreen : Screen
         _statusLabel = new MarkupLabel
         {
             Theme = _theme,
-            X = 0,
+            X = 2,
             Y = 0,
             Width = Dim.Fill(),
             Height = 1,
@@ -210,7 +210,7 @@ public sealed class SendScreen : Screen
         _heroLabel = new MarkupLabel
         {
             Theme = _theme,
-            X = 0,
+            X = 2,
             Y = 1,
             Width = Dim.Fill(),
             Height = 1,
@@ -220,7 +220,7 @@ public sealed class SendScreen : Screen
         _metaLabel = new MarkupLabel
         {
             Theme = _theme,
-            X = 0,
+            X = 2,
             Y = 2,
             Width = Dim.Fill(),
             Height = 1,
@@ -303,6 +303,7 @@ public sealed class SendScreen : Screen
             Y = Pos.Top(textView),
             Width = 1,
             Height = Dim.Height(textView),
+            VisibilityMode = ScrollBarVisibilityMode.Auto,
         };
 
         void Sync()
