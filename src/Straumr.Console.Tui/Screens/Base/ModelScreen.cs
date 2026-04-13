@@ -152,7 +152,7 @@ public abstract class ModelScreen<TEntry> : Screen
         frame.Add(_filterLabel, _filterField, _listView, _emptyLabel, _summaryLabel);
 
         ApplyFilter(_currentFilter);
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
         WireInitialFocus();
 
         return frame;
@@ -238,8 +238,8 @@ public abstract class ModelScreen<TEntry> : Screen
             }
             else if (_sourceEntries.Count > 0)
             {
+                RefreshFilterRowLayout(forceVisible: true);
                 _filterField?.SetFocus();
-                UpdateFilterLabelVisibility();
             }
         };
     }
@@ -302,7 +302,7 @@ public abstract class ModelScreen<TEntry> : Screen
     private void OnFilterChanged(string text)
     {
         ApplyFilter(text);
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
     }
 
     private void OnAcceptFilter() => FocusList();
@@ -344,6 +344,7 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         UpdateSummary();
+        RefreshFilterRowLayout();
     }
 
     private int GetSelectedIndex()
@@ -488,9 +489,9 @@ public abstract class ModelScreen<TEntry> : Screen
 
     private void FocusFilter()
     {
+        RefreshFilterRowLayout(forceVisible: true);
         _filterField?.SetFocus();
         _filterField?.EnterEditMode();
-        UpdateFilterLabelVisibility();
     }
 
     protected void FocusList()
@@ -499,13 +500,15 @@ public abstract class ModelScreen<TEntry> : Screen
         {
             if (_sourceEntries.Count > 0)
             {
+                RefreshFilterRowLayout(forceVisible: true);
                 _filterField?.SetFocus();
+                _filterField?.EnterEditMode();
             }
             return;
         }
 
         _listView?.SetFocus();
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
     }
 
     private void ShowCommandField()
@@ -569,17 +572,36 @@ public abstract class ModelScreen<TEntry> : Screen
         field.ApplyTheme(background, foreground);
     }
 
-    private void UpdateFilterLabelVisibility()
+    private void RefreshFilterRowLayout(bool forceVisible = false)
     {
-        if (_filterLabel is null || _filterField is null)
+        if (_filterField is null)
         {
             return;
         }
 
-        string text = _filterField.Text ?? string.Empty;
+        string text = _filterField.Text?.ToString() ?? string.Empty;
         bool hasText = text.Length > 0;
         bool hasFocus = _filterField.HasFocus;
-        _filterLabel.Visible = hasText || hasFocus;
+        bool shouldShow = forceVisible || hasText || hasFocus;
+
+        _filterField.Visible = shouldShow;
+
+        if (_filterLabel is not null)
+        {
+            _filterLabel.Visible = shouldShow;
+        }
+
+        int listOffset = shouldShow ? 3 : 1;
+
+        if (_listView is not null)
+        {
+            _listView.Y = listOffset;
+        }
+
+        if (_emptyLabel is not null)
+        {
+            _emptyLabel.Y = listOffset;
+        }
     }
 
     private void EnsureCommandsConfigured()

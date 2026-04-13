@@ -55,7 +55,6 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         _filterField.Y = _filterLabel.Y;
         _filterField.Width = Dim.Fill(3);
         ApplyFilterFieldTheme(_filterField);
-        UpdateFilterLabelVisibility();
 
         _listView = new SelectionListView(HandleListKeyDown, listScheme)
         {
@@ -100,6 +99,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             _filterLabel, _filterField, _listView, _emptyLabel, _editForm);
 
         RebuildList();
+        RefreshFilterRowLayout();
 
         _listView.Initialized += (_, _) => FocusView(_listView);
 
@@ -209,8 +209,14 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     
     private void FocusView(View? view)
     {
+        bool targetingFilter = view == _filterField;
+        if (targetingFilter)
+        {
+            RefreshFilterRowLayout(forceVisible: true);
+        }
+
         view?.SetFocus();
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout(targetingFilter);
     }
 
     private void ApplyFilterFieldTheme(InteractiveTextField field)
@@ -220,17 +226,30 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         field.ApplyTheme(ColorResolver.Resolve(background), ColorResolver.Resolve(foreground));
     }
 
-    private void UpdateFilterLabelVisibility()
+    private void RefreshFilterRowLayout(bool forceVisible = false)
     {
         if (_filterLabel is null || _filterField is null)
         {
             return;
         }
 
-        string text = _filterField.Text ?? string.Empty;
+        string text = _filterField.Text?.ToString() ?? string.Empty;
         bool hasText = text.Length > 0;
         bool hasFocus = _filterField.HasFocus;
-        _filterLabel.Visible = _filterControlsVisible && (hasText || hasFocus);
+        bool shouldShow = _filterControlsVisible && (forceVisible || hasText || hasFocus);
+
+        _filterLabel.Visible = shouldShow;
+        _filterField.Visible = shouldShow;
+
+        if (_listView is not null)
+        {
+            _listView.Y = shouldShow ? 3 : 1;
+        }
+
+        if (_emptyLabel is not null)
+        {
+            _emptyLabel.Y = shouldShow ? 3 : 1;
+        }
     }
 
     private void EnterEditMode(string? originalKey, string keyText, string valueText)
@@ -281,7 +300,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private void OnFilterChanged(string text)
     {
         ApplyFilter(text);
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
     }
     private void OnAcceptFilter() => FocusView(_listView);
     private void OnExitFilter() => FocusView(_listView);
@@ -331,6 +350,8 @@ internal sealed class KeyValueEditorComponent : PromptComponent
                 : "No results";
             _emptyLabel.Visible = !hasItems;
         }
+
+        RefreshFilterRowLayout();
     }
 
     private void MoveSelection(int delta)
@@ -349,16 +370,11 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     {
         _filterControlsVisible = visible;
 
-        if (_filterField is not null)
-        {
-            _filterField.Visible = visible;
-        }
-
         _listView?.Visible = visible;
 
         _emptyLabel?.Visible = visible && _keys.Count == 0;
 
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
     }
 
     private void SetEditViewsVisible(bool visible)

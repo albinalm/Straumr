@@ -74,13 +74,13 @@ internal sealed class SelectionPrompt : PromptComponent
             _filterField.Y = _filterLabel.Y;
             _filterField.Width = Dim.Fill(3);
             ApplyFilterFieldTheme(_filterField);
-            UpdateFilterLabelVisibility();
 
             frame.Add(_filterLabel, _filterField);
         }
 
         frame.Add(_listView, _emptyLabel);
         ApplyFilter(string.Empty);
+        RefreshFilterRowLayout();
 
         // Defer focus until the view is attached to the window
         _listView.Initialized += (_, _) => _listView.SetFocus();
@@ -156,8 +156,8 @@ internal sealed class SelectionPrompt : PromptComponent
 
     private void FocusFilter()
     {
+        RefreshFilterRowLayout(forceVisible: true);
         _filterField?.SetFocus();
-        UpdateFilterLabelVisibility();
     }
 
     private void ApplyFilterFieldTheme(InteractiveTextField field)
@@ -167,23 +167,37 @@ internal sealed class SelectionPrompt : PromptComponent
         field.ApplyTheme(ColorResolver.Resolve(background), ColorResolver.Resolve(foreground));
     }
 
-    private void UpdateFilterLabelVisibility()
+    private void RefreshFilterRowLayout(bool forceVisible = false)
     {
-        if (_filterLabel is null || _filterField is null)
+        if (!EnableFilter || _filterLabel is null || _filterField is null)
         {
             return;
         }
 
-        string text = _filterField.Text ?? string.Empty;
+        string text = _filterField.Text?.ToString() ?? string.Empty;
         bool hasText = text.Length > 0;
         bool hasFocus = _filterField.HasFocus;
-        _filterLabel.Visible = hasText || hasFocus;
+        bool shouldShow = forceVisible || hasText || hasFocus;
+
+        _filterLabel.Visible = shouldShow;
+        _filterField.Visible = shouldShow;
+
+        int listOffset = shouldShow ? 3 : 1;
+        if (_listView is not null)
+        {
+            _listView.Y = listOffset;
+        }
+
+        if (_emptyLabel is not null)
+        {
+            _emptyLabel.Y = listOffset;
+        }
     }
 
     private void FocusList()
     {
         _listView?.SetFocus();
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
     }
 
     private void OnAcceptFilter()
@@ -199,7 +213,7 @@ internal sealed class SelectionPrompt : PromptComponent
     private void OnFilterChanged(string text)
     {
         ApplyFilter(text);
-        UpdateFilterLabelVisibility();
+        RefreshFilterRowLayout();
     }
 
     private void ApplyFilter(string filter)
@@ -226,6 +240,7 @@ internal sealed class SelectionPrompt : PromptComponent
         }
 
         _emptyLabel?.Visible = !hasItems;
+        RefreshFilterRowLayout();
     }
 
     private bool HandleTypeahead(Key key)
