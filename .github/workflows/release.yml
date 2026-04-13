@@ -145,8 +145,6 @@ jobs:
           generate_release_notes: true
           files: |
             dist/*
-            dist/*.minisig
-            dist/sha256sums.txt
 
   aur:
     needs: [version, release]
