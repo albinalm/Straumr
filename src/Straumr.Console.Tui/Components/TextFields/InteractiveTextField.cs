@@ -15,6 +15,7 @@ internal sealed class InteractiveTextField : TextField
     private Color _idleBorderColor;
     private Color _focusBorderColor;
     private Color _editingBorderColor;
+    private Color _borderBackgroundColor = Color.Black;
 
     public bool IsEditing { get; private set; } = true;
 
@@ -64,10 +65,14 @@ internal sealed class InteractiveTextField : TextField
     }
 
     public void SetBorderColors(Color idle, Color focus, Color editing)
+        => SetBorderColors(idle, focus, editing, Color.Black);
+
+    public void SetBorderColors(Color idle, Color focus, Color editing, Color background)
     {
         _idleBorderColor = idle;
         _focusBorderColor = focus;
         _editingBorderColor = editing;
+        _borderBackgroundColor = background;
         _useBorderColors = true;
         HookBorderEvents();
     }
@@ -100,7 +105,7 @@ internal sealed class InteractiveTextField : TextField
         }
 
         Color fg = IsEditing ? _editingBorderColor : HasFocus ? _focusBorderColor : _idleBorderColor;
-        e.Result = new Attribute(fg, Color.Black);
+        e.Result = new Attribute(fg, _borderBackgroundColor);
         e.Handled = true;
     }
 

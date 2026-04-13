@@ -256,7 +256,7 @@ public sealed class WorkspacesScreen(
         }
 
         string newName = result["name"];
-        string? outputDir = result.TryGetValue("outputDir", out string? value) ? value : null;
+        string? outputDir = result.GetValueOrDefault("outputDir");
         if (string.IsNullOrWhiteSpace(outputDir))
         {
             outputDir = null;

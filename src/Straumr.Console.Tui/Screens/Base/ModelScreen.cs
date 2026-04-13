@@ -11,6 +11,7 @@ using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Screens.Base;
 
@@ -109,7 +110,9 @@ public abstract class ModelScreen<TEntry> : Screen
     protected virtual IEnumerable<ModelCommand> GetCommands() => [];
 
     protected virtual bool HandleModelKeyDown(Key key, TEntry? selectedEntry) => false;
-    protected virtual bool IsSameEntry(TEntry? left, TEntry? right) => EqualityComparer<TEntry>.Default.Equals(left, right);
+
+    protected virtual bool IsSameEntry(TEntry? left, TEntry? right) =>
+        EqualityComparer<TEntry>.Default.Equals(left, right);
 
     protected virtual void OpenSelectedEntry() { }
     protected virtual void InspectSelectedEntry() { }
@@ -166,7 +169,7 @@ public abstract class ModelScreen<TEntry> : Screen
 
     private FrameView CreateFrame()
     {
-            return new FrameView
+        return new FrameView
         {
             Title = _screenTitle,
             X = 2,
@@ -261,6 +264,14 @@ public abstract class ModelScreen<TEntry> : Screen
             Visible = false,
             CanFocus = true,
         };
+        
+        var colorAttribute = new Attribute(
+            ColorResolver.Resolve(_theme.OnSurface),
+            ColorResolver.Resolve(_theme.Surface));
+        
+        var commandScheme = new Scheme(colorAttribute);
+        
+        _commandContainer.SetScheme(commandScheme);
 
         _commandLabel = new Label
         {
@@ -291,6 +302,7 @@ public abstract class ModelScreen<TEntry> : Screen
             {
                 ExecuteCommand(command);
             }
+
             return true;
         });
 
@@ -510,6 +522,7 @@ public abstract class ModelScreen<TEntry> : Screen
                 _filterField?.SetFocus();
                 _filterField?.EnterEditMode();
             }
+
             return;
         }
 
@@ -525,7 +538,7 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         _commandActive = true;
-        
+
         _listView?.CanFocus = false;
         _filterField?.CanFocus = false;
 
@@ -574,7 +587,7 @@ public abstract class ModelScreen<TEntry> : Screen
         field.ApplyTheme(background, foreground);
 
         Color accent = ColorResolver.Resolve(_theme.Accent);
-        field.SetBorderColors(accent, accent, accent);
+        field.SetBorderColors(accent, accent, accent, background);
     }
 
     private void ApplyFilterFieldTheme(InteractiveTextField field)
@@ -691,5 +704,4 @@ public abstract class ModelScreen<TEntry> : Screen
 
         command.Handler(args);
     }
-
 }
