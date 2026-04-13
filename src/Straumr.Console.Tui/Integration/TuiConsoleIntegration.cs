@@ -7,6 +7,8 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens;
+using Straumr.Console.Tui.Services;
+using Straumr.Console.Tui.Services.Interfaces;
 using Straumr.Core.Services;
 using Straumr.Core.Services.Interfaces;
 
@@ -37,6 +39,11 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<TuiAppResolver>();
         services.AddSingleton<TuiApplicationContext>();
         services.AddSingleton<ScreenNavigationContext>();
+        services.AddSingleton<ITuiOperationExecutor, TuiOperationExecutor>();
+        services.AddSingleton<IWorkspaceGuard, WorkspaceGuard>();
+        services.AddSingleton<IBodyEditor, BodyEditor>();
+        services.AddSingleton<IAuthEditor, AuthEditor>();
+        services.AddSingleton<IRequestEditor, RequestEditor>();
         services.AddTransient<WorkspacesScreen>();
         services.AddTransient<RequestsScreen>();
         services.AddTransient<SecretsScreen>();

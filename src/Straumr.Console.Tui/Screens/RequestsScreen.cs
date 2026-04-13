@@ -1,17 +1,14 @@
-using System.Diagnostics;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
-using Straumr.Core.Helpers;
-using Straumr.Console.Shared.Helpers;
-using Straumr.Console.Shared.Models;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Console;
 using Straumr.Console.Tui.Helpers;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
+using Straumr.Console.Tui.Services.Interfaces;
 using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens;
@@ -23,22 +20,18 @@ public sealed class RequestsScreen(
     IStraumrAuthService authService,
     IStraumrOptionsService optionsService,
     ScreenNavigationContext navigationContext,
+    IRequestEditor requestEditor,
+    IWorkspaceGuard workspaceGuard,
+    ITuiOperationExecutor operationExecutor,
     StraumrTheme theme)
     : ModelScreen<RequestEntry>(theme,
         screenTitle: "Requests",
         emptyStateText: "No requests found",
         itemTypeNamePlural: "requests")
 {
-    private const string ActionFinish = "Finish";
-    private const string ActionSave = "Save";
-    private const string ActionName = "Edit name";
-    private const string ActionUrl = "Edit URL";
-    private const string ActionMethod = "Edit method";
-    private const string ActionParams = "Edit params";
-    private const string ActionHeaders = "Edit headers";
-    private const string ActionBody = "Edit body";
-    private const string ActionAuth = "Edit auth";
-
+    private readonly IRequestEditor _requestEditor = requestEditor;
+    private readonly IWorkspaceGuard _workspaceGuard = workspaceGuard;
+    private readonly ITuiOperationExecutor _executor = operationExecutor;
     private StraumrWorkspaceEntry? _workspaceEntry;
     private string? _workspaceDir;
     private bool _editorActive;
@@ -101,7 +94,7 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
         {
             return;
         }
@@ -118,13 +111,12 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
         {
             return;
         }
 
-        RequestEditorState state = RequestEditorState.CreateNew();
-        RunEditorWithGuard(state, workspaceEntry, null);
+        RunEditor(RequestEditorMode.Create, workspaceEntry, null);
     }
 
     private void DeleteRequest(RequestEntry? selectedEntry)
@@ -134,7 +126,7 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
         {
             return;
         }
@@ -150,20 +142,15 @@ public sealed class RequestsScreen(
             return;
         }
 
-        try
+        if (!_executor.TryExecute(
+                () => requestService.DeleteAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult(),
+                ShowDanger))
         {
-            requestService.DeleteAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult();
-            _ = RefreshAsync();
-            ShowSuccess($"Deleted request \"{selectedEntry.Identifier}\"");
+            return;
         }
-        catch (StraumrException ex)
-        {
-            ShowDanger($"{ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            ShowDanger($"{ex.Message}");
-        }
+
+        _ = RefreshAsync();
+        ShowSuccess($"Deleted request \"{selectedEntry.Identifier}\"");
     }
 
     private void EditRequest(RequestEntry? selectedEntry)
@@ -178,29 +165,20 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
         {
             return;
         }
 
-        StraumrRequest request;
-        try
+        if (!_executor.TryExecute(
+                () => requestService.GetAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult(),
+                ShowDanger,
+                out StraumrRequest? request) || request is null)
         {
-            request = requestService.GetAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult();
-        }
-        catch (StraumrException ex)
-        {
-            ShowDanger($"{ex.Message}");
-            return;
-        }
-        catch (Exception ex)
-        {
-            ShowDanger($"{ex.Message}");
             return;
         }
 
-        RequestEditorState state = RequestEditorState.FromRequest(request);
-        RunEditorWithGuard(state, workspaceEntry, request);
+        RunEditor(RequestEditorMode.Edit, workspaceEntry, request);
     }
 
     private void CopyRequest(RequestEntry? selectedEntry)
@@ -216,7 +194,7 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry))
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
         {
             return;
         }
@@ -231,32 +209,25 @@ public sealed class RequestsScreen(
             return;
         }
 
-        try
+        if (!_executor.TryExecute(
+                () => requestService.CopyAsync(selectedEntry.Id.ToString(), newName, workspaceEntry).GetAwaiter()
+                    .GetResult(),
+                ShowDanger))
         {
-            requestService.CopyAsync(selectedEntry.Id.ToString(), newName, workspaceEntry).GetAwaiter().GetResult();
-            _ = RefreshAsync();
-            ShowSuccess($"Copied request to \"{newName}\"");
-        }
-        catch (StraumrException ex)
-        {
-            ShowDanger($"{ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            ShowDanger($"{ex.Message}");
+            return;
         }
 
+        _ = RefreshAsync();
+        ShowSuccess($"Copied request to \"{newName}\"");
     }
 
     protected override IEnumerable<ModelCommand> GetCommands()
     {
         yield return new ModelCommand("send", _ => SendRequest(SelectedEntry), "run");
         yield return new ModelCommand("create", _ => CreateRequest(), "new");
-        yield return new ModelCommand("delete", _ => DeleteRequest(SelectedEntry), "rm",
-            "remove");
+        yield return new ModelCommand("delete", _ => DeleteRequest(SelectedEntry), "rm", "remove");
         yield return new ModelCommand("edit", _ => EditRequest(SelectedEntry));
-        yield return new ModelCommand("copy", _ => CopyRequest(SelectedEntry),
-            "cp");
+        yield return new ModelCommand("copy", _ => CopyRequest(SelectedEntry), "cp");
     }
 
     protected override void OpenSelectedEntry() { }
@@ -279,27 +250,30 @@ public sealed class RequestsScreen(
                 ("Auth", SelectedEntry.Auth ?? "[secondary]N/A[/]"),
                 ("Last Accessed",
                     SelectedEntry.LastAccessed?.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") ?? "[warning]N/A[/]"),
-            ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]")
-        ]);
+                ("Status", SelectedEntry.IsDamaged ? "[danger][bold]Damaged[/][/]" : "[success][bold]Valid[/][/]")
+            ]);
     }
 
-    private bool TryGetWorkspaceEntry(out StraumrWorkspaceEntry workspaceEntry)
+    private bool TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry)
     {
-        _workspaceEntry ??= navigationContext.GetWorkspaceEntry();
-        if (_workspaceEntry is null)
+        WorkspaceGuardResult result = _workspaceGuard.EnsureActiveWorkspace();
+        if (!result.HasWorkspace || result.WorkspaceEntry is null)
         {
-            interactiveConsole.ShowMessage("No workspace selected.",
-                "You will now be navigated to the workspaces menu. Set an active workspace to continue.");
             NavigateTo<WorkspacesScreen>();
             workspaceEntry = null!;
             return false;
         }
 
-        workspaceEntry = _workspaceEntry;
+        _workspaceEntry = result.WorkspaceEntry;
+        _workspaceDir = Path.GetDirectoryName(result.WorkspaceEntry.Path);
+        workspaceEntry = result.WorkspaceEntry;
         return true;
     }
 
-    private void RunEditorWithGuard(RequestEditorState state, StraumrWorkspaceEntry workspaceEntry, StraumrRequest? existingRequest)
+    private void RunEditor(
+        RequestEditorMode mode,
+        StraumrWorkspaceEntry workspaceEntry,
+        StraumrRequest? existingRequest)
     {
         if (_editorActive)
         {
@@ -309,7 +283,14 @@ public sealed class RequestsScreen(
         _editorActive = true;
         try
         {
-            RunRequestEditor(state, workspaceEntry, existingRequest);
+            var context = new RequestEditorContext(
+                mode,
+                workspaceEntry,
+                existingRequest,
+                () => RefreshAsync(),
+                ShowSuccess,
+                ShowDanger);
+            _requestEditor.Run(context);
         }
         finally
         {
@@ -320,21 +301,15 @@ public sealed class RequestsScreen(
 
     protected override async Task<IReadOnlyList<RequestEntry>> LoadEntriesAsync(CancellationToken cancellationToken)
     {
-        _workspaceEntry ??= navigationContext.GetWorkspaceEntry();
-        if (_workspaceEntry is null)
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
         {
-            interactiveConsole.ShowMessage("No workspace selected.",
-                "You will now be navigated to workspaces menu. Set an active workspace to load underlying entities");
-            NavigateTo<WorkspacesScreen>();
             return [];
         }
-
-        _workspaceDir = Path.GetDirectoryName(_workspaceEntry.Path);
 
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.GetWorkspace(_workspaceEntry.Path);
+            workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {
@@ -353,7 +328,7 @@ public sealed class RequestsScreen(
         }
 
         string workspaceName = string.IsNullOrWhiteSpace(workspace.Name)
-            ? _workspaceEntry.Id.ToString()
+            ? workspaceEntry.Id.ToString()
             : workspace.Name;
         UpdateTitle($"Requests - {workspaceName}");
 
@@ -402,7 +377,8 @@ public sealed class RequestsScreen(
             authText = await GetAuthText(request.AuthId?.ToString());
             lastAccessed = request.LastAccessed;
 
-            string line0 = $"[accent]◇ {request.Method}[/] [bold]{request.Name}[/]";
+            string methodTag = HttpMethodMarkup.TagFor(request.Method);
+            string line0 = $"[{methodTag}]◇ {request.Method}[/] [bold]{request.Name}[/]";
             string line1 = $"  [secondary]{request.Id}[/]";
             string statsRight =
                 $"{shortUri} · {bodyTypeText} · {authText}  [/][info]{request.LastAccessed.LocalDateTime:yyyy-MM-dd}[/]";
@@ -463,717 +439,4 @@ public sealed class RequestsScreen(
 
         return authText;
     }
-
-    private void RunRequestEditor(
-        RequestEditorState state,
-        StraumrWorkspaceEntry workspaceEntry,
-        StraumrRequest? existingRequest)
-    {
-        string completionAction = existingRequest is null ? ActionFinish : ActionSave;
-
-        while (true)
-        {
-            IReadOnlyList<StraumrAuth> auths = authService.ListAsync(workspaceEntry).GetAwaiter().GetResult();
-            List<string> choices =
-            [
-                completionAction,
-                ActionName,
-                ActionUrl,
-                ActionMethod,
-                ActionParams,
-                ActionHeaders,
-                ActionBody,
-                ActionAuth
-            ];
-
-            string promptTitle = existingRequest is null ? "Create request" : "Edit request";
-            string? action = interactiveConsole.Select(promptTitle, choices,
-                choice => DescribeMenuChoice(choice, state, auths, completionAction));
-
-            if (action is null)
-            {
-                return;
-            }
-
-            if (action == completionAction)
-            {
-                if (TryPersistRequest(state, workspaceEntry, existingRequest))
-                {
-                    return;
-                }
-
-                continue;
-            }
-
-            HandleRequestEditAction(action, state, auths);
-        }
-    }
-
-    private bool TryPersistRequest(
-        RequestEditorState state,
-        StraumrWorkspaceEntry workspaceEntry,
-        StraumrRequest? existingRequest)
-    {
-        if (string.IsNullOrWhiteSpace(state.Name))
-        {
-            interactiveConsole.ShowMessage("Validation", "A name is required.");
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(state.Uri))
-        {
-            interactiveConsole.ShowMessage("Validation", "A URL is required.");
-            return false;
-        }
-
-        try
-        {
-            if (existingRequest is null)
-            {
-                StraumrRequest request = state.ToRequest();
-                requestService.CreateAsync(request, workspaceEntry).GetAwaiter().GetResult();
-                ShowSuccess($"Created request \"{request.Name}\"");
-            }
-            else
-            {
-                state.ApplyTo(existingRequest);
-                requestService.UpdateAsync(existingRequest, workspaceEntry).GetAwaiter().GetResult();
-                ShowSuccess($"Updated request \"{existingRequest.Name}\"");
-            }
-
-            RefreshAsync().GetAwaiter().GetResult();
-            return true;
-        }
-        catch (StraumrException ex)
-        {
-            ShowDanger($"{ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            ShowDanger($"{ex.Message}");
-        }
-
-        return false;
-    }
-
-    private static string DescribeMenuChoice(
-        string choice,
-        RequestEditorState state,
-        IReadOnlyList<StraumrAuth> auths,
-        string completionAction)
-    {
-        if (choice == completionAction)
-        {
-            return choice;
-        }
-
-        string nameDisplay = string.IsNullOrWhiteSpace(state.Name) ? "not set" : state.Name;
-        string urlDisplay = string.IsNullOrWhiteSpace(state.Uri) ? "not set" : state.Uri;
-        string paramsDisplay = state.Params.Count == 0 ? "none" : $"{state.Params.Count}";
-        string headersDisplay = state.Headers.Count == 0 ? "none" : $"{state.Headers.Count}";
-        string bodyDisplay = state.BodyType == BodyType.None ? "none" : RequestEditingHelpers.BodyTypeDisplayName(state.BodyType);
-        string authDisplay = GetAuthLabel(state.AuthId, auths);
-
-        return choice switch
-        {
-            ActionName => $"Name: {nameDisplay}",
-            ActionUrl => $"URL: {urlDisplay}",
-            ActionMethod => $"Method: {state.Method}",
-            ActionParams => $"Params: {paramsDisplay}",
-            ActionHeaders => $"Headers: {headersDisplay}",
-            ActionBody => $"Body: {bodyDisplay}",
-            ActionAuth => $"Auth: {authDisplay}",
-            _ => choice
-        };
-    }
-
-    private void HandleRequestEditAction(
-        string action,
-        RequestEditorState state,
-        IReadOnlyList<StraumrAuth> auths)
-    {
-        switch (action)
-        {
-            case ActionName:
-            {
-                string? updated = interactiveConsole.TextInput(
-                    "Name",
-                    state.Name,
-                    validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
-                if (!string.IsNullOrWhiteSpace(updated))
-                {
-                    state.Name = updated;
-                }
-
-                break;
-            }
-            case ActionUrl:
-            {
-                string? updated = PromptUrl(state.Uri);
-                if (!string.IsNullOrWhiteSpace(updated))
-                {
-                    state.Uri = updated;
-                }
-
-                break;
-            }
-            case ActionMethod:
-            {
-                string? selected = PromptMethod();
-                if (!string.IsNullOrWhiteSpace(selected))
-                {
-                    state.Method = selected;
-                }
-
-                break;
-            }
-            case ActionParams:
-                EditKeyValuePairs("Params", state.Params);
-                break;
-            case ActionHeaders:
-                EditKeyValuePairs("Headers", state.Headers);
-                break;
-            case ActionBody:
-                state.BodyType = EditBody(state.Headers, state.Bodies, state.BodyType);
-                break;
-            case ActionAuth:
-                state.AuthId = SelectAuth(state.AuthId, auths);
-                break;
-        }
-    }
-
-    private string? PromptUrl(string? current)
-    {
-        return interactiveConsole.TextInput("URL", current,
-            validate: value => IsValidAbsoluteUrl(value) ? null : "Please enter a valid absolute URL.");
-    }
-
-    private string? PromptMethod()
-    {
-        return interactiveConsole.Select("Method",
-            ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"]);
-    }
-
-    private static bool IsValidAbsoluteUrl(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        string normalized = SecretHelpers.SecretPattern.Replace(value, "secret");
-        return Uri.TryCreate(normalized, UriKind.Absolute, out _);
-    }
-
-    private void EditKeyValuePairs(string title, IDictionary<string, string> items)
-    {
-        if (interactiveConsole.TryEditKeyValuePairs(title, items))
-        {
-            return;
-        }
-
-        string lowerTitle = title.ToLowerInvariant();
-        while (true)
-        {
-            string? action = interactiveConsole.Select(title, ["Back", "Add or update", "Remove", "List"]);
-            if (action is null or "Back")
-            {
-                return;
-            }
-
-            switch (action)
-            {
-                case "Add or update":
-                {
-                    string? key = interactiveConsole.TextInput(
-                        $"{title} name",
-                        validate: value => string.IsNullOrWhiteSpace(value) ? "Name cannot be empty." : null);
-                    if (key is null)
-                    {
-                        break;
-                    }
-
-                    items.TryGetValue(key, out string? existing);
-                    string? value = interactiveConsole.TextInput($"{title} value", existing);
-                    if (value is not null)
-                    {
-                        items[key] = value;
-                    }
-
-                    break;
-                }
-                case "Remove":
-                {
-                    if (items.Count == 0)
-                    {
-                        interactiveConsole.ShowMessage($"No {lowerTitle} to remove.");
-                        break;
-                    }
-
-                    string? key = interactiveConsole.Select("Select to remove", items.Keys.OrderBy(k => k).ToList());
-                    if (key is not null)
-                    {
-                        items.Remove(key);
-                    }
-
-                    break;
-                }
-                case "List":
-                {
-                    interactiveConsole.ShowTable(
-                        "Name",
-                        "Value",
-                        items.OrderBy(k => k.Key).Select(kv => (kv.Key, kv.Value)),
-                        $"No {lowerTitle} set.");
-                    break;
-                }
-            }
-        }
-    }
-
-    private Guid? SelectAuth(
-        Guid? current,
-        IReadOnlyList<StraumrAuth> auths)
-    {
-        const string noneOption = "None";
-        List<string> choices = [noneOption];
-        Dictionary<string, Guid> mapping = new(StringComparer.OrdinalIgnoreCase);
-
-        foreach (StraumrAuth auth in auths.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            string label = $"{auth.Name} ({GetAuthTypeName(auth.Config)})";
-            choices.Add(label);
-            mapping[label] = auth.Id;
-        }
-
-        string? selected = interactiveConsole.Select(
-            "Auth",
-            choices,
-            choice =>
-            {
-                if (choice == noneOption)
-                {
-                    return "None";
-                }
-
-                return choice;
-            });
-
-        if (selected is null or noneOption)
-        {
-            return null;
-        }
-
-        return mapping.TryGetValue(selected, out Guid id) ? id : current;
-    }
-
-    private static string GetAuthLabel(Guid? authId, IReadOnlyList<StraumrAuth> auths)
-    {
-        if (authId is null)
-        {
-            return "none";
-        }
-
-        StraumrAuth? auth = auths.FirstOrDefault(a => a.Id == authId.Value);
-        return auth is null ? "unknown" : auth.Name;
-    }
-
-    private static string GetAuthTypeName(StraumrAuthConfig? auth)
-    {
-        return auth switch
-        {
-            null => "none",
-            BearerAuthConfig => "Bearer",
-            BasicAuthConfig => "Basic",
-            OAuth2Config => "OAuth 2.0",
-            CustomAuthConfig => "Custom",
-            _ => "none"
-        };
-    }
-
-    private BodyType EditBody(
-        IDictionary<string, string> headers,
-        Dictionary<BodyType, string> bodies,
-        BodyType currentType)
-    {
-        while (true)
-        {
-                string typeDisplay = currentType == BodyType.None
-                ? "none"
-                : RequestEditingHelpers.BodyTypeDisplayName(currentType);
-
-            bool hasContent = currentType != BodyType.None && bodies.ContainsKey(currentType);
-            string contentDisplay = hasContent ? "set" : "empty";
-
-            const string actionBack = "Back";
-            const string actionType = "Body type";
-            const string actionContent = "Edit body";
-            const string actionClear = "Clear body";
-
-            string? action = interactiveConsole.Select(
-                "Body",
-                [actionBack, actionType, actionContent, actionClear],
-                choice => choice switch
-                {
-                    actionType => $"Type: {typeDisplay}",
-                    actionContent => $"Content: {contentDisplay}",
-                    _ => choice
-                });
-
-            if (action is null or actionBack)
-            {
-                return currentType;
-            }
-
-            switch (action)
-            {
-                case actionType:
-                {
-                    string? selected = interactiveConsole.Select(
-                        "Select body type",
-                        ["No body", "JSON", "XML", "Text", "Form URL Encoded", "Multipart Form", "Raw"]);
-                    if (selected is not null)
-                    {
-                        currentType = selected switch
-                        {
-                            "No body" => BodyType.None,
-                            "JSON" => BodyType.Json,
-                            "XML" => BodyType.Xml,
-                            "Text" => BodyType.Text,
-                            "Form URL Encoded" => BodyType.FormUrlEncoded,
-                            "Multipart Form" => BodyType.MultipartForm,
-                            "Raw" => BodyType.Raw,
-                            _ => currentType
-                        };
-
-                        SyncContentTypeHeader(headers, currentType);
-                    }
-
-                    break;
-                }
-                case actionContent:
-                {
-                    string? current = bodies.GetValueOrDefault(currentType);
-                    if (currentType == BodyType.FormUrlEncoded)
-                    {
-                        string? edited = EditFormBody(current);
-                        if (edited is not null)
-                        {
-                            bodies[currentType] = edited;
-                        }
-                        else
-                        {
-                            bodies.Remove(currentType);
-                        }
-                    }
-                    else if (currentType == BodyType.MultipartForm)
-                    {
-                        string? edited = EditMultipartBody(current);
-                        if (edited is not null)
-                        {
-                            bodies[currentType] = edited;
-                        }
-                        else
-                        {
-                            bodies.Remove(currentType);
-                        }
-                    }
-                    else
-                    {
-                        string defaultContent = current ?? string.Empty;
-                        string? edited = EditBodyWithEditor(defaultContent);
-                        if (edited is not null)
-                        {
-                            bodies[currentType] = edited;
-                        }
-                        else
-                        {
-                            bodies.Remove(currentType);
-                        }
-                    }
-
-                    break;
-                }
-                case actionClear:
-                    bodies.Remove(currentType);
-                    break;
-            }
-        }
-    }
-
-    private string? EditFormBody(string? currentBody)
-    {
-        Dictionary<string, string> fields = ParseFormFields(currentBody);
-
-        while (true)
-        {
-            const string actionBack = "Back";
-            const string actionAdd = "Add or update";
-            const string actionRemove = "Remove";
-            const string actionList = "List";
-
-            string? action = interactiveConsole.Select(
-                "Form fields",
-                [actionBack, actionAdd, actionRemove, actionList]);
-
-            if (action is null or actionBack)
-            {
-                return SerializeFormFields(fields);
-            }
-
-            switch (action)
-            {
-                case actionAdd:
-                {
-                    string? key = interactiveConsole.TextInput(
-                        "Field name",
-                        validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
-                    if (key is null)
-                    {
-                        break;
-                    }
-
-                    string? existing = fields.GetValueOrDefault(key);
-                    string? value = interactiveConsole.TextInput("Field value", existing);
-                    if (value is not null)
-                    {
-                        fields[key] = value;
-                    }
-
-                    break;
-                }
-                case actionRemove:
-                {
-                    if (fields.Count == 0)
-                    {
-                        interactiveConsole.ShowMessage("No fields to remove.");
-                        break;
-                    }
-
-                    string? key = interactiveConsole.Select(
-                        "Select field to remove",
-                        fields.Keys.OrderBy(k => k).ToList());
-                    if (key is not null)
-                    {
-                        fields.Remove(key);
-                    }
-
-                    break;
-                }
-                case actionList:
-                {
-                    interactiveConsole.ShowTable(
-                        "Name",
-                        "Value",
-                        fields.OrderBy(k => k.Key).Select(kv => (kv.Key, kv.Value)),
-                        "No fields set.");
-                    break;
-                }
-            }
-        }
-    }
-
-    private string? EditMultipartBody(string? currentBody)
-    {
-        Dictionary<string, string> fields = ParseFormFields(currentBody);
-
-        while (true)
-        {
-            const string actionBack = "Back";
-            const string actionAddText = "Add text field";
-            const string actionAddFile = "Add file field";
-            const string actionRemove = "Remove";
-            const string actionList = "List";
-
-            string? action = interactiveConsole.Select(
-                "Multipart form fields",
-                [actionBack, actionAddText, actionAddFile, actionRemove, actionList]);
-
-            if (action is null or actionBack)
-            {
-                return SerializeFormFields(fields);
-            }
-
-            switch (action)
-            {
-                case actionAddText:
-                {
-                    string? key = interactiveConsole.TextInput(
-                        "Field name",
-                        validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
-                    if (key is null)
-                    {
-                        break;
-                    }
-
-                    string? value = interactiveConsole.TextInput("Field value");
-                    if (value is not null)
-                    {
-                        fields[key] = value;
-                    }
-
-                    break;
-                }
-                case actionAddFile:
-                {
-                    string? key = interactiveConsole.TextInput(
-                        "Field name",
-                        validate: value => string.IsNullOrWhiteSpace(value) ? "Field name cannot be empty." : null);
-                    if (key is null)
-                    {
-                        break;
-                    }
-
-                    string? value = interactiveConsole.TextInput("File path");
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        fields[key] = value.StartsWith('@') ? value : $"@{value}";
-                    }
-
-                    break;
-                }
-                case actionRemove:
-                {
-                    if (fields.Count == 0)
-                    {
-                        interactiveConsole.ShowMessage("No fields to remove.");
-                        break;
-                    }
-
-                    string? key = interactiveConsole.Select(
-                        "Select field to remove",
-                        fields.Keys.OrderBy(k => k).ToList());
-                    if (key is not null)
-                    {
-                        fields.Remove(key);
-                    }
-
-                    break;
-                }
-                case actionList:
-                {
-                    IEnumerable<(string Key, string Value)> rows = fields
-                        .OrderBy(k => k.Key)
-                        .Select(kv =>
-                        {
-                            string value = kv.Value.StartsWith('@')
-                                ? $"@{Path.GetFileName(kv.Value[1..])}"
-                                : kv.Value;
-                            return (kv.Key, value);
-                        });
-
-                    interactiveConsole.ShowTable("Name", "Value", rows, "No fields set.");
-                    break;
-                }
-            }
-        }
-    }
-
-    private string? EditBodyWithEditor(string content)
-    {
-        string? editor = Environment.GetEnvironmentVariable("EDITOR");
-        if (string.IsNullOrWhiteSpace(editor))
-        {
-            interactiveConsole.ShowMessage("Editor", "Set the $EDITOR environment variable to edit body content.");
-            return content;
-        }
-
-        string tempPath = Path.GetTempFileName();
-        try
-        {
-            File.WriteAllText(tempPath, content);
-
-            Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
-            {
-                UseShellExecute = false
-            });
-
-            if (process is null)
-            {
-                interactiveConsole.ShowMessage("Editor", "Failed to launch editor.");
-                return content;
-            }
-
-            process.WaitForExit();
-
-            if (process.ExitCode != 0)
-            {
-                interactiveConsole.ShowMessage("Editor", "Editor exited with an error. Changes discarded.");
-                return content;
-            }
-
-            string edited = File.ReadAllText(tempPath);
-            return string.IsNullOrWhiteSpace(edited) ? null : edited;
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-        }
-    }
-
-    private static Dictionary<string, string> ParseFormFields(string? body)
-    {
-        Dictionary<string, string> fields = new();
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            return fields;
-        }
-
-        foreach (string pair in body.Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            int eq = pair.IndexOf('=');
-            if (eq < 0)
-            {
-                fields[Uri.UnescapeDataString(pair)] = string.Empty;
-            }
-            else
-            {
-                fields[Uri.UnescapeDataString(pair[..eq])] = Uri.UnescapeDataString(pair[(eq + 1)..]);
-            }
-        }
-
-        return fields;
-    }
-
-    private static string? SerializeFormFields(Dictionary<string, string> fields)
-    {
-        if (fields.Count == 0)
-        {
-            return null;
-        }
-
-        return string.Join('&', fields.Select(kv =>
-            $"{RequestEditingHelpers.EscapeFormFieldComponent(kv.Key)}={RequestEditingHelpers.EscapeFormFieldComponent(kv.Value)}"));
-    }
-
-    private static void SyncContentTypeHeader(IDictionary<string, string> headers, BodyType bodyType)
-    {
-        const string contentTypeHeader = "Content-Type";
-        switch (bodyType)
-        {
-            case BodyType.Json:
-                headers[contentTypeHeader] = "application/json";
-                break;
-            case BodyType.Xml:
-                headers[contentTypeHeader] = "application/xml";
-                break;
-            case BodyType.Text:
-                headers[contentTypeHeader] = "text/plain";
-                break;
-            case BodyType.FormUrlEncoded:
-                headers[contentTypeHeader] = "application/x-www-form-urlencoded";
-                break;
-            case BodyType.MultipartForm:
-                headers[contentTypeHeader] = "multipart/form-data";
-                break;
-            case BodyType.Raw:
-            default:
-                headers.Remove(contentTypeHeader);
-                break;
-        }
-    }
-
 }

@@ -61,10 +61,10 @@ internal class StatusNotificationBar : TuiComponent
         _hideCts = new CancellationTokenSource();
         CancellationToken token = _hideCts.Token;
 
-        _label.Text = message;
-        _label.Visible = true;
+        _label?.Text = message;
+        _label?.Visible = true;
         var scheme = new TuiAttribute(foreground, background);
-        _label.SetScheme(new Scheme(scheme) { Focus = scheme });
+        _label?.SetScheme(new Scheme(scheme) { Focus = scheme });
 
         _ = HideAfterDelayAsync(token);
     }

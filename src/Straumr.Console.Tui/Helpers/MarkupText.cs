@@ -157,7 +157,8 @@ internal static partial class MarkupText
 
     private static bool TryResolveTagAttribute(string tag, StraumrTheme? theme, out Attribute attribute)
     {
-        string? color = tag.ToLowerInvariant() switch
+        string lower = tag.ToLowerInvariant();
+        string? color = lower switch
         {
             "grey" or "gray" or "secondary" => theme?.Secondary,
             "success" => theme?.Success,
@@ -168,7 +169,7 @@ internal static partial class MarkupText
             "accent" => theme?.Accent,
             "surface" => theme?.OnSurface,
             "bold" => theme?.OnSurface,
-            _ => null,
+            _ => ResolveMethodColor(lower, theme),
         };
 
         if (color is null)
@@ -181,6 +182,28 @@ internal static partial class MarkupText
         return true;
     }
 
+    private static string? ResolveMethodColor(string tag, StraumrTheme? theme)
+    {
+        if (theme is null || !tag.StartsWith("method-", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return tag[7..] switch
+        {
+            "get" => theme.MethodGet,
+            "post" => theme.MethodPost,
+            "put" => theme.MethodPut,
+            "patch" => theme.MethodPatch,
+            "delete" => theme.MethodDelete,
+            "head" => theme.MethodHead,
+            "options" => theme.MethodOptions,
+            "trace" => theme.MethodTrace,
+            "connect" => theme.MethodConnect,
+            _ => null,
+        };
+    }
+
     private static Attribute BuildAttribute(string? foreground, string? background)
     {
         Color fg = ColorResolver.Resolve(foreground ?? "White");
@@ -190,7 +213,8 @@ internal static partial class MarkupText
 
     private static bool TryApplyTag(string tag, StraumrTheme? theme, StyleState currentStyle, out StyleState nextStyle)
     {
-        string? color = tag.ToLowerInvariant() switch
+        string lower = tag.ToLowerInvariant();
+        string? color = lower switch
         {
             "grey" or "gray" or "secondary" => theme?.Secondary,
             "success" => theme?.Success,
@@ -200,7 +224,7 @@ internal static partial class MarkupText
             "primary" => theme?.Primary,
             "accent" => theme?.Accent,
             "surface" => theme?.OnSurface,
-            _ => null,
+            _ => ResolveMethodColor(lower, theme),
         };
 
         if (tag.Equals("bold", StringComparison.OrdinalIgnoreCase))
