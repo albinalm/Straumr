@@ -7,12 +7,12 @@ using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
-using Straumr.Console.Tui.Screens;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
+using Color = Terminal.Gui.Drawing.Color;
 
 namespace Straumr.Console.Tui.Screens.Base;
 
@@ -24,6 +24,8 @@ public abstract class ModelScreen<TEntry> : Screen
     private const int CommandBarTopOffset = 0;
 
     private readonly Dictionary<string, ModelCommand> _commands = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _commandNameLookup = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _commandNames = [];
     private readonly ObservableCollection<MarkupLabel> _displayItems = [];
     private readonly List<TEntry> _sourceEntries = [];
     private readonly List<TEntry> _displayEntries = [];
@@ -31,6 +33,7 @@ public abstract class ModelScreen<TEntry> : Screen
     private readonly string _screenTitle;
     private readonly string _emptyStateText;
     private readonly string _itemTypeNamePlural;
+    private readonly List<string> _commandCompletionMatches = [];
 
     private FrameView? _frameView;
     private SelectionListView? _listView;
@@ -47,6 +50,8 @@ public abstract class ModelScreen<TEntry> : Screen
     private bool _commandsConfigured;
     private TEntry? _pendingSelection;
     private bool _hasPendingSelection;
+    private string? _lastCommandCompletionPrefix;
+    private int _lastCommandCompletionIndex = -1;
 
     protected abstract string ModelHintsText { get; }
 
@@ -307,6 +312,18 @@ public abstract class ModelScreen<TEntry> : Screen
             return true;
         });
 
+        _commandField.Bind(Key.Tab, (f, _) =>
+        {
+            TryAutoCompleteCommand(f);
+            return true;
+        });
+
+        _commandField.Bind(Key.Tab.WithShift, (f, _) =>
+        {
+            TryAutoCompleteCommand(f, reverse: true);
+            return true;
+        });
+
         _commandField.Bind(Key.Esc, (f, _) =>
         {
             f.Text = string.Empty;
@@ -546,6 +563,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandContainer.Visible = true;
         _commandLabel.Visible = true;
         _commandField.Visible = true;
+        ResetCommandCompletionState();
         _commandField.Text = string.Empty;
         UpdateFramePosition();
         RefreshFilterRowLayout();
@@ -568,6 +586,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandContainer.Visible = false;
         _commandField.Visible = false;
         _commandLabel.Visible = false;
+        ResetCommandCompletionState();
         _commandField.Text = string.Empty;
         _commandField.ExitEditMode();
         UpdateFramePosition();
@@ -599,10 +618,7 @@ public abstract class ModelScreen<TEntry> : Screen
             return;
         }
 
-        bool commandVisible = _commandActive && _commandContainer?.Visible == true;
-        int baseYOffset = commandVisible ? 2 : 0;
-
-        string text = _filterField.Text?.ToString() ?? string.Empty;
+        string text = _filterField.Text;
         bool hasText = text.Length > 0;
         bool hasFocus = _filterField.HasFocus;
         bool shouldShow = forceVisible || hasText || hasFocus;
@@ -670,11 +686,99 @@ public abstract class ModelScreen<TEntry> : Screen
     private void RegisterCommand(ModelCommand command)
     {
         _commands[command.Name] = command;
+        if (_commandNameLookup.Add(command.Name))
+        {
+            _commandNames.Add(command.Name);
+        }
 
         foreach (string alias in command.Aliases)
         {
             _commands[alias] = command;
         }
+    }
+
+    private void TryAutoCompleteCommand(InteractiveTextField field, bool reverse = false)
+    {
+        EnsureCommandsConfigured();
+
+        string text = field.Text;
+        if (string.IsNullOrWhiteSpace(text)
+            || text.Contains(' ', StringComparison.Ordinal))
+        {
+            ResetCommandCompletionState();
+            return;
+        }
+
+        string prefix = GetCompletionPrefix(text);
+        if (!BuildCommandCompletionMatches(prefix))
+        {
+            return;
+        }
+
+        _lastCommandCompletionPrefix = prefix;
+        _lastCommandCompletionIndex = GetNextCompletionIndex(
+            _commandCompletionMatches.Count,
+            _lastCommandCompletionIndex,
+            reverse);
+
+        string completion = _commandCompletionMatches[_lastCommandCompletionIndex];
+        field.Text = completion;
+        field.MoveEnd();
+    }
+
+    private string GetCompletionPrefix(string text)
+    {
+        if (_lastCommandCompletionPrefix is not null
+            && _commandCompletionMatches.Count > 0
+            && _lastCommandCompletionIndex >= 0
+            && string.Equals(text, _commandCompletionMatches[_lastCommandCompletionIndex], StringComparison.OrdinalIgnoreCase))
+        {
+            return _lastCommandCompletionPrefix;
+        }
+
+        ResetCommandCompletionState();
+        return text;
+    }
+
+    private bool BuildCommandCompletionMatches(string prefix)
+    {
+        if (string.IsNullOrEmpty(prefix))
+        {
+            return false;
+        }
+
+        _commandCompletionMatches.Clear();
+        foreach (string command in _commandNames)
+        {
+            if (command.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                _commandCompletionMatches.Add(command);
+            }
+        }
+
+        return _commandCompletionMatches.Count > 0;
+    }
+
+    private static int GetNextCompletionIndex(int count, int currentIndex, bool reverse)
+    {
+        if (count == 0)
+        {
+            return -1;
+        }
+
+        if (reverse)
+        {
+            return (currentIndex - 1 + count) % count;
+        }
+
+        return (currentIndex + 1) % count;
+    }
+
+    private void ResetCommandCompletionState()
+    {
+        _commandCompletionMatches.Clear();
+        _lastCommandCompletionPrefix = null;
+        _lastCommandCompletionIndex = -1;
     }
 
     private void ExecuteCommand(string commandText)

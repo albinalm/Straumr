@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -19,7 +18,6 @@ public sealed class AuthsScreen(
     TuiInteractiveConsole interactiveConsole,
     IStraumrWorkspaceService workspaceService,
     IStraumrAuthService authService,
-    IStraumrOptionsService optionsService,
     ScreenNavigationContext navigationContext,
     StraumrTheme theme)
     : ModelScreen<AuthEntry>(theme,
@@ -250,7 +248,10 @@ public sealed class AuthsScreen(
             {
                 auth = authService.GetAsync(SelectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult();
             }
-            catch (Exception) { }
+            catch (Exception)
+            {
+                // ignored
+            }
         }
 
         string typeDisplay = auth is not null ? GetAuthTypeName(auth.Config) : "[secondary]N/A[/]";
@@ -434,7 +435,7 @@ public sealed class AuthsScreen(
                     continue;
                 }
 
-                HandleAuthEditAction(action, state, workspaceEntry);
+                HandleAuthEditAction(action, state);
             }
         }
         finally
@@ -524,7 +525,7 @@ public sealed class AuthsScreen(
         }
     }
 
-    private void HandleAuthEditAction(string action, AuthEditorState state, StraumrWorkspaceEntry workspaceEntry)
+    private void HandleAuthEditAction(string action, AuthEditorState state)
     {
         switch (action)
         {
@@ -548,7 +549,7 @@ public sealed class AuthsScreen(
                 state.AutoRenew = !state.AutoRenew;
                 break;
             case ActionFetch:
-                FetchAuthValue(state, workspaceEntry);
+                FetchAuthValue(state);
                 break;
         }
     }
@@ -1468,7 +1469,7 @@ public sealed class AuthsScreen(
         }
     }
 
-    private void FetchAuthValue(AuthEditorState state, StraumrWorkspaceEntry workspaceEntry)
+    private void FetchAuthValue(AuthEditorState state)
     {
         if (state.Config is OAuth2Config oauth2)
         {
