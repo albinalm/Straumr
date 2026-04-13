@@ -394,10 +394,11 @@ public sealed class WorkspacesScreen(
                 NavigateTo<RequestsScreen>();
                 break;
             case "Secrets":
-                ShowInfo("Secrets screen is not yet implemented.");
+                NavigateTo<SecretsScreen>();
                 break;
             case "Auths":
-                ShowInfo("Auths screen is not yet implemented.");
+                navigationContext.SetWorkspace(SelectedEntry.StraumrEntry);
+                NavigateTo<AuthsScreen>();
                 break;
             case "Set as active":
                 SetCurrentWorkspace(SelectedEntry);

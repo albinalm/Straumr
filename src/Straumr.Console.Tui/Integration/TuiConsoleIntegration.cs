@@ -24,6 +24,10 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<IStraumrFileService, StraumrFileService>();
         services.AddSingleton<IStraumrOptionsService, StraumrOptionsService>();
         services.AddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
+        services.AddHttpClient();
+        services.AddSingleton<IStraumrRequestService, StraumrRequestService>();
+        services.AddSingleton<IStraumrAuthService, StraumrAuthService>();
+        services.AddSingleton<IStraumrSecretService, StraumrSecretService>();
         services.AddSingleton<StraumrThemeOptions>(provider =>
         {
             var fileService = provider.GetRequiredService<IStraumrFileService>();
@@ -35,6 +39,8 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<ScreenNavigationContext>();
         services.AddTransient<WorkspacesScreen>();
         services.AddTransient<RequestsScreen>();
+        services.AddTransient<SecretsScreen>();
+        services.AddTransient<AuthsScreen>();
         services.AddTransient<SendScreen>();
         services.AddSingleton<TuiInteractiveConsole>();
         services.AddSingleton<IInteractiveConsole>(provider => provider.GetRequiredService<TuiInteractiveConsole>());

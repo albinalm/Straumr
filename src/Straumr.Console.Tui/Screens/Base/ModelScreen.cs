@@ -7,6 +7,7 @@ using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
+using Straumr.Console.Tui.Screens;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -662,6 +663,8 @@ public abstract class ModelScreen<TEntry> : Screen
         RegisterCommand(new ModelCommand("q", _ => Quit(), "quit", "exit"));
         RegisterCommand(new ModelCommand("requests", _ => NavigateTo<RequestsScreen>(), "rq", "request"));
         RegisterCommand(new ModelCommand("workspaces", _ => NavigateTo<WorkspacesScreen>(), "ws", "workspace"));
+        RegisterCommand(new ModelCommand("secrets", _ => NavigateTo<SecretsScreen>(), "secret"));
+        RegisterCommand(new ModelCommand("auths", _ => NavigateTo<AuthsScreen>(), "auth"));
     }
 
     private void RegisterCommand(ModelCommand command)
