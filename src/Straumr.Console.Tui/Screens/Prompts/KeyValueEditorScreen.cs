@@ -32,7 +32,7 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
         editor.ItemSaved += () =>
         {
             onSaved?.Invoke();
-            statusNotificationBar.ShowStatus($" {title} saved", ColorResolver.Resolve(theme?.Success ?? "BrightGreen"),
+            statusNotificationBar.ShowStatus($"{title} saved", ColorResolver.Resolve(theme?.Success ?? "BrightGreen"),
                 ColorResolver.Resolve(theme?.Surface ?? "Black"));
         };
     }

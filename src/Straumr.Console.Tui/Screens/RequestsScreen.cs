@@ -68,7 +68,7 @@ public sealed class RequestsScreen(
             switch (KeyHelpers.GetCharValue(key))
             {
                 case 's':
-                    SetCurrentWorkspace(selectedEntry);
+                    SendRequest(selectedEntry);
                     return true;
                 case 'c':
                     CreateRequest();
@@ -88,21 +88,9 @@ public sealed class RequestsScreen(
         return false;
     }
 
-    private void SetCurrentWorkspace(RequestEntry? selectedItem)
+    private void SendRequest(RequestEntry? selectedItem)
     {
-        if (selectedItem is null)
-        {
-            return;
-        }
-
-        if (selectedItem.IsDamaged)
-        {
-            ShowDanger($"😬 {selectedItem.Identifier} is damaged and cannot be set as default workspace.");
-            return;
-        }
-
-        RefreshAsync().GetAwaiter().GetResult();
-        ShowSuccess($"😎 {selectedItem.Identifier} is now the active workspace.");
+     //Send later
     }
 
     private void CreateRequest()
@@ -142,15 +130,15 @@ public sealed class RequestsScreen(
         try
         {
             _ = RefreshAsync();
-            ShowSuccess($" Deleted workspace \"{selectedEntry.Identifier}\".");
+            ShowSuccess($"Deleted workspace \"{selectedEntry.Identifier}\".");
         }
         catch (StraumrException ex)
         {
-            ShowDanger($" {ex.Message}");
+            ShowDanger($"{ex.Message}");
         }
         catch (Exception ex)
         {
-            ShowDanger($" {ex.Message}");
+            ShowDanger($"{ex.Message}");
         }
     }
 
@@ -178,12 +166,12 @@ public sealed class RequestsScreen(
         }
         catch (StraumrException ex)
         {
-            ShowDanger($" {ex.Message}");
+            ShowDanger($"{ex.Message}");
             return;
         }
         catch (Exception ex)
         {
-            ShowDanger($" {ex.Message}");
+            ShowDanger($"{ex.Message}");
             return;
         }
 
@@ -198,8 +186,6 @@ public sealed class RequestsScreen(
 
     protected override IEnumerable<ModelCommand> GetCommands()
     {
-        yield return new ModelCommand("set",
-            _ => SetCurrentWorkspace(SelectedEntry), "use");
         yield return new ModelCommand("create", _ => CreateRequest(), "new");
         yield return new ModelCommand("delete", _ => DeleteRequest(SelectedEntry), "rm",
             "remove");
@@ -481,13 +467,13 @@ public sealed class RequestsScreen(
             {
                 StraumrRequest request = state.ToRequest();
                 requestService.CreateAsync(request, workspaceEntry).GetAwaiter().GetResult();
-                ShowSuccess($" Created request \"{request.Name}\".");
+                ShowSuccess($"Created request \"{request.Name}\".");
             }
             else
             {
                 state.ApplyTo(existingRequest);
                 requestService.UpdateAsync(existingRequest, workspaceEntry).GetAwaiter().GetResult();
-                ShowSuccess($" Updated request \"{existingRequest.Name}\".");
+                ShowSuccess($"Updated request \"{existingRequest.Name}\".");
             }
 
             RefreshAsync().GetAwaiter().GetResult();
@@ -495,11 +481,11 @@ public sealed class RequestsScreen(
         }
         catch (StraumrException ex)
         {
-            ShowDanger($" {ex.Message}");
+            ShowDanger($"{ex.Message}");
         }
         catch (Exception ex)
         {
-            ShowDanger($" {ex.Message}");
+            ShowDanger($"{ex.Message}");
         }
 
         return false;

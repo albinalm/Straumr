@@ -614,7 +614,7 @@ public abstract class ModelScreen<TEntry> : Screen
 
         if (!_commands.TryGetValue(commandName, out ModelCommand? command))
         {
-            ShowDanger($"🧐 Unknown command: {commandName}");
+            ShowDanger($"Unknown command: {commandName}");
             return;
         }
 
