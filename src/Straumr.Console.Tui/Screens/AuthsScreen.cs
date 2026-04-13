@@ -734,22 +734,24 @@ public sealed class AuthsScreen(
             if (config.GrantType == OAuth2GrantType.AuthorizationCode)
             {
                 choices.AddRange(["Authorization URL", "Redirect URI", "PKCE"]);
+                Func<string, string> baseConverter = converter;
                 converter = choice => choice switch
                 {
                     "Authorization URL" => $"Authorization URL: {(string.IsNullOrWhiteSpace(config.AuthorizationUrl) ? "[secondary]not set[/]" : $"[blue]{config.AuthorizationUrl}[/]")}",
                     "Redirect URI" => $"Redirect URI: [blue]{config.RedirectUri}[/]",
                     "PKCE" => $"PKCE: {(config.UsePkce ? $"[success]Enabled[/] ({config.CodeChallengeMethod})" : "[secondary]Disabled[/]")}",
-                    _ => converter(choice)
+                    _ => baseConverter(choice)
                 };
             }
             else if (config.GrantType == OAuth2GrantType.ResourceOwnerPassword)
             {
                 choices.AddRange(["Username", "Password"]);
+                Func<string, string> baseConverter = converter;
                 converter = choice => choice switch
                 {
                     "Username" => $"Username: {(string.IsNullOrWhiteSpace(config.Username) ? "[secondary]not set[/]" : $"[blue]{config.Username}[/]")}",
                     "Password" => $"Password: {(string.IsNullOrWhiteSpace(config.Password) ? "[secondary]not set[/]" : "[success]set[/]")}",
-                    _ => converter(choice)
+                    _ => baseConverter(choice)
                 };
             }
 
