@@ -39,9 +39,7 @@ public static class ConsoleIntegrationResolver
             return (byCommand, args);
         }
 
-        //Will default to return CLI if it has been built when args > 0
-        //Otherwise will execute TUI
-        return (integrations.FirstOrDefault(x => x.Commands.Count > 0) ?? defaultIntegration, args);
+        return (defaultIntegration, args);
     }
 
     private static bool NameMatches(string left, string right) =>

@@ -497,7 +497,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _filterField?.EnterEditMode();
     }
 
-    private void FocusList()
+    protected void FocusList()
     {
         if (_displayItems.Count == 0)
         {

@@ -38,7 +38,8 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddSingleton<IInteractiveConsole>(provider => provider.GetRequiredService<TuiInteractiveConsole>());
     }
 
-    public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken)
+    public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -56,8 +57,14 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
         var resolver = serviceProvider.GetRequiredService<TuiAppResolver>();
         var engine = new ScreenEngine(serviceProvider, theme.Theme, resolver);
-        await engine.RunAsync<WorkspacesScreen>(cancellationToken);
-
+        if (optionsService.Options.CurrentWorkspace != null)
+        {
+            await engine.RunAsync<RequestsScreen>(cancellationToken);
+        }
+        else
+        {
+            await engine.RunAsync<WorkspacesScreen>(cancellationToken);
+        }
         return 0;
     }
 }

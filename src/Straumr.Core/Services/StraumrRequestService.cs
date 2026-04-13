@@ -1,12 +1,13 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Extensions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using Straumr.Core.Helpers;
 
 namespace Straumr.Core.Services;
 
@@ -17,7 +18,7 @@ public class StraumrRequestService(
     IStraumrAuthService authService,
     IStraumrSecretService secretService) : IStraumrRequestService
 {
-    private static readonly Regex SecretPattern = new(@"\{\{secret:(?<name>[^}]+)\}\}", RegexOptions.Compiled);
+    private static readonly Regex SecretPattern = SecretHelpers.SecretPattern;
     private readonly HttpClient _client = httpClientFactory.CreateClient();
 
     public async Task<StraumrRequest> GetAsync(string identifier, StraumrWorkspaceEntry? workspace = null)

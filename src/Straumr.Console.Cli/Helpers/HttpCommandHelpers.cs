@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Straumr.Console.Shared.Interfaces;
+using Straumr.Console.Shared.Helpers;
 using Straumr.Core.Enums;
+using Straumr.Core.Helpers;
 
 namespace Straumr.Console.Cli.Helpers;
 
 internal static class HttpCommandHelpers
 {
-    private static readonly Regex SecretPattern = new(@"\{\{secret:[^}]+\}\}", RegexOptions.Compiled);
-
     internal static string? PromptUrl(IInteractiveConsole console, string? current = null)
     {
         return console.TextInput("URL", current,
@@ -22,7 +22,7 @@ internal static class HttpCommandHelpers
             return false;
         }
 
-        string normalized = SecretPattern.Replace(value, "secret");
+        string normalized = SecretHelpers.SecretPattern.Replace(value, "secret");
         return Uri.TryCreate(normalized, UriKind.Absolute, out _);
     }
 
@@ -110,7 +110,7 @@ internal static class HttpCommandHelpers
         {
             string typeDisplay = currentType == BodyType.None
                 ? "[grey]none[/]"
-                : $"[blue]{BodyTypeDisplayName(currentType)}[/]";
+                : $"[blue]{RequestEditingHelpers.BodyTypeDisplayName(currentType)}[/]";
 
             bool hasContent = currentType != BodyType.None && bodies.ContainsKey(currentType);
             string contentDisplay = hasContent ? "[blue]set[/]" : "[grey]empty[/]";
@@ -490,33 +490,8 @@ internal static class HttpCommandHelpers
             return null;
         }
 
-        return string.Join('&', fields.Select(kv =>
-            $"{EscapeFormFieldComponent(kv.Key)}={EscapeFormFieldComponent(kv.Value)}"));
-    }
-
-    private static string EscapeFormFieldComponent(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        List<string> placeholders = new List<string>();
-        string protectedValue = SecretPattern.Replace(value, match =>
-        {
-            string token = $"__STRAUMR_SECRET_{placeholders.Count}__";
-            placeholders.Add(match.Value);
-            return token;
-        });
-
-        string escaped = Uri.EscapeDataString(protectedValue);
-        for (int i = 0; i < placeholders.Count; i++)
-        {
-            string token = Uri.EscapeDataString($"__STRAUMR_SECRET_{i}__");
-            escaped = escaped.Replace(token, placeholders[i], StringComparison.Ordinal);
-        }
-
-        return escaped;
+            return string.Join('&', fields.Select(kv =>
+            $"{RequestEditingHelpers.EscapeFormFieldComponent(kv.Key)}={RequestEditingHelpers.EscapeFormFieldComponent(kv.Value)}"));
     }
 
     private static void SyncContentTypeHeader(IDictionary<string, string> headers, BodyType type)
@@ -541,18 +516,5 @@ internal static class HttpCommandHelpers
         }
     }
 
-    internal static string BodyTypeDisplayName(BodyType type)
-    {
-        return type switch
-        {
-            BodyType.None => "No body",
-            BodyType.Json => "JSON (application/json)",
-            BodyType.Xml => "XML (application/xml)",
-            BodyType.Text => "Text (text/plain)",
-            BodyType.FormUrlEncoded => "Form URL Encoded (application/x-www-form-urlencoded)",
-            BodyType.MultipartForm => "Multipart Form (multipart/form-data)",
-            BodyType.Raw => "Raw (no Content-Type header)",
-            _ => type.ToString()
-        };
-    }
+    internal static string BodyTypeDisplayName(BodyType type) => RequestEditingHelpers.BodyTypeDisplayName(type);
 }
