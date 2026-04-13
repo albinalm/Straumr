@@ -24,6 +24,7 @@ using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Straumr.Console.Tui.Screens;
 
@@ -51,6 +52,8 @@ public sealed class SendScreen : Screen
     private MarkupLabel? _metaLabel;
     private InteractiveTextView? _summaryView;
     private InteractiveTextView? _bodyView;
+    private FrameView? _summaryFrame;
+    private FrameView? _bodyFrame;
     private Timer? _spinnerTimer;
     private int _spinnerIndex;
     private CancellationTokenSource? _sendTokenSource;
@@ -231,7 +234,7 @@ public sealed class SendScreen : Screen
             Markup = string.Empty,
         };
 
-        FrameView summaryFrame = new()
+        _summaryFrame = new FrameView
         {
             X = 0,
             Y = 4,
@@ -255,12 +258,12 @@ public sealed class SendScreen : Screen
             ColorResolver.Resolve(_theme.OnSurface));
 
         ScrollBar summaryScrollBar = BuildSiblingScrollBar(_summaryView);
-        summaryFrame.Add(_summaryView, summaryScrollBar);
+        _summaryFrame.Add(_summaryView, summaryScrollBar);
 
-        FrameView bodyFrame = new()
+        _bodyFrame = new FrameView
         {
             X = 0,
-            Y = Pos.Bottom(summaryFrame),
+            Y = Pos.Bottom(_summaryFrame),
             Width = Dim.Fill(),
             Height = Dim.Fill(),
         };
@@ -281,7 +284,7 @@ public sealed class SendScreen : Screen
             ColorResolver.Resolve(_theme.OnSurface));
 
         ScrollBar bodyScrollBar = BuildSiblingScrollBar(_bodyView);
-        bodyFrame.Add(_bodyView, bodyScrollBar);
+        _bodyFrame.Add(_bodyView, bodyScrollBar);
 
         frame.DrawComplete += (_, _) =>
         {
@@ -295,12 +298,14 @@ public sealed class SendScreen : Screen
         };
 
         AttachKeyHandler(frame);
-        AttachKeyHandler(summaryFrame);
-        AttachKeyHandler(bodyFrame);
+        AttachKeyHandler(_summaryFrame);
+        AttachKeyHandler(_bodyFrame);
         AttachKeyHandler(_summaryView);
         AttachKeyHandler(_bodyView);
+        ApplyFocusAwareBorder(_summaryFrame, _summaryView);
+        ApplyFocusAwareBorder(_bodyFrame, _bodyView);
 
-        frame.Add(_statusLabel, _heroLabel, _metaLabel, summaryFrame, bodyFrame);
+        frame.Add(_statusLabel, _heroLabel, _metaLabel, _summaryFrame, _bodyFrame);
         return frame;
     }
 
@@ -336,6 +341,46 @@ public sealed class SendScreen : Screen
         };
 
         return scrollBar;
+    }
+
+    private void ApplyFocusAwareBorder(FrameView? frame, View? child)
+    {
+        if (frame is null || child is null)
+        {
+            return;
+        }
+
+        void AttachBorderEvents(Border border)
+        {
+            border.GettingAttributeForRole -= OnBorderAttributeRequested;
+            border.GettingAttributeForRole += OnBorderAttributeRequested;
+        }
+
+        void OnBorderAttributeRequested(object? sender, VisualRoleEventArgs args)
+        {
+            Color foreground = ColorResolver.Resolve(child.HasFocus ? _theme.Accent : _theme.Secondary);
+            Color background = ColorResolver.Resolve(_theme.Surface);
+            args.Result = new Attribute(foreground, background);
+            args.Handled = true;
+        }
+
+        if (frame.Border is { } border)
+        {
+            AttachBorderEvents(border);
+        }
+        else
+        {
+            frame.Initialized += OnFrameInitialized;
+        }
+
+        void OnFrameInitialized(object? sender, EventArgs e)
+        {
+            frame.Initialized -= OnFrameInitialized;
+            if (frame.Border is { } initializedBorder)
+            {
+                AttachBorderEvents(initializedBorder);
+            }
+        }
     }
 
     private void AttachKeyHandler(View? view)
@@ -528,6 +573,12 @@ private void CopyBodyToClipboard()
 
     private bool HandleKeyBinding(Key key)
     {
+        if (key == Key.Tab || key == Key.Tab.WithShift)
+        {
+            SwitchScrollFocus(key == Key.Tab.WithShift);
+            return true;
+        }
+
         if (key == Key.Esc)
         {
             _sendTokenSource?.Cancel();
@@ -558,6 +609,47 @@ private void CopyBodyToClipboard()
             default:
                 return false;
         }
+    }
+
+    private void SwitchScrollFocus(bool reverse)
+    {
+        if (_summaryView is null || _bodyView is null)
+        {
+            return;
+        }
+
+        View current = _bodyView.HasFocus ? _bodyView : _summaryView.HasFocus ? _summaryView : null;
+        if (current is null)
+        {
+            _summaryView.SetFocus();
+            return;
+        }
+
+        if (!reverse)
+        {
+            if (current == _summaryView)
+            {
+                _bodyView.SetFocus();
+            }
+            else
+            {
+                _summaryView.SetFocus();
+            }
+        }
+        else
+        {
+            if (current == _bodyView)
+            {
+                _summaryView.SetFocus();
+            }
+            else
+            {
+                _bodyView.SetFocus();
+            }
+        }
+
+        _summaryFrame?.SetNeedsDraw();
+        _bodyFrame?.SetNeedsDraw();
     }
 
     private void UpdateRequestContext(StraumrRequest? request, StraumrResponse? response)
