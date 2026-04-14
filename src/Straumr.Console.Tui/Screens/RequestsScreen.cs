@@ -29,9 +29,6 @@ public sealed class RequestsScreen(
         emptyStateText: "No requests found",
         itemTypeNamePlural: "requests")
 {
-    private readonly IRequestEditor _requestEditor = requestEditor;
-    private readonly IWorkspaceGuard _workspaceGuard = workspaceGuard;
-    private readonly ITuiOperationExecutor _executor = operationExecutor;
     private StraumrWorkspaceEntry? _workspaceEntry;
     private string? _workspaceDir;
     private bool _editorActive;
@@ -142,7 +139,7 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!_executor.TryExecute(
+        if (!operationExecutor.TryExecute(
                 () => requestService.DeleteAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult(),
                 ShowDanger))
         {
@@ -170,7 +167,7 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!_executor.TryExecute(
+        if (!operationExecutor.TryExecute(
                 () => requestService.GetAsync(selectedEntry.Id.ToString(), workspaceEntry).GetAwaiter().GetResult(),
                 ShowDanger,
                 out StraumrRequest? request) || request is null)
@@ -209,7 +206,7 @@ public sealed class RequestsScreen(
             return;
         }
 
-        if (!_executor.TryExecute(
+        if (!operationExecutor.TryExecute(
                 () => requestService.CopyAsync(selectedEntry.Id.ToString(), newName, workspaceEntry).GetAwaiter()
                     .GetResult(),
                 ShowDanger))
@@ -256,7 +253,7 @@ public sealed class RequestsScreen(
 
     private bool TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry)
     {
-        WorkspaceGuardResult result = _workspaceGuard.EnsureActiveWorkspace();
+        WorkspaceGuardResult result = workspaceGuard.EnsureActiveWorkspace();
         if (!result.HasWorkspace || result.WorkspaceEntry is null)
         {
             NavigateTo<WorkspacesScreen>();
@@ -290,7 +287,7 @@ public sealed class RequestsScreen(
                 () => RefreshAsync(),
                 ShowSuccess,
                 ShowDanger);
-            _requestEditor.Run(context);
+            requestEditor.Run(context);
         }
         finally
         {
@@ -378,11 +375,11 @@ public sealed class RequestsScreen(
             lastAccessed = request.LastAccessed;
 
             string methodTag = HttpMethodMarkup.TagFor(request.Method);
-            string line0 = $"[{methodTag}]◇ {request.Method}[/] [bold]{request.Name}[/]";
-            string line1 = $"  [secondary]{request.Id}[/]";
-            string statsRight =
+            var line0 = $"[{methodTag}]◇ {request.Method}[/] [bold]{request.Name}[/]";
+            var line1 = $"  [secondary]{request.Id}[/]";
+            var statsRight =
                 $"{shortUri} · {bodyTypeText} · {authText}  [/][info]{request.LastAccessed.LocalDateTime:yyyy-MM-dd}[/]";
-            string line2 = $"  [secondary]{statsRight}";
+            var line2 = $"  [secondary]{statsRight}";
             display = $"{line0}\n{line1}\n{line2}";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
