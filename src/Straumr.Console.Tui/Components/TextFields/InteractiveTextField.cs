@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.Views;
@@ -135,6 +136,16 @@ internal sealed class InteractiveTextField : TextField
         }
 
         return base.OnKeyDown(key);
+    }
+
+    protected override bool OnKeyDownNotHandled(Key key)
+    {
+        if (!IsEditing)
+        {
+            return true;
+        }
+
+        return base.OnKeyDownNotHandled(KeyHelpers.NormalizeForTextInput(key));
     }
 }
 

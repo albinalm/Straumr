@@ -1,30 +1,60 @@
-using System.Text;
-using Terminal.Gui.App;
-using Terminal.Gui.Drivers;
-using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Infrastructure;
 
-internal sealed class KeyDiagnostics : IDisposable
+internal sealed class KeyDiagnostics
 {
-    private const int Capacity = 8;
+    private const int Capacity = 12;
 
-    private readonly IApplication _application;
     private readonly string[] _lines = new string[Capacity];
     private int _count;
     private Label? _label;
     private bool _visible;
 
-    public KeyDiagnostics(IApplication application)
+    public void Toggle()
     {
-        _application = application;
-        _application.Keyboard.KeyDown += OnKeyDown;
+        _visible = !_visible;
+        if (_label is not null)
+        {
+            _label.Visible = _visible;
+            _label.Text = Render();
+            _label.SetNeedsDraw();
+        }
+    }
+
+    public void Record(string line)
+    {
+        Push(line);
+        if (_visible && _label is not null)
+        {
+            _label.Text = Render();
+            _label.SetNeedsDraw();
+        }
     }
 
     public void AttachTo(View host)
     {
+        if (ReferenceEquals(_label?.SuperView, host))
+        {
+            _label.Visible = _visible;
+            _label.Text = Render();
+            _label.SetNeedsDraw();
+            return;
+        }
+
+        if (_label?.SuperView is { } previousHost)
+        {
+            try
+            {
+                previousHost.Remove(_label);
+            }
+            catch
+            {
+                // Ignore disposal/removal races when switching between modal windows.
+            }
+        }
+
         _label = new Label
         {
             X = 0,
@@ -35,29 +65,6 @@ internal sealed class KeyDiagnostics : IDisposable
             Text = Render(),
         };
         host.Add(_label);
-    }
-
-    private void OnKeyDown(object? sender, Key key)
-    {
-        if (key.KeyCode == KeyCode.F12)
-        {
-            _visible = !_visible;
-            if (_label is not null)
-            {
-                _label.Visible = _visible;
-                _label.SetNeedsDraw();
-            }
-
-            key.Handled = true;
-            return;
-        }
-
-        Push(Format(key));
-        if (_visible && _label is not null)
-        {
-            _label.Text = Render();
-            _label.SetNeedsDraw();
-        }
     }
 
     private void Push(string line)
@@ -78,7 +85,7 @@ internal sealed class KeyDiagnostics : IDisposable
 
     private string Render()
     {
-        var sb = new StringBuilder();
+        var sb = new System.Text.StringBuilder();
         sb.Append("F12 key diag (last ").Append(Capacity).Append(')');
         for (var i = 0; i < _count; i++)
         {
@@ -87,32 +94,4 @@ internal sealed class KeyDiagnostics : IDisposable
 
         return sb.ToString();
     }
-
-    private static string Format(Key key)
-    {
-        return $"KC={key.KeyCode} R=0x{key.AsRune.Value:X} SK={key.ShiftedKeyCode} BK={key.BaseLayoutKeyCode} M={Mods(key)}";
-    }
-
-    private static string Mods(Key key)
-    {
-        var sb = new StringBuilder(3);
-        if (key.IsCtrl)
-        {
-            sb.Append('C');
-        }
-
-        if (key.IsAlt)
-        {
-            sb.Append('A');
-        }
-
-        if (key.IsShift)
-        {
-            sb.Append('S');
-        }
-
-        return sb.Length == 0 ? "-" : sb.ToString();
-    }
-
-    public void Dispose() => _application.Keyboard.KeyDown -= OnKeyDown;
 }

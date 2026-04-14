@@ -1,4 +1,5 @@
 using Straumr.Console.Tui.Screens.Base;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
@@ -25,7 +26,7 @@ internal abstract class PromptScreen<TResult> : Screen
 
     public override bool OnKeyDown(Key key)
     {
-        if (key == Key.Esc)
+        if (KeyHelpers.IsEscape(key))
         {
             Cancel();
             return true;

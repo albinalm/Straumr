@@ -160,13 +160,13 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             return true;
         }
 
-        if (key == Key.Enter)
+        if (KeyHelpers.IsEnter(key))
         {
             EditSelected();
             return true;
         }
 
-        if (key == Key.Esc)
+        if (KeyHelpers.IsEscape(key))
         {
             DoneRequested?.Invoke();
             return true;

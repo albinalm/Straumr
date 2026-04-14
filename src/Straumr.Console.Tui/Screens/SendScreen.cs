@@ -456,7 +456,7 @@ public sealed class SendScreen : Screen
 
     private bool HandleKeyBinding(Key key)
     {
-        if (key == Key.Esc)
+        if (KeyHelpers.IsEscape(key))
         {
             _sendTokenSource?.Cancel();
             NavigateTo<RequestsScreen>();
@@ -497,9 +497,9 @@ public sealed class SendScreen : Screen
                 break;
         }
 
-        if (key == Key.Tab || key == Key.Tab.WithShift)
+        if (KeyHelpers.IsTabNavigation(key))
         {
-            SwitchScrollFocus(key == Key.Tab.WithShift);
+            SwitchScrollFocus(KeyHelpers.IsTabBackward(key));
             return true;
         }
 

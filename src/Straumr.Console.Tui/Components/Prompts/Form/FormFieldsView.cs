@@ -104,8 +104,8 @@ internal sealed class FormFieldsView : View
         _saveButton.Accepting += (_, _) => TrySave();
         _saveButton.KeyDown += (_, key) =>
         {
-            bool up = key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k';
-            bool down = key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j';
+            bool up = KeyHelpers.IsCursorUp(key) || KeyHelpers.GetCharValue(key) == 'k';
+            bool down = KeyHelpers.IsCursorDown(key) || KeyHelpers.GetCharValue(key) == 'j';
 
             if (up)
             {
@@ -117,7 +117,7 @@ internal sealed class FormFieldsView : View
                 key.Handled = true;
                 FocusView(_fields.FirstOrDefault());
             }
-            else if (key == Key.Esc)
+            else if (KeyHelpers.IsEscape(key))
             {
                 key.Handled = true;
                 CancelRequested?.Invoke();
@@ -132,7 +132,7 @@ internal sealed class FormFieldsView : View
 
         KeyDown += (_, key) =>
         {
-            if (key == Key.Esc && _fields.All(f => !f.IsEditing))
+            if (KeyHelpers.IsEscape(key) && _fields.All(f => !f.IsEditing))
             {
                 key.Handled = true;
                 CancelRequested?.Invoke();
@@ -179,13 +179,13 @@ internal sealed class FormFieldsView : View
             {
                 sideButton.KeyDown += (_, key) =>
                 {
-                    if (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k')
+                    if (KeyHelpers.IsCursorUp(key) || KeyHelpers.GetCharValue(key) == 'k')
                     {
                         key.Handled = true;
                         FocusView(_fields[index]);
                         _fields[index].EnterEditMode();
                     }
-                    else if (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j')
+                    else if (KeyHelpers.IsCursorDown(key) || KeyHelpers.GetCharValue(key) == 'j')
                     {
                         key.Handled = true;
                         View target = index == _fields.Count - 1 ? _saveButton! : _fields[index + 1];
@@ -195,7 +195,7 @@ internal sealed class FormFieldsView : View
                             nextField.EnterEditMode();
                         }
                     }
-                    else if (key == Key.Esc)
+                    else if (KeyHelpers.IsEscape(key))
                     {
                         key.Handled = true;
                         CancelRequested?.Invoke();
@@ -231,7 +231,7 @@ internal sealed class FormFieldsView : View
         field.ExitEditMode();
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && key == Key.Enter,
+            (f, key) => !f.IsEditing && KeyHelpers.IsEnter(key),
             (f, _) =>
             {
                 f.EnterEditMode();
@@ -239,7 +239,7 @@ internal sealed class FormFieldsView : View
             }));
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k'),
+            (f, key) => !f.IsEditing && (KeyHelpers.IsCursorUp(key) || KeyHelpers.GetCharValue(key) == 'k'),
             (_, _) =>
             {
                 View? target = above();
@@ -253,7 +253,7 @@ internal sealed class FormFieldsView : View
             }));
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j'),
+            (f, key) => !f.IsEditing && (KeyHelpers.IsCursorDown(key) || KeyHelpers.GetCharValue(key) == 'j'),
             (_, _) =>
             {
                 View? target = below();
@@ -267,7 +267,7 @@ internal sealed class FormFieldsView : View
             }));
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => f.IsEditing && key == Key.Enter,
+            (f, key) => f.IsEditing && KeyHelpers.IsEnter(key),
             (f, _) =>
             {
                 f.ExitEditMode();
@@ -282,7 +282,7 @@ internal sealed class FormFieldsView : View
             }));
 
         field.Bind(TextFieldKeyBinding.When(
-            (f, key) => f.IsEditing && key == Key.Esc,
+            (f, key) => f.IsEditing && KeyHelpers.IsEscape(key),
             (f, _) =>
             {
                 f.ExitEditMode();

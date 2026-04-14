@@ -40,7 +40,7 @@ internal sealed class DirectorySelectPrompt : FileSystemPromptBase
             return true;
         }
 
-        if (key == Key.Enter)
+        if (KeyHelpers.IsEnter(key))
         {
             ConfirmSelection();
             return true;

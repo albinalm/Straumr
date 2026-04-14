@@ -18,8 +18,9 @@ public sealed class TuiApp : IDisposable
     private readonly IApplication _application;
     private readonly Window _window;
     private readonly Scheme _scheme;
+    private readonly KeyPrefilter _keyPrefilter;
     private readonly KeyDiagnostics _keyDiagnostics;
-    private EventHandler<Key>? _keyHandler;
+    private Func<Key, bool>? _rootHandler;
 
     [UnconditionalSuppressMessage("AOT",
         "IL2026:Using member 'Terminal.Gui.App.IApplication.Init(String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code.",
@@ -47,7 +48,8 @@ public sealed class TuiApp : IDisposable
         };
         _window.SetScheme(_scheme);
 
-        _keyDiagnostics = new KeyDiagnostics(_application);
+        _keyDiagnostics = new KeyDiagnostics();
+        _keyPrefilter = new KeyPrefilter(_application, _keyDiagnostics);
     }
 
     internal IApplication ApplicationInstance => _application;
@@ -56,21 +58,15 @@ public sealed class TuiApp : IDisposable
     {
         _window.RemoveAll();
 
-        if (_keyHandler is not null)
+        if (_rootHandler is not null)
         {
-            _window.KeyDown -= _keyHandler;
-            _keyHandler = null;
+            _keyPrefilter.Pop();
+            _rootHandler = null;
         }
 
-        _keyHandler = (_, key) =>
-        {
-            if (screen.OnKeyDown(key))
-            {
-                key.Handled = true;
-            }
-        };
-
-        _window.KeyDown += _keyHandler;
+        _rootHandler = screen.OnKeyDown;
+        _keyPrefilter.Push(screen.GetType().Name, _rootHandler);
+        _keyPrefilter.RecordEvent($"LOAD {screen.GetType().Name}");
 
         screen.QuitAction = _application.RequestStop;
 
@@ -96,15 +92,8 @@ public sealed class TuiApp : IDisposable
         };
         promptWindow.SetScheme(_scheme);
 
-        EventHandler<Key> handler = (_, key) =>
-        {
-            if (screen.OnKeyDown(key))
-            {
-                key.Handled = true;
-            }
-        };
-
-        promptWindow.KeyDown += handler;
+        Func<Key, bool> handler = screen.OnKeyDown;
+        _keyPrefilter.Push(screen.GetType().Name, handler);
         screen.QuitAction = _application.RequestStop;
 
         foreach (TuiComponent component in screen.Components)
@@ -114,17 +103,26 @@ public sealed class TuiApp : IDisposable
 
         _keyDiagnostics.AttachTo(promptWindow);
 
-        _application.Run(promptWindow);
-
-        promptWindow.KeyDown -= handler;
-        promptWindow.Dispose();
+        try
+        {
+            _keyPrefilter.RecordEvent($"RUN {screen.GetType().Name} begin");
+            _application.Run(promptWindow);
+        }
+        finally
+        {
+            _keyPrefilter.RecordEvent($"RUN {screen.GetType().Name} end");
+            _keyPrefilter.Pop();
+            promptWindow.Dispose();
+            _keyPrefilter.RecordEvent($"DISPOSE {screen.GetType().Name}");
+            _keyDiagnostics.AttachTo(_window);
+        }
 
         return screen.Result;
     }
 
     public void Dispose()
     {
-        _keyDiagnostics.Dispose();
+        _keyPrefilter.Dispose();
         _window.Dispose();
         _application.Dispose();
     }
