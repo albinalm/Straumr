@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -33,7 +35,8 @@ public sealed class RequestsScreen(
     private string? _workspaceDir;
     private bool _editorActive;
 
-    protected override string ModelHintsText => "s Send  c Create  d Delete  e Edit  y Copy";
+    protected override string ModelHintsText => $"s Send  c Create  d Delete  e Edit  E Edit with " +
+                                                $"{Path.GetFileNameWithoutExtension(Environment.GetEnvironmentVariable("EDITOR")) ?? "Undefined"}  y Copy";
 
     protected override void OnInitialized()
     {
@@ -68,6 +71,9 @@ public sealed class RequestsScreen(
                     return true;
                 case 'e':
                     EditRequest(selectedEntry);
+                    return true;
+                case 'E':
+                    EditRequestWithEditor(selectedEntry);
                     return true;
                 case 'y':
                     CopyRequest(selectedEntry);
@@ -152,8 +158,14 @@ public sealed class RequestsScreen(
 
     private void EditRequest(RequestEntry? selectedEntry)
     {
-        if (selectedEntry is null || selectedEntry.IsDamaged)
+        if (selectedEntry is null)
         {
+            return;
+        }
+
+        if (selectedEntry.IsDamaged)
+        {
+            EditRequestWithEditor(selectedEntry);
             return;
         }
 
@@ -176,6 +188,67 @@ public sealed class RequestsScreen(
         }
 
         RunEditor(RequestEditorMode.Edit, workspaceEntry, request);
+    }
+
+    private void EditRequestWithEditor(RequestEntry? selectedEntry)
+    {
+        if (selectedEntry is null)
+        {
+            return;
+        }
+
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
+        {
+            return;
+        }
+
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (string.IsNullOrWhiteSpace(editor))
+        {
+            ShowDanger("$EDITOR is not set");
+            return;
+        }
+
+        string identifier = selectedEntry.Identifier;
+        RequestExternalAndRefresh(async () =>
+        {
+            Guid requestId;
+            string tempPath;
+            try
+            {
+                (requestId, tempPath) = await requestService.PrepareEditAsync(identifier, workspaceEntry);
+            }
+            catch
+            {
+                return;
+            }
+
+            try
+            {
+                Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
+                {
+                    UseShellExecute = false,
+                });
+
+                if (process is null)
+                {
+                    return;
+                }
+
+                await process.WaitForExitAsync();
+                if (process.ExitCode == 0)
+                {
+                    requestService.ApplyEdit(requestId, tempPath, workspaceEntry);
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+        });
     }
 
     private void CopyRequest(RequestEntry? selectedEntry)
@@ -224,6 +297,7 @@ public sealed class RequestsScreen(
         yield return new ModelCommand("create", _ => CreateRequest(), "new");
         yield return new ModelCommand("delete", _ => DeleteRequest(SelectedEntry), "rm", "remove");
         yield return new ModelCommand("edit", _ => EditRequest(SelectedEntry));
+        yield return new ModelCommand("editor", _ => EditRequestWithEditor(SelectedEntry));
         yield return new ModelCommand("copy", _ => CopyRequest(SelectedEntry), "cp");
     }
 

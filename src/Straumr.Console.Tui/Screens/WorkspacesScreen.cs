@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -25,7 +26,8 @@ public sealed class WorkspacesScreen(
         emptyStateText: "No workspaces found",
         itemTypeNamePlural: "workspaces")
 {
-    protected override string ModelHintsText => "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
+    protected override string ModelHintsText =>
+        "s Set active  c Create  d Delete  e Edit  y Copy  I Import  x Export";
 
     protected override void OnInitialized()
     {
@@ -172,12 +174,6 @@ public sealed class WorkspacesScreen(
     {
         if (selectedEntry is null)
         {
-            return;
-        }
-
-        if (selectedEntry.IsDamaged)
-        {
-            ShowDanger($"Cannot edit damaged workspace \"{selectedEntry.Identifier}\"");
             return;
         }
 
@@ -360,7 +356,7 @@ public sealed class WorkspacesScreen(
         yield return new ModelCommand("create", _ => CreateWorkspace(), "new");
         yield return new ModelCommand("delete", _ => DeleteWorkspace(SelectedEntry), "rm",
             "remove");
-        yield return new ModelCommand("edit", _ => EditWorkspace(SelectedEntry));
+        yield return new ModelCommand("editor", _ => EditWorkspace(SelectedEntry), "edit");
         yield return new ModelCommand("copy",
             _ => CopyWorkspace(SelectedEntry), "cp");
         yield return new ModelCommand("import", _ => ImportWorkspace());

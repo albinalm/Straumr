@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -30,7 +32,8 @@ public sealed class AuthsScreen(
     private StraumrWorkspaceEntry? _workspaceEntry;
     private bool _editorActive;
 
-    protected override string ModelHintsText => "c Create  d Delete  e Edit  y Copy";
+    protected override string ModelHintsText => $"c Create  d Delete  e Edit  E Edit with " +
+                                                $"{Path.GetFileNameWithoutExtension(Environment.GetEnvironmentVariable("EDITOR")) ?? "Undefined"}  y Copy";
 
     protected override void OnInitialized()
     {
@@ -83,6 +86,9 @@ public sealed class AuthsScreen(
                 case 'e':
                     EditAuth(selectedEntry);
                     return true;
+                case 'E':
+                    EditAuthWithEditor(selectedEntry);
+                    return true;
                 case 'y':
                     CopyAuth(selectedEntry);
                     return true;
@@ -109,8 +115,14 @@ public sealed class AuthsScreen(
 
     private void EditAuth(AuthEntry? selectedEntry)
     {
-        if (selectedEntry is null || selectedEntry.IsDamaged)
+        if (selectedEntry is null)
         {
+            return;
+        }
+
+        if (selectedEntry.IsDamaged)
+        {
+            EditAuthWithEditor(selectedEntry);
             return;
         }
 
@@ -133,6 +145,67 @@ public sealed class AuthsScreen(
         }
 
         RunEditor(AuthEditorMode.Edit, workspaceEntry, auth);
+    }
+
+    private void EditAuthWithEditor(AuthEntry? selectedEntry)
+    {
+        if (selectedEntry is null)
+        {
+            return;
+        }
+
+        if (!TryResolveWorkspace(out StraumrWorkspaceEntry workspaceEntry))
+        {
+            return;
+        }
+
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (string.IsNullOrWhiteSpace(editor))
+        {
+            ShowDanger("$EDITOR is not set");
+            return;
+        }
+
+        string identifier = selectedEntry.Identifier;
+        RequestExternalAndRefresh(async () =>
+        {
+            Guid authId;
+            string tempPath;
+            try
+            {
+                (authId, tempPath) = await authService.PrepareEditAsync(identifier, workspaceEntry);
+            }
+            catch
+            {
+                return;
+            }
+
+            try
+            {
+                Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
+                {
+                    UseShellExecute = false,
+                });
+
+                if (process is null)
+                {
+                    return;
+                }
+
+                await process.WaitForExitAsync();
+                if (process.ExitCode == 0)
+                {
+                    authService.ApplyEdit(authId, tempPath, workspaceEntry);
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+        });
     }
 
     private void DeleteAuth(AuthEntry? selectedEntry)
@@ -251,6 +324,7 @@ public sealed class AuthsScreen(
         yield return new ModelCommand("create", _ => CreateAuth(), "new");
         yield return new ModelCommand("delete", _ => DeleteAuth(SelectedEntry), "rm", "remove");
         yield return new ModelCommand("edit", _ => EditAuth(SelectedEntry));
+        yield return new ModelCommand("editor", _ => EditAuthWithEditor(SelectedEntry));
         yield return new ModelCommand("copy", _ => CopyAuth(SelectedEntry), "cp");
     }
 

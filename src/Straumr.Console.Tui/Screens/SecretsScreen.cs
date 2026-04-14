@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -26,7 +28,8 @@ public sealed class SecretsScreen(
     private const string ActionName = "Edit name";
     private const string ActionValue = "Edit value";
 
-    protected override string ModelHintsText => "c Create  d Delete  e Edit  y Copy";
+    protected override string ModelHintsText => $"c Create  d Delete  e Edit  E Edit with " +
+                                                $"{Path.GetFileNameWithoutExtension(Environment.GetEnvironmentVariable("EDITOR")) ?? "Undefined"}  y Copy";
 
     protected override void OnInitialized()
     {
@@ -54,6 +57,9 @@ public sealed class SecretsScreen(
                 case 'e':
                     EditSecret(selectedEntry);
                     return true;
+                case 'E':
+                    EditSecretWithEditor(selectedEntry);
+                    return true;
                 case 'y':
                     CopySecret(selectedEntry);
                     return true;
@@ -76,6 +82,12 @@ public sealed class SecretsScreen(
             return;
         }
 
+        if (selectedEntry.IsDamaged)
+        {
+            EditSecretWithEditor(selectedEntry);
+            return;
+        }
+
         StraumrSecret secret;
         try
         {
@@ -94,6 +106,62 @@ public sealed class SecretsScreen(
 
         SecretEditorState state = SecretEditorState.FromSecret(secret);
         RunSecretEditor(state, secret);
+    }
+
+    private void EditSecretWithEditor(SecretEntry? selectedEntry)
+    {
+        if (selectedEntry is null)
+        {
+            return;
+        }
+
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (string.IsNullOrWhiteSpace(editor))
+        {
+            ShowDanger("$EDITOR is not set");
+            return;
+        }
+
+        string identifier = selectedEntry.Identifier;
+        RequestExternalAndRefresh(async () =>
+        {
+            Guid secretId;
+            string tempPath;
+            try
+            {
+                (secretId, tempPath) = await secretService.PrepareEditAsync(identifier);
+            }
+            catch
+            {
+                return;
+            }
+
+            try
+            {
+                Process? process = Process.Start(new ProcessStartInfo(editor, tempPath)
+                {
+                    UseShellExecute = false,
+                });
+
+                if (process is null)
+                {
+                    return;
+                }
+
+                await process.WaitForExitAsync();
+                if (process.ExitCode == 0)
+                {
+                    secretService.ApplyEdit(secretId, tempPath);
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+        });
     }
 
     private void DeleteSecret(SecretEntry? selectedEntry)
@@ -211,6 +279,7 @@ public sealed class SecretsScreen(
         yield return new ModelCommand("create", _ => CreateSecret(), "new");
         yield return new ModelCommand("delete", _ => DeleteSecret(SelectedEntry), "rm", "remove");
         yield return new ModelCommand("edit", _ => EditSecret(SelectedEntry));
+        yield return new ModelCommand("editor", _ => EditSecretWithEditor(SelectedEntry));
         yield return new ModelCommand("copy", _ => CopySecret(SelectedEntry), "cp");
     }
 
