@@ -1,4 +1,5 @@
 using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Enums;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -33,7 +34,9 @@ internal sealed class FileSavePrompt : FileSystemPromptBase
         string candidate;
         try
         {
-            candidate = Path.GetFullPath(InitialPath);
+            candidate = Path.IsPathRooted(InitialPath)
+                ? Path.GetFullPath(InitialPath)
+                : Path.GetFullPath(InitialPath, CurrentDirectory);
         }
         catch
         {

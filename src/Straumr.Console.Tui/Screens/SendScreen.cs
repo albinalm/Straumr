@@ -433,7 +433,7 @@ public sealed class SendScreen : Screen
             return;
         }
 
-        string beautified = BeautifyContent(_rawBodyContent);
+        string beautified = NormalizeLineEndings(BeautifyContent(_rawBodyContent));
         if (string.Equals(beautified, _rawBodyContent, StringComparison.Ordinal))
         {
             return;
@@ -1006,25 +1006,22 @@ public sealed class SendScreen : Screen
     private void UpdateSummary(string text)
         => InvokeOnUi(() =>
         {
-            string plain = MarkupText.ToPlain(text);
+            string plain = NormalizeLineEndings(MarkupText.ToPlain(text));
             _currentSummaryText = plain;
-            if (_summaryView is not null)
-            {
-                _summaryView.Text = plain;
-            }
+            _summaryView?.Text = plain;
         });
 
     private void UpdateBody(string text, string? responseBody = null)
         => InvokeOnUi(() =>
         {
-            if (_bodyView is not null)
-            {
-                _bodyView.Text = text;
-            }
+            _bodyView?.Text = NormalizeLineEndings(text);
 
-            _rawBodyContent = responseBody;
+            _rawBodyContent = responseBody is null ? null : NormalizeLineEndings(responseBody);
             _isBodyBeautified = false;
         });
+
+    private static string NormalizeLineEndings(string value)
+        => string.IsNullOrEmpty(value) ? value : value.Replace("\r\n", "\n").Replace("\r", "\n");
 
     private void InvokeOnUi(Action action)
     {

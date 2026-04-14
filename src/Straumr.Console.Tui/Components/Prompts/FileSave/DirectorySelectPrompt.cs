@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Enums;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -72,11 +73,6 @@ internal sealed class DirectorySelectPrompt : FileSystemPromptBase
 
     private void UpdateSelectionLabel()
     {
-        if (_selectionLabel is null)
-        {
-            return;
-        }
-
-        _selectionLabel.Text = $"Current directory: {CurrentDirectory}";
+        _selectionLabel?.Text = $"Current directory: {CurrentDirectory}";
     }
 }

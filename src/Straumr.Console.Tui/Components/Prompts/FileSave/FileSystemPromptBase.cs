@@ -4,6 +4,7 @@ using Straumr.Console.Tui.Components.ListViews;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Enums;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
 using Straumr.Core;
@@ -23,7 +24,8 @@ internal abstract class FileSystemPromptBase : PromptComponent
     private SelectionListView? _listView;
     private Label? _emptyLabel;
     private Label? _pathLabel;
-    private Label? _statusLabel;
+    private MarkupLabel? _statusLabel;
+    private object? _statusTimeout;
     private Label? _filterLabel;
     private InteractiveTextField? _filterField;
     private Label? _goToLabel;
@@ -33,7 +35,6 @@ internal abstract class FileSystemPromptBase : PromptComponent
     private FileBrowserEntry? _pendingDelete;
 
     private readonly string _homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-    private string _currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private string _filterText = string.Empty;
 
     public required string Title { get; init; }
@@ -41,9 +42,8 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
     public event Action? CancelRequested;
 
-    protected SelectionListView? ListView => _listView;
-    protected string CurrentDirectory => _currentDirectory;
-    protected IReadOnlyList<FileBrowserEntry> FilteredEntries => _filteredEntries;
+    protected string CurrentDirectory { get; private set; } =
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     protected virtual int FooterReservedRows => 6;
 
@@ -52,28 +52,25 @@ internal abstract class FileSystemPromptBase : PromptComponent
         InitializeStartingDirectory();
 
         FrameView frame = CreateFrame(Title);
+
         BuildBaseLayout(frame);
         BuildContent(frame);
 
         _listView!.Initialized += (_, _) => _listView.SetFocus();
         UpdatePathLabel();
         RefreshLayout();
-        LoadDirectory(_currentDirectory);
+        LoadDirectory(CurrentDirectory);
 
         return frame;
     }
 
     protected abstract void BuildContent(FrameView frame);
 
-    protected virtual void OnAfterDirectoryChanged()
-    {
-    }
+    protected virtual void OnAfterDirectoryChanged() { }
 
     protected virtual bool HandleCustomKey(Key key) => false;
 
-    protected virtual void OnFileEntryActivated(FileBrowserEntry entry)
-    {
-    }
+    protected virtual void OnFileEntryActivated(FileBrowserEntry entry) { }
 
     protected virtual void OnDirectoryEntryActivated(FileBrowserEntry entry)
     {
@@ -82,7 +79,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
     protected virtual void OnParentEntryActivated(FileBrowserEntry entry)
     {
-        DirectoryInfo current = new(_currentDirectory);
+        DirectoryInfo current = new(CurrentDirectory);
         if (current.Parent is null)
         {
             return;
@@ -101,42 +98,60 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
     protected void SetCurrentDirectory(string directory)
     {
-        _currentDirectory = directory;
+        CurrentDirectory = directory;
         UpdatePathLabel();
     }
 
-    protected IReadOnlyList<FileBrowserEntry> GetFilteredEntries() => _filteredEntries;
+    protected void ShowStatus(string message) => ShowStatusMarkup(message, autoHide: false);
 
-    protected void ShowStatus(string message)
+    private void ShowStatusMarkup(string markup, bool autoHide)
     {
         if (_statusLabel is null)
         {
             return;
         }
 
-        _statusLabel.Text = message;
+        CancelStatusTimeout();
+        _statusLabel.Markup = markup;
         _statusLabel.Visible = true;
+
+        if (autoHide)
+        {
+            _statusTimeout = _statusLabel.App?.AddTimeout(TimeSpan.FromSeconds(3), () =>
+            {
+                HideStatus();
+                return false;
+            });
+        }
     }
 
     protected void HideStatus()
     {
-        if (_statusLabel is null)
+        CancelStatusTimeout();
+
+        _statusLabel?.Visible = false;
+    }
+
+    private void CancelStatusTimeout()
+    {
+        if (_statusTimeout is null)
         {
             return;
         }
 
-        _statusLabel.Visible = false;
+        _statusLabel?.App?.RemoveTimeout(_statusTimeout);
+        _statusTimeout = null;
     }
 
     protected virtual void InitializeStartingDirectory()
     {
         if (string.IsNullOrWhiteSpace(_homeDirectory))
         {
-            _currentDirectory = Environment.CurrentDirectory;
+            CurrentDirectory = Environment.CurrentDirectory;
             return;
         }
 
-        _currentDirectory = TryResolveDirectory(_homeDirectory) ?? Environment.CurrentDirectory;
+        CurrentDirectory = TryResolveDirectory(_homeDirectory) ?? Environment.CurrentDirectory;
     }
 
     protected void ResetToHomeDirectory()
@@ -144,7 +159,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
         SetCurrentDirectory(TryResolveDirectory(_homeDirectory) ?? Environment.CurrentDirectory);
     }
 
-    protected void LoadDirectory(string directory)
+    private void LoadDirectory(string directory)
     {
         string target;
         try
@@ -163,7 +178,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return;
         }
 
-        _currentDirectory = target;
+        CurrentDirectory = target;
         UpdatePathLabel();
         HideStatus();
 
@@ -271,12 +286,14 @@ internal abstract class FileSystemPromptBase : PromptComponent
             Visible = false,
         };
 
-        _statusLabel = new Label
+        _statusLabel = new MarkupLabel
         {
             X = 1,
             Y = Pos.AnchorEnd(2),
             Width = Dim.Fill(2),
+            Height = 1,
             Visible = false,
+            Theme = Theme,
         };
 
         frame.Add(_pathLabel);
@@ -320,10 +337,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             _listView.Visible = _filteredEntries.Count > 0;
         }
 
-        if (_emptyLabel is not null)
-        {
-            _emptyLabel.Visible = _filteredEntries.Count == 0;
-        }
+        _emptyLabel?.Visible = _filteredEntries.Count == 0;
     }
 
     private bool MatchesFilter(FileBrowserEntry entry)
@@ -397,8 +411,17 @@ internal abstract class FileSystemPromptBase : PromptComponent
                 case 'N':
                     BeginNewDirectory();
                     return true;
+                case 'c':
+                case 'C':
+                    if (!string.IsNullOrEmpty(_filterText))
+                    {
+                        ClearFilter();
+                        ApplyEntryFilter();
+                        RefreshLayout();
+                    }
+                    return true;
                 case 'D':
-                    BeginDeleteDirectory();
+                    BeginDelete();
                     return true;
             }
         }
@@ -440,7 +463,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
         FocusList();
     }
 
-    protected void RequestCancel() => CancelRequested?.Invoke();
+    private void RequestCancel() => CancelRequested?.Invoke();
 
     private void MoveSelection(int delta)
     {
@@ -469,12 +492,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
     protected FileBrowserEntry? GetSelectedEntry()
     {
-        if (_listView is null)
-        {
-            return null;
-        }
-
-        int? selectedRow = _listView.SelectedItem;
+        int? selectedRow = _listView?.SelectedItem;
         if (selectedRow is null)
         {
             return null;
@@ -491,12 +509,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
     private void ActivateSelection()
     {
-        if (_listView is null)
-        {
-            return;
-        }
-
-        int? selectedRow = _listView.SelectedItem;
+        int? selectedRow = _listView?.SelectedItem;
         if (selectedRow is null)
         {
             return;
@@ -525,7 +538,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
     private void NavigateUp()
     {
-        DirectoryInfo current = new(_currentDirectory);
+        DirectoryInfo current = new(CurrentDirectory);
         if (current.Parent is null)
         {
             return;
@@ -568,19 +581,13 @@ internal abstract class FileSystemPromptBase : PromptComponent
         }
 
         bool showFilter = _filterLabel is not null && _filterField is not null
-                          && (forceFilterVisible
-                              || _filterField.HasFocus
-                              || !string.IsNullOrEmpty(_filterField.Text?.ToString()));
+                                                   && (forceFilterVisible
+                                                       || _filterField.HasFocus
+                                                       || !string.IsNullOrEmpty(_filterField.Text));
 
-        if (_filterLabel is not null)
-        {
-            _filterLabel.Visible = showFilter;
-        }
+        _filterLabel?.Visible = showFilter;
 
-        if (_filterField is not null)
-        {
-            _filterField.Visible = showFilter;
-        }
+        _filterField?.Visible = showFilter;
 
         if (showFilter && _filterLabel is not null && _filterField is not null)
         {
@@ -625,15 +632,12 @@ internal abstract class FileSystemPromptBase : PromptComponent
         RefreshLayout();
     }
 
-    protected void UpdatePathLabel()
+    private void UpdatePathLabel()
     {
-        if (_pathLabel is not null)
-        {
-            _pathLabel.Text = $"Directory: {_currentDirectory}";
-        }
+        _pathLabel?.Text = $"Directory: {CurrentDirectory}";
     }
 
-    private string? TryResolveDirectory(string value)
+    private static string? TryResolveDirectory(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -698,7 +702,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        string name = (_newDirField.Text ?? string.Empty).Trim();
+        string name = _newDirField.Text.Trim();
         if (string.IsNullOrEmpty(name))
         {
             HideNewDir();
@@ -722,22 +726,48 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        HideNewDir();
+        ClearFilter();
         LoadDirectory(CurrentDirectory);
+        SelectEntryByPath(target);
+        HideNewDir();
         return true;
     }
 
-    private void BeginDeleteDirectory()
+    private void SelectEntryByPath(string fullPath)
+    {
+        if (_listView is null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < _filteredEntries.Count; i++)
+        {
+            if (string.Equals(_filteredEntries[i].FullPath, fullPath, StringComparison.OrdinalIgnoreCase))
+            {
+                _listView.SelectedItem = i * MarkupLabelListDataSource.RowsPerItem;
+                return;
+            }
+        }
+    }
+
+    private void ClearFilter()
+    {
+        _filterText = string.Empty;
+        _filterField?.Text = string.Empty;
+    }
+
+    private void BeginDelete()
     {
         FileBrowserEntry? entry = GetSelectedEntry();
-        if (entry is null || entry.Kind != FileEntryKind.Directory)
+        if (entry is null || entry.Kind == FileEntryKind.Parent)
         {
-            ShowStatus("Select a directory to delete.");
+            ShowStatusMarkup("[warning]Select a file or directory to delete.[/]", autoHide: true);
             return;
         }
 
         _pendingDelete = entry;
-        ShowStatus($"Delete '{entry.Name}'? Press y to confirm, any other key to cancel.");
+        string kind = entry.Kind == FileEntryKind.Directory ? "directory" : "file";
+        ShowStatus($"Delete {kind} '{entry.Name}'? Press y to confirm, any other key to cancel.");
     }
 
     private void ExecutePendingDelete()
@@ -752,12 +782,14 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
         try
         {
-            Directory.Delete(entry.FullPath, recursive: false);
-        }
-        catch (IOException)
-        {
-            ShowStatus("Directory is not empty.");
-            return;
+            if (entry.Kind == FileEntryKind.Directory)
+            {
+                Directory.Delete(entry.FullPath, recursive: true);
+            }
+            else
+            {
+                File.Delete(entry.FullPath);
+            }
         }
         catch (Exception ex)
         {
@@ -791,7 +823,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
         }
 
         _goToField.Visible = true;
-        _goToField.Text = EnsureTrailingSeparator(_currentDirectory);
+        _goToField.Text = EnsureTrailingSeparator(CurrentDirectory);
         _goToField.MoveEnd();
         _goToField.SetFocus();
         RefreshLayout();
@@ -816,7 +848,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        string input = _goToField.Text ?? string.Empty;
+        string input = _goToField.Text;
         if (string.IsNullOrWhiteSpace(input))
         {
             HideGoTo();
@@ -838,11 +870,11 @@ internal abstract class FileSystemPromptBase : PromptComponent
     private string ResolveAbsolutePath(string input)
     {
         string expanded = ExpandHome(input);
-        string candidate = string.IsNullOrWhiteSpace(expanded) ? _currentDirectory : expanded;
+        string candidate = string.IsNullOrWhiteSpace(expanded) ? CurrentDirectory : expanded;
 
         if (!Path.IsPathRooted(candidate))
         {
-            candidate = Path.Combine(_currentDirectory, candidate);
+            candidate = Path.Combine(CurrentDirectory, candidate);
         }
 
         try
@@ -889,7 +921,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        string input = _goToField.Text ?? string.Empty;
+        string input = _goToField.Text;
         string normalized = ResolveAbsolutePath(input);
 
         string baseDir;
@@ -915,7 +947,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
         try
         {
             candidates = Directory.GetDirectories(baseDir)
-                .Where(dir => Path.GetFileName(dir).StartsWith(partial ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                .Where(dir => Path.GetFileName(dir).StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
         }
         catch
@@ -935,8 +967,9 @@ internal abstract class FileSystemPromptBase : PromptComponent
         }
         else
         {
-            string shared = GetCommonPrefix(candidates.Select(Path.GetFileName).Where(name => !string.IsNullOrEmpty(name))!);
-            if (!string.IsNullOrEmpty(shared) && shared.Length > (partial?.Length ?? 0))
+            string shared =
+                GetCommonPrefix(candidates.Select(Path.GetFileName).Where(name => !string.IsNullOrEmpty(name)));
+            if (!string.IsNullOrEmpty(shared) && shared.Length > partial.Length)
             {
                 completion = EnsureTrailingSeparator(Path.Combine(baseDir, shared));
             }
@@ -1044,7 +1077,8 @@ internal abstract class FileSystemPromptBase : PromptComponent
 
         string modified = entry.Kind == FileEntryKind.Parent
             ? string.Empty
-            : entry.ModifiedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+            : entry.ModifiedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ??
+              string.Empty;
 
         if (!string.IsNullOrEmpty(modified))
         {
@@ -1054,16 +1088,16 @@ internal abstract class FileSystemPromptBase : PromptComponent
         return $"◇ {glyph} {name}\n    {description}\n    {modified}";
     }
 
-    protected static string FormatSize(long? size)
+    private static string FormatSize(long? size)
     {
-        if (!size.HasValue || size.Value < 0)
+        if (size is null or < 0)
         {
             return "Unknown size";
         }
 
         double bytes = size.Value;
         string[] units = ["B", "KB", "MB", "GB", "TB"];
-        int unitIndex = 0;
+        var unitIndex = 0;
 
         while (bytes >= 1024 && unitIndex < units.Length - 1)
         {
@@ -1074,7 +1108,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
         return $"{bytes:0.##} {units[unitIndex]}";
     }
 
-    protected static string GetMimeTypeDescription(string extension)
+    private static string GetMimeTypeDescription(string extension)
     {
         if (string.IsNullOrWhiteSpace(extension))
         {
@@ -1103,12 +1137,5 @@ internal abstract class FileSystemPromptBase : PromptComponent
             => new("..", fullPath, FileEntryKind.Parent, null, null);
 
         public string Extension => Kind == FileEntryKind.File ? Path.GetExtension(Name) : string.Empty;
-    }
-
-    protected enum FileEntryKind
-    {
-        Parent,
-        Directory,
-        File
     }
 }
