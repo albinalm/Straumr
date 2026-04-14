@@ -184,17 +184,12 @@ internal sealed class FormFieldsView : View
                     {
                         key.Handled = true;
                         FocusView(_fields[index]);
-                        _fields[index].EnterEditMode();
                     }
                     else if (KeyHelpers.IsCursorDown(key) || KeyHelpers.GetCharValue(key) == 'j')
                     {
                         key.Handled = true;
                         View target = index == _fields.Count - 1 ? _saveButton! : _fields[index + 1];
                         FocusView(target);
-                        if (target is InteractiveTextField nextField)
-                        {
-                            nextField.EnterEditMode();
-                        }
                     }
                     else if (KeyHelpers.IsEscape(key))
                     {
@@ -245,10 +240,6 @@ internal sealed class FormFieldsView : View
             {
                 View? target = above();
                 FocusView(target);
-                if (target is InteractiveTextField targetField)
-                {
-                    targetField.EnterEditMode();
-                }
 
                 return true;
             }));
@@ -259,10 +250,6 @@ internal sealed class FormFieldsView : View
             {
                 View? target = below();
                 FocusView(target);
-                if (target is InteractiveTextField targetField)
-                {
-                    targetField.EnterEditMode();
-                }
 
                 return true;
             }));
