@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Base;
 using Straumr.Console.Tui.Helpers;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Base;
 using Straumr.Console.Tui.Screens.Prompts;
 using Terminal.Gui.App;
@@ -17,6 +18,7 @@ public sealed class TuiApp : IDisposable
     private readonly IApplication _application;
     private readonly Window _window;
     private readonly Scheme _scheme;
+    private readonly KeyDiagnostics _keyDiagnostics;
     private EventHandler<Key>? _keyHandler;
 
     [UnconditionalSuppressMessage("AOT",
@@ -44,6 +46,8 @@ public sealed class TuiApp : IDisposable
             BorderStyle = LineStyle.None,
         };
         _window.SetScheme(_scheme);
+
+        _keyDiagnostics = new KeyDiagnostics(_application);
     }
 
     internal IApplication ApplicationInstance => _application;
@@ -74,6 +78,8 @@ public sealed class TuiApp : IDisposable
         {
             _window.Add(component.Build());
         }
+
+        _keyDiagnostics.AttachTo(_window);
     }
 
     internal void RunLoop() => _application.Run(_window);
@@ -106,6 +112,8 @@ public sealed class TuiApp : IDisposable
             promptWindow.Add(component.Build());
         }
 
+        _keyDiagnostics.AttachTo(promptWindow);
+
         _application.Run(promptWindow);
 
         promptWindow.KeyDown -= handler;
@@ -116,6 +124,7 @@ public sealed class TuiApp : IDisposable
 
     public void Dispose()
     {
+        _keyDiagnostics.Dispose();
         _window.Dispose();
         _application.Dispose();
     }
