@@ -39,8 +39,28 @@ public sealed class RequestsScreen(
 
     protected override void OnInitialized()
     {
-        int requestCount = optionsService.Options.Workspaces.Count;
-        ShowSuccess($"{requestCount} request{(requestCount == 1 ? string.Empty : "s")} loaded");
+        _workspaceEntry ??= navigationContext.GetWorkspaceEntry();
+        if (_workspaceEntry is null)
+        {
+            ShowInfo("No workspace selected. Use the workspaces screen to activate one");
+            return;
+        }
+
+        try
+        {
+            StraumrWorkspace workspace =
+                workspaceService.PeekWorkspaceAsync(_workspaceEntry.Path).GetAwaiter().GetResult();
+            int requestCount = workspace.Requests.Count;
+            ShowSuccess($"{requestCount} request{(requestCount == 1 ? string.Empty : "s")} loaded");
+        }
+        catch (StraumrException ex)
+        {
+            ShowDanger(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowDanger(ex.Message);
+        }
     }
 
     protected override string GetDisplayText(RequestEntry entry) => entry.Display;
