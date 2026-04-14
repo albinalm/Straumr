@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using Straumr.Console.Tui.Components.Prompts.Base;
-using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
@@ -16,12 +19,15 @@ internal sealed class MessagePrompt : PromptComponent
 
     public override View Build()
     {
+        const int wrapWidth = 60;
+        string wrappedText = WrapMessage(MarkupText.ToPlain(Message), wrapWidth);
+
         View stack = new()
         {
             X = Pos.Center(),
             Y = Pos.Percent(50) - 3,
             Width = Dim.Percent(60),
-            Height = 9,
+            Height = Dim.Auto(),
         };
 
         Label titleLabel = new()
@@ -35,27 +41,26 @@ internal sealed class MessagePrompt : PromptComponent
         };
         ApplyLabelTheme(titleLabel);
 
-        InteractiveTextView messageView = new()
+        Label messageLabel = new()
         {
-            Text = MarkupText.ToPlain(Message),
-            ReadOnly = true,
+            Text = wrappedText,
             CanFocus = false,
             X = 0,
-            Y = 2,
+            Y = Pos.Bottom(titleLabel) + 1,
             Width = Dim.Fill(),
-            Height = 4,
-            WordWrap = true,
+            Height = Dim.Auto(),
+            TextAlignment = Alignment.Center,
         };
-        messageView.TextFormatter.Alignment = Alignment.Center;
-        ApplyTextTheme(messageView);
+        ApplyLabelTheme(messageLabel);
 
         Button continueButton = new()
         {
             Text = "Press any key to continue",
             X = Pos.Center(),
-            Y = 7,
+            Y = Pos.Bottom(messageLabel) + 1,
             Width = Dim.Auto(),
             CanFocus = false,
+            ShadowStyle = ShadowStyle.None
         };
         Scheme? buttonScheme = BuildButtonScheme();
         if (buttonScheme is not null)
@@ -63,20 +68,53 @@ internal sealed class MessagePrompt : PromptComponent
             continueButton.SetScheme(buttonScheme);
         }
 
-        stack.Add(titleLabel, messageView, continueButton);
+        stack.Add(titleLabel, messageLabel, continueButton);
         return stack;
     }
 
-    private void ApplyTextTheme(InteractiveTextView text)
+    private static string WrapMessage(string text, int maxWidth)
     {
-        if (Theme is null)
+        if (string.IsNullOrWhiteSpace(text) || maxWidth <= 0)
         {
-            return;
+            return text ?? string.Empty;
         }
 
-        var background = ColorResolver.Resolve(Theme.Surface);
-        var foreground = ColorResolver.Resolve(Theme.OnSurface);
-        text.ApplyTheme(background, foreground);
+        var lines = new List<string>();
+
+        foreach (string raw in text.Split('\n'))
+        {
+            if (raw.Length <= maxWidth)
+            {
+                lines.Add(raw);
+                continue;
+            }
+
+            int pos = 0;
+            while (pos < raw.Length)
+            {
+                int remaining = raw.Length - pos;
+                if (remaining <= maxWidth)
+                {
+                    lines.Add(raw[pos..]);
+                    break;
+                }
+
+                int breakAt = raw.LastIndexOf(" ", Math.Min(raw.Length - 1, pos + maxWidth - 1), Math.Min(maxWidth, raw.Length - pos), StringComparison.Ordinal);
+                if (breakAt <= pos)
+                {
+                    breakAt = pos + maxWidth;
+                }
+
+                lines.Add(raw[pos..breakAt].TrimEnd());
+                pos = breakAt;
+                while (pos < raw.Length && raw[pos] == ' ')
+                {
+                    pos++;
+                }
+            }
+        }
+
+        return string.Join('\n', lines);
     }
 
     private void ApplyLabelTheme(Label label)

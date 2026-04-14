@@ -44,6 +44,7 @@ internal sealed class FileSavePrompt : PromptComponent
     private Label? _goToLabel;
     private InteractiveTextField? _goToField;
 
+    private readonly string _homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private string _currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private string _fileName = string.Empty;
     private string _filterText = string.Empty;
@@ -173,9 +174,10 @@ internal sealed class FileSavePrompt : PromptComponent
 
     private void ResolveInitialPath()
     {
+        ResetToHomeDirectory();
+
         if (string.IsNullOrWhiteSpace(InitialPath))
         {
-            _currentDirectory = TryResolveDirectory(_currentDirectory) ?? _currentDirectory;
             _fileName = string.Empty;
             return;
         }
@@ -187,33 +189,41 @@ internal sealed class FileSavePrompt : PromptComponent
         }
         catch
         {
-            _currentDirectory = TryResolveDirectory(_currentDirectory) ?? _currentDirectory;
-            _fileName = string.Empty;
+            _fileName = Path.GetFileName(InitialPath);
             return;
         }
 
         if (Directory.Exists(candidate))
         {
-            _currentDirectory = candidate;
             _fileName = string.Empty;
             return;
         }
 
-        string? directory = Path.GetDirectoryName(candidate);
-        if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+        string name = Path.GetFileName(candidate);
+        _fileName = string.IsNullOrWhiteSpace(name) ? string.Empty : name;
+    }
+
+    private void ResetToHomeDirectory()
+    {
+        string home = string.IsNullOrWhiteSpace(_homeDirectory)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+            : _homeDirectory;
+
+        if (string.IsNullOrWhiteSpace(home))
         {
-            _currentDirectory = directory;
-        }
-        else
-        {
-            _currentDirectory = TryResolveDirectory(_currentDirectory) ?? _currentDirectory;
+            home = Environment.CurrentDirectory;
         }
 
-        _fileName = Path.GetFileName(candidate);
+        _currentDirectory = TryResolveDirectory(home) ?? Environment.CurrentDirectory;
     }
 
     private string? TryResolveDirectory(string value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
         try
         {
             string resolved = Path.GetFullPath(value);
