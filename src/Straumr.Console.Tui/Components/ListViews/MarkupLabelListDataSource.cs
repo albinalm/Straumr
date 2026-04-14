@@ -99,12 +99,12 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
                 : run.Attribute;
             listView.SetAttribute(attribute);
 
-            foreach (char ch in run.Text)
+            foreach (Rune rune in run.Text.EnumerateRunes())
             {
-                char outCh = ch;
-                if (replaceGlyph && ch == '◇')
+                Rune outRune = rune;
+                if (replaceGlyph && rune.Value == '◇')
                 {
-                    outCh = '▸';
+                    outRune = new Rune('▸');
                     replaceGlyph = false;
                 }
 
@@ -118,7 +118,7 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
                     break;
                 }
 
-                listView.AddRune(col + x, row, new Rune(outCh));
+                listView.AddRune(col + x, row, outRune);
                 x++;
             }
 
