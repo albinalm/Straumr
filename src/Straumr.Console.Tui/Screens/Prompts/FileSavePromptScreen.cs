@@ -22,7 +22,7 @@ internal sealed class FileSavePromptScreen : PromptScreen<string?>
 
         Add(new HintsBar
         {
-            Text = "j/k Move  g/G Bounds  h Up dir  l Enter dir  / Filter  t Cycle type  Tab Filename  Enter Save  Esc Cancel",
+            Text = "j/k Move  g/G Bounds  h Up dir  l/o Open  / Filter  t Cycle type  p Go to dir (Tab complete)  s Save  Tab File name  Enter Save  Esc Cancel",
         });
 
         FileSavePrompt prompt = Add(new FileSavePrompt

@@ -9,6 +9,7 @@ using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
+using Straumr.Core;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -40,8 +41,10 @@ internal sealed class FileSavePrompt : PromptComponent
     private Label? _filterLabel;
     private InteractiveTextField? _filterField;
     private InteractiveTextField? _fileNameField;
+    private Label? _goToLabel;
+    private InteractiveTextField? _goToField;
 
-    private string _currentDirectory = Environment.CurrentDirectory;
+    private string _currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private string _fileName = string.Empty;
     private string _filterText = string.Empty;
     private int _activeFilterIndex;
@@ -59,6 +62,21 @@ internal sealed class FileSavePrompt : PromptComponent
             Y = 1,
             Width = Dim.Fill(2),
         };
+
+        _goToLabel = new Label
+        {
+            Text = "Go to:",
+            X = 1,
+            Y = 2,
+            Visible = false,
+        };
+
+        _goToField = CreateGoToField();
+        _goToField.X = Pos.Right(_goToLabel) + 1;
+        _goToField.Y = _goToLabel.Y;
+        _goToField.Width = Dim.Fill(3);
+        _goToField.Visible = false;
+        ApplyFieldTheme(_goToField);
 
         _filterLabel = new Label
         {
@@ -135,6 +153,7 @@ internal sealed class FileSavePrompt : PromptComponent
         };
 
         frame.Add(_pathLabel);
+        frame.Add(_goToLabel, _goToField);
         frame.Add(_filterLabel, _filterField);
         frame.Add(_listView, _emptyLabel);
         frame.Add(fileNameLabel, _fileNameField);
@@ -143,7 +162,7 @@ internal sealed class FileSavePrompt : PromptComponent
         _listView.Initialized += (_, _) => _listView.SetFocus();
 
         UpdatePathLabel();
-        RefreshFilterRowLayout();
+        RefreshLayout();
         RefreshTypeLabel();
         LoadDirectory(_currentDirectory);
         SetFileName(_fileName);
@@ -156,7 +175,7 @@ internal sealed class FileSavePrompt : PromptComponent
     {
         if (string.IsNullOrWhiteSpace(InitialPath))
         {
-            _currentDirectory = TryResolveDirectory(Environment.CurrentDirectory) ?? Environment.CurrentDirectory;
+            _currentDirectory = TryResolveDirectory(_currentDirectory) ?? _currentDirectory;
             _fileName = string.Empty;
             return;
         }
@@ -168,7 +187,7 @@ internal sealed class FileSavePrompt : PromptComponent
         }
         catch
         {
-            _currentDirectory = TryResolveDirectory(Environment.CurrentDirectory) ?? Environment.CurrentDirectory;
+            _currentDirectory = TryResolveDirectory(_currentDirectory) ?? _currentDirectory;
             _fileName = string.Empty;
             return;
         }
@@ -187,7 +206,7 @@ internal sealed class FileSavePrompt : PromptComponent
         }
         else
         {
-            _currentDirectory = TryResolveDirectory(Environment.CurrentDirectory) ?? Environment.CurrentDirectory;
+            _currentDirectory = TryResolveDirectory(_currentDirectory) ?? _currentDirectory;
         }
 
         _fileName = Path.GetFileName(candidate);
@@ -357,15 +376,16 @@ internal sealed class FileSavePrompt : PromptComponent
         {
             FileEntryKind.Directory => "[accent]",
             FileEntryKind.Parent => "[secondary]",
-            _ => "[primary]"
+            FileEntryKind.File => "[info]",
+            _ => string.Empty
         };
 
-        string name = $"{nameColor}{entry.Name}[/]";
+        string name = string.IsNullOrEmpty(nameColor) ? entry.Name : $"{nameColor}{entry.Name}[/]";
         string description = entry.Kind switch
         {
             FileEntryKind.Directory => "[secondary]Directory[/]",
             FileEntryKind.Parent => "[secondary]Parent directory[/]",
-            _ => $"[secondary]{FormatSize(entry.Size)}  •  {entry.Extension.ToUpperInvariant()}[/]"
+            _ => $"[secondary]{FormatSize(entry.Size)}  •  {GetMimeTypeDescription(entry.Extension)}[/]"
         };
 
         string modified = entry.Kind == FileEntryKind.Parent
@@ -400,11 +420,29 @@ internal sealed class FileSavePrompt : PromptComponent
         return $"{bytes:0.##} {units[unitIndex]}";
     }
 
+    private static string GetMimeTypeDescription(string extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return "Unknown type";
+        }
+
+        string normalized = extension.StartsWith('.') ? extension : "." + extension;
+        string mime = MimeTypes.GetMimeType(normalized);
+        return string.IsNullOrWhiteSpace(mime) ? "Unknown type" : mime;
+    }
+
     private bool HandleListKeyDown(Key key)
     {
         if (_listView is null)
         {
             return false;
+        }
+
+        if (key == Key.Esc && _goToField?.Visible == true)
+        {
+            HideGoTo();
+            return true;
         }
 
         if (!key.IsCtrl && !key.IsAlt)
@@ -427,6 +465,8 @@ internal sealed class FileSavePrompt : PromptComponent
                     NavigateUp();
                     return true;
                 case 'l':
+                case 'o':
+                case 'O':
                     ActivateSelection();
                     return true;
                 case '/':
@@ -435,6 +475,13 @@ internal sealed class FileSavePrompt : PromptComponent
                 case 't':
                     CycleFilter(1);
                     return true;
+                case 'p':
+                case 'P':
+                    BeginGoTo();
+                    return true;
+                case 's':
+                case 'S':
+                    return TryAcceptSelection();
             }
         }
 
@@ -444,7 +491,7 @@ internal sealed class FileSavePrompt : PromptComponent
             return true;
         }
 
-        if (key == Key.Tab)
+        if (key == Key.Tab && (_goToField is null || !_goToField.Visible))
         {
             FocusFileName();
             return true;
@@ -543,7 +590,7 @@ internal sealed class FileSavePrompt : PromptComponent
             return;
         }
 
-        RefreshFilterRowLayout(forceVisible: true);
+        RefreshLayout(forceFilterVisible: true);
         _filterField.SetFocus();
         _filterField.EnterEditMode();
     }
@@ -551,7 +598,7 @@ internal sealed class FileSavePrompt : PromptComponent
     private void FocusList()
     {
         _listView?.SetFocus();
-        RefreshFilterRowLayout();
+        RefreshLayout();
     }
 
     private void FocusFileName()
@@ -565,30 +612,71 @@ internal sealed class FileSavePrompt : PromptComponent
         _fileNameField.EnterEditMode();
     }
 
-    private void RefreshFilterRowLayout(bool forceVisible = false)
+    private void RefreshLayout(bool forceFilterVisible = false)
     {
-        if (_filterLabel is null || _filterField is null || _listView is null || _emptyLabel is null)
+        if (_listView is null || _emptyLabel is null)
         {
             return;
         }
 
-        bool hasText = !string.IsNullOrEmpty(_filterField.Text?.ToString());
-        bool visible = forceVisible || hasText || _filterField.HasFocus;
+        int nextRow = 2;
 
-        _filterLabel.Visible = visible;
-        _filterField.Visible = visible;
+        if (_goToLabel is not null && _goToField is not null)
+        {
+            bool goToVisible = _goToField.Visible;
+            _goToLabel.Visible = goToVisible;
+            if (goToVisible)
+            {
+                _goToLabel.Y = nextRow;
+                _goToField.Y = nextRow;
+                nextRow++;
+            }
+        }
 
-        int listOffset = visible ? 4 : 2;
-        _listView.Y = listOffset;
-        _emptyLabel.Y = listOffset;
-        _listView.Height = visible ? Dim.Fill(7) : Dim.Fill(6);
+        bool showFilter = _filterLabel is not null && _filterField is not null
+                          && (forceFilterVisible
+                              || _filterField.HasFocus
+                              || !string.IsNullOrEmpty(_filterField.Text?.ToString()));
+
+        if (_filterLabel is not null)
+        {
+            _filterLabel.Visible = showFilter;
+        }
+
+        if (_filterField is not null)
+        {
+            _filterField.Visible = showFilter;
+        }
+
+        if (showFilter && _filterLabel is not null && _filterField is not null)
+        {
+            _filterLabel.Y = nextRow;
+            _filterField.Y = nextRow;
+            nextRow++;
+        }
+
+        _listView.Y = nextRow;
+        _emptyLabel.Y = nextRow;
+
+        int reserved = 6;
+        if (_goToField is not null && _goToField.Visible)
+        {
+            reserved++;
+        }
+
+        if (showFilter)
+        {
+            reserved++;
+        }
+
+        _listView.Height = Dim.Fill(reserved);
     }
 
     private void OnFilterChanged(string text)
     {
         _filterText = text;
         ApplyEntryFilter();
-        RefreshFilterRowLayout();
+        RefreshLayout();
     }
 
     private void CycleFilter(int delta)
@@ -748,6 +836,242 @@ internal sealed class FileSavePrompt : PromptComponent
         }
 
         _statusLabel.Visible = false;
+    }
+
+    private InteractiveTextField CreateGoToField()
+    {
+        var field = new InteractiveTextField();
+        field.Bind(Key.Enter, (_, _) => TryApplyGoTo());
+        field.Bind(Key.Esc, (_, _) =>
+        {
+            HideGoTo();
+            return true;
+        });
+        field.Bind(Key.Tab, (_, _) => TryCompleteGoTo());
+        field.Bind(Key.Tab.WithShift, (_, _) => TryCompleteGoTo());
+        return field;
+    }
+
+    private void BeginGoTo()
+    {
+        if (_goToField is null)
+        {
+            return;
+        }
+
+        _goToField.Visible = true;
+        _goToField.Text = EnsureTrailingSeparator(_currentDirectory);
+        _goToField.MoveEnd();
+        _goToField.SetFocus();
+        RefreshLayout();
+    }
+
+    private void HideGoTo()
+    {
+        if (_goToField is null)
+        {
+            return;
+        }
+
+        _goToField.Visible = false;
+        RefreshLayout();
+        FocusList();
+    }
+
+    private bool TryApplyGoTo()
+    {
+        if (_goToField is null)
+        {
+            return true;
+        }
+
+        string input = _goToField.Text ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            HideGoTo();
+            return true;
+        }
+
+        string target = ResolveAbsolutePath(input);
+        if (!Directory.Exists(target))
+        {
+            ShowStatus("Directory does not exist.");
+            return true;
+        }
+
+        LoadDirectory(target);
+        HideGoTo();
+        return true;
+    }
+
+    private bool TryCompleteGoTo()
+    {
+        if (_goToField is null)
+        {
+            return true;
+        }
+
+        string input = _goToField.Text ?? string.Empty;
+        string normalized = ResolveAbsolutePath(input);
+
+        string baseDir;
+        string partial;
+
+        if (EndsWithSeparator(input))
+        {
+            baseDir = normalized;
+            partial = string.Empty;
+        }
+        else
+        {
+            baseDir = Path.GetDirectoryName(normalized) ?? normalized;
+            partial = Path.GetFileName(normalized);
+        }
+
+        if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir))
+        {
+            return true;
+        }
+
+        string[] candidates;
+        try
+        {
+            candidates = Directory.GetDirectories(baseDir)
+                .Where(dir => Path.GetFileName(dir).StartsWith(partial, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+        catch
+        {
+            return true;
+        }
+
+        if (candidates.Length == 0)
+        {
+            return true;
+        }
+
+        string completion;
+        if (candidates.Length == 1)
+        {
+            completion = EnsureTrailingSeparator(candidates[0]);
+        }
+        else
+        {
+            string shared = GetCommonPrefix(candidates.Select(Path.GetFileName).Where(name => !string.IsNullOrEmpty(name)));
+            if (!string.IsNullOrEmpty(shared) && shared.Length > partial.Length)
+            {
+                completion = EnsureTrailingSeparator(Path.Combine(baseDir, shared));
+            }
+            else
+            {
+                completion = EnsureTrailingSeparator(candidates[0]);
+            }
+        }
+
+        _goToField.Text = completion;
+        _goToField.MoveEnd();
+        return true;
+    }
+
+    private static bool EndsWithSeparator(string value)
+        => value.EndsWith(Path.DirectorySeparatorChar) || value.EndsWith(Path.AltDirectorySeparatorChar);
+
+    private static string EnsureTrailingSeparator(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return path;
+        }
+
+        if (path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar))
+        {
+            return path;
+        }
+
+        return path + Path.DirectorySeparatorChar;
+    }
+
+    private string ResolveAbsolutePath(string input)
+    {
+        string expanded = ExpandHome(input);
+        string candidate = string.IsNullOrWhiteSpace(expanded) ? _currentDirectory : expanded;
+
+        if (!Path.IsPathRooted(candidate))
+        {
+            candidate = Path.Combine(_currentDirectory, candidate);
+        }
+
+        try
+        {
+            return Path.GetFullPath(candidate);
+        }
+        catch
+        {
+            return candidate;
+        }
+    }
+
+    private static string ExpandHome(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return input;
+        }
+
+        if (input.StartsWith("~"))
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (input.Length == 1)
+            {
+                return home;
+            }
+
+            char sep = Path.DirectorySeparatorChar;
+            char altSep = Path.AltDirectorySeparatorChar;
+            if (input[1] == sep || input[1] == altSep)
+            {
+                string remainder = input.Length > 2 ? input[2..] : string.Empty;
+                return Path.Combine(home, remainder);
+            }
+        }
+
+        return input;
+    }
+
+    private static string GetCommonPrefix(IEnumerable<string?> names)
+    {
+        string[] values = names.Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToArray();
+        if (values.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        string prefix = values[0];
+        for (int i = 1; i < values.Length; i++)
+        {
+            prefix = CommonPrefix(prefix, values[i]);
+            if (prefix.Length == 0)
+            {
+                break;
+            }
+        }
+
+        return prefix;
+    }
+
+    private static string CommonPrefix(string a, string b)
+    {
+        int length = Math.Min(a.Length, b.Length);
+        int index = 0;
+
+        while (index < length && char.ToLowerInvariant(a[index]) == char.ToLowerInvariant(b[index]))
+        {
+            index++;
+        }
+
+        return a[..index];
     }
 
     private sealed record FileBrowserEntry(
