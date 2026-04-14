@@ -17,6 +17,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
     private enum Mode { Browsing, Editing }
     public required string Title { get; init; }
     public required IDictionary<string, string> Items { get; init; }
+    public bool IsEditingItem => _mode == Mode.Editing;
 
     public event Action? DoneRequested;
     public event Action? ItemSaved;

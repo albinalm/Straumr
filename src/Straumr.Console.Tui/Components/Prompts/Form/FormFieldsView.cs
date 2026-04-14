@@ -13,6 +13,7 @@ internal sealed class FormFieldsView : View
 {
     public required IReadOnlyList<FormFieldSpec> Fields { get; init; }
     public StraumrTheme? Theme { get; init; }
+    public bool AnyFieldEditing => _fields.Any(f => f.IsEditing);
 
     public event Action<Dictionary<string, string>>? Submitted;
     public event Action? CancelRequested;
@@ -263,6 +264,14 @@ internal sealed class FormFieldsView : View
                     targetField.EnterEditMode();
                 }
 
+                return true;
+            }));
+
+        field.Bind(TextFieldKeyBinding.When(
+            (f, key) => !f.IsEditing && KeyHelpers.IsEscape(key),
+            (_, _) =>
+            {
+                CancelRequested?.Invoke();
                 return true;
             }));
 

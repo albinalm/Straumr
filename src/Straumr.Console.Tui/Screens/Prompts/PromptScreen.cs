@@ -24,9 +24,11 @@ internal abstract class PromptScreen<TResult> : Screen
 
     protected void Cancel() => Complete(default);
 
+    protected virtual bool ShouldCancelOnEscape(Key key) => true;
+
     public override bool OnKeyDown(Key key)
     {
-        if (KeyHelpers.IsEscape(key))
+        if (KeyHelpers.IsEscape(key) && ShouldCancelOnEscape(key))
         {
             Cancel();
             return true;

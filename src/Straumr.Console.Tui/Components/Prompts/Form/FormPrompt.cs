@@ -18,6 +18,7 @@ internal sealed class FormPrompt : PromptComponent
 {
     public required string Title { get; init; }
     public required IReadOnlyList<FormFieldSpec> Fields { get; init; }
+    public bool AnyFieldEditing => _fieldsView?.AnyFieldEditing ?? false;
 
     public event Action<Dictionary<string, string>>? Submitted;
     public event Action? CancelRequested;
