@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System;
-using System.Collections.Generic;
 using Straumr.Console.Tui.Components.Prompts.Base;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
@@ -76,7 +72,7 @@ internal sealed class MessagePrompt : PromptComponent
     {
         if (string.IsNullOrWhiteSpace(text) || maxWidth <= 0)
         {
-            return text ?? string.Empty;
+            return text;
         }
 
         var lines = new List<string>();

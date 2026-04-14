@@ -1,5 +1,3 @@
-using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
@@ -20,9 +18,7 @@ using Straumr.Core;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
-using Terminal.Gui;
 using Terminal.Gui.Input;
-using Terminal.Gui.Text;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using Attribute = Terminal.Gui.Drawing.Attribute;
@@ -533,12 +529,17 @@ public sealed class SendScreen : Screen
 
     private void SaveBodyToFile()
     {
-        string body = GetBodyForTemplate();
-
-        if (string.IsNullOrWhiteSpace(body))
+        byte[]? bodyBytes = _currentResponse?.RawContent;
+        if (bodyBytes is null || bodyBytes.Length == 0)
         {
-            ShowMessage("Save response body", "No response body to save.");
-            return;
+            string body = GetBodyForTemplate();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                ShowMessage("Save response body", "No response body to save.");
+                return;
+            }
+
+            bodyBytes = Encoding.UTF8.GetBytes(body);
         }
 
         List<IAllowedType> allowedTypes = BuildBodyAllowedTypes().ToList();
@@ -550,7 +551,7 @@ public sealed class SendScreen : Screen
 
         try
         {
-            File.WriteAllText(selectedPath, body);
+            File.WriteAllBytes(selectedPath, bodyBytes);
             ShowMessage("Save response body", $"Saved response body to \"{selectedPath}\".");
         }
         catch (Exception ex)
@@ -714,9 +715,14 @@ public sealed class SendScreen : Screen
 
         try
         {
-            if (!_applicationContext.TryRunPrompt(screen, out string? result) || string.IsNullOrWhiteSpace(result))
+            if (!_applicationContext.TryRunPrompt(screen, out string? result))
             {
                 ShowMessage(title, "Application context is not available.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(result))
+            {
                 return false;
             }
 

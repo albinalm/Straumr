@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Straumr.Core.Models;
 
 namespace Straumr.Core.Extensions;
@@ -12,7 +13,8 @@ public static class HttpExtensions
         {
             HttpResponseMessage response = await requestTask;
             stopwatch.Stop();
-            string body = await response.Content.ReadAsStringAsync();
+            byte[] raw = await response.Content.ReadAsByteArrayAsync();
+            string body = DecodeBody(raw, response.Content.Headers.ContentType?.CharSet);
 
             Dictionary<string, IEnumerable<string>> headers = new Dictionary<string, IEnumerable<string>>();
             foreach (KeyValuePair<string, IEnumerable<string>> h in response.Headers)
@@ -30,6 +32,7 @@ public static class HttpExtensions
                 StatusCode = response.StatusCode,
                 Duration = stopwatch.Elapsed,
                 Content = body,
+                RawContent = raw,
                 Exception = null,
                 ResponseHeaders = headers,
                 ReasonPhrase = response.ReasonPhrase,
@@ -42,10 +45,36 @@ public static class HttpExtensions
             return new StraumrResponse
             {
                 Content = null,
+                RawContent = null,
                 Duration = stopwatch.Elapsed,
                 Exception = ex,
                 StatusCode = null
             };
         }
+    }
+    private static string DecodeBody(byte[] raw, string? charset)
+    {
+        if (raw.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(charset))
+        {
+            try
+            {
+                Encoding? encoding = Encoding.GetEncoding(charset!);
+                if (encoding is not null)
+                {
+                    return encoding.GetString(raw);
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Fallback below.
+            }
+        }
+
+        return Encoding.UTF8.GetString(raw);
     }
 }
