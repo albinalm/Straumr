@@ -203,6 +203,8 @@ internal sealed class FormFieldsView : View
                 };
             }
 
+            continue;
+
             View? Below() => index == _fields.Count - 1 ? _saveButton : _fields[index + 1];
             View? Above() => index == 0 ? _saveButton : _fields[index - 1];
         }
