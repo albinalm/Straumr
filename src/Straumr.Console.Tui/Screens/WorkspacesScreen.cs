@@ -103,7 +103,7 @@ public sealed class WorkspacesScreen(
         List<FormFieldSpec> fields =
         [
             new("name", "Name", Required: true),
-            new("outputDir", "Output directory", PathMode: FormFieldPathMode.Directory),
+            new("outputDir", "Output directory", SideAction: interactiveConsole.BrowseDirectoryAction("Select output directory")),
         ];
 
         Dictionary<string, string>? result = interactiveConsole.PromptForm("Create workspace", fields);
@@ -242,7 +242,7 @@ public sealed class WorkspacesScreen(
         List<FormFieldSpec> fields =
         [
             new("name", "New name", Required: true),
-            new("outputDir", "Output directory", PathMode: FormFieldPathMode.Directory),
+            new("outputDir", "Output directory", SideAction: interactiveConsole.BrowseDirectoryAction("Select output directory")),
         ];
 
         Dictionary<string, string>? result = interactiveConsole.PromptForm("Copy workspace", fields);
@@ -284,7 +284,7 @@ public sealed class WorkspacesScreen(
 
         List<FormFieldSpec> fields =
         [
-            new("path", "Workspace file", Required: true, PathMode: FormFieldPathMode.ExistingFile, PathAllowedTypes: allowed),
+            new("path", "Workspace file", Required: true, SideAction: interactiveConsole.BrowseFileAction("Select workspace file", allowed)),
         ];
 
         Dictionary<string, string>? result = interactiveConsole.PromptForm("Import workspace", fields);
@@ -326,7 +326,7 @@ public sealed class WorkspacesScreen(
 
         List<FormFieldSpec> fields =
         [
-            new("outputDir", "Output directory", Required: true, PathMode: FormFieldPathMode.Directory),
+            new("outputDir", "Output directory", Required: true, SideAction: interactiveConsole.BrowseDirectoryAction("Select output directory")),
         ];
 
         Dictionary<string, string>? result = interactiveConsole.PromptForm("Export workspace", fields);

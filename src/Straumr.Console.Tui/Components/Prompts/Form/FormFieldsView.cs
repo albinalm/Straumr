@@ -13,13 +13,12 @@ internal sealed class FormFieldsView : View
 {
     public required IReadOnlyList<FormFieldSpec> Fields { get; init; }
     public StraumrTheme? Theme { get; init; }
-    public Func<FormFieldSpec, string?, string?>? BrowseHandler { get; init; }
 
     public event Action<Dictionary<string, string>>? Submitted;
     public event Action? CancelRequested;
 
     private readonly List<InteractiveTextField> _fields = [];
-    private readonly List<Button?> _pathButtons = [];
+    private readonly List<Button?> _sideButtons = [];
     private MarkupLabel? _inputErrorLabel;
     private Button? _saveButton;
 
@@ -53,12 +52,13 @@ internal sealed class FormFieldsView : View
                 Width = labelWidth,
             };
 
-            bool hasBrowse = BrowseHandler is not null && spec.PathMode != FormFieldPathMode.None;
+            FormFieldSideAction? sideAction = spec.SideAction;
+            int sideButtonWidth = sideAction is null ? 0 : sideAction.Label.Length + 4;
             var field = new InteractiveTextField
             {
                 X = fieldX,
                 Y = fieldY,
-                Width = hasBrowse ? Dim.Fill(14) : Dim.Fill(2),
+                Width = sideAction is null ? Dim.Fill(2) : Dim.Fill(sideButtonWidth + 3),
                 BorderStyle = LineStyle.Single,
             };
 
@@ -68,18 +68,18 @@ internal sealed class FormFieldsView : View
             _fields.Add(field);
             Add(label, field);
 
-            if (hasBrowse)
+            if (sideAction is not null)
             {
-                Button browseButton = CreateButton("Browse");
-                browseButton.X = Pos.AnchorEnd(12);
-                browseButton.Y = fieldY + 1;
-                browseButton.Accepting += (_, _) => RequestBrowse(field, spec);
-                _pathButtons.Add(browseButton);
-                Add(browseButton);
+                Button sideButton = CreateButton(sideAction.Label);
+                sideButton.X = Pos.AnchorEnd(sideButtonWidth);
+                sideButton.Y = fieldY + 1;
+                sideButton.Accepting += (_, _) => InvokeSideAction(field, sideAction);
+                _sideButtons.Add(sideButton);
+                Add(sideButton);
             }
             else
             {
-                _pathButtons.Add(null);
+                _sideButtons.Add(null);
             }
         }
 
@@ -174,10 +174,10 @@ internal sealed class FormFieldsView : View
             InteractiveTextField field = _fields[index];
             ConfigureEditField(field, Above, Below);
 
-            Button? browse = index < _pathButtons.Count ? _pathButtons[index] : null;
-            if (browse is not null)
+            Button? sideButton = index < _sideButtons.Count ? _sideButtons[index] : null;
+            if (sideButton is not null)
             {
-                browse.KeyDown += (_, key) =>
+                sideButton.KeyDown += (_, key) =>
                 {
                     if (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k')
                     {
@@ -213,7 +213,7 @@ internal sealed class FormFieldsView : View
         Button button = new()
         {
             Text = text,
-            ShadowStyle = ShadowStyle.None,
+            ShadowStyle = ShadowStyle.None
         };
         button.Margin?.SetShadow(ShadowStyle.None);
         if (Theme is not null)
@@ -288,17 +288,12 @@ internal sealed class FormFieldsView : View
             }));
     }
 
-    private void RequestBrowse(InteractiveTextField field, FormFieldSpec spec)
+    private static void InvokeSideAction(InteractiveTextField field, FormFieldSideAction action)
     {
-        if (BrowseHandler is null)
+        string? result = action.Invoke(field.Text);
+        if (!string.IsNullOrWhiteSpace(result))
         {
-            return;
-        }
-
-        string? selected = BrowseHandler(spec, field.Text);
-        if (!string.IsNullOrWhiteSpace(selected))
-        {
-            field.Text = selected;
+            field.Text = result;
             field.MoveEnd();
         }
     }

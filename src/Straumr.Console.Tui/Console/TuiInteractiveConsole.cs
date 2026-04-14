@@ -78,27 +78,23 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
 
     public Dictionary<string, string>? PromptForm(string title, IReadOnlyList<FormFieldSpec> fields)
     {
-        var screen = new FormPromptScreen(title, fields, _theme, HandlePathBrowse);
+        var screen = new FormPromptScreen(title, fields, _theme);
         return RunPrompt(screen);
-
-        string? HandlePathBrowse(FormFieldSpec spec, string? current)
-        {
-            return spec.PathMode switch
-            {
-                FormFieldPathMode.Directory => SelectDirectory($"Select {spec.Label}", current),
-                FormFieldPathMode.ExistingFile => SelectFile($"Select {spec.Label}", current, spec.PathAllowedTypes),
-                _ => current
-            };
-        }
     }
 
-    public string? SelectDirectory(string title, string? initialPath = null)
+    public FormFieldSideAction BrowseDirectoryAction(string title)
+        => new("Browse", current => SelectDirectory(title, current));
+
+    public FormFieldSideAction BrowseFileAction(string title, IReadOnlyList<IAllowedType>? allowedTypes = null)
+        => new("Browse", current => SelectFile(title, current, allowedTypes));
+
+    private string? SelectDirectory(string title, string? initialPath = null)
     {
         var screen = new DirectorySelectPromptScreen(title, initialPath, _theme);
         return RunPrompt(screen);
     }
 
-    public string? SelectFile(string title, string? initialPath = null, IReadOnlyList<IAllowedType>? allowedTypes = null)
+    private string? SelectFile(string title, string? initialPath = null, IReadOnlyList<IAllowedType>? allowedTypes = null)
         => SelectFile(title, initialPath, mustExist: true, allowedTypes);
 
     private string? SelectFile(string title, string? initialPath, bool mustExist, IReadOnlyList<IAllowedType>? allowedTypes)
