@@ -28,6 +28,8 @@ public abstract class ModelScreen<TEntry> : Screen
     private readonly List<string> _commandNames = [];
     private readonly ObservableCollection<MarkupLabel> _displayItems = [];
     private readonly List<TEntry> _sourceEntries = [];
+    private readonly List<MarkupLabel> _sourceLabels = [];
+    private readonly List<string> _sourceFilterText = [];
     private readonly List<TEntry> _displayEntries = [];
     private readonly StraumrTheme _theme;
     private readonly string _screenTitle;
@@ -83,11 +85,25 @@ public abstract class ModelScreen<TEntry> : Screen
         EnsureCommandsConfigured();
 
         IReadOnlyList<TEntry> entries = await LoadEntriesAsync(cancellationToken);
-        _sourceEntries.Clear();
-        _sourceEntries.AddRange(entries);
+        RebuildSourceCache(entries);
 
         ApplyFilter(_currentFilter);
         OnInitialized();
+    }
+
+    private void RebuildSourceCache(IReadOnlyList<TEntry> entries)
+    {
+        _sourceEntries.Clear();
+        _sourceLabels.Clear();
+        _sourceFilterText.Clear();
+
+        foreach (TEntry entry in entries)
+        {
+            string displayText = GetDisplayText(entry);
+            _sourceEntries.Add(entry);
+            _sourceLabels.Add(new MarkupLabel { Markup = displayText, Theme = _theme });
+            _sourceFilterText.Add(MarkupText.ToPlain(displayText));
+        }
     }
 
     public override bool OnKeyDown(Key key)
@@ -110,7 +126,6 @@ public abstract class ModelScreen<TEntry> : Screen
 
     protected abstract Task<IReadOnlyList<TEntry>> LoadEntriesAsync(CancellationToken cancellationToken);
     protected abstract string GetDisplayText(TEntry entry);
-    private string GetFilterText(TEntry entry) => MarkupText.ToPlain(GetDisplayText(entry));
 
     protected virtual void OnInitialized() { }
     protected virtual IEnumerable<ModelCommand> GetCommands() => [];
@@ -137,8 +152,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _pendingSelection = GetSelectedEntry();
         _hasPendingSelection = true;
         IReadOnlyList<TEntry> entries = await LoadEntriesAsync(CancellationToken.None);
-        _sourceEntries.Clear();
-        _sourceEntries.AddRange(entries);
+        RebuildSourceCache(entries);
         ApplyFilter(_currentFilter);
         if (notifyInitialized)
         {
@@ -348,22 +362,21 @@ public abstract class ModelScreen<TEntry> : Screen
     private void ApplyFilter(string filter)
     {
         _currentFilter = filter;
+
+        _listView?.BeginBulkUpdate();
         _displayItems.Clear();
         _displayEntries.Clear();
 
-        foreach (TEntry entry in _sourceEntries)
+        for (int i = 0; i < _sourceEntries.Count; i++)
         {
-            string displayText = GetDisplayText(entry);
-            if (MatchesFilter(GetFilterText(entry), filter))
+            if (MatchesFilter(_sourceFilterText[i], filter))
             {
-                _displayItems.Add(new MarkupLabel
-                {
-                    Markup = displayText,
-                    Theme = _theme,
-                });
-                _displayEntries.Add(entry);
+                _displayItems.Add(_sourceLabels[i]);
+                _displayEntries.Add(_sourceEntries[i]);
             }
         }
+
+        _listView?.EndBulkUpdate();
 
         bool hasItems = _displayItems.Count > 0;
 
@@ -652,9 +665,8 @@ public abstract class ModelScreen<TEntry> : Screen
         }
 
         int baseY = Banner.FigletHeight + FrameBaseOffset;
-        _frameView.Y = _commandActive && _commandContainer is not null
-            ? Pos.Bottom(_commandContainer) + CommandPanelGap
-            : baseY;
+        int activeY = Banner.FigletHeight + CommandBarTopOffset + CommandBarHeight + CommandPanelGap;
+        _frameView.Y = _commandActive ? activeY : baseY;
     }
 
     private void EnsureCommandsConfigured()

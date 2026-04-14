@@ -18,10 +18,23 @@ internal sealed class SelectableDetailsView : View
     private int _cachedWidth = -1;
     private List<List<StyledCell>> _renderedLines = [];
 
+    private readonly Attribute _baseAttribute;
+    private readonly Attribute _secondaryAttribute;
+    private readonly Attribute _selectionAttribute;
+
     public SelectableDetailsView(IReadOnlyList<(string Key, string Value)> rows, StraumrTheme? theme)
     {
         _rows = rows;
         _theme = theme;
+        _baseAttribute = new Attribute(
+            ColorResolver.Resolve(theme?.OnSurface ?? "White"),
+            ColorResolver.Resolve(theme?.Surface ?? "Black"));
+        _secondaryAttribute = new Attribute(
+            ColorResolver.Resolve(theme?.Secondary ?? "Gray"),
+            ColorResolver.Resolve(theme?.Surface ?? "Black"));
+        _selectionAttribute = new Attribute(
+            ColorResolver.Resolve(theme?.OnPrimary ?? "Black"),
+            ColorResolver.Resolve(theme?.Primary ?? "BrightGreen"));
         CanFocus = true;
         MousePositionTracking = true;
     }
@@ -336,17 +349,9 @@ internal sealed class SelectableDetailsView : View
         return cells;
     }
 
-    private Attribute BaseAttribute => new(
-        ColorResolver.Resolve(_theme?.OnSurface ?? "White"),
-        ColorResolver.Resolve(_theme?.Surface ?? "Black"));
-
-    private Attribute SecondaryAttribute => new(
-        ColorResolver.Resolve(_theme?.Secondary ?? "Gray"),
-        ColorResolver.Resolve(_theme?.Surface ?? "Black"));
-
-    private Attribute SelectionAttribute => new(
-        ColorResolver.Resolve(_theme?.OnPrimary ?? "Black"),
-        ColorResolver.Resolve(_theme?.Primary ?? "BrightGreen"));
+    private Attribute BaseAttribute => _baseAttribute;
+    private Attribute SecondaryAttribute => _secondaryAttribute;
+    private Attribute SelectionAttribute => _selectionAttribute;
 
     private void TryCopyToClipboard(string text)
     {

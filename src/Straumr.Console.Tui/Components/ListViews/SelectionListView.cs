@@ -24,6 +24,23 @@ internal sealed class SelectionListView : ListView
         Source = new MarkupLabelListDataSource(source);
     }
 
+    public void BeginBulkUpdate()
+    {
+        if (Source is MarkupLabelListDataSource ds)
+        {
+            ds.SuspendCollectionChangedEvent = true;
+        }
+    }
+
+    public void EndBulkUpdate()
+    {
+        if (Source is MarkupLabelListDataSource ds)
+        {
+            ds.SuspendCollectionChangedEvent = false;
+            ds.RaiseReset();
+        }
+    }
+
     protected override bool OnKeyDown(Key key)
     {
         if (_onKey(key))

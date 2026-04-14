@@ -157,20 +157,7 @@ internal static partial class MarkupText
 
     private static bool TryResolveTagAttribute(string tag, StraumrTheme? theme, out Attribute attribute)
     {
-        string lower = tag.ToLowerInvariant();
-        string? color = lower switch
-        {
-            "grey" or "gray" or "secondary" => theme?.Secondary,
-            "success" => theme?.Success,
-            "info" => theme?.Info,
-            "warning" => theme?.Warning,
-            "danger" => theme?.Danger,
-            "primary" => theme?.Primary,
-            "accent" => theme?.Accent,
-            "surface" => theme?.OnSurface,
-            "bold" => theme?.OnSurface,
-            _ => ResolveMethodColor(lower, theme),
-        };
+        string? color = ResolveNamedColor(tag, theme);
 
         if (color is null)
         {
@@ -182,26 +169,39 @@ internal static partial class MarkupText
         return true;
     }
 
+    private static string? ResolveNamedColor(string tag, StraumrTheme? theme)
+    {
+        if (Eq(tag, "grey") || Eq(tag, "gray") || Eq(tag, "secondary")) return theme?.Secondary;
+        if (Eq(tag, "success")) return theme?.Success;
+        if (Eq(tag, "info")) return theme?.Info;
+        if (Eq(tag, "warning")) return theme?.Warning;
+        if (Eq(tag, "danger")) return theme?.Danger;
+        if (Eq(tag, "primary")) return theme?.Primary;
+        if (Eq(tag, "accent")) return theme?.Accent;
+        if (Eq(tag, "surface") || Eq(tag, "bold")) return theme?.OnSurface;
+        return ResolveMethodColor(tag, theme);
+    }
+
+    private static bool Eq(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
     private static string? ResolveMethodColor(string tag, StraumrTheme? theme)
     {
-        if (theme is null || !tag.StartsWith("method-", StringComparison.Ordinal))
+        if (theme is null || !tag.StartsWith("method-", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        return tag[7..] switch
-        {
-            "get" => theme.MethodGet,
-            "post" => theme.MethodPost,
-            "put" => theme.MethodPut,
-            "patch" => theme.MethodPatch,
-            "delete" => theme.MethodDelete,
-            "head" => theme.MethodHead,
-            "options" => theme.MethodOptions,
-            "trace" => theme.MethodTrace,
-            "connect" => theme.MethodConnect,
-            _ => null,
-        };
+        ReadOnlySpan<char> suffix = tag.AsSpan(7);
+        if (suffix.Equals("get", StringComparison.OrdinalIgnoreCase)) return theme.MethodGet;
+        if (suffix.Equals("post", StringComparison.OrdinalIgnoreCase)) return theme.MethodPost;
+        if (suffix.Equals("put", StringComparison.OrdinalIgnoreCase)) return theme.MethodPut;
+        if (suffix.Equals("patch", StringComparison.OrdinalIgnoreCase)) return theme.MethodPatch;
+        if (suffix.Equals("delete", StringComparison.OrdinalIgnoreCase)) return theme.MethodDelete;
+        if (suffix.Equals("head", StringComparison.OrdinalIgnoreCase)) return theme.MethodHead;
+        if (suffix.Equals("options", StringComparison.OrdinalIgnoreCase)) return theme.MethodOptions;
+        if (suffix.Equals("trace", StringComparison.OrdinalIgnoreCase)) return theme.MethodTrace;
+        if (suffix.Equals("connect", StringComparison.OrdinalIgnoreCase)) return theme.MethodConnect;
+        return null;
     }
 
     private static Attribute BuildAttribute(string? foreground, string? background)
@@ -213,25 +213,22 @@ internal static partial class MarkupText
 
     private static bool TryApplyTag(string tag, StraumrTheme? theme, StyleState currentStyle, out StyleState nextStyle)
     {
-        string lower = tag.ToLowerInvariant();
-        string? color = lower switch
-        {
-            "grey" or "gray" or "secondary" => theme?.Secondary,
-            "success" => theme?.Success,
-            "info" => theme?.Info,
-            "warning" => theme?.Warning,
-            "danger" => theme?.Danger,
-            "primary" => theme?.Primary,
-            "accent" => theme?.Accent,
-            "surface" => theme?.OnSurface,
-            _ => ResolveMethodColor(lower, theme),
-        };
-
-        if (tag.Equals("bold", StringComparison.OrdinalIgnoreCase))
+        if (Eq(tag, "bold"))
         {
             nextStyle = currentStyle with { Style = currentStyle.Style | TextStyle.Bold };
             return true;
         }
+
+        string? color;
+        if (Eq(tag, "grey") || Eq(tag, "gray") || Eq(tag, "secondary")) color = theme?.Secondary;
+        else if (Eq(tag, "success")) color = theme?.Success;
+        else if (Eq(tag, "info")) color = theme?.Info;
+        else if (Eq(tag, "warning")) color = theme?.Warning;
+        else if (Eq(tag, "danger")) color = theme?.Danger;
+        else if (Eq(tag, "primary")) color = theme?.Primary;
+        else if (Eq(tag, "accent")) color = theme?.Accent;
+        else if (Eq(tag, "surface")) color = theme?.OnSurface;
+        else color = ResolveMethodColor(tag, theme);
 
         if (color is null)
         {

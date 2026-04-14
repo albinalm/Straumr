@@ -50,6 +50,9 @@ public sealed class SendScreen : Screen
     private FrameView? _summaryFrame;
     private FrameView? _bodyFrame;
     private readonly Dictionary<Border, View> _frameBorderTargets = new();
+    private readonly Color _borderFocused;
+    private readonly Color _borderUnfocused;
+    private readonly Color _borderBackground;
     private Timer? _spinnerTimer;
     private int _spinnerIndex;
     private CancellationTokenSource? _sendTokenSource;
@@ -74,6 +77,9 @@ public sealed class SendScreen : Screen
         _navigationContext = navigationContext;
         _theme = theme;
         _applicationContext = applicationContext;
+        _borderFocused = ColorResolver.Resolve(_theme.Accent);
+        _borderUnfocused = ColorResolver.Resolve(_theme.Secondary);
+        _borderBackground = ColorResolver.Resolve(_theme.Surface);
 
         Add(new Banner { Theme = _theme });
         Add(new HintsBar { Text = HintText });
@@ -370,9 +376,7 @@ public sealed class SendScreen : Screen
             return;
         }
 
-        Color foreground = ColorResolver.Resolve(child.HasFocus ? _theme.Accent : _theme.Secondary);
-        Color background = ColorResolver.Resolve(_theme.Surface);
-        args.Result = new Attribute(foreground, background);
+        args.Result = new Attribute(child.HasFocus ? _borderFocused : _borderUnfocused, _borderBackground);
         args.Handled = true;
     }
 

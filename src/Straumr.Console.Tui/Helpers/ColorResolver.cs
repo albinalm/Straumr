@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Straumr.Console.Shared.Theme;
 using Terminal.Gui.Drawing;
@@ -8,6 +9,7 @@ using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
 public static class ColorResolver
 {
+    private static readonly ConcurrentDictionary<string, Color> ResolveCache = new(StringComparer.Ordinal);
 
     public static Color Resolve(string value)
     {
@@ -16,6 +18,13 @@ public static class ColorResolver
             return Color.None;
         }
 
+        return ResolveCache.TryGetValue(value, out Color cached)
+            ? cached
+            : ResolveCache.GetOrAdd(value, ResolveUncached);
+    }
+
+    private static Color ResolveUncached(string value)
+    {
         string trimmed = value.Trim();
 
         if (trimmed.StartsWith('#'))

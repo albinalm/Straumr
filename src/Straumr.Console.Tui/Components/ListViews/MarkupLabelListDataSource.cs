@@ -47,6 +47,9 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
 
     public bool SuspendCollectionChangedEvent { get; set; }
 
+    public void RaiseReset()
+        => CollectionChanged?.Invoke(this, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+
     public bool IsMarked(int item) => false;
 
     public void Render(ListView listView, bool selected, int item, int col, int row, int width, int viewportX)
