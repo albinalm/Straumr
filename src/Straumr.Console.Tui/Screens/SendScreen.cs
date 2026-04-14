@@ -249,7 +249,7 @@ public sealed class SendScreen : Screen
         _summaryView = new InteractiveTextView
         {
             ReadOnly = true,
-            WordWrap = false,
+            WordWrap = true,
             CanFocus = true,
             X = 1,
             Y = 0,
@@ -275,7 +275,7 @@ public sealed class SendScreen : Screen
         _bodyView = new InteractiveTextView
         {
             ReadOnly = true,
-            WordWrap = false,
+            WordWrap = true,
             CanFocus = true,
             X = 1,
             Y = 0,
