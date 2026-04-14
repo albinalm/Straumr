@@ -18,6 +18,7 @@ internal sealed class FormFieldsView : View
     public event Action? CancelRequested;
 
     private readonly List<InteractiveTextField> _fields = [];
+    private readonly List<Button?> _sideButtons = [];
     private MarkupLabel? _inputErrorLabel;
     private Button? _saveButton;
 
@@ -51,11 +52,13 @@ internal sealed class FormFieldsView : View
                 Width = labelWidth,
             };
 
+            FormFieldSideAction? sideAction = spec.SideAction;
+            int sideButtonWidth = sideAction is null ? 0 : sideAction.Label.Length + 4;
             var field = new InteractiveTextField
             {
                 X = fieldX,
                 Y = fieldY,
-                Width = Dim.Fill(2),
+                Width = sideAction is null ? Dim.Fill(2) : Dim.Fill(sideButtonWidth + 3),
                 BorderStyle = LineStyle.Single,
             };
 
@@ -64,23 +67,25 @@ internal sealed class FormFieldsView : View
 
             _fields.Add(field);
             Add(label, field);
+
+            if (sideAction is not null)
+            {
+                Button sideButton = CreateButton(sideAction.Label);
+                sideButton.X = Pos.AnchorEnd(sideButtonWidth);
+                sideButton.Y = fieldY + 1;
+                sideButton.Accepting += (_, _) => InvokeSideAction(field, sideAction);
+                _sideButtons.Add(sideButton);
+                Add(sideButton);
+            }
+            else
+            {
+                _sideButtons.Add(null);
+            }
         }
 
-        Scheme? buttonScheme = Theme != null ? ColorResolver.BuildButtonScheme(Theme) : null;
-        _saveButton = new Button
-        {
-            Text = "Save",
-            X = fieldX,
-            Y = baseY + (Fields.Count * 3) + 1,
-            ShadowStyle = ShadowStyle.None,
-        };
-
-        _saveButton.Margin?.SetShadow(ShadowStyle.None);
-
-        if (buttonScheme is not null)
-        {
-            _saveButton.SetScheme(buttonScheme);
-        }
+        _saveButton = CreateButton("Save");
+        _saveButton.X = fieldX;
+        _saveButton.Y = baseY + (Fields.Count * 3) + 1;
 
         _inputErrorLabel = new MarkupLabel
         {
@@ -168,10 +173,57 @@ internal sealed class FormFieldsView : View
             int index = i;
             InteractiveTextField field = _fields[index];
             ConfigureEditField(field, Above, Below);
+
+            Button? sideButton = index < _sideButtons.Count ? _sideButtons[index] : null;
+            if (sideButton is not null)
+            {
+                sideButton.KeyDown += (_, key) =>
+                {
+                    if (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k')
+                    {
+                        key.Handled = true;
+                        FocusView(_fields[index]);
+                        _fields[index].EnterEditMode();
+                    }
+                    else if (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j')
+                    {
+                        key.Handled = true;
+                        View target = index == _fields.Count - 1 ? _saveButton! : _fields[index + 1];
+                        FocusView(target);
+                        if (target is InteractiveTextField nextField)
+                        {
+                            nextField.EnterEditMode();
+                        }
+                    }
+                    else if (key == Key.Esc)
+                    {
+                        key.Handled = true;
+                        CancelRequested?.Invoke();
+                    }
+                };
+            }
+
             continue;
+
             View? Below() => index == _fields.Count - 1 ? _saveButton : _fields[index + 1];
             View? Above() => index == 0 ? _saveButton : _fields[index - 1];
         }
+    }
+
+    private Button CreateButton(string text)
+    {
+        Button button = new()
+        {
+            Text = text,
+            ShadowStyle = ShadowStyle.None
+        };
+        button.Margin?.SetShadow(ShadowStyle.None);
+        if (Theme is not null)
+        {
+            button.SetScheme(ColorResolver.BuildButtonScheme(Theme));
+        }
+
+        return button;
     }
 
     private void ConfigureEditField(InteractiveTextField field, Func<View?> above, Func<View?> below)
@@ -190,7 +242,13 @@ internal sealed class FormFieldsView : View
             (f, key) => !f.IsEditing && (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k'),
             (_, _) =>
             {
-                FocusView(above());
+                View? target = above();
+                FocusView(target);
+                if (target is InteractiveTextField targetField)
+                {
+                    targetField.EnterEditMode();
+                }
+
                 return true;
             }));
 
@@ -198,15 +256,13 @@ internal sealed class FormFieldsView : View
             (f, key) => !f.IsEditing && (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j'),
             (_, _) =>
             {
-                FocusView(below());
-                return true;
-            }));
+                View? target = below();
+                FocusView(target);
+                if (target is InteractiveTextField targetField)
+                {
+                    targetField.EnterEditMode();
+                }
 
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && key == Key.Esc,
-            (_, _) =>
-            {
-                CancelRequested?.Invoke();
                 return true;
             }));
 
@@ -232,6 +288,16 @@ internal sealed class FormFieldsView : View
                 f.ExitEditMode();
                 return true;
             }));
+    }
+
+    private static void InvokeSideAction(InteractiveTextField field, FormFieldSideAction action)
+    {
+        string? result = action.Invoke(field.Text);
+        if (!string.IsNullOrWhiteSpace(result))
+        {
+            field.Text = result;
+            field.MoveEnd();
+        }
     }
 
     private void TrySave()

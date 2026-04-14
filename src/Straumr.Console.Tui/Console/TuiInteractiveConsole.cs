@@ -5,6 +5,7 @@ using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Prompts;
 using Straumr.Core.Services.Interfaces;
+using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Console;
 
@@ -78,6 +79,28 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
     public Dictionary<string, string>? PromptForm(string title, IReadOnlyList<FormFieldSpec> fields)
     {
         var screen = new FormPromptScreen(title, fields, _theme);
+        return RunPrompt(screen);
+    }
+
+    public FormFieldSideAction BrowseDirectoryAction(string title)
+        => new("Browse", current => SelectDirectory(title, current));
+
+    public FormFieldSideAction BrowseFileAction(string title, IReadOnlyList<IAllowedType>? allowedTypes = null)
+        => new("Browse", current => SelectFile(title, current, allowedTypes));
+
+    private string? SelectDirectory(string title, string? initialPath = null)
+    {
+        var screen = new DirectorySelectPromptScreen(title, initialPath, _theme);
+        return RunPrompt(screen);
+    }
+
+    private string? SelectFile(string title, string? initialPath = null, IReadOnlyList<IAllowedType>? allowedTypes = null)
+        => SelectFile(title, initialPath, mustExist: true, allowedTypes);
+
+    private string? SelectFile(string title, string? initialPath, bool mustExist, IReadOnlyList<IAllowedType>? allowedTypes)
+    {
+        IReadOnlyList<IAllowedType> types = allowedTypes is { Count: > 0 } ? allowedTypes : new[] { new AllowedTypeAny() };
+        var screen = new FileSavePromptScreen(title, initialPath, types, _theme, mustExist);
         return RunPrompt(screen);
     }
 

@@ -17,13 +17,13 @@ public sealed class TuiAppResolver
         if (Current is not null)
         {
             ownsApp = false;
-            _context.Application = Current.ApplicationInstance;
+            _context.Attach(Current);
             return Current;
         }
 
         ownsApp = true;
         Current = new TuiApp(theme);
-        _context.Application = Current.ApplicationInstance;
+        _context.Attach(Current);
         return Current;
     }
 
@@ -32,7 +32,7 @@ public sealed class TuiAppResolver
         if (ReferenceEquals(Current, app))
         {
             Current = null;
-            _context.Application = null;
+            _context.Detach();
         }
     }
 }

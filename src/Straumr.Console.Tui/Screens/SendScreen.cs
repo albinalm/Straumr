@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
+using Straumr.Console.Shared.Interfaces;
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
@@ -12,6 +14,8 @@ using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Base;
+using Straumr.Console.Tui.Screens.Prompts;
+using Straumr.Core;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
@@ -30,7 +34,7 @@ public sealed class SendScreen : Screen
     ];
 
     private const string HintText =
-        "j/k Scroll  g Top  G Bottom  Tab Switch pane  y Copy pane  Y Copy all  b Beautify  B Revert";
+        "j/k Scroll  g Top  G Bottom  Tab Switch pane  y Copy pane  Y Copy all  b Beautify  B Revert  s Save body  S Export";
     private const string IdleGlyph = "◆";
     private const string DoneGlyph = "✓";
     private const string FailGlyph = "✖";
@@ -41,6 +45,7 @@ public sealed class SendScreen : Screen
     private readonly ScreenNavigationContext _navigationContext;
     private readonly StraumrTheme _theme;
     private readonly TuiApplicationContext _applicationContext;
+    private readonly IInteractiveConsole _interactiveConsole;
 
     private MarkupLabel? _statusLabel;
     private MarkupLabel? _heroLabel;
@@ -64,19 +69,22 @@ public sealed class SendScreen : Screen
     private bool _isBodyBeautified;
     private StraumrRequest? _currentRequest;
     private StraumrResponse? _currentResponse;
+    private string _currentSummaryText = string.Empty;
 
     public SendScreen(
         IStraumrRequestService requestService,
         IStraumrAuthService authService,
         ScreenNavigationContext navigationContext,
         StraumrTheme theme,
-        TuiApplicationContext applicationContext)
+        TuiApplicationContext applicationContext,
+        IInteractiveConsole interactiveConsole)
     {
         _requestService = requestService;
         _authService = authService;
         _navigationContext = navigationContext;
         _theme = theme;
         _applicationContext = applicationContext;
+        _interactiveConsole = interactiveConsole;
         _borderFocused = ColorResolver.Resolve(_theme.Accent);
         _borderUnfocused = ColorResolver.Resolve(_theme.Secondary);
         _borderBackground = ColorResolver.Resolve(_theme.Surface);
@@ -509,9 +517,235 @@ public sealed class SendScreen : Screen
             case 'B':
                 RevertBeautifiedBody();
                 return true;
+            case 's':
+                SaveBodyToFile();
+                return true;
+            case 'S':
+                ExportFullResponse();
+                return true;
             default:
                 return false;
         }
+    }
+
+    private void SaveBodyToFile()
+    {
+        byte[]? bodyBytes = _currentResponse?.RawContent;
+        if (bodyBytes is null || bodyBytes.Length == 0)
+        {
+            string body = GetBodyForTemplate();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                ShowMessage("Save response body", "No response body to save.");
+                return;
+            }
+
+            bodyBytes = Encoding.UTF8.GetBytes(body);
+        }
+
+        List<IAllowedType> allowedTypes = BuildBodyAllowedTypes().ToList();
+        if (!TryPromptSaveFile("Save response body", BuildSuggestedBodyPath(), allowedTypes, mustExist: false,
+                out string? selectedPath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.WriteAllBytes(selectedPath, bodyBytes);
+            ShowMessage("Save response body", $"Saved response body to \"{selectedPath}\".");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage("Save response body", $"Failed to save response body: {ex.Message}");
+        }
+    }
+
+    private void ExportFullResponse()
+    {
+        if (_currentRequest is null || _currentResponse is null)
+        {
+            ShowMessage("Export response", "No completed request to export.");
+            return;
+        }
+
+        List<IAllowedType> allowedTypes =
+        [
+            new AllowedType("Text files", ".txt"),
+            new AllowedTypeAny()
+        ];
+
+        if (!TryPromptSaveFile("Export response", BuildSuggestedExportPath(), allowedTypes, mustExist: false,
+                out string? selectedPath))
+        {
+            return;
+        }
+
+        try
+        {
+            string summary = string.IsNullOrWhiteSpace(_currentSummaryText)
+                ? "No summary available."
+                : _currentSummaryText.TrimEnd();
+
+            string body = GetBodyForTemplate();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                body = "No body content.";
+            }
+
+            StringBuilder builder = new();
+            builder.AppendLine("Straumr response export");
+            builder.AppendLine("=======================");
+            builder.AppendLine($"Request: {_currentRequest.Name}");
+            builder.AppendLine($"Method: {_currentRequest.Method.Method.ToUpperInvariant()}");
+            builder.AppendLine($"URL: {_currentRequest.Uri}");
+            builder.AppendLine($"Status: {SendResultFormatter.FormatStatus(_currentResponse)}");
+            builder.AppendLine($"Duration: {Math.Max(0, _currentResponse.Duration.TotalMilliseconds):N0} ms");
+            builder.AppendLine();
+            builder.AppendLine("Summary");
+            builder.AppendLine("-------");
+            builder.AppendLine(summary);
+            builder.AppendLine();
+            builder.AppendLine("Body");
+            builder.AppendLine("----");
+            builder.AppendLine(body);
+
+            File.WriteAllText(selectedPath, builder.ToString());
+            ShowMessage("Export response", $"Exported response to \"{selectedPath}\".");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage("Export response", $"Failed to export response: {ex.Message}");
+        }
+    }
+
+    private string BuildSuggestedBodyPath()
+    {
+        string baseName = ToSafeFileName(ResolveRequestBaseName("response"), "response");
+        string extension = GuessBodyExtension();
+        return Path.ChangeExtension(baseName, extension);
+    }
+
+    private string BuildSuggestedExportPath()
+    {
+        string baseName = ToSafeFileName(ResolveRequestBaseName("response-export"), "response-export");
+        return Path.ChangeExtension(baseName, ".txt");
+    }
+
+    private string ResolveRequestBaseName(string fallback)
+    {
+        if (_currentRequest is null)
+        {
+            return fallback;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_currentRequest.Name))
+        {
+            return _currentRequest.Name;
+        }
+
+        if (Uri.TryCreate(_currentRequest.Uri, UriKind.Absolute, out Uri? uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return uri.Host;
+        }
+
+        return _currentRequest.Uri;
+    }
+
+    private static string ToSafeFileName(string? candidate, string fallback)
+    {
+        string baseName = string.IsNullOrWhiteSpace(candidate) ? fallback : candidate.Trim();
+        char[] invalid = Path.GetInvalidFileNameChars();
+        StringBuilder builder = new(baseName.Length);
+
+        foreach (char c in baseName)
+        {
+            builder.Append(Array.IndexOf(invalid, c) >= 0 ? '_' : c);
+        }
+
+        return builder.Length == 0 ? fallback : builder.ToString();
+    }
+
+    private IEnumerable<IAllowedType> BuildBodyAllowedTypes()
+    {
+        List<IAllowedType> allowed = [];
+
+        string extension = GuessBodyExtension();
+        if (!string.IsNullOrWhiteSpace(extension))
+        {
+            string label = $"{extension.Trim('.').ToUpperInvariant()} files";
+            allowed.Add(new AllowedType(label, extension));
+        }
+
+        allowed.Add(new AllowedTypeAny());
+        return allowed;
+    }
+
+    private string GuessBodyExtension()
+    {
+        if (_currentResponse is null)
+        {
+            return ".txt";
+        }
+
+        KeyValuePair<string, IEnumerable<string>> header = _currentResponse.ResponseHeaders
+            .FirstOrDefault(pair => pair.Key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase));
+
+        string? contentType = header.Value?.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return ".txt";
+        }
+
+        string mediaType = contentType.Split(';', 2)[0].Trim();
+        string? extension = MimeTypes.GetMimeTypeExtensions(mediaType).FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(extension) ? ".txt" : $".{extension.TrimStart('.')}";
+    }
+
+    private bool TryPromptSaveFile(
+        string title,
+        string? initialPath,
+        IReadOnlyList<IAllowedType> allowedTypes,
+        bool mustExist,
+        [NotNullWhen(true)] out string? selectedPath)
+    {
+        selectedPath = null;
+
+        FileSavePromptScreen screen = new(title, initialPath, allowedTypes, _theme, mustExist);
+
+        try
+        {
+            if (!_applicationContext.TryRunPrompt<string?>(screen, out string? result))
+            {
+                ShowMessage(title, "Application context is not available.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                return false;
+            }
+
+            selectedPath = result;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ShowMessage(title, $"Unable to show dialog: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void ShowMessage(string title, string message)
+    {
+        var prompt = new MessagePromptScreen(title, message, _theme);
+        if (_applicationContext.TryRunPrompt(prompt, out _))
+        {
+            return;
+        }
+
+        _interactiveConsole.ShowMessage(title, message);
     }
 
     private void SwitchScrollFocus(bool reverse)
@@ -772,9 +1006,11 @@ public sealed class SendScreen : Screen
     private void UpdateSummary(string text)
         => InvokeOnUi(() =>
         {
+            string plain = MarkupText.ToPlain(text);
+            _currentSummaryText = plain;
             if (_summaryView is not null)
             {
-                _summaryView.Text = MarkupText.ToPlain(text);
+                _summaryView.Text = plain;
             }
         });
 

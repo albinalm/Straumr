@@ -54,13 +54,13 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
 
     public void Render(ListView listView, bool selected, int item, int col, int row, int width, int viewportX)
     {
-        Scheme? scheme = listView.GetScheme();
-        TuiAttribute normalAttr = scheme?.Normal ?? listView.GetCurrentAttribute();
+        Scheme scheme = listView.GetScheme();
+        TuiAttribute normalAttr = scheme.Normal;
 
         int contentRow = row + listView.Viewport.Y;
         if (contentRow >= _items.Count * RowsPerItem)
         {
-            for (int fx = 0; fx < width; fx++)
+            for (var fx = 0; fx < width; fx++)
             {
                 listView.SetAttribute(normalAttr);
                 listView.AddRune(col + fx, row, new Rune(' '));
@@ -85,12 +85,12 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
         }
 
         TuiAttribute rowBase = isSelected
-            ? (scheme?.Focus ?? listView.GetCurrentAttribute())
+            ? scheme.Focus
             : normalAttr;
 
         bool replaceGlyph = isSelected && lineIndex == 0;
-        int x = 0;
-        int currentColumn = 0;
+        var x = 0;
+        var currentColumn = 0;
 
         foreach (MarkupText.MarkupRun run in lineRuns)
         {
@@ -99,12 +99,12 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
                 : run.Attribute;
             listView.SetAttribute(attribute);
 
-            foreach (char ch in run.Text)
+            foreach (Rune rune in run.Text.EnumerateRunes())
             {
-                char outCh = ch;
-                if (replaceGlyph && ch == '◇')
+                Rune outRune = rune;
+                if (replaceGlyph && rune.Value == '◇')
                 {
-                    outCh = '▸';
+                    outRune = new Rune('▸');
                     replaceGlyph = false;
                 }
 
@@ -118,7 +118,7 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
                     break;
                 }
 
-                listView.AddRune(col + x, row, new Rune(outCh));
+                listView.AddRune(col + x, row, outRune);
                 x++;
             }
 

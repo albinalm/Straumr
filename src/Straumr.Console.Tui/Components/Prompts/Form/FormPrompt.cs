@@ -4,12 +4,15 @@ using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Components.Prompts.Form;
 
+public sealed record FormFieldSideAction(string Label, Func<string?, string?> Invoke);
+
 public sealed record FormFieldSpec(
     string Key,
     string Label,
     string? InitialValue = null,
     bool Required = false,
-    Func<string, string?>? Validate = null);
+    Func<string, string?>? Validate = null,
+    FormFieldSideAction? SideAction = null);
 
 internal sealed class FormPrompt : PromptComponent
 {
