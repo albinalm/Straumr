@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Text;
-using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
@@ -27,7 +26,25 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
 
     public int Count => _items.Count * RowsPerItem;
-    public int MaxItemLength => _items.Count == 0 ? 0 : _items.Max(GetItemLength);
+
+    public int MaxItemLength
+    {
+        get
+        {
+            int max = 0;
+            foreach (MarkupLabel item in _items)
+            {
+                int len = item.PlainMaxLineLength;
+                if (len > max)
+                {
+                    max = len;
+                }
+            }
+
+            return max;
+        }
+    }
+
     public bool SuspendCollectionChangedEvent { get; set; }
 
     public bool IsMarked(int item) => false;
@@ -54,30 +71,40 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
         int selectedLogical = listView.SelectedItem.HasValue ? listView.SelectedItem.Value / RowsPerItem : -1;
         bool isSelected = logicalIndex == selectedLogical;
 
-        string markup = logicalIndex >= 0 && logicalIndex < _items.Count ? _items[logicalIndex].Markup : string.Empty;
-        StraumrTheme? theme = logicalIndex >= 0 && logicalIndex < _items.Count ? _items[logicalIndex].Theme : null;
-
-        string[] lines = markup.Split('\n');
-        string lineMarkup = lineIndex < lines.Length ? lines[lineIndex] : string.Empty;
-        lineMarkup = ApplySelectionGlyph(lineMarkup, isSelected, lineIndex);
-
-        List<MarkupText.MarkupRun> runs = MarkupText.ParseRuns(lineMarkup, theme);
+        IReadOnlyList<MarkupText.MarkupRun> lineRuns = Array.Empty<MarkupText.MarkupRun>();
+        if (logicalIndex >= 0 && logicalIndex < _items.Count)
+        {
+            IReadOnlyList<IReadOnlyList<MarkupText.MarkupRun>> parsedLines = _items[logicalIndex].ParsedLines;
+            if (lineIndex < parsedLines.Count)
+            {
+                lineRuns = parsedLines[lineIndex];
+            }
+        }
 
         TuiAttribute rowBase = isSelected
             ? (scheme?.Focus ?? listView.GetCurrentAttribute())
             : normalAttr;
 
+        bool replaceGlyph = isSelected && lineIndex == 0;
         int x = 0;
         int currentColumn = 0;
 
-        foreach (MarkupText.MarkupRun run in runs)
+        foreach (MarkupText.MarkupRun run in lineRuns)
         {
             TuiAttribute attribute = isSelected
                 ? new TuiAttribute(rowBase.Foreground, rowBase.Background, run.Attribute.Style)
                 : run.Attribute;
+            listView.SetAttribute(attribute);
 
             foreach (char ch in run.Text)
             {
+                char outCh = ch;
+                if (replaceGlyph && ch == '◇')
+                {
+                    outCh = '▸';
+                    replaceGlyph = false;
+                }
+
                 if (currentColumn++ < viewportX)
                 {
                     continue;
@@ -88,8 +115,7 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
                     break;
                 }
 
-                listView.SetAttribute(attribute);
-                listView.AddRune(col + x, row, new Rune(ch));
+                listView.AddRune(col + x, row, new Rune(outCh));
                 x++;
             }
 
@@ -99,10 +125,13 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
             }
         }
 
-        for (; x < width; x++)
+        if (x < width)
         {
             listView.SetAttribute(rowBase);
-            listView.AddRune(col + x, row, new Rune(' '));
+            for (; x < width; x++)
+            {
+                listView.AddRune(col + x, row, new Rune(' '));
+            }
         }
 
         listView.SetAttribute(normalAttr);
@@ -127,57 +156,11 @@ internal sealed class MarkupLabelListDataSource : IListDataSource
         _disposed = true;
     }
 
-    private int GetItemLength(MarkupLabel label)
-        => MarkupText.ToPlain(label.Markup)
-            .Split('\n')
-            .DefaultIfEmpty(string.Empty)
-            .Max(line => line.Length);
-
     private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (!SuspendCollectionChangedEvent)
         {
             CollectionChanged?.Invoke(sender, e);
         }
-    }
-
-    private static string ApplySelectionGlyph(string markup, bool isSelected, int lineIndex)
-    {
-        if (!isSelected || lineIndex != 0 || string.IsNullOrEmpty(markup))
-        {
-            return markup;
-        }
-
-        StringBuilder buffer = new(markup.Length);
-        bool insideTag = false;
-        bool replaced = false;
-
-        foreach (char ch in markup)
-        {
-            if (ch == '[')
-            {
-                insideTag = true;
-                buffer.Append(ch);
-                continue;
-            }
-
-            if (ch == ']')
-            {
-                insideTag = false;
-                buffer.Append(ch);
-                continue;
-            }
-
-            if (!insideTag && !replaced && ch == '◇')
-            {
-                buffer.Append('▸');
-                replaced = true;
-                continue;
-            }
-
-            buffer.Append(ch);
-        }
-
-        return replaced ? buffer.ToString() : markup;
     }
 }

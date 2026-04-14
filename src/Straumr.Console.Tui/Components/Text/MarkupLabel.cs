@@ -15,17 +15,24 @@ internal sealed class MarkupLabel : View
     private string _markup = string.Empty;
     private StraumrTheme? _theme;
 
+    private IReadOnlyList<IReadOnlyList<MarkupText.MarkupRun>>? _parsedLines;
+    private int _plainMaxLineLength;
+    private string? _parsedCacheMarkup;
+    private StraumrTheme? _parsedCacheTheme;
+
     public string Markup
     {
         get => _markup;
         set
         {
-            if (_markup == value)
+            string next = value ?? string.Empty;
+            if (_markup == next)
             {
                 return;
             }
 
-            _markup = value ?? string.Empty;
+            _markup = next;
+            _parsedLines = null;
             SetNeedsDraw();
         }
     }
@@ -41,8 +48,62 @@ internal sealed class MarkupLabel : View
             }
 
             _theme = value;
+            _parsedLines = null;
             SetNeedsDraw();
         }
+    }
+
+    internal IReadOnlyList<IReadOnlyList<MarkupText.MarkupRun>> ParsedLines
+    {
+        get
+        {
+            EnsureParsedCache();
+            return _parsedLines!;
+        }
+    }
+
+    internal int PlainMaxLineLength
+    {
+        get
+        {
+            EnsureParsedCache();
+            return _plainMaxLineLength;
+        }
+    }
+
+    private void EnsureParsedCache()
+    {
+        if (_parsedLines is not null
+            && _parsedCacheMarkup == _markup
+            && ReferenceEquals(_parsedCacheTheme, _theme))
+        {
+            return;
+        }
+
+        string[] rawLines = _markup.Split('\n');
+        var parsed = new List<IReadOnlyList<MarkupText.MarkupRun>>(rawLines.Length);
+        int maxLen = 0;
+        foreach (string rawLine in rawLines)
+        {
+            List<MarkupText.MarkupRun> runs = MarkupText.ParseRuns(rawLine, _theme);
+            parsed.Add(runs);
+
+            int lineLen = 0;
+            foreach (MarkupText.MarkupRun run in runs)
+            {
+                lineLen += run.Text.Length;
+            }
+
+            if (lineLen > maxLen)
+            {
+                maxLen = lineLen;
+            }
+        }
+
+        _parsedLines = parsed;
+        _plainMaxLineLength = maxLen;
+        _parsedCacheMarkup = _markup;
+        _parsedCacheTheme = _theme;
     }
 
     protected override bool OnDrawingContent(DrawContext? context)
