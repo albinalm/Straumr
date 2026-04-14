@@ -45,8 +45,8 @@ public sealed class SendScreen : Screen
     private MarkupLabel? _statusLabel;
     private MarkupLabel? _heroLabel;
     private MarkupLabel? _metaLabel;
-    private InteractiveTextView? _summaryView;
-    private InteractiveTextView? _bodyView;
+    private VirtualTextView? _summaryView;
+    private VirtualTextView? _bodyView;
     private FrameView? _summaryFrame;
     private FrameView? _bodyFrame;
     private readonly Dictionary<Border, View> _frameBorderTargets = new();
@@ -246,20 +246,16 @@ public sealed class SendScreen : Screen
             Height = Dim.Percent(45),
         };
 
-        _summaryView = new InteractiveTextView
+        _summaryView = new VirtualTextView
         {
-            ReadOnly = true,
-            WordWrap = true,
-            CanFocus = true,
             X = 1,
             Y = 0,
             Width = Dim.Fill(3),
             Height = Dim.Fill(),
-            Text = string.Empty,
         };
         _summaryView.ApplyTheme(
-            ColorResolver.Resolve(_theme.Surface),
-            ColorResolver.Resolve(_theme.OnSurface));
+            ColorResolver.Resolve(_theme.OnSurface),
+            ColorResolver.Resolve(_theme.Surface));
 
         ScrollBar summaryScrollBar = BuildSiblingScrollBar(_summaryView);
         _summaryFrame.Add(_summaryView, summaryScrollBar);
@@ -272,20 +268,16 @@ public sealed class SendScreen : Screen
             Height = Dim.Fill(),
         };
 
-        _bodyView = new InteractiveTextView
+        _bodyView = new VirtualTextView
         {
-            ReadOnly = true,
-            WordWrap = true,
-            CanFocus = true,
             X = 1,
             Y = 0,
             Width = Dim.Fill(3),
             Height = Dim.Fill(),
-            Text = string.Empty,
         };
         _bodyView.ApplyTheme(
-            ColorResolver.Resolve(_theme.Surface),
-            ColorResolver.Resolve(_theme.OnSurface));
+            ColorResolver.Resolve(_theme.OnSurface),
+            ColorResolver.Resolve(_theme.Surface));
 
         ScrollBar bodyScrollBar = BuildSiblingScrollBar(_bodyView);
         _bodyFrame.Add(_bodyView, bodyScrollBar);
@@ -313,7 +305,7 @@ public sealed class SendScreen : Screen
         return frame;
     }
 
-    private static ScrollBar BuildSiblingScrollBar(TextView textView)
+    private static ScrollBar BuildSiblingScrollBar(VirtualTextView textView)
     {
         ScrollBar scrollBar = new()
         {
@@ -325,26 +317,19 @@ public sealed class SendScreen : Screen
             VisibilityMode = ScrollBarVisibilityMode.Auto,
         };
 
-        textView.ContentSizeChanged += (_, _) => SyncScrollBar(textView, scrollBar);
+        textView.ScrollStateChanged += (_, _) => SyncScrollBar(textView, scrollBar);
         textView.ViewportChanged += (_, _) => SyncScrollBar(textView, scrollBar);
 
-        scrollBar.ValueChanged += (_, args) =>
-        {
-            int delta = args.NewValue - textView.Viewport.Y;
-            if (delta != 0)
-            {
-                textView.ScrollVertical(delta);
-            }
-        };
+        scrollBar.ValueChanged += (_, args) => textView.SetTopLine(args.NewValue);
 
         return scrollBar;
     }
 
-    private static void SyncScrollBar(TextView textView, ScrollBar scrollBar)
+    private static void SyncScrollBar(VirtualTextView textView, ScrollBar scrollBar)
     {
-        scrollBar.ScrollableContentSize = textView.GetContentSize().Height;
-        scrollBar.VisibleContentSize = textView.Viewport.Height;
-        scrollBar.Value = textView.Viewport.Y;
+        scrollBar.ScrollableContentSize = textView.TotalLines;
+        scrollBar.VisibleContentSize = textView.VisibleLines;
+        scrollBar.Value = textView.TopLine;
     }
 
     private void ApplyFocusAwareBorder(FrameView? frame, View? child)
@@ -398,7 +383,7 @@ public sealed class SendScreen : Screen
 
     private void CopyActivePaneToClipboard()
     {
-        TextView? target = GetActiveTextView() ?? _bodyView ?? _summaryView;
+        VirtualTextView? target = GetActiveTextView() ?? _bodyView ?? _summaryView;
         if (target is null)
         {
             return;
@@ -572,21 +557,19 @@ public sealed class SendScreen : Screen
 
     private bool ScrollActiveTextViewToBoundary(bool toBottom)
     {
-        TextView? target = GetActiveTextView();
+        VirtualTextView? target = GetActiveTextView();
         if (target is null)
         {
             return false;
         }
 
-        int contentHeight = target.GetContentSize().Height;
-        int viewportHeight = target.Viewport.Height;
-        int desired = toBottom
-            ? Math.Max(0, contentHeight - viewportHeight)
-            : 0;
-        int delta = desired - target.Viewport.Y;
-        if (delta != 0)
+        if (toBottom)
         {
-            target.ScrollVertical(delta);
+            target.ScrollToEnd();
+        }
+        else
+        {
+            target.ScrollToStart();
         }
 
         return true;
@@ -594,18 +577,17 @@ public sealed class SendScreen : Screen
 
     private bool ScrollActiveTextView(bool reverse)
     {
-        TextView? target = GetActiveTextView();
+        VirtualTextView? target = GetActiveTextView();
         if (target is null)
         {
             return false;
         }
 
-        int delta = reverse ? -1 : 1;
-        target.ScrollVertical(delta);
+        target.ScrollLines(reverse ? -1 : 1);
         return true;
     }
 
-    private TextView? GetActiveTextView()
+    private VirtualTextView? GetActiveTextView()
     {
         if (_bodyView?.HasFocus == true)
         {
@@ -790,13 +772,19 @@ public sealed class SendScreen : Screen
     private void UpdateSummary(string text)
         => InvokeOnUi(() =>
         {
-            _summaryView?.Text = MarkupText.ToPlain(text);
+            if (_summaryView is not null)
+            {
+                _summaryView.Text = MarkupText.ToPlain(text);
+            }
         });
 
     private void UpdateBody(string text, string? responseBody = null)
         => InvokeOnUi(() =>
         {
-            _bodyView?.Text = text;
+            if (_bodyView is not null)
+            {
+                _bodyView.Text = text;
+            }
 
             _rawBodyContent = responseBody;
             _isBodyBeautified = false;
