@@ -13,11 +13,13 @@ internal sealed class FormFieldsView : View
 {
     public required IReadOnlyList<FormFieldSpec> Fields { get; init; }
     public StraumrTheme? Theme { get; init; }
+    public Func<FormFieldSpec, string?, string?>? BrowseHandler { get; init; }
 
     public event Action<Dictionary<string, string>>? Submitted;
     public event Action? CancelRequested;
 
     private readonly List<InteractiveTextField> _fields = [];
+    private readonly List<Button?> _pathButtons = [];
     private MarkupLabel? _inputErrorLabel;
     private Button? _saveButton;
 
@@ -51,11 +53,12 @@ internal sealed class FormFieldsView : View
                 Width = labelWidth,
             };
 
+            bool hasBrowse = BrowseHandler is not null && spec.PathMode != FormFieldPathMode.None;
             var field = new InteractiveTextField
             {
                 X = fieldX,
                 Y = fieldY,
-                Width = Dim.Fill(2),
+                Width = hasBrowse ? Dim.Fill(14) : Dim.Fill(2),
                 BorderStyle = LineStyle.Single,
             };
 
@@ -64,23 +67,25 @@ internal sealed class FormFieldsView : View
 
             _fields.Add(field);
             Add(label, field);
+
+            if (hasBrowse)
+            {
+                Button browseButton = CreateButton("Browse");
+                browseButton.X = Pos.AnchorEnd(12);
+                browseButton.Y = fieldY + 1;
+                browseButton.Accepting += (_, _) => RequestBrowse(field, spec);
+                _pathButtons.Add(browseButton);
+                Add(browseButton);
+            }
+            else
+            {
+                _pathButtons.Add(null);
+            }
         }
 
-        Scheme? buttonScheme = Theme != null ? ColorResolver.BuildButtonScheme(Theme) : null;
-        _saveButton = new Button
-        {
-            Text = "Save",
-            X = fieldX,
-            Y = baseY + (Fields.Count * 3) + 1,
-            ShadowStyle = ShadowStyle.None,
-        };
-
-        _saveButton.Margin?.SetShadow(ShadowStyle.None);
-
-        if (buttonScheme is not null)
-        {
-            _saveButton.SetScheme(buttonScheme);
-        }
+        _saveButton = CreateButton("Save");
+        _saveButton.X = fieldX;
+        _saveButton.Y = baseY + (Fields.Count * 3) + 1;
 
         _inputErrorLabel = new MarkupLabel
         {
@@ -168,10 +173,55 @@ internal sealed class FormFieldsView : View
             int index = i;
             InteractiveTextField field = _fields[index];
             ConfigureEditField(field, Above, Below);
-            continue;
+
+            Button? browse = index < _pathButtons.Count ? _pathButtons[index] : null;
+            if (browse is not null)
+            {
+                browse.KeyDown += (_, key) =>
+                {
+                    if (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k')
+                    {
+                        key.Handled = true;
+                        FocusView(_fields[index]);
+                        _fields[index].EnterEditMode();
+                    }
+                    else if (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j')
+                    {
+                        key.Handled = true;
+                        View target = index == _fields.Count - 1 ? _saveButton! : _fields[index + 1];
+                        FocusView(target);
+                        if (target is InteractiveTextField nextField)
+                        {
+                            nextField.EnterEditMode();
+                        }
+                    }
+                    else if (key == Key.Esc)
+                    {
+                        key.Handled = true;
+                        CancelRequested?.Invoke();
+                    }
+                };
+            }
+
             View? Below() => index == _fields.Count - 1 ? _saveButton : _fields[index + 1];
             View? Above() => index == 0 ? _saveButton : _fields[index - 1];
         }
+    }
+
+    private Button CreateButton(string text)
+    {
+        Button button = new()
+        {
+            Text = text,
+            ShadowStyle = ShadowStyle.None,
+        };
+        button.Margin?.SetShadow(ShadowStyle.None);
+        if (Theme is not null)
+        {
+            button.SetScheme(ColorResolver.BuildButtonScheme(Theme));
+        }
+
+        return button;
     }
 
     private void ConfigureEditField(InteractiveTextField field, Func<View?> above, Func<View?> below)
@@ -190,7 +240,13 @@ internal sealed class FormFieldsView : View
             (f, key) => !f.IsEditing && (key == Key.CursorUp || KeyHelpers.GetCharValue(key) == 'k'),
             (_, _) =>
             {
-                FocusView(above());
+                View? target = above();
+                FocusView(target);
+                if (target is InteractiveTextField targetField)
+                {
+                    targetField.EnterEditMode();
+                }
+
                 return true;
             }));
 
@@ -198,15 +254,13 @@ internal sealed class FormFieldsView : View
             (f, key) => !f.IsEditing && (key == Key.CursorDown || KeyHelpers.GetCharValue(key) == 'j'),
             (_, _) =>
             {
-                FocusView(below());
-                return true;
-            }));
+                View? target = below();
+                FocusView(target);
+                if (target is InteractiveTextField targetField)
+                {
+                    targetField.EnterEditMode();
+                }
 
-        field.Bind(TextFieldKeyBinding.When(
-            (f, key) => !f.IsEditing && key == Key.Esc,
-            (_, _) =>
-            {
-                CancelRequested?.Invoke();
                 return true;
             }));
 
@@ -232,6 +286,21 @@ internal sealed class FormFieldsView : View
                 f.ExitEditMode();
                 return true;
             }));
+    }
+
+    private void RequestBrowse(InteractiveTextField field, FormFieldSpec spec)
+    {
+        if (BrowseHandler is null)
+        {
+            return;
+        }
+
+        string? selected = BrowseHandler(spec, field.Text);
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            field.Text = selected;
+            field.MoveEnd();
+        }
     }
 
     private void TrySave()

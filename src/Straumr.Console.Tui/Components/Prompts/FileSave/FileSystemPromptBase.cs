@@ -32,6 +32,9 @@ internal abstract class FileSystemPromptBase : PromptComponent
     private InteractiveTextField? _filterField;
     private Label? _goToLabel;
     private InteractiveTextField? _goToField;
+    private Label? _newDirLabel;
+    private InteractiveTextField? _newDirField;
+    private FileBrowserEntry? _pendingDelete;
 
     private readonly string _homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private string _currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -239,6 +242,21 @@ internal abstract class FileSystemPromptBase : PromptComponent
         _filterField.Visible = false;
         ApplyFieldTheme(_filterField);
 
+        _newDirLabel = new Label
+        {
+            Text = "New dir:",
+            X = 1,
+            Y = 2,
+            Visible = false,
+        };
+
+        _newDirField = CreateNewDirField();
+        _newDirField.X = Pos.Right(_newDirLabel) + 1;
+        _newDirField.Y = _newDirLabel.Y;
+        _newDirField.Width = Dim.Fill(3);
+        _newDirField.Visible = false;
+        ApplyFieldTheme(_newDirField);
+
         _listView = new SelectionListView(HandleListKeyDown, BuildListScheme())
         {
             X = 1,
@@ -268,6 +286,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
         frame.Add(_pathLabel);
         frame.Add(_goToLabel, _goToField);
         frame.Add(_filterLabel, _filterField);
+        frame.Add(_newDirLabel, _newDirField);
         frame.Add(_listView, _emptyLabel, _statusLabel);
     }
 
@@ -333,6 +352,20 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return false;
         }
 
+        if (_pendingDelete is not null && !key.IsCtrl && !key.IsAlt)
+        {
+            int confirmChar = KeyHelpers.GetCharValue(key);
+            if (confirmChar is 'y' or 'Y')
+            {
+                ExecutePendingDelete();
+                return true;
+            }
+
+            _pendingDelete = null;
+            HideStatus();
+            return true;
+        }
+
         if (!key.IsCtrl && !key.IsAlt)
         {
             switch (KeyHelpers.GetCharValue(key))
@@ -364,6 +397,13 @@ internal abstract class FileSystemPromptBase : PromptComponent
                 case 'P':
                     BeginGoTo();
                     return true;
+                case 'n':
+                case 'N':
+                    BeginNewDirectory();
+                    return true;
+                case 'D':
+                    BeginDeleteDirectory();
+                    return true;
             }
         }
 
@@ -384,13 +424,13 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        if (key == Key.Backspace || key == Key.Esc)
+        if (key == Key.Backspace)
         {
             NavigateUp();
             return true;
         }
 
-        if ((key == Key.Q && !key.IsCtrl && !key.IsAlt) || (key == Key.Q && !key.IsCtrl && !key.IsAlt))
+        if (key == Key.Esc)
         {
             RequestCancel();
             return true;
@@ -553,6 +593,13 @@ internal abstract class FileSystemPromptBase : PromptComponent
             nextRow++;
         }
 
+        if (_newDirLabel is not null && _newDirField is not null && _newDirField.Visible)
+        {
+            _newDirLabel.Y = nextRow;
+            _newDirField.Y = nextRow;
+            nextRow++;
+        }
+
         _listView.Y = nextRow;
         _emptyLabel.Y = nextRow;
 
@@ -563,6 +610,11 @@ internal abstract class FileSystemPromptBase : PromptComponent
         }
 
         if (showFilter)
+        {
+            reserved++;
+        }
+
+        if (_newDirField is not null && _newDirField.Visible)
         {
             reserved++;
         }
@@ -601,6 +653,124 @@ internal abstract class FileSystemPromptBase : PromptComponent
         {
             return null;
         }
+    }
+
+    private InteractiveTextField CreateNewDirField()
+    {
+        var field = new InteractiveTextField();
+        field.Bind(Key.Enter, (_, _) => TryCreateNewDirectory());
+        field.Bind(Key.Esc, (_, _) =>
+        {
+            HideNewDir();
+            return true;
+        });
+        return field;
+    }
+
+    private void BeginNewDirectory()
+    {
+        if (_newDirField is null)
+        {
+            return;
+        }
+
+        _pendingDelete = null;
+        HideStatus();
+        _newDirField.Visible = true;
+        _newDirField.Text = string.Empty;
+        _newDirField.SetFocus();
+        _newDirField.EnterEditMode();
+        RefreshLayout();
+    }
+
+    private void HideNewDir()
+    {
+        if (_newDirField is null)
+        {
+            return;
+        }
+
+        _newDirField.Visible = false;
+        RefreshLayout();
+        FocusList();
+    }
+
+    private bool TryCreateNewDirectory()
+    {
+        if (_newDirField is null)
+        {
+            return true;
+        }
+
+        string name = (_newDirField.Text ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            HideNewDir();
+            return true;
+        }
+
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            ShowStatus("Invalid directory name.");
+            return true;
+        }
+
+        string target = Path.Combine(CurrentDirectory, name);
+        try
+        {
+            Directory.CreateDirectory(target);
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Unable to create directory: {ex.Message}");
+            return true;
+        }
+
+        HideNewDir();
+        LoadDirectory(CurrentDirectory);
+        return true;
+    }
+
+    private void BeginDeleteDirectory()
+    {
+        FileBrowserEntry? entry = GetSelectedEntry();
+        if (entry is null || entry.Kind != FileEntryKind.Directory)
+        {
+            ShowStatus("Select a directory to delete.");
+            return;
+        }
+
+        _pendingDelete = entry;
+        ShowStatus($"Delete '{entry.Name}'? Press y to confirm, any other key to cancel.");
+    }
+
+    private void ExecutePendingDelete()
+    {
+        FileBrowserEntry? entry = _pendingDelete;
+        _pendingDelete = null;
+        if (entry is null)
+        {
+            HideStatus();
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(entry.FullPath, recursive: false);
+        }
+        catch (IOException)
+        {
+            ShowStatus("Directory is not empty.");
+            return;
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Unable to delete: {ex.Message}");
+            return;
+        }
+
+        HideStatus();
+        LoadDirectory(CurrentDirectory);
     }
 
     private InteractiveTextField CreateGoToField()

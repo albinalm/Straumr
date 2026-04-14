@@ -5,6 +5,7 @@ using Straumr.Console.Tui.Components.Prompts.Form;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Prompts;
 using Straumr.Core.Services.Interfaces;
+using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Console;
 
@@ -77,7 +78,33 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
 
     public Dictionary<string, string>? PromptForm(string title, IReadOnlyList<FormFieldSpec> fields)
     {
-        var screen = new FormPromptScreen(title, fields, _theme);
+        var screen = new FormPromptScreen(title, fields, _theme, HandlePathBrowse);
+        return RunPrompt(screen);
+
+        string? HandlePathBrowse(FormFieldSpec spec, string? current)
+        {
+            return spec.PathMode switch
+            {
+                FormFieldPathMode.Directory => SelectDirectory($"Select {spec.Label}", current),
+                FormFieldPathMode.ExistingFile => SelectFile($"Select {spec.Label}", current, spec.PathAllowedTypes),
+                _ => current
+            };
+        }
+    }
+
+    public string? SelectDirectory(string title, string? initialPath = null)
+    {
+        var screen = new DirectorySelectPromptScreen(title, initialPath, _theme);
+        return RunPrompt(screen);
+    }
+
+    public string? SelectFile(string title, string? initialPath = null, IReadOnlyList<IAllowedType>? allowedTypes = null)
+        => SelectFile(title, initialPath, mustExist: true, allowedTypes);
+
+    private string? SelectFile(string title, string? initialPath, bool mustExist, IReadOnlyList<IAllowedType>? allowedTypes)
+    {
+        IReadOnlyList<IAllowedType> types = allowedTypes is { Count: > 0 } ? allowedTypes : new[] { new AllowedTypeAny() };
+        var screen = new FileSavePromptScreen(title, initialPath, types, _theme, mustExist);
         return RunPrompt(screen);
     }
 

@@ -17,7 +17,7 @@ internal sealed class DirectorySelectPromptScreen : PromptScreen<string?>
 
         Add(new HintsBar
         {
-            Text = "j/k Navigate  g/G Bounds  h Up dir  l/o Open  / Filter  p Go to dir  s Select  Esc Cancel",
+            Text = "j/k Navigate  h Up  l/o Open  / Filter  p Go to  n New dir  D Delete  s Select  Esc Cancel",
         });
 
         DirectorySelectPrompt prompt = Add(new DirectorySelectPrompt

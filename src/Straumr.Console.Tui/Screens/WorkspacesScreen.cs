@@ -11,6 +11,7 @@ using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Models;
 using Straumr.Console.Tui.Screens.Base;
 using Terminal.Gui.Input;
+using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Screens;
 
@@ -102,7 +103,7 @@ public sealed class WorkspacesScreen(
         List<FormFieldSpec> fields =
         [
             new("name", "Name", Required: true),
-            new("outputDir", "Output directory"),
+            new("outputDir", "Output directory", PathMode: FormFieldPathMode.Directory),
         ];
 
         Dictionary<string, string>? result = interactiveConsole.PromptForm("Create workspace", fields);
@@ -241,7 +242,7 @@ public sealed class WorkspacesScreen(
         List<FormFieldSpec> fields =
         [
             new("name", "New name", Required: true),
-            new("outputDir", "Output directory"),
+            new("outputDir", "Output directory", PathMode: FormFieldPathMode.Directory),
         ];
 
         Dictionary<string, string>? result = interactiveConsole.PromptForm("Copy workspace", fields);
@@ -275,26 +276,24 @@ public sealed class WorkspacesScreen(
 
     private void ImportWorkspace()
     {
-        string? path = interactiveConsole.TextInput("Path to workspace file",
-            validate: v =>
-            {
-                if (string.IsNullOrWhiteSpace(v))
-                {
-                    return "Path cannot be empty.";
-                }
+        List<IAllowedType> allowed =
+        [
+            new AllowedType("Straumr packages", ".straumrpak"),
+            new AllowedTypeAny()
+        ];
 
-                if (!File.Exists(v))
-                {
-                    return "File not found.";
-                }
+        List<FormFieldSpec> fields =
+        [
+            new("path", "Workspace file", Required: true, PathMode: FormFieldPathMode.ExistingFile, PathAllowedTypes: allowed),
+        ];
 
-                return null;
-            });
-
-        if (path is null)
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Import workspace", fields);
+        if (result is null)
         {
             return;
         }
+
+        string path = result["path"];
 
         try
         {
@@ -325,13 +324,18 @@ public sealed class WorkspacesScreen(
             return;
         }
 
-        string? outputDir = interactiveConsole.TextInput("Output directory",
-            validate: v => string.IsNullOrWhiteSpace(v) ? "Output directory cannot be empty." : null);
+        List<FormFieldSpec> fields =
+        [
+            new("outputDir", "Output directory", Required: true, PathMode: FormFieldPathMode.Directory),
+        ];
 
-        if (outputDir is null)
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Export workspace", fields);
+        if (result is null)
         {
             return;
         }
+
+        string outputDir = result["outputDir"];
 
         try
         {

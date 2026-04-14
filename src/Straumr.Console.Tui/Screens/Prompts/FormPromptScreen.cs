@@ -10,7 +10,8 @@ internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>
     public FormPromptScreen(
         string title,
         IReadOnlyList<FormFieldSpec> fields,
-        StraumrTheme? theme = null)
+        StraumrTheme? theme = null,
+        Func<FormFieldSpec, string?, string?>? browseHandler = null)
     {
         Add(new Banner
         {
@@ -24,6 +25,7 @@ internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>
             Title = title,
             Fields = fields,
             Theme = theme,
+            BrowseForPath = browseHandler,
         });
 
         prompt.Submitted += result => Complete(result);
