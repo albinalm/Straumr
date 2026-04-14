@@ -2,7 +2,6 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.FileSave;
-using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 

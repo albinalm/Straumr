@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using Straumr.Console.Tui.Components.TextFields;
-using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -253,7 +249,7 @@ internal sealed class FileSavePrompt : FileSystemPromptBase
             return true;
         }
 
-        string candidate = _fileNameField.Text?.Trim() ?? string.Empty;
+        string candidate = _fileNameField.Text.Trim();
         if (candidate.Length == 0)
         {
             ShowStatus("Enter a file name.");
