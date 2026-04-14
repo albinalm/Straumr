@@ -16,7 +16,7 @@ public static class ThemeLoader
 
         try
         {
-            return await fileService.ReadGenericAsync(ThemeConfigPath, StraumrConsoleSharedJsonContext.Default.StraumrThemeOptions);
+            return await fileService.ReadGenericAsyncAsync(ThemeConfigPath, StraumrConsoleSharedJsonContext.Default.StraumrThemeOptions);
         }
         catch
         {

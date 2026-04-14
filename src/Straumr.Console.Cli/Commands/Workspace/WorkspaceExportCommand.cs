@@ -15,7 +15,7 @@ public class WorkspaceExportCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        string outputFile = await workspaceService.Export(settings.Workspace, settings.OutputPath);
+        string outputFile = await workspaceService.ExportAsync(settings.Workspace, settings.OutputPath);
 
         if (settings.Json)
         {

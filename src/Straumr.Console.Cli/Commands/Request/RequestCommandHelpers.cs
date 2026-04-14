@@ -55,7 +55,7 @@ internal static class RequestCommandHelpers
 
             try
             {
-                StraumrWorkspace ws = await workspaceService.PeekWorkspace(entry.Path);
+                StraumrWorkspace ws = await workspaceService.PeekWorkspaceAsync(entry.Path);
                 if (string.Equals(ws.Name, identifier, StringComparison.OrdinalIgnoreCase))
                 {
                     return entry;

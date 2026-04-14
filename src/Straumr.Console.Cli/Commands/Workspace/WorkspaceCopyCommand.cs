@@ -16,7 +16,7 @@ public class WorkspaceCopyCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry newEntry = await workspaceService.Copy(settings.Identifier, settings.NewName, settings.Output);
+        StraumrWorkspaceEntry newEntry = await workspaceService.CopyAsync(settings.Identifier, settings.NewName, settings.Output);
 
         if (settings.Json)
         {

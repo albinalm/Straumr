@@ -47,7 +47,7 @@ public class AuthGetCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
         }
         catch (StraumrException ex)
         {

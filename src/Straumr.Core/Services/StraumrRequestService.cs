@@ -36,9 +36,9 @@ public class StraumrRequestService(
     {
         StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
         (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
-        RequestLookup lookup = await RequireRequestAsync(workspaceModel, identifier, "No request found", entry);
+        Guid requestId = await ResolveRequestIdAsync(workspaceModel, identifier, entry);
 
-        await RemoveRequestAsync(entry, workspaceModel, lookup.Id);
+        await RemoveRequestAsync(entry, workspaceModel, requestId);
     }
 
     public async Task<StraumrRequest> CopyAsync(string identifier, string newName, StraumrWorkspaceEntry? workspace = null)
@@ -72,7 +72,7 @@ public class StraumrRequestService(
 
         try
         {
-            return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrRequest);
+            return await fileService.PeekStraumrModelAsync(fullPath, StraumrJsonContext.Default.StraumrRequest);
         }
         catch (JsonException jex)
         {
@@ -100,7 +100,7 @@ public class StraumrRequestService(
 
         await EnsureNoNameConflictAsync(request.Name, entry);
 
-        await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
+        await fileService.WriteStraumrModelAsync(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
         await AddRequestToWorkspace(entry, request.Id);
     }
 
@@ -116,7 +116,7 @@ public class StraumrRequestService(
 
         await EnsureNoNameConflictAsync(request.Name, entry, request.Id);
 
-        await fileService.WriteStraumrModel(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
+        await fileService.WriteStraumrModelAsync(fullPath, request, StraumrJsonContext.Default.StraumrRequest);
     }
 
     public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
@@ -259,6 +259,18 @@ public class StraumrRequestService(
         return Path.Combine(directory!, id + ".json");
     }
 
+    private async Task<Guid> ResolveRequestIdAsync(
+        StraumrWorkspace workspace, string identifier, StraumrWorkspaceEntry entry)
+    {
+        if (Guid.TryParse(identifier, out Guid requestId) && workspace.Requests.Contains(requestId))
+        {
+            return requestId;
+        }
+
+        RequestLookup lookup = await RequireRequestAsync(workspace, identifier, "No request found", entry);
+        return lookup.Id;
+    }
+
     private StraumrWorkspaceEntry ResolveWorkspaceEntry(StraumrWorkspaceEntry? workspace)
     {
         return workspace
@@ -269,7 +281,7 @@ public class StraumrRequestService(
     private async Task AddRequestToWorkspace(StraumrWorkspaceEntry entry, Guid requestId)
     {
         StraumrWorkspace workspace =
-            await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.PeekStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         workspace.Requests.Add(requestId);
         await PersistWorkspaceAsync(entry, workspace);
     }
@@ -277,7 +289,7 @@ public class StraumrRequestService(
     private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync(StraumrWorkspaceEntry entry)
     {
         StraumrWorkspace workspace =
-            await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.PeekStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         return (entry, workspace);
     }
 
@@ -496,7 +508,7 @@ public class StraumrRequestService(
 
     private async Task PersistWorkspaceAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)
     {
-        await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
+        await fileService.WriteStraumrModelAsync(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
     private async Task<RequestLookup?> LookupRequestAsync(StraumrWorkspace workspace, string identifier, StraumrWorkspaceEntry entry)

@@ -9,12 +9,12 @@ namespace Straumr.Core.Services;
 
 public class StraumrFileService : IStraumrFileService
 {
-    public async Task WriteStraumrModel<T>(string path, T value, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
+    public async Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
     {
         await WriteInternal(path, value, typeInfo, true);
     }
 
-    public async Task<T> ReadStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
+    public async Task<T> ReadStraumrModelAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
     {
         string json = await File.ReadAllTextAsync(path);
         T deserialized = JsonSerializer.Deserialize(json, typeInfo) ??
@@ -24,7 +24,7 @@ public class StraumrFileService : IStraumrFileService
         return deserialized;
     }
 
-    public async Task<T> PeekStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
+    public async Task<T> PeekStraumrModelAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase
     {
         string json = await File.ReadAllTextAsync(path);
         return JsonSerializer.Deserialize(json, typeInfo) ??
@@ -49,7 +49,7 @@ public class StraumrFileService : IStraumrFileService
         await WriteInternal(path, deserialized, typeInfo, false);
     }
 
-    public async Task WriteGeneric<T>(string path, T value, JsonTypeInfo<T> typeInfo)
+    public async Task WriteGenericAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo)
     {
         EnsureDirectoryExists(path);
 
@@ -57,7 +57,7 @@ public class StraumrFileService : IStraumrFileService
         await WriteTextAtomicAsync(path, json);
     }
 
-    public async Task<T> ReadGenericAsync<T>(string path, JsonTypeInfo<T> typeInfo)
+    public async Task<T> ReadGenericAsyncAsync<T>(string path, JsonTypeInfo<T> typeInfo)
     {
         string json = await File.ReadAllTextAsync(path);
         return JsonSerializer.Deserialize(json, typeInfo) ??

@@ -67,7 +67,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         }
 
         var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
-        await optionsService.Load();
+        await optionsService.LoadAsync();
 
         var theme = serviceProvider.GetRequiredService<StraumrThemeOptions>();
         var resolver = serviceProvider.GetRequiredService<TuiAppResolver>();

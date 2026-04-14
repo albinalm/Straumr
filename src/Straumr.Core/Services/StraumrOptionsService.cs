@@ -13,7 +13,7 @@ public class StraumrOptionsService(IStraumrFileService fileService) : IStraumrOp
 
     public StraumrOptions Options { get; private set; } = new();
 
-    public async Task Load()
+    public async Task LoadAsync()
     {
         if (!Directory.Exists(StraumrDir))
         {
@@ -22,21 +22,21 @@ public class StraumrOptionsService(IStraumrFileService fileService) : IStraumrOp
 
         if (!File.Exists(OptionsPath))
         {
-            await Save();
+            await SaveAsync();
             return;
         }
 
-        Options = await fileService.ReadGenericAsync(OptionsPath, StraumrJsonContext.Default.StraumrOptions);
+        Options = await fileService.ReadGenericAsyncAsync(OptionsPath, StraumrJsonContext.Default.StraumrOptions);
 
         if (Options.CurrentWorkspace is not null && !File.Exists(Options.CurrentWorkspace.Path))
         {
             Options.CurrentWorkspace = null;
-            await Save();
+            await SaveAsync();
         }
     }
 
-    public async Task Save()
+    public async Task SaveAsync()
     {
-        await fileService.WriteGeneric(OptionsPath, Options, StraumrJsonContext.Default.StraumrOptions);
+        await fileService.WriteGenericAsync(OptionsPath, Options, StraumrJsonContext.Default.StraumrOptions);
     }
 }

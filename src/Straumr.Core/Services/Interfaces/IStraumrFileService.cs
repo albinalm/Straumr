@@ -5,11 +5,11 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrFileService
 {
-    Task WriteStraumrModel<T>(string path, T value, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
-    Task<T> ReadStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
-    Task<T> PeekStraumrModel<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
+    Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
+    Task<T> ReadStraumrModelAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
+    Task<T> PeekStraumrModelAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
     Task StampAccessAsync<T>(string path, JsonTypeInfo<T> typeInfo) where T : StraumrModelBase;
-    Task WriteGeneric<T>(string path, T value, JsonTypeInfo<T> typeInfo);
-    Task<T> ReadGenericAsync<T>(string path, JsonTypeInfo<T> typeInfo);
+    Task WriteGenericAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo);
+    Task<T> ReadGenericAsyncAsync<T>(string path, JsonTypeInfo<T> typeInfo);
     T ReadGeneric<T>(string path, JsonTypeInfo<T> typeInfo);
 }

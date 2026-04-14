@@ -17,7 +17,7 @@ public class WorkspaceDeleteCommand(IStraumrWorkspaceService workspaceService)
     {
         try
         {
-            await workspaceService.Delete(settings.Identifier);
+            await workspaceService.DeleteAsync(settings.Identifier);
             if (!settings.Json)
             {
                 AnsiConsole.MarkupLine($"[green]Deleted workspace[/] [bold]{settings.Identifier}[/]");

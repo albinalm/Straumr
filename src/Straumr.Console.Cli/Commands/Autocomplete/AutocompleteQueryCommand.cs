@@ -143,7 +143,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
+                StraumrWorkspace workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
                 if (workspace.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(workspace.Name);
@@ -160,7 +160,7 @@ public class AutocompleteQueryCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
         }
         catch (StraumrException)
         {
@@ -193,7 +193,7 @@ public class AutocompleteQueryCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
         }
         catch (StraumrException)
         {

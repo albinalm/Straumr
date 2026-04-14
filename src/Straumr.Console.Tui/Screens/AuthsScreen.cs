@@ -44,7 +44,7 @@ public sealed class AuthsScreen(
         try
         {
             StraumrWorkspace workspace =
-                workspaceService.PeekWorkspace(_workspaceEntry.Path).GetAwaiter().GetResult();
+                workspaceService.PeekWorkspaceAsync(_workspaceEntry.Path).GetAwaiter().GetResult();
             int authCount = workspace.Auths.Count;
             ShowSuccess($"{authCount} auth{(authCount == 1 ? string.Empty : "s")} loaded");
         }
@@ -264,7 +264,7 @@ public sealed class AuthsScreen(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.GetWorkspaceAsync(workspaceEntry.Path);
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {

@@ -306,7 +306,7 @@ public sealed class RequestsScreen(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
+            workspace = await workspaceService.GetWorkspaceAsync(workspaceEntry.Path);
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
         {

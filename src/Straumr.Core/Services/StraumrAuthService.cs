@@ -55,7 +55,7 @@ public class StraumrAuthService(
 
         try
         {
-            return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrAuth);
+            return await fileService.PeekStraumrModelAsync(fullPath, StraumrJsonContext.Default.StraumrAuth);
         }
         catch (JsonException jex)
         {
@@ -75,7 +75,7 @@ public class StraumrAuthService(
 
         await EnsureNoNameConflictAsync(auth.Name, entry);
 
-        await fileService.WriteStraumrModel(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
+        await fileService.WriteStraumrModelAsync(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
         await AddAuthToWorkspace(entry, auth.Id);
     }
 
@@ -91,7 +91,7 @@ public class StraumrAuthService(
 
         await EnsureNoNameConflictAsync(auth.Name, entry, auth.Id);
 
-        await fileService.WriteStraumrModel(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
+        await fileService.WriteStraumrModelAsync(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
     }
 
     public async Task StampAccessAsync(Guid id, StraumrWorkspaceEntry? workspace = null)
@@ -105,13 +105,13 @@ public class StraumrAuthService(
     {
         StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
         (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
-        AuthLookup lookup = await RequireAuthAsync(workspaceModel, identifier, "No auth found", entry);
-        string authPath = AuthPath(lookup.Id, entry);
+        Guid authId = await ResolveAuthIdAsync(workspaceModel, identifier, entry);
+        string authPath = AuthPath(authId, entry);
         if (File.Exists(authPath))
         {
             File.Delete(authPath);
         }
-        workspaceModel.Auths.Remove(lookup.Id);
+        workspaceModel.Auths.Remove(authId);
         await PersistWorkspaceAsync(entry, workspaceModel);
     }
 
@@ -530,7 +530,7 @@ public class StraumrAuthService(
     private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync(StraumrWorkspaceEntry entry)
     {
         StraumrWorkspace workspace =
-            await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.PeekStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         return (entry, workspace);
     }
 
@@ -544,14 +544,14 @@ public class StraumrAuthService(
     private async Task AddAuthToWorkspace(StraumrWorkspaceEntry entry, Guid id)
     {
         StraumrWorkspace workspace =
-            await fileService.PeekStraumrModel(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
+            await fileService.PeekStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
         workspace.Auths.Add(id);
         await PersistWorkspaceAsync(entry, workspace);
     }
 
     private async Task PersistWorkspaceAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)
     {
-        await fileService.WriteStraumrModel(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
+        await fileService.WriteStraumrModelAsync(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
     private async Task EnsureNoNameConflictAsync(string name, StraumrWorkspaceEntry entry, Guid excludeId = default)
@@ -582,13 +582,25 @@ public class StraumrAuthService(
         return Path.Combine(directory!, $"{id}.json");
     }
 
+    private async Task<Guid> ResolveAuthIdAsync(
+        StraumrWorkspace workspace, string identifier, StraumrWorkspaceEntry entry)
+    {
+        if (Guid.TryParse(identifier, out Guid authId) && workspace.Auths.Contains(authId))
+        {
+            return authId;
+        }
+
+        AuthLookup lookup = await RequireAuthAsync(workspace, identifier, "No auth found", entry);
+        return lookup.Id;
+    }
+
     private async Task<StraumrAuth> GetByIdAsync(Guid id, StraumrWorkspaceEntry entry)
     {
         string fullPath = AuthPath(id, entry);
 
         try
         {
-            return await fileService.PeekStraumrModel(fullPath, StraumrJsonContext.Default.StraumrAuth);
+            return await fileService.PeekStraumrModelAsync(fullPath, StraumrJsonContext.Default.StraumrAuth);
         }
         catch (JsonException jex)
         {

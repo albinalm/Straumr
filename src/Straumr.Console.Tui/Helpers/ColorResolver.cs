@@ -137,5 +137,4 @@ public static class ColorResolver
             Disabled = new TuiAttribute(secondary, surface),
         };
     }
-
 }

@@ -29,7 +29,7 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
         string tempPath;
         try
         {
-            tempPath = await workspaceService.PrepareEdit(settings.Identifier);
+            tempPath = await workspaceService.PrepareEditAsync(settings.Identifier);
         }
         catch (StraumrException ex)
         {
@@ -52,7 +52,7 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
 
             try
             {
-                await workspaceService.ApplyEdit(settings.Identifier, tempPath);
+                await workspaceService.ApplyEditAsync(settings.Identifier, tempPath);
 
                 if (settings.Json)
                 {
@@ -60,7 +60,7 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
                         await ResolveWorkspaceEntryAsync(settings.Identifier, optionsService, workspaceService);
                     if (entry is not null)
                     {
-                        StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
+                        StraumrWorkspace workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
                         WorkspaceCreateResult result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, entry.Path);
                         System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
                     }

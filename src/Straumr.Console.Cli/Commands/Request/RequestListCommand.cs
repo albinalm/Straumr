@@ -44,7 +44,7 @@ public class RequestListCommand(
             return 1;
         }
 
-        StraumrWorkspace workspace = await workspaceService.GetWorkspace(workspaceEntry.Path);
+        StraumrWorkspace workspace = await workspaceService.GetWorkspaceAsync(workspaceEntry.Path);
 
         List<RequestListEntry> entries = new List<RequestListEntry>();
         foreach (Guid requestGuid in workspace.Requests)

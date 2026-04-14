@@ -154,7 +154,7 @@ public sealed class WorkspacesScreen(
 
         try
         {
-            workspaceService.Delete(selectedEntry.Identifier).GetAwaiter().GetResult();
+            workspaceService.DeleteAsync(selectedEntry.Identifier).GetAwaiter().GetResult();
             _ = RefreshAsync();
             ShowSuccess($"Deleted workspace \"{selectedEntry.Identifier}\"");
         }
@@ -194,7 +194,7 @@ public sealed class WorkspacesScreen(
             string tempPath;
             try
             {
-                tempPath = await workspaceService.PrepareEdit(identifier);
+                tempPath = await workspaceService.PrepareEditAsync(identifier);
             }
             catch
             {
@@ -217,7 +217,7 @@ public sealed class WorkspacesScreen(
 
                 if (process.ExitCode == 0)
                 {
-                    await workspaceService.ApplyEdit(identifier, tempPath);
+                    await workspaceService.ApplyEditAsync(identifier, tempPath);
                 }
             }
             finally
@@ -264,7 +264,7 @@ public sealed class WorkspacesScreen(
 
         try
         {
-            workspaceService.Copy(selectedEntry.Identifier, newName, outputDir).GetAwaiter().GetResult();
+            workspaceService.CopyAsync(selectedEntry.Identifier, newName, outputDir).GetAwaiter().GetResult();
             _ = RefreshAsync();
             ShowSuccess($"Copied workspace to \"{newName}\"");
         }
@@ -303,7 +303,7 @@ public sealed class WorkspacesScreen(
 
         try
         {
-            workspaceService.Import(path).GetAwaiter().GetResult();
+            workspaceService.ImportAsync(path).GetAwaiter().GetResult();
             _ = RefreshAsync();
             ShowSuccess($"Imported workspace from \"{path}\"");
         }
@@ -340,7 +340,7 @@ public sealed class WorkspacesScreen(
 
         try
         {
-            string outputFile = workspaceService.Export(selectedEntry.Identifier, outputDir).GetAwaiter().GetResult();
+            string outputFile = workspaceService.ExportAsync(selectedEntry.Identifier, outputDir).GetAwaiter().GetResult();
             ShowSuccess($"Exported workspace to \"{outputFile}\"");
         }
         catch (StraumrException ex)
@@ -470,7 +470,7 @@ public sealed class WorkspacesScreen(
 
         try
         {
-            StraumrWorkspace workspace = await workspaceService.PeekWorkspace(entry.Path);
+            StraumrWorkspace workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
             lastAccessed = workspace.LastAccessed;
             identifier = workspace.Name;
             requests = workspace.Requests.Count;
