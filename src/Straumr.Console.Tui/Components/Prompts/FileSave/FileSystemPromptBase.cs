@@ -481,6 +481,28 @@ internal abstract class FileSystemPromptBase : PromptComponent
         return false;
     }
 
+    internal bool HandleGoToKeyDown(Key key)
+    {
+        if (_goToField is not { HasFocus: true })
+        {
+            return false;
+        }
+
+        if (KeyHelpers.IsEscape(key))
+        {
+            HideGoTo();
+            return true;
+        }
+
+        if (KeyHelpers.IsEnter(key))
+        {
+            TryApplyGoTo();
+            return true;
+        }
+
+        return false;
+    }
+
     protected virtual void OnTabPressed()
     {
         FocusList();

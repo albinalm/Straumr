@@ -43,6 +43,11 @@ internal sealed class FileSavePromptScreen : PromptScreen<string?>
 
     public override bool OnKeyDown(Key key)
     {
+        if (_prompt.HandleGoToKeyDown(key))
+        {
+            return true;
+        }
+
         if (_prompt.HandleFilterKeyDown(key))
         {
             return true;
