@@ -56,7 +56,7 @@ public sealed class AuthEditor(
                 continue;
             }
 
-            HandleAction(action, state, context);
+            HandleAction(action, state);
         }
     }
 
@@ -138,7 +138,7 @@ public sealed class AuthEditor(
         return true;
     }
 
-    private void HandleAction(string action, AuthEditorState state, AuthEditorContext context)
+    private void HandleAction(string action, AuthEditorState state)
     {
         switch (action)
         {
@@ -389,7 +389,7 @@ public sealed class AuthEditor(
                     string? url = PromptUrl(config.TokenUrl);
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        config.TokenUrl = url;
+                        config.TokenUrl = NormalizeUrlInput(url);
                     }
 
                     break;
@@ -429,17 +429,23 @@ public sealed class AuthEditor(
                     string? url = PromptUrl(config.AuthorizationUrl);
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        config.AuthorizationUrl = url;
+                        config.AuthorizationUrl = NormalizeUrlInput(url);
                     }
 
                     break;
                 }
                 case "Redirect URI":
                 {
-                    string? redirect = interactiveConsole.TextInput("Redirect URI", config.RedirectUri, allowEmpty: false);
+                    string? redirect = interactiveConsole.TextInput(
+                        "Redirect URI",
+                        config.RedirectUri,
+                        allowEmpty: false,
+                        validate: value => IsValidAbsoluteUrl(NormalizeUrlInput(value))
+                            ? null
+                            : "Enter a valid absolute URL.");
                     if (redirect is not null)
                     {
-                        config.RedirectUri = redirect;
+                        config.RedirectUri = NormalizeUrlInput(redirect);
                     }
 
                     break;
@@ -570,7 +576,7 @@ public sealed class AuthEditor(
                     string? url = PromptUrl(config.Url);
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        config.Url = url;
+                        config.Url = NormalizeUrlInput(url);
                     }
 
                     break;
@@ -633,9 +639,7 @@ public sealed class AuthEditor(
                         ["Back", "Clear cached value"],
                         choice => choice switch
                         {
-                            "Clear cached value" => string.IsNullOrWhiteSpace(config.CachedValue)
-                                ? "Clear cached value [secondary](no cached value)[/]"
-                                : "Clear cached value [danger](will remove cached value)[/]",
+                            "Clear cached value" => "Clear cached value",
                             _ => choice
                         });
                     if (confirm == "Clear cached value")
@@ -781,7 +785,7 @@ public sealed class AuthEditor(
 
             oauth2.Token = token;
             string expires = token?.ExpiresAt.HasValue == true
-                ? token!.ExpiresAt!.Value.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
+                ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
                 : "N/A";
             interactiveConsole.ShowMessage("OAuth 2.0", $"Token fetched successfully.\nExpires: {expires}");
         }
@@ -809,7 +813,9 @@ public sealed class AuthEditor(
         return interactiveConsole.TextInput(
             "URL",
             current,
-            validate: value => IsValidAbsoluteUrl(value) ? null : "Enter a valid absolute URL.");
+            validate: value => IsValidAbsoluteUrl(NormalizeUrlInput(value))
+                ? null
+                : "Enter a valid absolute URL.");
     }
 
     private string? PromptMethod(string? current)
@@ -828,6 +834,19 @@ public sealed class AuthEditor(
         }
 
         return Uri.TryCreate(value, UriKind.Absolute, out _);
+    }
+
+    private static string NormalizeUrlInput(string value)
+    {
+        string trimmed = value.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return trimmed;
+        }
+
+        return trimmed.Contains("://", StringComparison.Ordinal)
+            ? trimmed
+            : $"https://{trimmed}";
     }
 
     private sealed class AuthEditorState
