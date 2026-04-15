@@ -1,6 +1,5 @@
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Helpers;
-using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Factories;
 
@@ -23,12 +22,10 @@ internal static class TextFieldFactory
         return field;
     }
 
-    public static InteractiveTextField CreatePromptField(Action onChanged, Func<bool> submit, Func<bool> requestCancel)
+    public static InteractiveTextField CreatePromptField(Action onChanged)
     {
         var field = new InteractiveTextField();
 
-        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (_, _) => submit()));
-        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (_, _) => requestCancel()));
         field.TextChanged += (_, _) => onChanged();
 
         return field;

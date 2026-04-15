@@ -2,6 +2,7 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.TextInput;
+using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
@@ -36,5 +37,15 @@ internal sealed class TextInputPromptScreen : PromptScreen<string?>
 
         _prompt.Submitted += Complete;
         _prompt.CancelRequested += Cancel;
+    }
+
+    public override bool OnKeyDown(Key key)
+    {
+        if (_prompt.HandleInputKeyDown(key))
+        {
+            return true;
+        }
+
+        return base.OnKeyDown(key);
     }
 }

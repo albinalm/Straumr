@@ -3,6 +3,7 @@ using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Drawing;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 using MarkupText = Straumr.Console.Tui.Helpers.MarkupText;
@@ -28,7 +29,7 @@ internal sealed class TextInputPrompt : PromptComponent
     {
         FrameView frame = CreateFrame(Title);
 
-        _textField = TextFieldFactory.CreatePromptField(OnTextChanged, TrySubmit, RequestCancel);
+        _textField = TextFieldFactory.CreatePromptField(OnTextChanged);
         _textField.X = 1;
         _textField.Y = 1;
         _textField.Width = Dim.Fill(2);
@@ -68,6 +69,36 @@ internal sealed class TextInputPrompt : PromptComponent
         };
 
         return frame;
+    }
+
+    internal bool HandleInputKeyDown(Key key)
+    {
+        if (_confirming && KeyHelpers.IsEscape(key))
+        {
+            return RequestCancel();
+        }
+
+        if (_confirming)
+        {
+            return false;
+        }
+
+        if (_textField is not { HasFocus: true })
+        {
+            return false;
+        }
+
+        if (KeyHelpers.IsEscape(key))
+        {
+            return RequestCancel();
+        }
+
+        if (KeyHelpers.IsEnter(key))
+        {
+            return TrySubmit();
+        }
+
+        return false;
     }
 
     public void FocusInput() => _textField?.SetFocus();

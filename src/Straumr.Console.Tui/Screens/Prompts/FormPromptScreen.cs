@@ -33,5 +33,15 @@ internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>
         _prompt.CancelRequested += Cancel;
     }
 
+    public override bool OnKeyDown(Key key)
+    {
+        if (_prompt.HandleFormKeyDown(key))
+        {
+            return true;
+        }
+
+        return base.OnKeyDown(key);
+    }
+
     protected override bool ShouldCancelOnEscape(Key key) => !_prompt.AnyFieldEditing;
 }

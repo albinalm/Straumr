@@ -164,6 +164,22 @@ internal sealed class SelectionPrompt : PromptComponent
         return false;
     }
 
+    internal bool TryAcceptFromList(Key key)
+    {
+        if (!KeyHelpers.IsEnter(key))
+        {
+            return false;
+        }
+
+        if (_listView is not { HasFocus: true })
+        {
+            return false;
+        }
+
+        AcceptSelection();
+        return true;
+    }
+
     private void MoveSelection(int delta)
     {
         if (_listView is null || _valueItems.Count == 0)

@@ -198,6 +198,9 @@ internal sealed class KeyValueEditorComponent : PromptComponent
 
         return false;
     }
+
+    internal bool HandleEditFormKeyDown(Key key)
+        => _mode == Mode.Editing && (_editForm?.HandleFormKeyDown(key) ?? false);
     
 
     private void EditSelected()

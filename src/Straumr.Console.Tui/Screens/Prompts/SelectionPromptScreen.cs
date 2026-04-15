@@ -52,6 +52,11 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
             return true;
         }
 
+        if (_prompt.TryAcceptFromList(key))
+        {
+            return true;
+        }
+
         return base.OnKeyDown(key);
     }
 }

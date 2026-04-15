@@ -167,6 +167,31 @@ internal sealed class FormFieldsView : View
         _fields.FirstOrDefault()?.EnterEditMode();
     }
 
+    internal bool HandleFormKeyDown(Key key)
+    {
+        if (TryHandleFocusedFieldKeyDown(key))
+        {
+            return true;
+        }
+
+        if (_saveButton is { HasFocus: true })
+        {
+            if (KeyHelpers.IsEnter(key))
+            {
+                TrySave();
+                return true;
+            }
+
+            if (KeyHelpers.IsEscape(key))
+            {
+                CancelRequested?.Invoke();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void ConfigureNavigation()
     {
         for (var i = 0; i < _fields.Count; i++)
@@ -205,6 +230,63 @@ internal sealed class FormFieldsView : View
             View? Above() => index == 0 ? _saveButton : _fields[index - 1];
         }
     }
+
+    private bool TryHandleFocusedFieldKeyDown(Key key)
+    {
+        for (var i = 0; i < _fields.Count; i++)
+        {
+            InteractiveTextField field = _fields[i];
+            if (!field.HasFocus)
+            {
+                continue;
+            }
+
+            return HandleFieldKeyDown(field, i, key);
+        }
+
+        return false;
+    }
+
+    private bool HandleFieldKeyDown(InteractiveTextField field, int index, Key key)
+    {
+        if (!KeyHelpers.IsEnter(key) && !KeyHelpers.IsEscape(key))
+        {
+            return false;
+        }
+
+        if (KeyHelpers.IsEscape(key))
+        {
+            if (field.IsEditing)
+            {
+                field.ExitEditMode();
+            }
+            else
+            {
+                CancelRequested?.Invoke();
+            }
+
+            return true;
+        }
+
+        if (!field.IsEditing)
+        {
+            field.EnterEditMode();
+            return true;
+        }
+
+        field.ExitEditMode();
+        View? next = GetBelow(index);
+        FocusView(next);
+        if (next is InteractiveTextField nextField)
+        {
+            nextField.EnterEditMode();
+        }
+
+        return true;
+    }
+
+    private View? GetBelow(int index)
+        => index == _fields.Count - 1 ? _saveButton : _fields[index + 1];
 
     private Button CreateButton(string text)
     {

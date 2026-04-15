@@ -1,4 +1,5 @@
 using Straumr.Console.Tui.Components.Prompts.Base;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
@@ -45,4 +46,6 @@ internal sealed class FormPrompt : PromptComponent
 
         return frame;
     }
+
+    internal bool HandleFormKeyDown(Key key) => _fieldsView?.HandleFormKeyDown(key) ?? false;
 }

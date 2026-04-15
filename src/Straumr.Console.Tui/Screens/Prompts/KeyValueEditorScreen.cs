@@ -47,6 +47,11 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
             return true;
         }
 
+        if (_editor.HandleEditFormKeyDown(key))
+        {
+            return true;
+        }
+
         return base.OnKeyDown(key);
     }
 
