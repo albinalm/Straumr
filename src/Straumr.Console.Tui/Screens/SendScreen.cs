@@ -168,7 +168,14 @@ public sealed class SendScreen : Screen
             cancellationToken.ThrowIfCancellationRequested();
 
             SetStage(SendStage.Sending, "Sending request");
-            StraumrResponse response = await _requestService.SendAsync(request, new SendOptions(), workspaceEntry);
+            
+            var sendOptions = new SendOptions
+            {
+                Insecure = true,
+                FollowRedirects = true
+            };
+            
+            StraumrResponse response = await _requestService.SendAsync(request, sendOptions, workspaceEntry);
             cancellationToken.ThrowIfCancellationRequested();
 
             SetStage(SendStage.Processing, "Processing response");
