@@ -431,13 +431,13 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        if (key == Key.Enter)
+        if (KeyHelpers.IsEnter(key))
         {
             ActivateSelection();
             return true;
         }
 
-        if (key == Key.Tab && (_goToField is null || !_goToField.Visible))
+        if (KeyHelpers.IsTabForward(key) && (_goToField is null || !_goToField.Visible))
         {
             OnTabPressed();
             return true;
@@ -449,7 +449,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             return true;
         }
 
-        if (key == Key.Esc)
+        if (KeyHelpers.IsEscape(key))
         {
             RequestCancel();
             return true;
@@ -658,12 +658,12 @@ internal abstract class FileSystemPromptBase : PromptComponent
     private InteractiveTextField CreateNewDirField()
     {
         var field = new InteractiveTextField();
-        field.Bind(Key.Enter, (_, _) => TryCreateNewDirectory());
-        field.Bind(Key.Esc, (_, _) =>
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (_, _) => TryCreateNewDirectory()));
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (_, _) =>
         {
             HideNewDir();
             return true;
-        });
+        }));
         return field;
     }
 
@@ -804,14 +804,13 @@ internal abstract class FileSystemPromptBase : PromptComponent
     private InteractiveTextField CreateGoToField()
     {
         var field = new InteractiveTextField();
-        field.Bind(Key.Enter, (_, _) => TryApplyGoTo());
-        field.Bind(Key.Esc, (_, _) =>
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (_, _) => TryApplyGoTo()));
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (_, _) =>
         {
             HideGoTo();
             return true;
-        });
-        field.Bind(Key.Tab, (_, _) => TryCompleteGoTo());
-        field.Bind(Key.Tab.WithShift, (_, _) => TryCompleteGoTo());
+        }));
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsTabNavigation(key), (_, _) => TryCompleteGoTo()));
         return field;
     }
 

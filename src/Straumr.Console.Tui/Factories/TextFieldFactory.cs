@@ -1,4 +1,5 @@
 using Straumr.Console.Tui.Components.TextFields;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Factories;
@@ -11,21 +12,25 @@ internal static class TextFieldFactory
 
         field.TextChanged += (_, _) => onChanged(field.Text);
 
-        field.Bind(Key.Enter, (_, _) =>
+        field.Bind(TextFieldKeyBinding.When(
+            (_, key) => KeyHelpers.IsEnter(key),
+            (_, _) =>
         {
             acceptFilter();
             return true;
-        });
+        }));
 
-        field.Bind(Key.Esc, (f, _) =>
+        field.Bind(TextFieldKeyBinding.When(
+            (_, key) => KeyHelpers.IsEscape(key),
+            (f, _) =>
         {
             f.Text = string.Empty;
             exitFilter();
             return true;
-        }, clearText: true);
+        }, clearText: true));
 
         field.Bind(TextFieldKeyBinding.When(
-            (_, key) => key == Key.Tab || key == Key.Tab.WithShift || key == Key.CursorDown,
+            (_, key) => KeyHelpers.IsTabNavigation(key) || KeyHelpers.IsCursorDown(key),
             (_, _) =>
             {
                 acceptFilter();
@@ -39,8 +44,8 @@ internal static class TextFieldFactory
     {
         var field = new InteractiveTextField();
 
-        field.Bind(Key.Enter, (_, _) => submit());
-        field.Bind(Key.Esc, (_, _) => requestCancel());
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (_, _) => submit()));
+        field.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (_, _) => requestCancel()));
         field.TextChanged += (_, _) => onChanged();
 
         return field;

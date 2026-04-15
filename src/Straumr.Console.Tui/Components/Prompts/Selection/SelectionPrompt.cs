@@ -96,7 +96,7 @@ internal sealed class SelectionPrompt : PromptComponent
         }
 
         int count = _valueItems.Count;
-        if (count == 0 && key != Key.Esc && KeyHelpers.GetCharValue(key) != '/')
+        if (count == 0 && !KeyHelpers.IsEscape(key) && KeyHelpers.GetCharValue(key) != '/')
         {
             return false;
         }
@@ -133,7 +133,7 @@ internal sealed class SelectionPrompt : PromptComponent
             return true;
         }
 
-        if (key == Key.Esc)
+        if (KeyHelpers.IsEscape(key))
         {
             CancelRequested?.Invoke();
             return true;

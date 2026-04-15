@@ -1,6 +1,7 @@
 using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.Details;
+using Straumr.Console.Tui.Helpers;
 using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
@@ -34,7 +35,7 @@ internal sealed class ModelDetailsScreen : PromptScreen<bool>
             return true;
         }
 
-        if (key == Key.Enter)
+        if (KeyHelpers.IsEnter(key))
         {
             Cancel();
             return true;

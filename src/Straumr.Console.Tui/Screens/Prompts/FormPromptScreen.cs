@@ -2,11 +2,14 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.Form;
+using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>?>
 {
+    private readonly FormPrompt _prompt;
+
     public FormPromptScreen(
         string title,
         IReadOnlyList<FormFieldSpec> fields,
@@ -19,14 +22,16 @@ internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>
 
         Add(new HintsBar { Text = "Enter Edit/Next  j/k Navigate  Esc Cancel" });
 
-        FormPrompt prompt = Add(new FormPrompt
+        _prompt = Add(new FormPrompt
         {
             Title = title,
             Fields = fields,
             Theme = theme,
         });
 
-        prompt.Submitted += result => Complete(result);
-        prompt.CancelRequested += Cancel;
+        _prompt.Submitted += result => Complete(result);
+        _prompt.CancelRequested += Cancel;
     }
+
+    protected override bool ShouldCancelOnEscape(Key key) => !_prompt.AnyFieldEditing;
 }

@@ -81,21 +81,21 @@ internal sealed class FileSavePrompt : FileSystemPromptBase
         };
 
         _fileNameField.TextChanged += (_, _) => OnFileNameChanged();
-        _fileNameField.Bind(Key.Enter, (_, _) =>
+        _fileNameField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (_, _) =>
         {
             FocusList();
             return true;
-        });
-        _fileNameField.Bind(Key.Tab, (_, _) =>
+        }));
+        _fileNameField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsTabForward(key), (_, _) =>
         {
             FocusList();
             return true;
-        });
-        _fileNameField.Bind(Key.Esc, (_, _) =>
+        }));
+        _fileNameField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (_, _) =>
         {
             FocusList();
             return true;
-        });
+        }));
         ApplyFieldTheme(_fileNameField);
 
         _typeLabel = new Label

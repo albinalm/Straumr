@@ -313,7 +313,7 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandField.Enabled = true;
         ApplyCommandFieldTheme(_commandField);
 
-        _commandField.Bind(Key.Enter, (f, _) =>
+        _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (f, _) =>
         {
             string command = f.Text;
             f.Text = string.Empty;
@@ -324,26 +324,26 @@ public abstract class ModelScreen<TEntry> : Screen
             }
 
             return true;
-        });
+        }));
 
-        _commandField.Bind(Key.Tab, (f, _) =>
+        _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsTabForward(key), (f, _) =>
         {
             TryAutoCompleteCommand(f);
             return true;
-        });
+        }));
 
-        _commandField.Bind(Key.Tab.WithShift, (f, _) =>
+        _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsTabBackward(key), (f, _) =>
         {
             TryAutoCompleteCommand(f, reverse: true);
             return true;
-        });
+        }));
 
-        _commandField.Bind(Key.Esc, (f, _) =>
+        _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (f, _) =>
         {
             f.Text = string.Empty;
             HideCommandField();
             return true;
-        }, clearText: true);
+        }, clearText: true));
 
         _commandContainer.Add(_commandLabel, _commandField);
         return _commandContainer;
