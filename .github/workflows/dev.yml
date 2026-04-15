@@ -1,0 +1,143 @@
+name: Dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Compute version
+        id: meta
+        shell: bash
+        run: |
+          DATE_UTC="$(date -u '+%Y.%-m.%-d')"
+          VERSION="${DATE_UTC}.${GITHUB_RUN_NUMBER}-dev"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      APP_PROJECT: src/Straumr.Console.App/Straumr.Console.App.csproj
+      SOLUTION: src/Straumr.sln
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build --verbosity normal
+
+      - name: Publish (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          dotnet publish "${APP_PROJECT}" \
+            -c Release -r ${{ matrix.rid }} \
+            -o artifacts/${{ matrix.rid }} \
+            /p:Version=${VERSION%-dev} \
+            /p:FileVersion=${VERSION%-dev} \
+            /p:InformationalVersion=${VERSION}
+
+          mkdir -p dist
+          tar -C artifacts/${{ matrix.rid }} -czf dist/straumr-${VERSION}-${{ matrix.rid }}.tar.gz straumr
+
+      - name: Publish (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $fileVersion = $env:VERSION -replace '-dev$',''
+          dotnet publish $env:APP_PROJECT `
+            -c Release -r ${{ matrix.rid }} `
+            -o artifacts/${{ matrix.rid }} `
+            /p:Version=$fileVersion `
+            /p:FileVersion=$fileVersion `
+            /p:InformationalVersion=${env:VERSION}
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path artifacts/${{ matrix.rid }}/straumr.exe -DestinationPath dist/straumr-${env:VERSION}-${{ matrix.rid }}.zip
+
+      - name: Build installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          iscc /DMyAppVersion="${env:VERSION}" `
+               /DMySourceDir="${env:GITHUB_WORKSPACE}\artifacts\${{ matrix.rid }}" `
+               /DMyOutputDir="${env:GITHUB_WORKSPACE}\dist" `
+               /DMyLicenseFile="${env:GITHUB_WORKSPACE}\LICENSE" `
+               /DMyIconFile="${env:GITHUB_WORKSPACE}\src\Straumr.Console.App\icon.ico" `
+               installer\straumr.iss
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.rid }}
+          path: dist/*
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: (cd dist && sha256sum * > sha256sums.txt)
+
+      - name: Delete previous dev release and tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release delete dev --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+
+      - name: Create dev release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: Dev build ${{ env.VERSION }}
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          body: |
+            Bleeding-edge development build from `${{ github.sha }}`.
+
+            Version: `${{ env.VERSION }}`
+
+            > This release is automatically replaced on every build of `main`. Not for production use.
+          files: |
+            dist/*
