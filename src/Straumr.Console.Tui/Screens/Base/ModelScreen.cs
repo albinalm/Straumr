@@ -147,6 +147,12 @@ public abstract class ModelScreen<TEntry> : Screen
             }
         }
 
+        if (_listView is { HasFocus: true } && KeyHelpers.IsEnter(key))
+        {
+            OpenSelectedEntry();
+            return true;
+        }
+
         // When the list is not focused (e.g. empty state), handle model keys and commands at screen level
         if (_listView is not { HasFocus: true } && _filterField is not { HasFocus: true })
         {
@@ -268,7 +274,6 @@ public abstract class ModelScreen<TEntry> : Screen
         };
 
         list.SetMarkupSource(_displayItems);
-        list.Accepting += (_, _) => OpenSelectedEntry();
         return list;
     }
 
