@@ -103,10 +103,14 @@ public sealed class WorkspacesScreen(
         List<FormFieldSpec> fields =
         [
             new("name", "Name", Required: true),
-            new("outputDir", "Output directory", SideAction: interactiveConsole.BrowseDirectoryAction("Select output directory")),
+            new("outputDir", "Output directory"),
+        ];
+        List<FormCustomCommand> customCommands =
+        [
+            interactiveConsole.BrowseDirectoryCommand("outputDir", "Select output directory"),
         ];
 
-        Dictionary<string, string>? result = interactiveConsole.PromptForm("Create workspace", fields);
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Create workspace", fields, customCommands);
         if (result is null)
         {
             return;
@@ -122,7 +126,7 @@ public sealed class WorkspacesScreen(
         try
         {
             StraumrWorkspace workspace = new() { Name = name };
-            workspaceService.Create(workspace, outputDir).GetAwaiter().GetResult();
+            workspaceService.CreateAsync(workspace, outputDir).GetAwaiter().GetResult();
             _ = RefreshAsync();
             ShowSuccess($"Created workspace \"{name}\"");
         }
@@ -242,10 +246,14 @@ public sealed class WorkspacesScreen(
         List<FormFieldSpec> fields =
         [
             new("name", "New name", Required: true),
-            new("outputDir", "Output directory", SideAction: interactiveConsole.BrowseDirectoryAction("Select output directory")),
+            new("outputDir", "Output directory"),
+        ];
+        List<FormCustomCommand> customCommands =
+        [
+            interactiveConsole.BrowseDirectoryCommand("outputDir", "Select output directory"),
         ];
 
-        Dictionary<string, string>? result = interactiveConsole.PromptForm("Copy workspace", fields);
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Copy workspace", fields, customCommands);
         if (result is null)
         {
             return;
@@ -284,10 +292,14 @@ public sealed class WorkspacesScreen(
 
         List<FormFieldSpec> fields =
         [
-            new("path", "Workspace file", Required: true, SideAction: interactiveConsole.BrowseFileAction("Select workspace file", allowed)),
+            new("path", "Workspace file", Required: true),
+        ];
+        List<FormCustomCommand> customCommands =
+        [
+            interactiveConsole.BrowseFileCommand("path", "Select workspace file", allowed),
         ];
 
-        Dictionary<string, string>? result = interactiveConsole.PromptForm("Import workspace", fields);
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Import workspace", fields, customCommands);
         if (result is null)
         {
             return;
@@ -326,10 +338,14 @@ public sealed class WorkspacesScreen(
 
         List<FormFieldSpec> fields =
         [
-            new("outputDir", "Output directory", Required: true, SideAction: interactiveConsole.BrowseDirectoryAction("Select output directory")),
+            new("outputDir", "Output directory", Required: true),
+        ];
+        List<FormCustomCommand> customCommands =
+        [
+            interactiveConsole.BrowseDirectoryCommand("outputDir", "Select output directory"),
         ];
 
-        Dictionary<string, string>? result = interactiveConsole.PromptForm("Export workspace", fields);
+        Dictionary<string, string>? result = interactiveConsole.PromptForm("Export workspace", fields, customCommands);
         if (result is null)
         {
             return;

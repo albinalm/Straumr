@@ -17,7 +17,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
         CancellationToken cancellation)
     {
         StraumrWorkspace workspace = new StraumrWorkspace { Name = settings.Name };
-        await workspaceService.Create(workspace, settings.Output);
+        await workspaceService.CreateAsync(workspace, settings.Output);
 
         string workspacePath = Path.GetDirectoryName(
             workspaceService.GetWorkspaceEntryOnDisk(workspace.Id).Path) ?? settings.Output ?? string.Empty;

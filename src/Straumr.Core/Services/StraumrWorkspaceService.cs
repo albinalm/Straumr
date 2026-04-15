@@ -21,7 +21,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         await fileService.StampAccessAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
     }
 
-    public async Task Create(StraumrWorkspace workspace, string? outputDir = null)
+    public async Task CreateAsync(StraumrWorkspace workspace, string? outputDir = null)
     {
         string fullPath = WorkspacePath(workspace.Id, workspace.Name, outputDir);
         await EnsureNoConflictAsync(workspace.Name, fullPath);
@@ -67,7 +67,19 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         StraumrWorkspaceEntry? entry = optionsService.Options.Workspaces.FirstOrDefault(x =>
             string.Equals(identifier, x.Id.ToString(), StringComparison.OrdinalIgnoreCase));
-        
+
+        if (entry is null)
+        {
+            foreach (StraumrWorkspaceEntry workspaceEntry in optionsService.Options.Workspaces)
+            {
+                StraumrWorkspace workspace = await GetWorkspaceAsync(workspaceEntry.Path);
+                if (workspace.Name == identifier)
+                {
+                    entry = workspaceEntry;
+                }
+            }
+        }
+
         if (entry is null) return;
         
         string? path = Path.GetDirectoryName(entry.Path);

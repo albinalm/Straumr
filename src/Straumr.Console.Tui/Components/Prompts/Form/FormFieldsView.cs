@@ -12,6 +12,7 @@ namespace Straumr.Console.Tui.Components.Prompts.Form;
 internal sealed class FormFieldsView : View
 {
     public required IReadOnlyList<FormFieldSpec> Fields { get; init; }
+    public IReadOnlyList<FormCustomCommand> CustomCommands { get; init; } = [];
     public StraumrTheme? Theme { get; init; }
     public bool AnyFieldEditing => _fields.Any(f => f.IsEditing);
 
@@ -169,6 +170,11 @@ internal sealed class FormFieldsView : View
 
     internal bool HandleFormKeyDown(Key key)
     {
+        if (!AnyFieldEditing && TryHandleCustomCommand(key))
+        {
+            return true;
+        }
+
         if (TryHandleFocusedFieldKeyDown(key))
         {
             return true;
@@ -187,6 +193,34 @@ internal sealed class FormFieldsView : View
                 CancelRequested?.Invoke();
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private bool TryHandleCustomCommand(Key key)
+    {
+        if (key.IsCtrl || key.IsAlt)
+        {
+            return false;
+        }
+
+        int pressed = KeyHelpers.GetCharValue(key);
+        if (pressed == 0)
+        {
+            return false;
+        }
+
+        char pressedChar = char.ToUpperInvariant((char)pressed);
+        foreach (FormCustomCommand command in CustomCommands)
+        {
+            if (pressedChar != char.ToUpperInvariant(command.ShortcutKey))
+            {
+                continue;
+            }
+
+            command.Invoke(new FormCommandContext(GetValues, SetFieldValue, FocusFieldByKey));
+            return true;
         }
 
         return false;
@@ -287,6 +321,47 @@ internal sealed class FormFieldsView : View
 
     private View? GetBelow(int index)
         => index == _fields.Count - 1 ? _saveButton : _fields[index + 1];
+
+    private Dictionary<string, string> GetValues()
+    {
+        Dictionary<string, string> result = new(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < Fields.Count; i++)
+        {
+            result[Fields[i].Key] = _fields[i].Text;
+        }
+
+        return result;
+    }
+
+    private void SetFieldValue(string key, string? value)
+    {
+        for (int i = 0; i < Fields.Count; i++)
+        {
+            if (!string.Equals(Fields[i].Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            _fields[i].Text = value ?? string.Empty;
+            _fields[i].MoveEnd();
+            HideInputError();
+            return;
+        }
+    }
+
+    private void FocusFieldByKey(string key)
+    {
+        for (int i = 0; i < Fields.Count; i++)
+        {
+            if (!string.Equals(Fields[i].Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            FocusView(_fields[i]);
+            return;
+        }
+    }
 
     private Button CreateButton(string text)
     {

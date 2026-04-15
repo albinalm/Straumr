@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text;
 using Straumr.Console.Tui.Components.ListViews;
 using Straumr.Console.Tui.Components.Prompts.Base;
+using Straumr.Console.Tui.Components.Text;
 using Straumr.Console.Tui.Components.TextFields;
 using Straumr.Console.Tui.Factories;
 using Straumr.Console.Tui.Helpers;
@@ -20,6 +21,7 @@ internal sealed class SelectionPrompt : PromptComponent
     public Func<string, string>? DisplayConverter { get; init; }
     public bool EnableFilter { get; init; } = true;
     public bool EnableTypeahead { get; init; }
+    public string? StatusMarkup { get; init; }
 
     public event Action<string>? SelectionAccepted;
     public event Action? CancelRequested;
@@ -31,6 +33,9 @@ internal sealed class SelectionPrompt : PromptComponent
     private InteractiveTextField? _filterField;
     private Label? _filterLabel;
     private Label? _emptyLabel;
+    private MarkupLabel? _statusLabel;
+    private object? _statusTimeout;
+    private bool _statusVisible;
     private string _typeaheadBuffer = string.Empty;
     private DateTimeOffset _lastTypeahead;
 
@@ -60,6 +65,25 @@ internal sealed class SelectionPrompt : PromptComponent
             Visible = false,
         };
 
+        _statusLabel = new MarkupLabel
+        {
+            X = 1,
+            Y = Pos.AnchorEnd(3),
+            Width = Dim.Fill(2),
+            Height = 2,
+            Visible = !string.IsNullOrWhiteSpace(StatusMarkup),
+            Markup = StatusMarkup ?? string.Empty,
+            Theme = Theme,
+        };
+        _statusVisible = _statusLabel.Visible;
+        _statusLabel.Initialized += (_, _) =>
+        {
+            if (_statusVisible)
+            {
+                StartStatusTimeout();
+            }
+        };
+
         if (EnableFilter)
         {
             _filterLabel = new Label
@@ -78,7 +102,7 @@ internal sealed class SelectionPrompt : PromptComponent
             frame.Add(_filterLabel, _filterField);
         }
 
-        frame.Add(_listView, _emptyLabel);
+        frame.Add(_listView, _emptyLabel, _statusLabel);
         ApplyFilter(string.Empty);
         RefreshFilterRowLayout();
 
@@ -221,7 +245,11 @@ internal sealed class SelectionPrompt : PromptComponent
         _filterField.Visible = shouldShow;
 
         int listOffset = shouldShow ? 3 : 1;
-        _listView?.Y = listOffset;
+        if (_listView is not null)
+        {
+            _listView.Y = listOffset;
+            _listView.Height = Dim.Fill(ShouldShowStatus() ? 4 : 1);
+        }
 
         _emptyLabel?.Y = listOffset;
     }
@@ -246,6 +274,46 @@ internal sealed class SelectionPrompt : PromptComponent
     {
         ApplyFilter(text);
         RefreshFilterRowLayout();
+    }
+
+    private bool ShouldShowStatus() => _statusVisible;
+
+    private void StartStatusTimeout()
+    {
+        if (_statusLabel is null)
+        {
+            return;
+        }
+
+        CancelStatusTimeout();
+        _statusTimeout = _statusLabel.App?.AddTimeout(TimeSpan.FromSeconds(3), () =>
+        {
+            HideStatus();
+            return false;
+        });
+    }
+
+    private void HideStatus()
+    {
+        CancelStatusTimeout();
+        _statusVisible = false;
+        if (_statusLabel is not null)
+        {
+            _statusLabel.Visible = false;
+        }
+
+        RefreshFilterRowLayout();
+    }
+
+    private void CancelStatusTimeout()
+    {
+        if (_statusTimeout is null || _statusLabel?.App is null)
+        {
+            return;
+        }
+
+        _statusLabel.App.RemoveTimeout(_statusTimeout);
+        _statusTimeout = null;
     }
 
     private void ApplyFilter(string filter)

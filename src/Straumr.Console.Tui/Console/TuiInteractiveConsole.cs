@@ -24,6 +24,18 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
         return RunPrompt(screen);
     }
 
+    public string? SelectWithStatus(
+        string title,
+        IReadOnlyList<string> choices,
+        Func<string, string>? displayConverter = null,
+        bool enableFilter = true,
+        bool enableTypeahead = false,
+        string? statusMarkup = null)
+    {
+        var screen = new SelectionPromptScreen(title, choices, displayConverter, _theme, enableFilter, enableTypeahead, statusMarkup);
+        return RunPrompt(screen);
+    }
+
     public string? TextInput(
         string title,
         string? initialValue = null,
@@ -76,9 +88,12 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
         return true;
     }
 
-    public Dictionary<string, string>? PromptForm(string title, IReadOnlyList<FormFieldSpec> fields)
+    public Dictionary<string, string>? PromptForm(
+        string title,
+        IReadOnlyList<FormFieldSpec> fields,
+        IReadOnlyList<FormCustomCommand>? customCommands = null)
     {
-        var screen = new FormPromptScreen(title, fields, _theme);
+        var screen = new FormPromptScreen(title, fields, customCommands, _theme);
         return RunPrompt(screen);
     }
 
@@ -87,6 +102,41 @@ public sealed class TuiInteractiveConsole(IStraumrFileService fileService, TuiAp
 
     public FormFieldSideAction BrowseFileAction(string title, IReadOnlyList<IAllowedType>? allowedTypes = null)
         => new("Browse", current => SelectFile(title, current, allowedTypes));
+
+    public FormCustomCommand BrowseDirectoryCommand(
+        string fieldKey,
+        string title,
+        char shortcutKey = 'B',
+        string? hintText = null)
+        => new(shortcutKey, hintText ?? $"{char.ToUpperInvariant(shortcutKey)} Browse", context =>
+        {
+            string? selected = SelectDirectory(title, context.GetValue(fieldKey));
+            if (selected is null)
+            {
+                return;
+            }
+
+            context.SetValue(fieldKey, selected);
+            context.FocusField(fieldKey);
+        });
+
+    public FormCustomCommand BrowseFileCommand(
+        string fieldKey,
+        string title,
+        IReadOnlyList<IAllowedType>? allowedTypes = null,
+        char shortcutKey = 'B',
+        string? hintText = null)
+        => new(shortcutKey, hintText ?? $"{char.ToUpperInvariant(shortcutKey)} Browse", context =>
+        {
+            string? selected = SelectFile(title, context.GetValue(fieldKey), allowedTypes);
+            if (selected is null)
+            {
+                return;
+            }
+
+            context.SetValue(fieldKey, selected);
+            context.FocusField(fieldKey);
+        });
 
     private string? SelectDirectory(string title, string? initialPath = null)
     {

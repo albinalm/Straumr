@@ -13,6 +13,7 @@ internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>
     public FormPromptScreen(
         string title,
         IReadOnlyList<FormFieldSpec> fields,
+        IReadOnlyList<FormCustomCommand>? customCommands = null,
         StraumrTheme? theme = null)
     {
         Add(new Banner
@@ -20,12 +21,22 @@ internal sealed class FormPromptScreen : PromptScreen<Dictionary<string, string>
             Theme = theme,
         });
 
-        Add(new HintsBar { Text = "Enter Edit/Next  j/k Navigate  Esc Cancel" });
+        List<string> hintParts = ["Enter Edit/Next", "j/k Navigate"];
+        if (customCommands is { Count: > 0 })
+        {
+            hintParts.AddRange(customCommands.Select(command => command.HintText));
+        }
+
+        hintParts.Add("Esc Cancel");
+        string hints = string.Join("  ", hintParts);
+
+        Add(new HintsBar { Text = hints });
 
         _prompt = Add(new FormPrompt
         {
             Title = title,
             Fields = fields,
+            CustomCommands = customCommands ?? [],
             Theme = theme,
         });
 

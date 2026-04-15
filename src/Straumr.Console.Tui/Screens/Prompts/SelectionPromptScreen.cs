@@ -16,7 +16,8 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
         Func<string, string>? converter,
         StraumrTheme? theme = null,
         bool enableFilter = true,
-        bool enableTypeahead = false)
+        bool enableTypeahead = false,
+        string? statusMarkup = null)
     {
         Add(new Banner
         {
@@ -39,6 +40,7 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
             Theme = theme,
             EnableFilter = enableFilter,
             EnableTypeahead = enableTypeahead,
+            StatusMarkup = statusMarkup,
         });
 
         _prompt.SelectionAccepted += Complete;
