@@ -121,7 +121,6 @@ internal sealed class SelectionPrompt : PromptComponent
                     if (EnableFilter)
                     {
                         FocusFilter();
-                        return true;
                     }
 
                     return true;
@@ -174,7 +173,7 @@ internal sealed class SelectionPrompt : PromptComponent
             return;
         }
 
-        string text = _filterField.Text?.ToString() ?? string.Empty;
+        string text = _filterField.Text;
         bool hasText = text.Length > 0;
         bool hasFocus = _filterField.HasFocus;
         bool shouldShow = forceVisible || hasText || hasFocus;
