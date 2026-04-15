@@ -143,7 +143,7 @@ public sealed class RequestEditor(
         }
 
         string nameDisplay = string.IsNullOrWhiteSpace(state.Name) ? "not set" : state.Name;
-        string urlDisplay = string.IsNullOrWhiteSpace(state.Uri) ? "not set" : state.Uri;
+        string urlDisplay = string.IsNullOrWhiteSpace(state.Uri) ? "not set" : state.GetDisplayUri();
         string paramsDisplay = state.Params.Count == 0 ? "none" : $"{state.Params.Count}";
         string headersDisplay = state.Headers.Count == 0 ? "none" : $"{state.Headers.Count}";
         string bodyDisplay = state.BodyType == BodyType.None
@@ -183,10 +183,10 @@ public sealed class RequestEditor(
             }
             case ActionUrl:
             {
-                string? updated = PromptUrl(state.Uri);
+                string? updated = PromptUrl(state.GetDisplayUri());
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
-                    state.Uri = updated;
+                    state.SetDisplayUri(updated);
                 }
 
                 break;

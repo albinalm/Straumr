@@ -44,4 +44,36 @@ public static class RequestEditingHelpers
 
         return escaped;
     }
+
+    public static string BuildQueryString(IEnumerable<KeyValuePair<string, string>> parameters)
+    {
+        return string.Join("&",
+            parameters.Select(kv =>
+                $"{EscapeFormFieldComponent(kv.Key)}={EscapeFormFieldComponent(kv.Value)}"));
+    }
+
+    public static Dictionary<string, string> ParseQueryString(string? query, StringComparer? comparer = null)
+    {
+        Dictionary<string, string> result = new(comparer ?? StringComparer.Ordinal);
+        if (string.IsNullOrEmpty(query))
+        {
+            return result;
+        }
+
+        foreach (string pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int separatorIndex = pair.IndexOf('=');
+            if (separatorIndex < 0)
+            {
+                result[Uri.UnescapeDataString(pair)] = string.Empty;
+                continue;
+            }
+
+            string key = Uri.UnescapeDataString(pair[..separatorIndex]);
+            string value = Uri.UnescapeDataString(pair[(separatorIndex + 1)..]);
+            result[key] = value;
+        }
+
+        return result;
+    }
 }

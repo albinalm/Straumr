@@ -1,5 +1,6 @@
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
+using Straumr.Console.Shared.Helpers;
 
 namespace Straumr.Console.Shared.Models;
 
@@ -53,6 +54,52 @@ public sealed class RequestEditorState
         }
 
         return state;
+    }
+
+    public string GetDisplayUri()
+    {
+        if (string.IsNullOrWhiteSpace(Uri) || Params.Count == 0)
+        {
+            return Uri;
+        }
+
+        try
+        {
+            UriBuilder builder = new(Uri);
+            List<string> queryParts = [];
+
+            if (!string.IsNullOrEmpty(builder.Query))
+            {
+                queryParts.Add(builder.Query.TrimStart('?'));
+            }
+
+            string paramsQuery = RequestEditingHelpers.BuildQueryString(Params);
+            if (!string.IsNullOrEmpty(paramsQuery))
+            {
+                queryParts.Add(paramsQuery);
+            }
+
+            builder.Query = string.Join('&', queryParts);
+            return builder.Uri.ToString();
+        }
+        catch
+        {
+            return Uri;
+        }
+    }
+
+    public void SetDisplayUri(string value)
+    {
+        UriBuilder builder = new(value);
+
+        Params.Clear();
+        foreach (KeyValuePair<string, string> kv in RequestEditingHelpers.ParseQueryString(builder.Query, StringComparer.Ordinal))
+        {
+            Params[kv.Key] = kv.Value;
+        }
+
+        builder.Query = string.Empty;
+        Uri = builder.Uri.ToString();
     }
 
     public StraumrRequest ToRequest()
