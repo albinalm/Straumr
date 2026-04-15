@@ -246,7 +246,7 @@ internal abstract class FileSystemPromptBase : PromptComponent
             Visible = false,
         };
 
-        _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, FocusList, FocusList);
+        _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, FocusList);
         _filterField.X = Pos.Right(_filterLabel) + 1;
         _filterField.Y = _filterLabel.Y;
         _filterField.Width = Dim.Fill(3);
@@ -452,6 +452,29 @@ internal abstract class FileSystemPromptBase : PromptComponent
         if (KeyHelpers.IsEscape(key))
         {
             RequestCancel();
+            return true;
+        }
+
+        return false;
+    }
+
+    internal bool HandleFilterKeyDown(Key key)
+    {
+        if (_filterField is not { HasFocus: true })
+        {
+            return false;
+        }
+
+        if (KeyHelpers.IsEscape(key))
+        {
+            ClearFilter();
+            FocusList();
+            return true;
+        }
+
+        if (KeyHelpers.IsEnter(key))
+        {
+            FocusList();
             return true;
         }
 

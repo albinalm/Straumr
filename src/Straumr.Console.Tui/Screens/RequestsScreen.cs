@@ -19,7 +19,6 @@ public sealed class RequestsScreen(
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService,
-    IStraumrOptionsService optionsService,
     ScreenNavigationContext navigationContext,
     IRequestEditor requestEditor,
     IWorkspaceGuard workspaceGuard,

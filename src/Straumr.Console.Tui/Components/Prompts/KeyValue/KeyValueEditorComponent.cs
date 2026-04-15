@@ -51,7 +51,7 @@ internal sealed class KeyValueEditorComponent : PromptComponent
             Y = 1,
         };
 
-        _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter, OnExitFilter);
+        _filterField = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter);
         _filterField.X = Pos.Right(_filterLabel) + 1;
         _filterField.Y = _filterLabel.Y;
         _filterField.Width = Dim.Fill(3);
@@ -170,6 +170,29 @@ internal sealed class KeyValueEditorComponent : PromptComponent
         if (KeyHelpers.IsEscape(key))
         {
             DoneRequested?.Invoke();
+            return true;
+        }
+
+        return false;
+    }
+
+    internal bool HandleFilterKeyDown(Key key)
+    {
+        if (_filterField is not { HasFocus: true })
+        {
+            return false;
+        }
+
+        if (KeyHelpers.IsEscape(key))
+        {
+            _filterField.Text = string.Empty;
+            OnExitFilter();
+            return true;
+        }
+
+        if (KeyHelpers.IsEnter(key))
+        {
+            OnAcceptFilter();
             return true;
         }
 

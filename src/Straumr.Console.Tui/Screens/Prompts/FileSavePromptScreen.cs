@@ -2,12 +2,15 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.FileSave;
+using Terminal.Gui.Input;
 using Terminal.Gui.Views;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class FileSavePromptScreen : PromptScreen<string?>
 {
+    private readonly FileSavePrompt _prompt;
+
     public FileSavePromptScreen(
         string title,
         string? initialPath,
@@ -25,7 +28,7 @@ internal sealed class FileSavePromptScreen : PromptScreen<string?>
             Text = "j/k Move  h Up  l/o Open  / Filter  c Clear filter  t Type  p Go to  n New dir  D Delete  s Save  Tab Name  Esc Cancel",
         });
 
-        FileSavePrompt prompt = Add(new FileSavePrompt
+        _prompt = Add(new FileSavePrompt
         {
             Title = title,
             InitialPath = initialPath,
@@ -34,7 +37,17 @@ internal sealed class FileSavePromptScreen : PromptScreen<string?>
             Theme = theme,
         });
 
-        prompt.SaveRequested += Complete;
-        prompt.CancelRequested += Cancel;
+        _prompt.SaveRequested += Complete;
+        _prompt.CancelRequested += Cancel;
+    }
+
+    public override bool OnKeyDown(Key key)
+    {
+        if (_prompt.HandleFilterKeyDown(key))
+        {
+            return true;
+        }
+
+        return base.OnKeyDown(key);
     }
 }

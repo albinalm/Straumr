@@ -2,11 +2,14 @@ using Straumr.Console.Shared.Theme;
 using Straumr.Console.Tui.Components.Bars;
 using Straumr.Console.Tui.Components.Branding;
 using Straumr.Console.Tui.Components.Prompts.Selection;
+using Terminal.Gui.Input;
 
 namespace Straumr.Console.Tui.Screens.Prompts;
 
 internal sealed class SelectionPromptScreen : PromptScreen<string?>
 {
+    private readonly SelectionPrompt _prompt;
+
     public SelectionPromptScreen(
         string title,
         IReadOnlyList<string> items,
@@ -28,7 +31,7 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
 
         Add(new HintsBar { Text = hints });
 
-        SelectionPrompt prompt = Add(new SelectionPrompt
+        _prompt = Add(new SelectionPrompt
         {
             Title = title,
             Items = items,
@@ -38,7 +41,17 @@ internal sealed class SelectionPromptScreen : PromptScreen<string?>
             EnableTypeahead = enableTypeahead,
         });
 
-        prompt.SelectionAccepted += Complete;
-        prompt.CancelRequested += Cancel;
+        _prompt.SelectionAccepted += Complete;
+        _prompt.CancelRequested += Cancel;
+    }
+
+    public override bool OnKeyDown(Key key)
+    {
+        if (_prompt.HandleFilterKeyDown(key))
+        {
+            return true;
+        }
+
+        return base.OnKeyDown(key);
     }
 }

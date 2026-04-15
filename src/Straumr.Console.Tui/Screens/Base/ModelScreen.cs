@@ -110,7 +110,41 @@ public abstract class ModelScreen<TEntry> : Screen
     {
         if (_commandActive)
         {
+            if (KeyHelpers.IsEscape(key))
+            {
+                HideCommandField();
+                return true;
+            }
+
+            if (KeyHelpers.IsEnter(key))
+            {
+                string command = _commandField?.Text ?? string.Empty;
+                HideCommandField();
+                if (!string.IsNullOrWhiteSpace(command))
+                {
+                    ExecuteCommand(command);
+                }
+
+                return true;
+            }
+
             return false;
+        }
+
+        if (_filterField is { HasFocus: true })
+        {
+            if (KeyHelpers.IsEscape(key))
+            {
+                _filterField.Text = string.Empty;
+                FocusList();
+                return true;
+            }
+
+            if (KeyHelpers.IsEnter(key))
+            {
+                FocusList();
+                return true;
+            }
         }
 
         if (_sourceEntries.Count == 0
@@ -211,7 +245,7 @@ public abstract class ModelScreen<TEntry> : Screen
 
     private InteractiveTextField CreateFilterField(Label filterLabel)
     {
-        InteractiveTextField field = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter, OnExitFilter);
+        InteractiveTextField field = TextFieldFactory.CreateFilterField(OnFilterChanged, OnAcceptFilter);
         field.X = Pos.Right(filterLabel) + 1;
         field.Y = filterLabel.Y;
         field.Width = Dim.Fill(3);
@@ -313,19 +347,6 @@ public abstract class ModelScreen<TEntry> : Screen
         _commandField.Enabled = true;
         ApplyCommandFieldTheme(_commandField);
 
-        _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEnter(key), (f, _) =>
-        {
-            string command = f.Text;
-            f.Text = string.Empty;
-            HideCommandField();
-            if (!string.IsNullOrWhiteSpace(command))
-            {
-                ExecuteCommand(command);
-            }
-
-            return true;
-        }));
-
         _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsTabForward(key), (f, _) =>
         {
             TryAutoCompleteCommand(f);
@@ -338,13 +359,6 @@ public abstract class ModelScreen<TEntry> : Screen
             return true;
         }));
 
-        _commandField.Bind(TextFieldKeyBinding.When((_, key) => KeyHelpers.IsEscape(key), (f, _) =>
-        {
-            f.Text = string.Empty;
-            HideCommandField();
-            return true;
-        }, clearText: true));
-
         _commandContainer.Add(_commandLabel, _commandField);
         return _commandContainer;
     }
@@ -356,8 +370,6 @@ public abstract class ModelScreen<TEntry> : Screen
     }
 
     private void OnAcceptFilter() => FocusList();
-
-    private void OnExitFilter() => FocusList();
 
     private void ApplyFilter(string filter)
     {

@@ -40,5 +40,15 @@ internal sealed class KeyValueEditorScreen : PromptScreen<bool>
         };
     }
 
+    public override bool OnKeyDown(Key key)
+    {
+        if (_editor.HandleFilterKeyDown(key))
+        {
+            return true;
+        }
+
+        return base.OnKeyDown(key);
+    }
+
     protected override bool ShouldCancelOnEscape(Key key) => !_editor.IsEditingItem;
 }
