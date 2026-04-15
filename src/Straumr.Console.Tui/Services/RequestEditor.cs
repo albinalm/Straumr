@@ -41,6 +41,7 @@ public sealed class RequestEditor(
     {
         string completionAction = context.Mode == RequestEditorMode.Create ? ActionFinish : ActionSave;
         string promptTitle = context.Mode == RequestEditorMode.Create ? "Create request" : "Edit request";
+        string? statusMarkup = null;
 
         while (true)
         {
@@ -64,10 +65,11 @@ public sealed class RequestEditor(
                 ActionAuth
             ];
 
-            string? action = interactiveConsole.Select(
+            string? action = interactiveConsole.SelectWithStatus(
                 promptTitle,
                 choices,
-                choice => DescribeChoice(choice, state, auths, completionAction));
+                choice => DescribeChoice(choice, state, auths, completionAction),
+                statusMarkup: statusMarkup);
 
             if (action is null)
             {
@@ -76,58 +78,66 @@ public sealed class RequestEditor(
 
             if (action == completionAction)
             {
-                if (TryPersist(state, context))
+                if (TryPersist(state, context, out string? failureMarkup))
                 {
                     return;
                 }
 
+                statusMarkup = failureMarkup;
                 continue;
             }
 
+            statusMarkup = null;
             HandleAction(action, state, auths);
         }
     }
 
-    private bool TryPersist(RequestEditorState state, RequestEditorContext context)
+    private bool TryPersist(RequestEditorState state, RequestEditorContext context, out string? failureMarkup)
     {
         if (string.IsNullOrWhiteSpace(state.Name))
         {
-            interactiveConsole.ShowMessage("Validation", "A name is required.");
+            failureMarkup = "[warning]A name is required.[/]";
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(state.Uri))
         {
-            interactiveConsole.ShowMessage("Validation", "A URL is required.");
+            failureMarkup = "[warning]A URL is required.[/]";
             return false;
         }
 
         if (context.Mode == RequestEditorMode.Create)
         {
             StraumrRequest request = state.ToRequest();
+            string? error = null;
             if (!executor.TryExecute(
                     () => requestService.CreateAsync(request, context.WorkspaceEntry).GetAwaiter().GetResult(),
-                    context.ShowDanger))
+                    message => error = message))
             {
+                failureMarkup = $"[danger]{SanitizeStatusText(error ?? "Unable to create request.")}[/]";
                 return false;
             }
 
             _ = context.RefreshEntries();
             context.ShowSuccess($"Created request \"{request.Name}\"");
+            failureMarkup = null;
             return true;
         }
 
         StraumrRequest existing = context.ExistingRequest ?? throw new InvalidOperationException("Request required.");
         state.ApplyTo(existing);
+        string? updateError = null;
         if (!executor.TryExecute(
                 () => requestService.UpdateAsync(existing, context.WorkspaceEntry).GetAwaiter().GetResult(),
-                context.ShowDanger))
+                message => updateError = message))
         {
+            failureMarkup = $"[danger]{SanitizeStatusText(updateError ?? "Unable to update request.")}[/]";
             return false;
         }
 
         _ = context.RefreshEntries();
         context.ShowSuccess($"Updated request \"{existing.Name}\"");
+        failureMarkup = null;
         return true;
     }
 
@@ -186,7 +196,7 @@ public sealed class RequestEditor(
                 string? updated = PromptUrl(state.GetDisplayUri());
                 if (!string.IsNullOrWhiteSpace(updated))
                 {
-                    state.SetDisplayUri(updated);
+                    state.SetDisplayUri(NormalizeUrlInput(updated));
                 }
 
                 break;
@@ -221,7 +231,9 @@ public sealed class RequestEditor(
         return interactiveConsole.TextInput(
             "URL",
             current,
-            validate: value => IsValidAbsoluteUrl(value) ? null : "Please enter a valid absolute URL.");
+            validate: value => IsValidAbsoluteUrl(NormalizeUrlInput(value))
+                ? null
+                : "Please enter a valid absolute URL.");
     }
 
     private string? PromptMethod()
@@ -240,6 +252,19 @@ public sealed class RequestEditor(
 
         string normalized = SecretHelpers.SecretPattern.Replace(value, "secret");
         return Uri.TryCreate(normalized, UriKind.Absolute, out _);
+    }
+
+    private static string NormalizeUrlInput(string value)
+    {
+        string trimmed = value.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return trimmed;
+        }
+
+        return trimmed.Contains("://", StringComparison.Ordinal)
+            ? trimmed
+            : $"https://{trimmed}";
     }
 
     private void EditKeyValuePairs(string title, IDictionary<string, string> items)
@@ -341,4 +366,7 @@ public sealed class RequestEditor(
         StraumrAuth? auth = auths.FirstOrDefault(a => a.Id == authId.Value);
         return auth is null ? "unknown" : auth.Name;
     }
+
+    private static string SanitizeStatusText(string text)
+        => text.Replace('[', '(').Replace(']', ')');
 }
