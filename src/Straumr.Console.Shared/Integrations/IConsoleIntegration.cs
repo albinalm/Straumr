@@ -10,4 +10,5 @@ public interface IConsoleIntegration
     bool IsDefault { get; }
     void ConfigureServices(IServiceCollection services);
     Task<int> RunAsync(IServiceProvider serviceProvider, string[] args, CancellationToken cancellationToken);
+    bool OnlyRunOnEntrypoint { get; }
 }

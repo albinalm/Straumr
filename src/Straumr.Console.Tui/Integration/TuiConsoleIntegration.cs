@@ -20,6 +20,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public IReadOnlyCollection<string> Aliases { get; } = ["ui"];
     public IReadOnlyCollection<string> Commands { get; } = [];
     public bool IsDefault => true;
+    public bool OnlyRunOnEntrypoint => true;
 
     public void ConfigureServices(IServiceCollection services)
     {
@@ -58,14 +59,6 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (args.Contains("--version"))
-        {
-            Assembly assembly = typeof(TuiConsoleIntegration).Assembly;
-            string version = assembly.GetName().Version?.ToString() ?? "unknown";
-            System.Console.WriteLine(version);
-            return 0;
-        }
-
         var optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
         await optionsService.LoadAsync();
 
@@ -82,6 +75,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         }
         return 0;
     }
+
 }
 
 public sealed class TuiConsoleIntegrationInstaller : IConsoleIntegrationInstaller

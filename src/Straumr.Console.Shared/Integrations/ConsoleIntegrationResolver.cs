@@ -20,6 +20,11 @@ public static class ConsoleIntegrationResolver
             return (defaultIntegration, args);
         }
 
+        if(args.Length > 0 && integrations.Count(x => !x.OnlyRunOnEntrypoint) == 1)
+        {
+            return (integrations.Single(x => !x.OnlyRunOnEntrypoint), args);
+        }
+
         string requestedName = args[0];
         IConsoleIntegration? requested = integrations.FirstOrDefault(integration =>
             NameMatches(integration.Name, requestedName) || HasMatchingAlias(integration, requestedName));

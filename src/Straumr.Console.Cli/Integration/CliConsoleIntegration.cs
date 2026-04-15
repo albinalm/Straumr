@@ -35,6 +35,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     public IReadOnlyCollection<string> Aliases { get; } = ["console"];
     public IReadOnlyCollection<string> Commands => EnsureRegistry();
     public bool IsDefault => false;
+    public bool OnlyRunOnEntrypoint => false;
 
     [UnconditionalSuppressMessage("AOT", "IL3050",
         Justification = "Spectre.Console.Cli requires dynamic code; CLI assembly is fully preserved via CliRoots.xml.")]
@@ -131,7 +132,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
         return await _commandApp.RunAsync(args, cancellationToken);
     }
-
+    
     private void ConfigureCommands(IConfigurator config)
     {
         config.SetApplicationName("Straumr");
