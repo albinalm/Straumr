@@ -147,12 +147,16 @@ public abstract class ModelScreen<TEntry> : Screen
             }
         }
 
-        if (_sourceEntries.Count == 0
-            && key is { IsCtrl: false, IsAlt: false }
-            && KeyHelpers.GetCharValue(key) == ':')
+        // When the list is not focused (e.g. empty state), handle model keys and commands at screen level
+        if (_listView is not { HasFocus: true } && _filterField is not { HasFocus: true })
         {
-            ShowCommandField();
-            return true;
+            if (key is { IsCtrl: false, IsAlt: false } && KeyHelpers.GetCharValue(key) == ':')
+            {
+                ShowCommandField();
+                return true;
+            }
+
+            return HandleModelKeyDown(key, GetSelectedEntry());
         }
 
         return false;
