@@ -20,6 +20,12 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        bool hasInlineFlags = settings.Name is not null || settings.Value is not null;
+        if (hasInlineFlags)
+        {
+            return await ExecuteInlineAsync(settings);
+        }
+
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (editor is null)
         {
@@ -110,11 +116,74 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
         }
     }
 
+    private async Task<int> ExecuteInlineAsync(Settings settings)
+    {
+        StraumrSecret secret;
+        try
+        {
+            secret = await secretService.GetAsync(settings.Identifier);
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
+
+        if (settings.Name is not null)
+        {
+            secret.Name = settings.Name;
+        }
+
+        if (settings.Value is not null)
+        {
+            secret.Value = settings.Value;
+        }
+
+        try
+        {
+            await secretService.UpdateAsync(secret);
+            if (settings.Json)
+            {
+                SecretListItem result = new(secret.Id.ToString(), secret.Name, "Valid");
+                System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.SecretListItem));
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]Updated secret[/] [bold]{secret.Name}[/] ({secret.Id})");
+            }
+
+            return 0;
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
+    }
+
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")]
         [Description("Name or ID of the secret to edit")]
         public required string Identifier { get; set; }
+
+        [CommandOption("-n|--name")]
+        [Description("The new name for the secret")]
+        public string? Name { get; set; }
+
+        [CommandOption("-v|--value")]
+        [Description("The new value for the secret")]
+        public string? Value { get; set; }
 
         [CommandOption("-j|--json")]
         [Description("Output the updated secret as JSON on success; errors emitted as JSON to stderr")]

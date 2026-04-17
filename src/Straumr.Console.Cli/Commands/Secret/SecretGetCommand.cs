@@ -48,8 +48,7 @@ public class SecretGetCommand(
 
         if (foundId is null)
         {
-            AnsiConsole.MarkupLine(
-                $"[red]No secret found with the identifier: {Markup.Escape(settings.Identifier)}[/]");
+            WriteError($"No secret found with the identifier: {settings.Identifier}", settings.Json);
             return 1;
         }
 

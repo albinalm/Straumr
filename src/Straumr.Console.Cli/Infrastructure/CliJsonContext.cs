@@ -15,6 +15,7 @@ namespace Straumr.Console.Cli.Infrastructure;
 [JsonSerializable(typeof(AuthListItem))]
 [JsonSerializable(typeof(SecretListItem[]))]
 [JsonSerializable(typeof(SecretListItem))]
+[JsonSerializable(typeof(SecretDeleteResult))]
 [JsonSerializable(typeof(SendResult))]
 [JsonSerializable(typeof(CliErrorMessage))]
 [JsonSerializable(typeof(DryRunResult))]

@@ -20,6 +20,11 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
+        if (settings.Name is not null)
+        {
+            return await ExecuteInlineAsync(settings);
+        }
+
         string? editor = Environment.GetEnvironmentVariable("EDITOR");
         if (string.IsNullOrWhiteSpace(editor))
         {
@@ -92,11 +97,65 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
         }
     }
 
+    private async Task<int> ExecuteInlineAsync(Settings settings)
+    {
+        StraumrWorkspaceEntry entry;
+        StraumrWorkspace workspace;
+        try
+        {
+            entry = await ResolveWorkspaceEntryAsync(settings.Identifier, optionsService, workspaceService)
+                ?? throw new StraumrException($"Workspace not found: {settings.Identifier}", StraumrError.EntryNotFound);
+            workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
+
+        workspace.Name = settings.Name!;
+
+        try
+        {
+            await workspaceService.UpdateAsync(workspace);
+            if (settings.Json)
+            {
+                WorkspaceCreateResult result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, entry.Path);
+                System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]Workspace [bold]{workspace.Name}[/] updated[/]");
+            }
+
+            return 0;
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
+    }
+
     public sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<Name or ID>")]
         [Description("Name or ID of the workspace to edit")]
         public required string Identifier { get; set; }
+
+        [CommandOption("-n|--name")]
+        [Description("The new name for the workspace")]
+        public string? Name { get; set; }
 
         [CommandOption("-j|--json")]
         [Description("Output the updated workspace as JSON on success; errors emitted as JSON to stderr")]

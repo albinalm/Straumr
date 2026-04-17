@@ -38,6 +38,19 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         await optionsService.SaveAsync();
     }
 
+    public async Task UpdateAsync(StraumrWorkspace workspace)
+    {
+        StraumrWorkspaceEntry entry = GetWorkspaceEntryOnDisk(workspace.Id);
+
+        if (!File.Exists(entry.Path))
+        {
+            throw new StraumrException("Workspace not found", StraumrError.EntryNotFound);
+        }
+
+        await EnsureNoConflictAsync(workspace.Name, entry.Path, workspace.Id);
+        await fileService.WriteStraumrModelAsync(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
+    }
+
     public async Task<StraumrWorkspaceEntry> ImportAsync(string path)
     {
         if (!File.Exists(path))
@@ -272,10 +285,15 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             StraumrError.EntryNotFound);
     }
 
-    private async Task EnsureNoConflictAsync(string name, string fullPath)
+    private async Task EnsureNoConflictAsync(string name, string fullPath, Guid excludeId = default)
     {
         foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
         {
+            if (entry.Id == excludeId)
+            {
+                continue;
+            }
+
             if (!File.Exists(entry.Path))
             {
                 continue;
@@ -290,7 +308,12 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             }
         }
 
-        if (File.Exists(fullPath))
+        bool isUpdatePath = excludeId != Guid.Empty &&
+                            optionsService.Options.Workspaces.Any(entry =>
+                                entry.Id == excludeId &&
+                                string.Equals(entry.Path, fullPath, StringComparison.OrdinalIgnoreCase));
+
+        if (!isUpdatePath && File.Exists(fullPath))
         {
             throw new StraumrException("A workspace already exists at this location",
                 StraumrError.EntryConflict);

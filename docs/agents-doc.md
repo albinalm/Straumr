@@ -235,10 +235,39 @@ straumr delete auth <id> --json --workspace <ws>
 straumr delete workspace <id> --json
 ```
 
+`delete secret --json` emits a JSON success object:
+
+```sh
+straumr delete secret <id> --json
+```
+
+Returns:
+
+```json
+{
+  "Id": "...",
+  "Name": "api-token"
+}
+```
+
 `edit request` in inline mode accepts `--json` and emits `{Id, Name, Method, Uri}` on success:
 
 ```sh
 straumr edit request <id> --url https://api.example.com/v2/users --json --workspace <ws>
+```
+
+`edit workspace`, `edit auth`, and `edit secret` now also have structured JSON-safe mutation paths:
+
+```sh
+straumr edit workspace <id> --name demo-staging --json
+straumr edit auth <id> --name prod-key-v2 --type bearer --secret mytoken --json --workspace <ws>
+straumr edit secret <id> --value supersecret --json
+```
+
+`create secret --json` is machine-safe and does not prompt:
+
+```sh
+straumr create secret api-token supersecret --json
 ```
 
 
@@ -255,11 +284,16 @@ straumr edit request <id> --url https://api.example.com/v2/users --json --worksp
 - `straumr get request <id> --json [--workspace <ws>]`
 - `straumr list auth --json [--workspace <ws>]`
 - `straumr create auth <name> --type bearer|basic|oauth2|oauth2-client-credentials|oauth2-authorization-code|oauth2-password|custom [flags] --json [--workspace <ws>]`
+- `straumr edit auth <id> [inline flags] --json [--workspace <ws>]`
 - `straumr copy auth <name-or-id> <new-name> --json [--workspace <ws>]`
 - `straumr get auth <id> --json [--workspace <ws>]`
 - `straumr list secret --json`
+- `straumr create secret <name> <value> --json`
+- `straumr edit secret <id> [--name <name>] [--value <value>] --json`
 - `straumr copy secret <name-or-id> <new-name> --json`
+- `straumr delete secret <id> --json`
 - `straumr get secret <id> --json`
+- `straumr edit workspace <id> --name <name> --json`
 - `straumr send <request-id> --dry-run --json [--workspace <ws>]`
 - `straumr send <request-id> --json [--workspace <ws>]`
 
@@ -423,6 +457,59 @@ Returns the full persisted auth model:
 ]
 ```
 
+### `create secret --json`
+
+```json
+{
+  "Id": "92b14e4b-3248-4708-ab9b-edd171e748a8",
+  "Name": "api-token",
+  "Status": "Valid"
+}
+```
+
+### `edit secret --json`
+
+Returns the same DTO shape as `create secret --json`:
+
+```json
+{
+  "Id": "92b14e4b-3248-4708-ab9b-edd171e748a8",
+  "Name": "api-token",
+  "Status": "Valid"
+}
+```
+
+### `delete secret --json`
+
+```json
+{
+  "Id": "92b14e4b-3248-4708-ab9b-edd171e748a8",
+  "Name": "api-token"
+}
+```
+
+### `edit workspace --json`
+
+```json
+{
+  "Id": "8f6c7c80-2f8e-4a7f-92e3-a2e4c8f6d123",
+  "Name": "demo-staging",
+  "Path": "/path/to/workspaces/demo/8f6c7c80-2f8e-4a7f-92e3-a2e4c8f6d123.straumr"
+}
+```
+
+### `edit auth --json`
+
+Returns the same DTO shape as `create auth --json`:
+
+```json
+{
+  "Id": "2c5967cd-71e6-4311-9150-fde7845c8cf0",
+  "Name": "prod-key",
+  "Type": "Bearer"
+}
+```
+
 ### `send --dry-run --json`
 
 ```json
@@ -551,6 +638,11 @@ For robust scripting, prefer:
 - `send --json`
 
 Exit `1` covers all expected failure cases in `--json` mode. Exit `-1` should not occur under normal usage.
+
+Consistency note:
+
+- `delete secret --json` emits a JSON success object on stdout.
+- `delete workspace|request|auth --json` still use exit code for success and do not emit a JSON success object.
 
 ## Safe Patterns
 

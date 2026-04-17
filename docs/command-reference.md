@@ -35,7 +35,7 @@ Common patterns:
 straumr create workspace|ws <Name> [--output <DIR>] [-j|--json]
 straumr create request|rq [Name] [Url] [request options] [-j|--json] [-w|--workspace <name-or-id>]
 straumr create auth|au [Name] [auth options] [-j|--json] [-w|--workspace <name-or-id>]
-straumr create secret|sc [Name] [Value]
+straumr create secret|sc [Name] [Value] [-j|--json]
 ```
 
 Request options:
@@ -75,7 +75,7 @@ Auth options for non-interactive creation (requires `--type`):
 - `--apply-header-template <template>` — custom auth header value template with `{{value}}` placeholder (default: `Bearer {{value}}`)
 - `--no-auto-renew` — disable auto-renewal
 
-When `--json` is passed, `create` outputs the new object as a JSON DTO instead of a human-readable confirmation.
+When `--json` is passed, `create` outputs the new object as a JSON DTO instead of a human-readable confirmation. For `create secret --json`, both `Name` and `Value` are required and the command does not prompt.
 
 ### `delete`
 
@@ -83,25 +83,25 @@ When `--json` is passed, `create` outputs the new object as a JSON DTO instead o
 straumr delete workspace|ws <Name or ID> [-j|--json]
 straumr delete request|rq <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
 straumr delete auth|au <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
-straumr delete secret|sc <Name or ID>
+straumr delete secret|sc <Name or ID> [-j|--json]
 ```
 
-`--json` on delete suppresses the human-readable confirmation; errors are still emitted as JSON to stderr. Exit code is the signal of success.
+`delete secret --json` emits `{Id, Name}` on stdout. `delete workspace|request|auth --json` still suppresses the human-readable confirmation without emitting a JSON success object; errors are emitted as JSON to stderr and exit code remains the success signal for those commands.
 
 ### `edit`
 
 ```text
-straumr edit workspace|ws <Name or ID> [-j|--json]
+straumr edit workspace|ws <Name or ID> [-n|--name <name>] [-j|--json]
 straumr edit request|rq <Name or ID> [inline options] [-e|--editor] [-j|--json]
-straumr edit auth|au <Name or ID> [-e|--editor] [-j|--json]
-straumr edit secret|sc <Name or ID> [-j|--json]
+straumr edit auth|au <Name or ID> [auth inline options] [-e|--editor] [-j|--json]
+straumr edit secret|sc <Name or ID> [-n|--name <name>] [-v|--value <value>] [-j|--json]
 ```
 
 Notes:
 
-- workspace edit is editor-only; `--json` emits `{Id, Name, Path}` on success
-- secret edit is editor-only; `--json` emits `{Id, Name, Status}` on success
-- auth edit supports interactive and editor modes; `--json` implies `--editor` and emits `{Id, Name, Type}` on success
+- workspace edit supports inline rename via `--name`; without inline flags it remains editor-backed. `--json` emits `{Id, Name, Path}` on success
+- secret edit supports inline update via `--name` and `--value`; without inline flags it remains editor-backed. `--json` emits `{Id, Name, Status}` on success
+- auth edit supports interactive, editor, and inline modes; `--json` emits `{Id, Name, Type}` on success and implies `--editor` only when no inline flags are set
 - request edit supports interactive, editor, and inline modes; `--json` emits `{Id, Name, Method, Uri}` on success; implies `--editor` when no inline flags are set
 
 In all edit commands, `--json` routes errors to the JSON envelope on stderr.
@@ -117,6 +117,36 @@ Request inline edit options (presence of any triggers non-interactive mode):
 - `-t|--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`, `none`)
 - `-a|--auth` (auth name or ID; use `none` to remove auth)
 - `-j|--json` — output the updated request as `{Id, Name, Method, Uri}`; implies `--editor` when no inline flags are set; errors emitted as JSON to stderr
+
+Auth inline edit options (presence of any triggers non-editor mode unless `--editor` is explicitly supplied):
+
+- `-n|--name`
+- `-t|--type` (auth type: `bearer`, `basic`, `oauth2`, `oauth2-client-credentials`, `oauth2-authorization-code`, `oauth2-password`, `custom`)
+- `-s|--secret`
+- `--prefix`
+- `-u|--username`
+- `-p|--password`
+- `-g|--grant`
+- `--token-url`
+- `--client-id`
+- `--client-secret`
+- `--scope`
+- `--authorization-url`
+- `--redirect-uri`
+- `--pkce`
+- `--custom-url`
+- `--custom-method`
+- `--custom-header` (repeatable, `"Name: Value"` format)
+- `--custom-param` (repeatable, `"key=value"` format)
+- `--custom-body`
+- `--custom-body-type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`)
+- `--extraction-source` (`jsonpath`, `header`, `regex`)
+- `--extraction-expression`
+- `--apply-header-name`
+- `--apply-header-template`
+- `--auto-renew`
+- `--no-auto-renew`
+- `-j|--json` — output the updated auth as `{Id, Name, Type}`; implies `--editor` only when no inline flags are set; errors emitted as JSON to stderr
 
 ### `get`
 
@@ -271,7 +301,7 @@ Read the error message from `Contents.Message`.
 
 ### Create JSON Output
 
-`create workspace|request|auth --json` emits a DTO for the created object. See agents-doc.md for the exact shapes.
+`create workspace|request|auth|secret --json` emits a DTO for the created object. See agents-doc.md for the exact shapes.
 
 ### Config JSON Output
 

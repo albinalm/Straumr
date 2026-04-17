@@ -6,6 +6,7 @@ public interface IStraumrWorkspaceService
 {
     Task Activate(string identifier);
     Task CreateAsync(StraumrWorkspace workspace, string? outputDir = null);
+    Task UpdateAsync(StraumrWorkspace workspace);
     Task<StraumrWorkspaceEntry> CopyAsync(string identifier, string newName, string? outputDir = null);
     Task<StraumrWorkspaceEntry> ImportAsync(string path);
     Task DeleteAsync(string identifier);

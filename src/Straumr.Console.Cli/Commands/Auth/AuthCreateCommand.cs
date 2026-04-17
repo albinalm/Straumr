@@ -92,7 +92,12 @@ public class AuthCreateCommand(
             return 1;
         }
 
-        StraumrAuthConfig? config = BuildInlineConfig(settings);
+        if (!settings.TryGetAutoRenewOverride(message => WriteError(message, settings.Json), out bool? autoRenewOverride))
+        {
+            return 1;
+        }
+
+        StraumrAuthConfig? config = AuthInlineConfigBuilder.Build(settings, message => WriteError(message, settings.Json));
         if (config is null)
         {
             return 1;
@@ -102,7 +107,7 @@ public class AuthCreateCommand(
         {
             Name = settings.Name!,
             Config = config,
-            AutoRenewAuth = settings.AutoRenew
+            AutoRenewAuth = autoRenewOverride ?? true
         };
 
         try
@@ -126,192 +131,6 @@ public class AuthCreateCommand(
             WriteError(ex.Message, settings.Json);
             return 1;
         }
-    }
-
-    private StraumrAuthConfig? BuildInlineConfig(Settings settings)
-    {
-        switch (settings.Type!.ToLowerInvariant())
-        {
-            case "bearer":
-                return new BearerAuthConfig
-                {
-                    Token = settings.Secret ?? string.Empty,
-                    Prefix = settings.Prefix ?? "Bearer"
-                };
-
-            case "basic":
-                return new BasicAuthConfig
-                {
-                    Username = settings.Username ?? string.Empty,
-                    Password = settings.Password ?? string.Empty
-                };
-
-            case "oauth2":
-            case "oauth2-client-credentials":
-            case "oauth2-authorization-code":
-            case "oauth2-password":
-            {
-                OAuth2GrantType grantType = ResolveOAuth2GrantType(settings);
-
-                OAuth2Config oauth2 = new OAuth2Config
-                {
-                    GrantType = grantType,
-                    TokenUrl = settings.TokenUrl ?? string.Empty,
-                    ClientId = settings.ClientId ?? string.Empty,
-                    ClientSecret = settings.ClientSecret ?? string.Empty,
-                    Scope = settings.Scope ?? string.Empty
-                };
-
-                if (grantType == OAuth2GrantType.AuthorizationCode)
-                {
-                    if (settings.AuthorizationUrl is not null)
-                    {
-                        oauth2.AuthorizationUrl = settings.AuthorizationUrl;
-                    }
-
-                    if (settings.RedirectUri is not null)
-                    {
-                        oauth2.RedirectUri = settings.RedirectUri;
-                    }
-
-                    if (settings.Pkce is not null)
-                    {
-                        oauth2.UsePkce = !settings.Pkce.Equals("disabled", StringComparison.OrdinalIgnoreCase);
-                        oauth2.CodeChallengeMethod = settings.Pkce.Equals("plain", StringComparison.OrdinalIgnoreCase)
-                            ? "plain"
-                            : "S256";
-                    }
-                }
-
-                if (grantType == OAuth2GrantType.ResourceOwnerPassword)
-                {
-                    oauth2.Username = settings.Username ?? string.Empty;
-                    oauth2.Password = settings.Password ?? string.Empty;
-                }
-
-                return oauth2;
-            }
-
-            case "custom":
-            {
-                CustomAuthConfig custom = new CustomAuthConfig
-                {
-                    Url = settings.CustomUrl ?? string.Empty,
-                    Method = settings.CustomMethod ?? "POST"
-                };
-
-                foreach (string header in settings.CustomHeaders ?? [])
-                {
-                    int colon = header.IndexOf(':');
-                    if (colon < 0)
-                    {
-                        WriteError($"Invalid header (expected \"Name: Value\"): {header}", settings.Json);
-                        return null;
-                    }
-
-                    custom.Headers[header[..colon].Trim()] = header[(colon + 1)..].Trim();
-                }
-
-                foreach (string param in settings.CustomParams ?? [])
-                {
-                    int eq = param.IndexOf('=');
-                    if (eq < 0)
-                    {
-                        WriteError($"Invalid param (expected \"key=value\"): {param}", settings.Json);
-                        return null;
-                    }
-
-                    custom.Params[param[..eq]] = param[(eq + 1)..];
-                }
-
-                if (settings.CustomBody is not null)
-                {
-                    BodyType bodyType = settings.CustomBodyType?.ToLowerInvariant() switch
-                    {
-                        "json" => BodyType.Json,
-                        "xml" => BodyType.Xml,
-                        "text" => BodyType.Text,
-                        "form" => BodyType.FormUrlEncoded,
-                        "multipart" => BodyType.MultipartForm,
-                        "raw" => BodyType.Raw,
-                        null => BodyType.Json,
-                        _ => BodyType.None
-                    };
-
-                    if (bodyType == BodyType.None)
-                    {
-                        WriteError(
-                            $"Unknown body type: {settings.CustomBodyType!}. Use json, xml, text, form, multipart, or raw.",
-                            settings.Json);
-                        return null;
-                    }
-
-                    custom.BodyType = bodyType;
-                    custom.Bodies[bodyType] = settings.CustomBody;
-                }
-
-                ExtractionSource? source = settings.ExtractionSource?.ToLowerInvariant() switch
-                {
-                    "jsonpath" or "json" => ExtractionSource.JsonPath,
-                    "header" => ExtractionSource.ResponseHeader,
-                    "regex" => ExtractionSource.Regex,
-                    _ => null
-                };
-
-                if (settings.ExtractionSource is not null && source is null)
-                {
-                    WriteError(
-                        $"Unknown extraction source: {settings.ExtractionSource}. Use jsonpath, header, or regex.",
-                        settings.Json);
-                    return null;
-                }
-
-                if (source is not null)
-                {
-                    custom.Source = source.Value;
-                }
-
-                if (settings.ExtractionExpression is not null)
-                {
-                    custom.ExtractionExpression = settings.ExtractionExpression;
-                }
-
-                if (settings.ApplyHeaderName is not null)
-                {
-                    custom.ApplyHeaderName = settings.ApplyHeaderName;
-                }
-
-                if (settings.ApplyHeaderTemplate is not null)
-                {
-                    custom.ApplyHeaderTemplate = settings.ApplyHeaderTemplate;
-                }
-
-                return custom;
-            }
-
-            default:
-                WriteError(
-                    $"Unknown auth type: {settings.Type}. Use bearer, basic, oauth2, oauth2-client-credentials, oauth2-authorization-code, oauth2-password, or custom.",
-                    settings.Json);
-                return null;
-        }
-    }
-
-    private static OAuth2GrantType ResolveOAuth2GrantType(Settings settings)
-    {
-        return settings.Type!.ToLowerInvariant() switch
-        {
-            "oauth2-client-credentials" => OAuth2GrantType.ClientCredentials,
-            "oauth2-authorization-code" => OAuth2GrantType.AuthorizationCode,
-            "oauth2-password" => OAuth2GrantType.ResourceOwnerPassword,
-            _ => settings.GrantType?.ToLowerInvariant() switch
-            {
-                "client-credentials" or "client_credentials" => OAuth2GrantType.ClientCredentials,
-                "authorization-code" or "authorization_code" => OAuth2GrantType.AuthorizationCode,
-                "password" or "resource-owner-password" => OAuth2GrantType.ResourceOwnerPassword,
-                _ => OAuth2GrantType.ClientCredentials
-            }
-        };
     }
 
     private string? PromptCreateMenu(CreateAuthState state)
@@ -394,109 +213,11 @@ public class AuthCreateCommand(
         }
     }
 
-    public sealed class Settings : CommandSettings
+    public sealed class Settings : AuthInlineSettingsBase
     {
         [CommandArgument(0, "[Name]")]
         [Description("Name of the auth to create")]
         public string? Name { get; set; }
-
-        [CommandOption("-t|--type")]
-        [Description("Auth type: bearer, basic, oauth2, oauth2-client-credentials, oauth2-authorization-code, oauth2-password, custom")]
-        public string? Type { get; set; }
-
-        [CommandOption("-s|--secret")]
-        [Description("Token or secret value (bearer: token value)")]
-        public string? Secret { get; set; }
-
-        [CommandOption("--prefix")]
-        [Description("Token prefix for bearer auth (default: Bearer)")]
-        public string? Prefix { get; set; }
-
-        [CommandOption("-u|--username")]
-        [Description("Username for basic auth or OAuth2 password grant")]
-        public string? Username { get; set; }
-
-        [CommandOption("-p|--password")]
-        [Description("Password for basic auth or OAuth2 password grant")]
-        public string? Password { get; set; }
-
-        [CommandOption("-g|--grant")]
-        [Description("OAuth2 grant type when --type is oauth2: client-credentials, authorization-code, password")]
-        public string? GrantType { get; set; }
-
-        [CommandOption("--token-url")]
-        [Description("OAuth2 token endpoint URL")]
-        public string? TokenUrl { get; set; }
-
-        [CommandOption("--client-id")]
-        [Description("OAuth2 client ID")]
-        public string? ClientId { get; set; }
-
-        [CommandOption("--client-secret")]
-        [Description("OAuth2 client secret")]
-        public string? ClientSecret { get; set; }
-
-        [CommandOption("--scope")]
-        [Description("OAuth2 scope")]
-        public string? Scope { get; set; }
-
-        [CommandOption("--authorization-url")]
-        [Description("OAuth2 authorization URL (authorization code grant)")]
-        public string? AuthorizationUrl { get; set; }
-
-        [CommandOption("--redirect-uri")]
-        [Description("OAuth2 redirect URI (authorization code grant, default: http://localhost:8765/callback)")]
-        public string? RedirectUri { get; set; }
-
-        [CommandOption("--pkce")]
-        [Description("PKCE mode for authorization code grant: S256, plain, disabled")]
-        public string? Pkce { get; set; }
-
-        [CommandOption("--custom-url")]
-        [Description("Custom auth request URL")]
-        public string? CustomUrl { get; set; }
-
-        [CommandOption("--custom-method")]
-        [Description("Custom auth request method (default: POST)")]
-        public string? CustomMethod { get; set; }
-
-        [CommandOption("--custom-header")]
-        [Description("Custom auth request header in \"Name: Value\" format (repeatable)")]
-        public string[]? CustomHeaders { get; set; }
-
-        [CommandOption("--custom-param")]
-        [Description("Custom auth request param in \"key=value\" format (repeatable)")]
-        public string[]? CustomParams { get; set; }
-
-        [CommandOption("--custom-body")]
-        [Description("Custom auth request body content")]
-        public string? CustomBody { get; set; }
-
-        [CommandOption("--custom-body-type")]
-        [Description("Custom auth body type: json, xml, text, form, multipart, raw (default: json)")]
-        public string? CustomBodyType { get; set; }
-
-        [CommandOption("--extraction-source")]
-        [Description("Custom auth extraction source: jsonpath, header, regex")]
-        public string? ExtractionSource { get; set; }
-
-        [CommandOption("--extraction-expression")]
-        [Description("Custom auth extraction expression (e.g. access_token, X-Auth-Token, or regex)")]
-        public string? ExtractionExpression { get; set; }
-
-        [CommandOption("--apply-header-name")]
-        [Description("Custom auth header name to apply (default: Authorization)")]
-        public string? ApplyHeaderName { get; set; }
-
-        [CommandOption("--apply-header-template")]
-        [Description("Custom auth header value template with {{value}} placeholder (default: Bearer {{value}})")]
-        public string? ApplyHeaderTemplate { get; set; }
-
-        [CommandOption("--no-auto-renew")]
-        [Description("Disable auto-renewal of auth tokens")]
-        public bool NoAutoRenew { get; set; }
-
-        public bool AutoRenew => !NoAutoRenew;
 
         [CommandOption("-j|--json")]
         [Description("Output the created auth as JSON")]

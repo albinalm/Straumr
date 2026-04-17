@@ -92,13 +92,14 @@ straumr get workspace myapi --json
 
 ### Edit
 
-Workspace editing is file-based only:
+Workspace editing supports both a structured rename path and the existing editor flow:
 
 ```sh
+straumr edit workspace myapi --name myapi-staging --json
 EDITOR=nvim straumr edit workspace myapi
 ```
 
-Straumr copies the manifest to a temp file, launches `$EDITOR`, and replaces the original if the editor exits cleanly.
+When `--name` is supplied, Straumr updates the workspace name directly and can return `{Id, Name, Path}` in JSON mode. Without inline flags, it keeps the existing temp-file editor workflow.
 
 ### Copy, Export, Import, Delete
 
@@ -240,6 +241,7 @@ Auth definitions are reusable and workspace-local. A request stores only an `Aut
 straumr create auth my-auth
 straumr edit auth my-auth
 straumr edit auth my-auth --editor
+straumr edit auth my-auth --name my-auth-v2 --type bearer --secret mytoken --json
 ```
 
 Interactive auth editing lets you:
@@ -250,6 +252,8 @@ Interactive auth editing lets you:
 - toggle auto-renew behavior
 
 Editor mode writes raw auth JSON to a temp file. Auth IDs may not be changed during edit.
+
+Structured inline edit mode is enabled when you pass `--name`, any auth config flag, or `--auto-renew` / `--no-auto-renew`. In JSON mode, inline edit returns `{Id, Name, Type}` on stdout and writes failures as the structured error envelope on stderr.
 
 ### Non-Interactive Auth Creation
 
@@ -364,14 +368,17 @@ Create and manage them with:
 
 ```sh
 straumr create secret api-token supersecret
+straumr create secret api-token supersecret --json
 straumr list secret
 straumr get secret api-token
+straumr edit secret api-token --value evenmoresecret --json
 straumr edit secret api-token
 straumr copy secret api-token api-token-backup
 straumr delete secret api-token
+straumr delete secret api-token --json
 ```
 
-Secret edit is editor-only. There is no interactive secret TUI.
+Secret editing supports both inline mutation and the existing editor flow. Use `--name` and/or `--value` for structured updates; omit them to keep the editor-backed workflow. In `create secret --json`, both name and value are required and Straumr does not prompt.
 
 Secrets are referenced as:
 

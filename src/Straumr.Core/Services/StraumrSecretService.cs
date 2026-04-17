@@ -181,7 +181,12 @@ public class StraumrSecretService(
             }
         }
 
-        if (File.Exists(fullPath))
+        bool isUpdatePath = excludeId != default &&
+                            optionsService.Options.Secrets.Any(entry =>
+                                entry.Id == excludeId &&
+                                string.Equals(entry.Path, fullPath, StringComparison.OrdinalIgnoreCase));
+
+        if (!isUpdatePath && File.Exists(fullPath))
         {
             throw new StraumrException("A secret already exists at this location", StraumrError.EntryConflict);
         }

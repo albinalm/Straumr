@@ -55,9 +55,19 @@ public class AuthEditCommand(
                 StraumrError.MissingEntry);
         }
 
-        if (settings.UseEditor || settings.Json)
+        bool hasInlineFlags = settings.Name is not null ||
+                              AuthInlineConfigBuilder.HasConfigMutationFlags(settings) ||
+                              settings.AutoRenewFlag ||
+                              settings.NoAutoRenew;
+
+        if (settings.UseEditor || (settings.Json && !hasInlineFlags))
         {
             return await ExecuteEditorAsync(settings.Identifier, settings.Json, workspaceEntry!, cancellation);
+        }
+
+        if (hasInlineFlags)
+        {
+            return await ExecuteInlineAsync(settings, workspaceEntry!);
         }
 
         StraumrAuth auth;
@@ -77,6 +87,78 @@ public class AuthEditCommand(
         }
 
         return await ExecutePromptMenuAsync(auth, workspaceEntry!);
+    }
+
+    private async Task<int> ExecuteInlineAsync(Settings settings, StraumrWorkspaceEntry workspaceEntry)
+    {
+        StraumrAuth auth;
+        try
+        {
+            auth = await authService.GetAsync(settings.Identifier, workspaceEntry);
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
+
+        if (settings.Name is not null)
+        {
+            auth.Name = settings.Name;
+        }
+
+        if (!settings.TryGetAutoRenewOverride(message => WriteError(message, settings.Json), out bool? autoRenewOverride))
+        {
+            return 1;
+        }
+
+        if (autoRenewOverride.HasValue)
+        {
+            auth.AutoRenewAuth = autoRenewOverride.Value;
+        }
+
+        if (AuthInlineConfigBuilder.HasConfigMutationFlags(settings))
+        {
+            StraumrAuthConfig? config =
+                AuthInlineConfigBuilder.Build(settings, message => WriteError(message, settings.Json), auth.Config);
+            if (config is null)
+            {
+                return 1;
+            }
+
+            auth.Config = config;
+        }
+
+        try
+        {
+            await authService.UpdateAsync(auth, workspaceEntry);
+            if (settings.Json)
+            {
+                AuthListItem result = new AuthListItem(auth.Id.ToString(), auth.Name, AuthTypeName(auth.Config));
+                System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.AuthListItem));
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]Updated auth[/] [bold]{auth.Name}[/] ({auth.Id})");
+            }
+
+            return 0;
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
     }
 
     private async Task<int> ExecutePromptMenuAsync(StraumrAuth auth, StraumrWorkspaceEntry workspaceEntry)
@@ -283,7 +365,7 @@ public class AuthEditCommand(
         }
     }
 
-    public sealed class Settings : CommandSettings
+    public sealed class Settings : AuthInlineSettingsBase
     {
         [CommandArgument(0, "<Name or ID>")]
         [Description("Name or ID of the auth to edit")]
@@ -297,8 +379,12 @@ public class AuthEditCommand(
         [Description("Target workspace name or ID (overrides the current workspace for this command)")]
         public string? Workspace { get; set; }
 
+        [CommandOption("-n|--name")]
+        [Description("The new name for the auth")]
+        public string? Name { get; set; }
+
         [CommandOption("-j|--json")]
-        [Description("Open in editor and output the updated auth as JSON on success; implies --editor")]
+        [Description("Output the updated auth as JSON on success; implies --editor only when no inline flags are set")]
         public bool Json { get; set; }
     }
 
