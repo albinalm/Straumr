@@ -32,10 +32,14 @@ const (
 	flowRequestCreateBody         pendingFlow = "request-create-body"
 	flowRequestCreateBodyLoadPath pendingFlow = "request-create-body-load-path"
 	flowRequestHeadersEditor      pendingFlow = "request-headers-editor"
+	flowRequestHeaderPairAdd      pendingFlow = "request-header-pair-add"
+	flowRequestHeaderPairEdit     pendingFlow = "request-header-pair-edit"
 	flowRequestHeaderAddKey       pendingFlow = "request-header-add-key"
 	flowRequestHeaderAddValue     pendingFlow = "request-header-add-value"
 	flowRequestHeaderEditValue    pendingFlow = "request-header-edit-value"
 	flowRequestParamsEditor       pendingFlow = "request-params-editor"
+	flowRequestParamPairAdd       pendingFlow = "request-param-pair-add"
+	flowRequestParamPairEdit      pendingFlow = "request-param-pair-edit"
 	flowRequestParamAddKey        pendingFlow = "request-param-add-key"
 	flowRequestParamAddValue      pendingFlow = "request-param-add-value"
 	flowRequestParamEditValue     pendingFlow = "request-param-edit-value"
@@ -73,10 +77,14 @@ const (
 	flowAuthCustomURL             pendingFlow = "auth-custom-url"
 	flowAuthCustomMethod          pendingFlow = "auth-custom-method"
 	flowAuthCustomHeadersEditor   pendingFlow = "auth-custom-headers-editor"
+	flowAuthCustomHeaderPairAdd   pendingFlow = "auth-custom-header-pair-add"
+	flowAuthCustomHeaderPairEdit  pendingFlow = "auth-custom-header-pair-edit"
 	flowAuthCustomHeaderAddKey    pendingFlow = "auth-custom-header-add-key"
 	flowAuthCustomHeaderAddValue  pendingFlow = "auth-custom-header-add-value"
 	flowAuthCustomHeaderEditValue pendingFlow = "auth-custom-header-edit-value"
 	flowAuthCustomParamsEditor    pendingFlow = "auth-custom-params-editor"
+	flowAuthCustomParamPairAdd    pendingFlow = "auth-custom-param-pair-add"
+	flowAuthCustomParamPairEdit   pendingFlow = "auth-custom-param-pair-edit"
 	flowAuthCustomParamAddKey     pendingFlow = "auth-custom-param-add-key"
 	flowAuthCustomParamAddValue   pendingFlow = "auth-custom-param-add-value"
 	flowAuthCustomParamEditValue  pendingFlow = "auth-custom-param-edit-value"
@@ -111,6 +119,7 @@ type pendingAction struct {
 	Name          string
 	Value         string
 	PairKey       string
+	PairValue     string
 	WorkspaceID   string
 	WorkspaceName string
 	RequestDraft  request.Draft
@@ -123,7 +132,7 @@ type pendingAction struct {
 }
 
 func (m *Model) hasOverlay() bool {
-	return m.textInput.Active || m.secretInput.Active || m.bodyInput.Active || m.confirm.Active || m.selectView.Active || m.keyValue.Active || m.pathPicker.Active
+	return m.textInput.Active || m.secretInput.Active || m.bodyInput.Active || m.pairInput.Active || m.confirm.Active || m.selectView.Active || m.keyValue.Active || m.pathPicker.Active
 }
 
 func (m *Model) overlayView() string {
@@ -134,6 +143,8 @@ func (m *Model) overlayView() string {
 		return m.secretInput.Render()
 	case m.bodyInput.Active:
 		return m.bodyInput.Render()
+	case m.pairInput.Active:
+		return m.pairInput.Render()
 	case m.confirm.Active:
 		return m.confirm.Render()
 	case m.selectView.Active:
@@ -151,6 +162,7 @@ func (m *Model) clearOverlays() {
 	m.textInput.Close()
 	m.secretInput.Close()
 	m.bodyInput.Close()
+	m.pairInput.Close()
 	m.confirm.Close()
 	m.selectView.Close()
 	m.keyValue.Close()
@@ -177,6 +189,13 @@ func (m *Model) openBodyInputFlow(flow pendingFlow, title, message, value string
 	pending.Flow = flow
 	m.pending = &pending
 	m.bodyInput.Open(title, message, value)
+}
+
+func (m *Model) openPairInputFlow(flow pendingFlow, title, message, key, value string, pending pendingAction) {
+	m.clearOverlays()
+	pending.Flow = flow
+	m.pending = &pending
+	m.pairInput.Open(title, message, key, value)
 }
 
 func (m *Model) openConfirmFlow(flow pendingFlow, title, message string, options []string, pending pendingAction) {
@@ -208,6 +227,8 @@ func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSecretInputKey(msg)
 	case m.bodyInput.Active:
 		return m.handleBodyInputKey(msg)
+	case m.pairInput.Active:
+		return m.handlePairInputKey(msg)
 	case m.confirm.Active:
 		return m.handleConfirmKey(msg)
 	case m.selectView.Active:
@@ -319,6 +340,34 @@ func (m *Model) handleBodyInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+func (m *Model) handlePairInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch m.pairInput.ApplyKey(msg) {
+	case dialogs.ActionAccept:
+		return m.acceptPairInput(m.pairInput.Result(true).Pair)
+	case dialogs.ActionCancel:
+		if m.pending == nil {
+			m.clearOverlays()
+			return m, nil
+		}
+		pending := *m.pending
+		switch pending.Flow {
+		case flowRequestHeaderPairAdd, flowRequestHeaderPairEdit:
+			m.openRequestHeadersEditor(pending)
+		case flowRequestParamPairAdd, flowRequestParamPairEdit:
+			m.openRequestParamsEditor(pending)
+		case flowAuthCustomHeaderPairAdd, flowAuthCustomHeaderPairEdit:
+			m.openAuthCustomHeadersEditor(pending)
+		case flowAuthCustomParamPairAdd, flowAuthCustomParamPairEdit:
+			m.openAuthCustomParamsEditor(pending)
+		default:
+			m.clearOverlays()
+		}
+		return m, nil
+	default:
+		return m, nil
+	}
+}
+
 func (m *Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key, ok := dialogKey(msg)
 	if !ok {
@@ -347,19 +396,19 @@ func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch m.pending.Flow {
 		case flowRequestHeadersEditor:
 			pending := *m.pending
-			m.openTextFlow(flowRequestHeaderAddKey, "Request headers", "Header name", "", "Header-Name", "Enter the header name", pending)
+			m.openPairInputFlow(flowRequestHeaderPairAdd, "Request headers", "Add a header entry", "", "", pending)
 			return m, nil
 		case flowRequestParamsEditor:
 			pending := *m.pending
-			m.openTextFlow(flowRequestParamAddKey, "Request params", "Param name", "", "param", "Enter the query parameter name", pending)
+			m.openPairInputFlow(flowRequestParamPairAdd, "Request params", "Add a query parameter entry", "", "", pending)
 			return m, nil
 		case flowAuthCustomHeadersEditor:
 			pending := *m.pending
-			m.openTextFlow(flowAuthCustomHeaderAddKey, authTitle(pending), "Header name", "", "Header-Name", "Enter the custom auth header name", pending)
+			m.openPairInputFlow(flowAuthCustomHeaderPairAdd, authTitle(pending), "Add a custom auth header entry", "", "", pending)
 			return m, nil
 		case flowAuthCustomParamsEditor:
 			pending := *m.pending
-			m.openTextFlow(flowAuthCustomParamAddKey, authTitle(pending), "Param name", "", "param", "Enter the custom auth query parameter name", pending)
+			m.openPairInputFlow(flowAuthCustomParamPairAdd, authTitle(pending), "Add a custom auth query parameter entry", "", "", pending)
 			return m, nil
 		}
 	}
@@ -379,15 +428,16 @@ func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		pending := *m.pending
 		pending.PairKey = result.Item.Key
+		pending.PairValue = result.Item.Value
 		switch m.pending.Flow {
 		case flowRequestHeadersEditor:
-			m.openTextFlow(flowRequestHeaderEditValue, "Request headers", "Header value", result.Item.Value, "(empty)", "Update the header value", pending)
+			m.openPairInputFlow(flowRequestHeaderPairEdit, "Request headers", "Update the header entry", result.Item.Key, result.Item.Value, pending)
 		case flowRequestParamsEditor:
-			m.openTextFlow(flowRequestParamEditValue, "Request params", "Param value", result.Item.Value, "(empty)", "Update the parameter value", pending)
+			m.openPairInputFlow(flowRequestParamPairEdit, "Request params", "Update the query parameter entry", result.Item.Key, result.Item.Value, pending)
 		case flowAuthCustomHeadersEditor:
-			m.openTextFlow(flowAuthCustomHeaderEditValue, authTitle(pending), "Header value", result.Item.Value, "(empty)", "Update the custom auth header value", pending)
+			m.openPairInputFlow(flowAuthCustomHeaderPairEdit, authTitle(pending), "Update the custom auth header entry", result.Item.Key, result.Item.Value, pending)
 		case flowAuthCustomParamsEditor:
-			m.openTextFlow(flowAuthCustomParamEditValue, authTitle(pending), "Param value", result.Item.Value, "(empty)", "Update the custom auth query parameter value", pending)
+			m.openPairInputFlow(flowAuthCustomParamPairEdit, authTitle(pending), "Update the custom auth query parameter entry", result.Item.Key, result.Item.Value, pending)
 		}
 		return m, nil
 	case dialogs.ActionDelete:
@@ -701,6 +751,81 @@ func (m *Model) acceptBodyInput(value string) (tea.Model, tea.Cmd) {
 	}
 }
 
+func (m *Model) acceptPairInput(pair dialogs.Pair) (tea.Model, tea.Cmd) {
+	if m.pending == nil {
+		m.clearOverlays()
+		return m, nil
+	}
+
+	key := strings.TrimSpace(pair.Key)
+	if key == "" {
+		m.pairInput.Message = "Key is required"
+		return m, nil
+	}
+
+	pending := *m.pending
+	originalKey := pending.PairKey
+	value := pair.Value
+
+	switch pending.Flow {
+	case flowRequestHeaderPairAdd:
+		pending.RequestDraft = pending.RequestDraft.WithHeader(key, value)
+		m.openRequestHeadersEditor(pending)
+		return m, nil
+	case flowRequestHeaderPairEdit:
+		if originalKey != "" && originalKey != key {
+			pending.RequestDraft = pending.RequestDraft.WithoutHeader(originalKey)
+		}
+		pending.RequestDraft = pending.RequestDraft.WithHeader(key, value)
+		pending.PairKey = ""
+		pending.PairValue = ""
+		m.openRequestHeadersEditor(pending)
+		return m, nil
+	case flowRequestParamPairAdd:
+		pending.RequestDraft = pending.RequestDraft.WithParam(key, value)
+		m.openRequestParamsEditor(pending)
+		return m, nil
+	case flowRequestParamPairEdit:
+		if originalKey != "" && originalKey != key {
+			pending.RequestDraft = pending.RequestDraft.WithoutParam(originalKey)
+		}
+		pending.RequestDraft = pending.RequestDraft.WithParam(key, value)
+		pending.PairKey = ""
+		pending.PairValue = ""
+		m.openRequestParamsEditor(pending)
+		return m, nil
+	case flowAuthCustomHeaderPairAdd:
+		pending.AuthDraft.CustomHeaders = upsertAuthPair(pending.AuthDraft.CustomHeaders, key, value)
+		m.openAuthCustomHeadersEditor(pending)
+		return m, nil
+	case flowAuthCustomHeaderPairEdit:
+		if originalKey != "" && originalKey != key {
+			pending.AuthDraft.CustomHeaders = withoutAuthPair(pending.AuthDraft.CustomHeaders, originalKey)
+		}
+		pending.AuthDraft.CustomHeaders = upsertAuthPair(pending.AuthDraft.CustomHeaders, key, value)
+		pending.PairKey = ""
+		pending.PairValue = ""
+		m.openAuthCustomHeadersEditor(pending)
+		return m, nil
+	case flowAuthCustomParamPairAdd:
+		pending.AuthDraft.CustomParams = upsertAuthPair(pending.AuthDraft.CustomParams, key, value)
+		m.openAuthCustomParamsEditor(pending)
+		return m, nil
+	case flowAuthCustomParamPairEdit:
+		if originalKey != "" && originalKey != key {
+			pending.AuthDraft.CustomParams = withoutAuthPair(pending.AuthDraft.CustomParams, originalKey)
+		}
+		pending.AuthDraft.CustomParams = upsertAuthPair(pending.AuthDraft.CustomParams, key, value)
+		pending.PairKey = ""
+		pending.PairValue = ""
+		m.openAuthCustomParamsEditor(pending)
+		return m, nil
+	default:
+		m.clearOverlays()
+		return m, nil
+	}
+}
+
 func (m *Model) acceptSelect(choice string) (tea.Model, tea.Cmd) {
 	if m.pending == nil {
 		m.clearOverlays()
@@ -924,10 +1049,14 @@ func isAuthFlow(flow pendingFlow) bool {
 		flowAuthCustomURL,
 		flowAuthCustomMethod,
 		flowAuthCustomHeadersEditor,
+		flowAuthCustomHeaderPairAdd,
+		flowAuthCustomHeaderPairEdit,
 		flowAuthCustomHeaderAddKey,
 		flowAuthCustomHeaderAddValue,
 		flowAuthCustomHeaderEditValue,
 		flowAuthCustomParamsEditor,
+		flowAuthCustomParamPairAdd,
+		flowAuthCustomParamPairEdit,
 		flowAuthCustomParamAddKey,
 		flowAuthCustomParamAddValue,
 		flowAuthCustomParamEditValue,
@@ -951,7 +1080,7 @@ func (m *Model) openRequestHeadersEditor(pending pendingAction) {
 	m.openKeyValueFlow(
 		flowRequestHeadersEditor,
 		requestFlowTitle(pending),
-		"Headers: j/k move  Enter edit value  c add  d delete  Esc continue",
+		"Headers: j/k move  Enter edit entry  c add  d delete  Esc continue",
 		dialogPairsFromRequestPairs(pending.RequestDraft.Headers),
 		pending,
 	)
@@ -961,7 +1090,7 @@ func (m *Model) openRequestParamsEditor(pending pendingAction) {
 	m.openKeyValueFlow(
 		flowRequestParamsEditor,
 		requestFlowTitle(pending),
-		"Params: j/k move  Enter edit value  c add  d delete  Esc finish",
+		"Params: j/k move  Enter edit entry  c add  d delete  Esc finish",
 		dialogPairsFromRequestPairs(pending.RequestDraft.Params),
 		pending,
 	)

@@ -477,3 +477,196 @@ func multilineIndexFromLineCol(lines []string, line int, col int) int {
 	}
 	return index + col
 }
+
+type PairInputField string
+
+const (
+	PairInputFieldKey   PairInputField = "key"
+	PairInputFieldValue PairInputField = "value"
+)
+
+type PairInputView struct {
+	OverlayState
+	Title       string
+	Message     string
+	Focus       PairInputField
+	Key         string
+	Value       string
+	KeyCursor   int
+	ValueCursor int
+}
+
+func (v *PairInputView) Open(title, message, key, value string) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Message = message
+	v.Focus = PairInputFieldKey
+	v.Key = key
+	v.Value = value
+	v.KeyCursor = len([]rune(key))
+	v.ValueCursor = len([]rune(value))
+}
+
+func (v *PairInputView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Message = ""
+	v.Focus = PairInputFieldKey
+	v.Key = ""
+	v.Value = ""
+	v.KeyCursor = 0
+	v.ValueCursor = 0
+}
+
+func (v *PairInputView) Result(accepted bool) PairInputResult {
+	return PairInputResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Pair: Pair{
+			Key:   v.Key,
+			Value: v.Value,
+		},
+	}
+}
+
+func (v *PairInputView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
+	var b strings.Builder
+	if v.Title != "" {
+		b.WriteString(v.Title)
+		b.WriteString("\n")
+	}
+	if v.Message != "" {
+		b.WriteString(v.Message)
+		b.WriteString("\n")
+	}
+
+	keyPrefix := "  "
+	valuePrefix := "  "
+	if v.Focus == PairInputFieldKey {
+		keyPrefix = "> "
+	}
+	if v.Focus == PairInputFieldValue {
+		valuePrefix = "> "
+	}
+
+	b.WriteString(fmt.Sprintf("%sKey: %s\n", keyPrefix, renderSingleLineCursor(v.Key, v.KeyCursor, "Header-Name")))
+	b.WriteString(fmt.Sprintf("%sValue: %s\n", valuePrefix, renderSingleLineCursor(v.Value, v.ValueCursor, "(empty)")))
+	b.WriteString("Enter next/accept  Tab switch field  Ctrl+S accept  Esc cancel")
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (v *PairInputView) ApplyKey(msg tea.KeyMsg) ActionKind {
+	switch msg.String() {
+	case "ctrl+s":
+		return ActionAccept
+	case "esc":
+		return ActionCancel
+	case "tab", "shift+tab", "backtab", "up", "down", "j", "k":
+		v.switchFocus()
+	case "enter":
+		if v.Focus == PairInputFieldKey {
+			v.Focus = PairInputFieldValue
+			return ActionNone
+		}
+		return ActionAccept
+	default:
+		value, cursor := v.activeField()
+		applySingleLineEdit(value, cursor, msg)
+	}
+
+	return ActionNone
+}
+
+func (v *PairInputView) switchFocus() {
+	if v.Focus == PairInputFieldKey {
+		v.Focus = PairInputFieldValue
+		return
+	}
+	v.Focus = PairInputFieldKey
+}
+
+func (v *PairInputView) activeField() (*string, *int) {
+	if v.Focus == PairInputFieldValue {
+		return &v.Value, &v.ValueCursor
+	}
+	return &v.Key, &v.KeyCursor
+}
+
+func renderSingleLineCursor(value string, cursor int, placeholder string) string {
+	runes := []rune(value)
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor > len(runes) {
+		cursor = len(runes)
+	}
+	withCursor := append([]rune{}, runes[:cursor]...)
+	withCursor = append(withCursor, '|')
+	withCursor = append(withCursor, runes[cursor:]...)
+	rendered := string(withCursor)
+	if value == "" {
+		return "|" + placeholder
+	}
+	return rendered
+}
+
+func applySingleLineEdit(value *string, cursor *int, msg tea.KeyMsg) {
+	runes := []rune(*value)
+	if *cursor < 0 {
+		*cursor = 0
+	}
+	if *cursor > len(runes) {
+		*cursor = len(runes)
+	}
+
+	switch msg.String() {
+	case "left":
+		if *cursor > 0 {
+			*cursor--
+		}
+		return
+	case "right":
+		if *cursor < len(runes) {
+			*cursor++
+		}
+		return
+	case "home":
+		*cursor = 0
+		return
+	case "end":
+		*cursor = len(runes)
+		return
+	case "backspace":
+		if *cursor > 0 {
+			runes = append(runes[:*cursor-1], runes[*cursor:]...)
+			*cursor--
+			*value = string(runes)
+		}
+		return
+	case "delete":
+		if *cursor < len(runes) {
+			runes = append(runes[:*cursor], runes[*cursor+1:]...)
+			*value = string(runes)
+		}
+		return
+	}
+
+	if msg.Type == tea.KeySpace {
+		runes = append(runes[:*cursor], append([]rune{' '}, runes[*cursor:]...)...)
+		*cursor++
+		*value = string(runes)
+		return
+	}
+	if len(msg.Runes) == 0 {
+		return
+	}
+
+	insert := msg.Runes
+	runes = append(runes[:*cursor], append(insert, runes[*cursor:]...)...)
+	*cursor += len(insert)
+	*value = string(runes)
+}

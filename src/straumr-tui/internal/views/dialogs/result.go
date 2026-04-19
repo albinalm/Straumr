@@ -36,6 +36,12 @@ type InputResult struct {
 	Value     string
 }
 
+type PairInputResult struct {
+	Accepted  bool
+	Cancelled bool
+	Pair      Pair
+}
+
 type KeyValueResult struct {
 	Accepted  bool
 	Cancelled bool

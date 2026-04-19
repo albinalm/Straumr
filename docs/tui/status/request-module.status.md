@@ -21,6 +21,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Replaced request method entry with a shared select overlay plus custom-method fallback.
 - Replaced request body-type entry with a shared select overlay for the supported body modes.
 - Replaced the plain request-body prompt with a dedicated multiline body overlay and file-load path for larger payloads.
+- Replaced the request header/param add-edit path with a shared pair editor overlay instead of separate key and value prompts.
 - Added quick create/edit request flows in the shell for name, URL, method, auth, body/body type, headers, and params using `get/create/edit request --json`.
 - Wired request copy/delete through the shell to the typed CLI client.
 - Wired the embedded request editor submit path through the same JSON-safe request mutation commands instead of leaving it as a shell placeholder.
@@ -28,7 +29,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 
 ## Work in progress
 
-- Refining request detail presentation and remaining structured-overlay ergonomics around headers/params and inspect.
+- Refining request detail presentation and remaining structured-overlay ergonomics around inspect and list/detail layout.
 
 ## Blockers
 
@@ -56,4 +57,4 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Request create/edit now works as a quick flow for name, URL, method, auth, body/body type, headers, and params.
 - The embedded request editor submit path no longer dead-ends if the shell mounts it.
 - Request inspect is live and uses the JSON-safe get path.
-- Request method/auth/body type now use shared selectors, request body editing has a dedicated overlay plus file import, and the remaining gap is mostly detail polish plus header/param editor refinement.
+- Request method/auth/body type now use shared selectors, request body editing has a dedicated overlay plus file import, request headers/params use a shared pair editor overlay, and the remaining gap is mostly detail polish.

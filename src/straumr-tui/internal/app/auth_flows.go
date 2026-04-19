@@ -217,7 +217,7 @@ func (m *Model) openAuthCustomHeadersEditor(pending pendingAction) {
 	m.openKeyValueFlow(
 		flowAuthCustomHeadersEditor,
 		authTitle(pending),
-		"Custom headers: j/k move  Enter edit value  c add  d delete  Esc continue",
+		"Custom headers: j/k move  Enter edit entry  c add  d delete  Esc continue",
 		dialogPairsFromAuthPairs(pending.AuthDraft.CustomHeaders),
 		pending,
 	)
@@ -227,7 +227,7 @@ func (m *Model) openAuthCustomParamsEditor(pending pendingAction) {
 	m.openKeyValueFlow(
 		flowAuthCustomParamsEditor,
 		authTitle(pending),
-		"Custom params: j/k move  Enter edit value  c add  d delete  Esc continue",
+		"Custom params: j/k move  Enter edit entry  c add  d delete  Esc continue",
 		dialogPairsFromAuthPairs(pending.AuthDraft.CustomParams),
 		pending,
 	)

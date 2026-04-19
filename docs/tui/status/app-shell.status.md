@@ -21,6 +21,7 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 - Wired request create/edit quick flows plus request copy/delete through overlay-backed shell flows, including auth/body/header/param round-tripping.
 - Replaced request method entry with a shared select overlay plus custom-method fallback.
 - Replaced the plain request-body prompt with a dedicated multiline body overlay and file-load path.
+- Replaced request and custom-auth metadata add/edit prompts with a shared pair editor overlay.
 - Wired the embedded request editor submit path through the same JSON-safe request mutation commands instead of a placeholder shell message.
 - Wired request inspect through `get request --json` into a read-only details overlay.
 - Replaced request auth and body-type free-form text steps with shared select overlays, with auth choices loaded from `list auth --json`.
@@ -71,5 +72,5 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 
 - The shell already owns the mutation round-trip for workspace, auth, secret, and the request quick flows including auth/body/header/param.
 - Workspace/auth/secret/request inspect now round-trip through their JSON-safe get paths.
-- Request method/auth/body-type and auth create/edit choice fields now use select overlays, request bodies use a dedicated multiline overlay with file import, custom auth headers/params use the shared key/value overlay, and workspace import/export plus send save/export mount the shared path picker.
+- Request method/auth/body-type and auth create/edit choice fields now use select overlays, request bodies use a dedicated multiline overlay with file import, request/custom-auth metadata entries use a shared pair editor overlay, and workspace import/export plus send save/export mount the shared path picker.
 - The next shell-critical slice is broader overlay reuse and general shell cleanup.

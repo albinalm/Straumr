@@ -35,6 +35,7 @@ type Model struct {
 	textInput     dialogs.TextInputView
 	secretInput   dialogs.SecretInputView
 	bodyInput     dialogs.MultiLineInputView
+	pairInput     dialogs.PairInputView
 	confirm       dialogs.ConfirmView
 	selectView    dialogs.SelectView
 	keyValue      dialogs.KeyValueEditorView
