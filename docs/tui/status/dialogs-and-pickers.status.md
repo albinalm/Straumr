@@ -18,8 +18,10 @@ In progress. Go overlay helpers are present with structured result types, and th
 - Expanded the shared path picker to handle typed path editing, focus between path/quick locations/browsable entries, and clearer help text.
 - Mounted the shared select overlay in the shell for request auth and body-type choice.
 - Mounted the shared select overlay in the shell for auth create/edit type, grant, PKCE, custom body-type, and extraction-source choice.
+- Mounted the shared select overlay in the shell for request method choice, with a custom-method fallback.
 - Wired the shell to use the shared path picker for send save/export flows.
 - Extended shared path-picker usage to workspace import/export flows.
+- Reused the shared key/value overlay for custom-auth headers and params, not just request headers and params.
 
 ## Work in progress
 

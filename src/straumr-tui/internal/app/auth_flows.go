@@ -63,7 +63,43 @@ func (m *Model) advanceAuthTextFlow(value string) (tea.Model, tea.Cmd) {
 		return m, nil
 	case flowAuthCustomMethod:
 		pending.AuthDraft.CustomMethod = strings.ToUpper(value)
-		m.openTextFlow(flowAuthCustomBody, authTitle(pending), "Body", pending.AuthDraft.CustomBody, "{\"user\":\"admin\"}", "Enter the custom auth body", pending)
+		m.openAuthCustomHeadersEditor(pending)
+		return m, nil
+	case flowAuthCustomHeaderAddKey:
+		if value == "" {
+			m.textInput.Message = "Header name is required"
+			return m, nil
+		}
+		pending.PairKey = value
+		m.openTextFlow(flowAuthCustomHeaderAddValue, authTitle(pending), "Header value", "", "(empty)", "Enter the custom auth header value", pending)
+		return m, nil
+	case flowAuthCustomHeaderAddValue:
+		pending.AuthDraft.CustomHeaders = upsertAuthPair(pending.AuthDraft.CustomHeaders, pending.PairKey, value)
+		pending.PairKey = ""
+		m.openAuthCustomHeadersEditor(pending)
+		return m, nil
+	case flowAuthCustomHeaderEditValue:
+		pending.AuthDraft.CustomHeaders = upsertAuthPair(pending.AuthDraft.CustomHeaders, pending.PairKey, value)
+		pending.PairKey = ""
+		m.openAuthCustomHeadersEditor(pending)
+		return m, nil
+	case flowAuthCustomParamAddKey:
+		if value == "" {
+			m.textInput.Message = "Parameter name is required"
+			return m, nil
+		}
+		pending.PairKey = value
+		m.openTextFlow(flowAuthCustomParamAddValue, authTitle(pending), "Param value", "", "(empty)", "Enter the custom auth query parameter value", pending)
+		return m, nil
+	case flowAuthCustomParamAddValue:
+		pending.AuthDraft.CustomParams = upsertAuthPair(pending.AuthDraft.CustomParams, pending.PairKey, value)
+		pending.PairKey = ""
+		m.openAuthCustomParamsEditor(pending)
+		return m, nil
+	case flowAuthCustomParamEditValue:
+		pending.AuthDraft.CustomParams = upsertAuthPair(pending.AuthDraft.CustomParams, pending.PairKey, value)
+		pending.PairKey = ""
+		m.openAuthCustomParamsEditor(pending)
 		return m, nil
 	case flowAuthCustomBody:
 		pending.AuthDraft.CustomBody = value
@@ -175,6 +211,26 @@ func (m *Model) openAuthAutoRenewConfirm(pending pendingAction) tea.Cmd {
 	}
 	m.openConfirmFlow(flowAuthAutoRenew, authTitle(pending), "Auto renew auth?", options, pending)
 	return nil
+}
+
+func (m *Model) openAuthCustomHeadersEditor(pending pendingAction) {
+	m.openKeyValueFlow(
+		flowAuthCustomHeadersEditor,
+		authTitle(pending),
+		"Custom headers: j/k move  Enter edit value  c add  d delete  Esc continue",
+		dialogPairsFromAuthPairs(pending.AuthDraft.CustomHeaders),
+		pending,
+	)
+}
+
+func (m *Model) openAuthCustomParamsEditor(pending pendingAction) {
+	m.openKeyValueFlow(
+		flowAuthCustomParamsEditor,
+		authTitle(pending),
+		"Custom params: j/k move  Enter edit value  c add  d delete  Esc continue",
+		dialogPairsFromAuthPairs(pending.AuthDraft.CustomParams),
+		pending,
+	)
 }
 
 func authTitle(pending pendingAction) string {
@@ -468,6 +524,38 @@ func authPairsFromMap(values map[string]string) []auth.Pair {
 		pairs = append(pairs, auth.Pair{Key: key, Value: value})
 	}
 	return pairs
+}
+
+func dialogPairsFromAuthPairs(items []auth.Pair) []dialogs.Pair {
+	out := make([]dialogs.Pair, 0, len(items))
+	for _, item := range items {
+		out = append(out, dialogs.Pair{
+			Key:   item.Key,
+			Value: item.Value,
+		})
+	}
+	return out
+}
+
+func upsertAuthPair(items []auth.Pair, key, value string) []auth.Pair {
+	for i := range items {
+		if items[i].Key == key {
+			items[i].Value = value
+			return items
+		}
+	}
+	return append(items, auth.Pair{Key: key, Value: value})
+}
+
+func withoutAuthPair(items []auth.Pair, key string) []auth.Pair {
+	out := items[:0]
+	for _, item := range items {
+		if item.Key == key {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func resolveBodyForType(bodyType string, bodies map[string]string) string {

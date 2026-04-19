@@ -18,6 +18,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Added request list rendering and send handoff hooks in the Go shell.
 - Wired request inspect through `get request --json` into a details overlay with headers, params, auth ID, timestamps, and body preview.
 - Replaced request auth selection with a CLI-backed picker using `list auth --json --workspace <ws>`.
+- Replaced request method entry with a shared select overlay plus custom-method fallback.
 - Replaced request body-type entry with a shared select overlay for the supported body modes.
 - Added quick create/edit request flows in the shell for name, URL, method, auth, body/body type, headers, and params using `get/create/edit request --json`.
 - Wired request copy/delete through the shell to the typed CLI client.
@@ -54,4 +55,4 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Request create/edit now works as a quick flow for name, URL, method, auth, body/body type, headers, and params.
 - The embedded request editor submit path no longer dead-ends if the shell mounts it.
 - Request inspect is live and uses the JSON-safe get path.
-- Request auth now uses a real auth picker and body type uses a select overlay; the remaining request gap is mostly detail polish and overlay refinement.
+- Request method/auth/body type now use shared selectors; the remaining request gap is mostly detail polish, overlay refinement, and the large-body input path.

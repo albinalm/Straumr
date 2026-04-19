@@ -22,6 +22,7 @@ In progress. The send screen is wired to real send, dry-run, save-body, export, 
 - Swapped send save/export target entry from raw text input to the shared path-picker overlay.
 - Wired copy-pane and copy-template into shell-side clipboard actions.
 - Beautify/revert now changes the rendered body presentation and pretty-prints valid JSON responses.
+- The shell no longer overwrites beautify/revert with a placeholder status message; the send view owns that interaction directly.
 - Polished the send view so active pane affordances and available keys are clearer in the rendered output.
 
 ## Work in progress

@@ -13,84 +13,94 @@ import (
 type pendingFlow string
 
 const (
-	flowNone                     pendingFlow = ""
-	flowWorkspaceCreateName      pendingFlow = "workspace-create-name"
-	flowWorkspaceEditName        pendingFlow = "workspace-edit-name"
-	flowWorkspaceCopyName        pendingFlow = "workspace-copy-name"
-	flowWorkspaceImportPath      pendingFlow = "workspace-import-path"
-	flowWorkspaceExportPath      pendingFlow = "workspace-export-path"
-	flowWorkspaceInspect         pendingFlow = "workspace-inspect"
-	flowWorkspaceDeleteConfirm   pendingFlow = "workspace-delete-confirm"
-	flowRequestCreateName        pendingFlow = "request-create-name"
-	flowRequestCreateURL         pendingFlow = "request-create-url"
-	flowRequestCreateMethod      pendingFlow = "request-create-method"
-	flowRequestCreateAuthPick    pendingFlow = "request-create-auth-pick"
-	flowRequestCreateAuth        pendingFlow = "request-create-auth"
-	flowRequestCreateBodyPick    pendingFlow = "request-create-body-pick"
-	flowRequestCreateBodyType    pendingFlow = "request-create-body-type"
-	flowRequestCreateBody        pendingFlow = "request-create-body"
-	flowRequestHeadersEditor     pendingFlow = "request-headers-editor"
-	flowRequestHeaderAddKey      pendingFlow = "request-header-add-key"
-	flowRequestHeaderAddValue    pendingFlow = "request-header-add-value"
-	flowRequestHeaderEditValue   pendingFlow = "request-header-edit-value"
-	flowRequestParamsEditor      pendingFlow = "request-params-editor"
-	flowRequestParamAddKey       pendingFlow = "request-param-add-key"
-	flowRequestParamAddValue     pendingFlow = "request-param-add-value"
-	flowRequestParamEditValue    pendingFlow = "request-param-edit-value"
-	flowRequestEditLoad          pendingFlow = "request-edit-load"
-	flowRequestInspect           pendingFlow = "request-inspect"
-	flowRequestEditName          pendingFlow = "request-edit-name"
-	flowRequestEditURL           pendingFlow = "request-edit-url"
-	flowRequestEditMethod        pendingFlow = "request-edit-method"
-	flowRequestEditAuthPick      pendingFlow = "request-edit-auth-pick"
-	flowRequestEditAuth          pendingFlow = "request-edit-auth"
-	flowRequestEditBodyPick      pendingFlow = "request-edit-body-pick"
-	flowRequestEditBodyType      pendingFlow = "request-edit-body-type"
-	flowRequestEditBody          pendingFlow = "request-edit-body"
-	flowRequestCopyName          pendingFlow = "request-copy-name"
-	flowRequestDeleteConfirm     pendingFlow = "request-delete-confirm"
-	flowAuthName                 pendingFlow = "auth-name"
-	flowAuthType                 pendingFlow = "auth-type"
-	flowAuthTypePick             pendingFlow = "auth-type-pick"
-	flowAuthSecret               pendingFlow = "auth-secret"
-	flowAuthPrefix               pendingFlow = "auth-prefix"
-	flowAuthUsername             pendingFlow = "auth-username"
-	flowAuthPassword             pendingFlow = "auth-password"
-	flowAuthGrant                pendingFlow = "auth-grant"
-	flowAuthGrantPick            pendingFlow = "auth-grant-pick"
-	flowAuthTokenURL             pendingFlow = "auth-token-url"
-	flowAuthClientID             pendingFlow = "auth-client-id"
-	flowAuthClientSecret         pendingFlow = "auth-client-secret"
-	flowAuthScope                pendingFlow = "auth-scope"
-	flowAuthAuthorizationURL     pendingFlow = "auth-authorization-url"
-	flowAuthRedirectURI          pendingFlow = "auth-redirect-uri"
-	flowAuthPKCE                 pendingFlow = "auth-pkce"
-	flowAuthPKCEPick             pendingFlow = "auth-pkce-pick"
-	flowAuthCustomURL            pendingFlow = "auth-custom-url"
-	flowAuthCustomMethod         pendingFlow = "auth-custom-method"
-	flowAuthCustomBody           pendingFlow = "auth-custom-body"
-	flowAuthCustomBodyType       pendingFlow = "auth-custom-body-type"
-	flowAuthCustomBodyTypePick   pendingFlow = "auth-custom-body-type-pick"
-	flowAuthExtractionSource     pendingFlow = "auth-extraction-source"
-	flowAuthExtractionSourcePick pendingFlow = "auth-extraction-source-pick"
-	flowAuthExtractionExpr       pendingFlow = "auth-extraction-expression"
-	flowAuthApplyHeaderName      pendingFlow = "auth-apply-header-name"
-	flowAuthApplyHeaderTpl       pendingFlow = "auth-apply-header-template"
-	flowAuthAutoRenew            pendingFlow = "auth-auto-renew"
-	flowAuthEditLoad             pendingFlow = "auth-edit-load"
-	flowAuthCopyName             pendingFlow = "auth-copy-name"
-	flowAuthInspect              pendingFlow = "auth-inspect"
-	flowAuthDeleteConfirm        pendingFlow = "auth-delete-confirm"
-	flowSecretCreateName         pendingFlow = "secret-create-name"
-	flowSecretCreateValue        pendingFlow = "secret-create-value"
-	flowSecretEditLoad           pendingFlow = "secret-edit-load"
-	flowSecretEditName           pendingFlow = "secret-edit-name"
-	flowSecretEditValue          pendingFlow = "secret-edit-value"
-	flowSecretCopyName           pendingFlow = "secret-copy-name"
-	flowSecretInspect            pendingFlow = "secret-inspect"
-	flowSecretDeleteConfirm      pendingFlow = "secret-delete-confirm"
-	flowSendSavePath             pendingFlow = "send-save-path"
-	flowSendExportPath           pendingFlow = "send-export-path"
+	flowNone                      pendingFlow = ""
+	flowWorkspaceCreateName       pendingFlow = "workspace-create-name"
+	flowWorkspaceEditName         pendingFlow = "workspace-edit-name"
+	flowWorkspaceCopyName         pendingFlow = "workspace-copy-name"
+	flowWorkspaceImportPath       pendingFlow = "workspace-import-path"
+	flowWorkspaceExportPath       pendingFlow = "workspace-export-path"
+	flowWorkspaceInspect          pendingFlow = "workspace-inspect"
+	flowWorkspaceDeleteConfirm    pendingFlow = "workspace-delete-confirm"
+	flowRequestCreateName         pendingFlow = "request-create-name"
+	flowRequestCreateURL          pendingFlow = "request-create-url"
+	flowRequestCreateMethod       pendingFlow = "request-create-method"
+	flowRequestCreateMethodPick   pendingFlow = "request-create-method-pick"
+	flowRequestCreateAuthPick     pendingFlow = "request-create-auth-pick"
+	flowRequestCreateAuth         pendingFlow = "request-create-auth"
+	flowRequestCreateBodyPick     pendingFlow = "request-create-body-pick"
+	flowRequestCreateBodyType     pendingFlow = "request-create-body-type"
+	flowRequestCreateBody         pendingFlow = "request-create-body"
+	flowRequestHeadersEditor      pendingFlow = "request-headers-editor"
+	flowRequestHeaderAddKey       pendingFlow = "request-header-add-key"
+	flowRequestHeaderAddValue     pendingFlow = "request-header-add-value"
+	flowRequestHeaderEditValue    pendingFlow = "request-header-edit-value"
+	flowRequestParamsEditor       pendingFlow = "request-params-editor"
+	flowRequestParamAddKey        pendingFlow = "request-param-add-key"
+	flowRequestParamAddValue      pendingFlow = "request-param-add-value"
+	flowRequestParamEditValue     pendingFlow = "request-param-edit-value"
+	flowRequestEditLoad           pendingFlow = "request-edit-load"
+	flowRequestInspect            pendingFlow = "request-inspect"
+	flowRequestEditName           pendingFlow = "request-edit-name"
+	flowRequestEditURL            pendingFlow = "request-edit-url"
+	flowRequestEditMethod         pendingFlow = "request-edit-method"
+	flowRequestEditMethodPick     pendingFlow = "request-edit-method-pick"
+	flowRequestEditAuthPick       pendingFlow = "request-edit-auth-pick"
+	flowRequestEditAuth           pendingFlow = "request-edit-auth"
+	flowRequestEditBodyPick       pendingFlow = "request-edit-body-pick"
+	flowRequestEditBodyType       pendingFlow = "request-edit-body-type"
+	flowRequestEditBody           pendingFlow = "request-edit-body"
+	flowRequestCopyName           pendingFlow = "request-copy-name"
+	flowRequestDeleteConfirm      pendingFlow = "request-delete-confirm"
+	flowAuthName                  pendingFlow = "auth-name"
+	flowAuthType                  pendingFlow = "auth-type"
+	flowAuthTypePick              pendingFlow = "auth-type-pick"
+	flowAuthSecret                pendingFlow = "auth-secret"
+	flowAuthPrefix                pendingFlow = "auth-prefix"
+	flowAuthUsername              pendingFlow = "auth-username"
+	flowAuthPassword              pendingFlow = "auth-password"
+	flowAuthGrant                 pendingFlow = "auth-grant"
+	flowAuthGrantPick             pendingFlow = "auth-grant-pick"
+	flowAuthTokenURL              pendingFlow = "auth-token-url"
+	flowAuthClientID              pendingFlow = "auth-client-id"
+	flowAuthClientSecret          pendingFlow = "auth-client-secret"
+	flowAuthScope                 pendingFlow = "auth-scope"
+	flowAuthAuthorizationURL      pendingFlow = "auth-authorization-url"
+	flowAuthRedirectURI           pendingFlow = "auth-redirect-uri"
+	flowAuthPKCE                  pendingFlow = "auth-pkce"
+	flowAuthPKCEPick              pendingFlow = "auth-pkce-pick"
+	flowAuthCustomURL             pendingFlow = "auth-custom-url"
+	flowAuthCustomMethod          pendingFlow = "auth-custom-method"
+	flowAuthCustomHeadersEditor   pendingFlow = "auth-custom-headers-editor"
+	flowAuthCustomHeaderAddKey    pendingFlow = "auth-custom-header-add-key"
+	flowAuthCustomHeaderAddValue  pendingFlow = "auth-custom-header-add-value"
+	flowAuthCustomHeaderEditValue pendingFlow = "auth-custom-header-edit-value"
+	flowAuthCustomParamsEditor    pendingFlow = "auth-custom-params-editor"
+	flowAuthCustomParamAddKey     pendingFlow = "auth-custom-param-add-key"
+	flowAuthCustomParamAddValue   pendingFlow = "auth-custom-param-add-value"
+	flowAuthCustomParamEditValue  pendingFlow = "auth-custom-param-edit-value"
+	flowAuthCustomBody            pendingFlow = "auth-custom-body"
+	flowAuthCustomBodyType        pendingFlow = "auth-custom-body-type"
+	flowAuthCustomBodyTypePick    pendingFlow = "auth-custom-body-type-pick"
+	flowAuthExtractionSource      pendingFlow = "auth-extraction-source"
+	flowAuthExtractionSourcePick  pendingFlow = "auth-extraction-source-pick"
+	flowAuthExtractionExpr        pendingFlow = "auth-extraction-expression"
+	flowAuthApplyHeaderName       pendingFlow = "auth-apply-header-name"
+	flowAuthApplyHeaderTpl        pendingFlow = "auth-apply-header-template"
+	flowAuthAutoRenew             pendingFlow = "auth-auto-renew"
+	flowAuthEditLoad              pendingFlow = "auth-edit-load"
+	flowAuthCopyName              pendingFlow = "auth-copy-name"
+	flowAuthInspect               pendingFlow = "auth-inspect"
+	flowAuthDeleteConfirm         pendingFlow = "auth-delete-confirm"
+	flowSecretCreateName          pendingFlow = "secret-create-name"
+	flowSecretCreateValue         pendingFlow = "secret-create-value"
+	flowSecretEditLoad            pendingFlow = "secret-edit-load"
+	flowSecretEditName            pendingFlow = "secret-edit-name"
+	flowSecretEditValue           pendingFlow = "secret-edit-value"
+	flowSecretCopyName            pendingFlow = "secret-copy-name"
+	flowSecretInspect             pendingFlow = "secret-inspect"
+	flowSecretDeleteConfirm       pendingFlow = "secret-delete-confirm"
+	flowSendSavePath              pendingFlow = "send-save-path"
+	flowSendExportPath            pendingFlow = "send-export-path"
 )
 
 type pendingAction struct {
@@ -283,6 +293,14 @@ func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			pending := *m.pending
 			m.openTextFlow(flowRequestParamAddKey, "Request params", "Param name", "", "param", "Enter the query parameter name", pending)
 			return m, nil
+		case flowAuthCustomHeadersEditor:
+			pending := *m.pending
+			m.openTextFlow(flowAuthCustomHeaderAddKey, authTitle(pending), "Header name", "", "Header-Name", "Enter the custom auth header name", pending)
+			return m, nil
+		case flowAuthCustomParamsEditor:
+			pending := *m.pending
+			m.openTextFlow(flowAuthCustomParamAddKey, authTitle(pending), "Param name", "", "param", "Enter the custom auth query parameter name", pending)
+			return m, nil
 		}
 	}
 
@@ -306,6 +324,10 @@ func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.openTextFlow(flowRequestHeaderEditValue, "Request headers", "Header value", result.Item.Value, "(empty)", "Update the header value", pending)
 		case flowRequestParamsEditor:
 			m.openTextFlow(flowRequestParamEditValue, "Request params", "Param value", result.Item.Value, "(empty)", "Update the parameter value", pending)
+		case flowAuthCustomHeadersEditor:
+			m.openTextFlow(flowAuthCustomHeaderEditValue, authTitle(pending), "Header value", result.Item.Value, "(empty)", "Update the custom auth header value", pending)
+		case flowAuthCustomParamsEditor:
+			m.openTextFlow(flowAuthCustomParamEditValue, authTitle(pending), "Param value", result.Item.Value, "(empty)", "Update the custom auth query parameter value", pending)
 		}
 		return m, nil
 	case dialogs.ActionDelete:
@@ -322,6 +344,14 @@ func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			pending := *m.pending
 			pending.RequestDraft = pending.RequestDraft.WithoutParam(result.Item.Key)
 			m.openRequestParamsEditor(pending)
+		case flowAuthCustomHeadersEditor:
+			pending := *m.pending
+			pending.AuthDraft.CustomHeaders = withoutAuthPair(pending.AuthDraft.CustomHeaders, result.Item.Key)
+			m.openAuthCustomHeadersEditor(pending)
+		case flowAuthCustomParamsEditor:
+			pending := *m.pending
+			pending.AuthDraft.CustomParams = withoutAuthPair(pending.AuthDraft.CustomParams, result.Item.Key)
+			m.openAuthCustomParamsEditor(pending)
 		}
 		return m, nil
 	case dialogs.ActionCancel:
@@ -331,6 +361,12 @@ func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.openRequestParamsEditor(pending)
 		case flowRequestParamsEditor:
 			return m.finalizeRequestDraft(*m.pending)
+		case flowAuthCustomHeadersEditor:
+			pending := *m.pending
+			m.openAuthCustomParamsEditor(pending)
+		case flowAuthCustomParamsEditor:
+			pending := *m.pending
+			m.openTextFlow(flowAuthCustomBody, authTitle(pending), "Body", pending.AuthDraft.CustomBody, "{\"user\":\"admin\"}", "Enter the custom auth body", pending)
 		default:
 			m.clearOverlays()
 			return m, nil
@@ -408,7 +444,7 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 			method = "GET"
 			pending.RequestDraft = pending.RequestDraft.WithMethod(method)
 		}
-		m.openTextFlow(flowRequestCreateMethod, "Create request", "Method", method, "GET", "Enter the HTTP method", pending)
+		m.openRequestMethodSelect(pending)
 		return m, nil
 	case flowRequestCreateMethod:
 		if value == "" {
@@ -504,8 +540,9 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		method := pending.RequestDraft.Method
 		if strings.TrimSpace(method) == "" {
 			method = "GET"
+			pending.RequestDraft = pending.RequestDraft.WithMethod(method)
 		}
-		m.openTextFlow(flowRequestEditMethod, "Edit request", "Method", method, "GET", "Update the HTTP method", pending)
+		m.openRequestMethodSelect(pending)
 		return m, nil
 	case flowRequestEditMethod:
 		if value == "" {
@@ -590,6 +627,24 @@ func (m *Model) acceptSelect(choice string) (tea.Model, tea.Cmd) {
 
 	pending := *m.pending
 	switch pending.Flow {
+	case flowRequestCreateMethodPick:
+		if choice == requestMethodCustomChoice {
+			m.openTextFlow(flowRequestCreateMethod, "Create request", "Method", pending.RequestDraft.Method, "GET", "Enter a custom HTTP method", pending)
+			return m, nil
+		}
+		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(choice))
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, loadRequestAuthChoicesCmd(m.ctx, m.client, pending.WorkspaceID, flowRequestCreateAuthPick)
+	case flowRequestEditMethodPick:
+		if choice == requestMethodCustomChoice {
+			m.openTextFlow(flowRequestEditMethod, "Edit request", "Method", pending.RequestDraft.Method, "GET", "Enter a custom HTTP method", pending)
+			return m, nil
+		}
+		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(choice))
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, loadRequestAuthChoicesCmd(m.ctx, m.client, pending.WorkspaceID, flowRequestEditAuthPick)
 	case flowRequestCreateAuthPick:
 		pending.RequestDraft = pending.RequestDraft.WithAuth(choice)
 		return m.openRequestBodyTypeSelect(pending)
@@ -771,11 +826,13 @@ func isAuthFlow(flow pendingFlow) bool {
 	switch flow {
 	case flowAuthName,
 		flowAuthType,
+		flowAuthTypePick,
 		flowAuthSecret,
 		flowAuthPrefix,
 		flowAuthUsername,
 		flowAuthPassword,
 		flowAuthGrant,
+		flowAuthGrantPick,
 		flowAuthTokenURL,
 		flowAuthClientID,
 		flowAuthClientSecret,
@@ -783,11 +840,22 @@ func isAuthFlow(flow pendingFlow) bool {
 		flowAuthAuthorizationURL,
 		flowAuthRedirectURI,
 		flowAuthPKCE,
+		flowAuthPKCEPick,
 		flowAuthCustomURL,
 		flowAuthCustomMethod,
+		flowAuthCustomHeadersEditor,
+		flowAuthCustomHeaderAddKey,
+		flowAuthCustomHeaderAddValue,
+		flowAuthCustomHeaderEditValue,
+		flowAuthCustomParamsEditor,
+		flowAuthCustomParamAddKey,
+		flowAuthCustomParamAddValue,
+		flowAuthCustomParamEditValue,
 		flowAuthCustomBody,
 		flowAuthCustomBodyType,
+		flowAuthCustomBodyTypePick,
 		flowAuthExtractionSource,
+		flowAuthExtractionSourcePick,
 		flowAuthExtractionExpr,
 		flowAuthApplyHeaderName,
 		flowAuthApplyHeaderTpl,

@@ -514,7 +514,7 @@ func (m *Model) handleSendKey(key send.Key) (tea.Model, tea.Cmd) {
 		m.session.Busy = true
 		return m, copyToClipboardCmd(formatSendExport(m.sendView.Request, m.sendView.Response), "Copied response export to the clipboard")
 	case send.ActionBeautify, send.ActionRevert:
-		m.session.Message = sendActionMessage(action.Kind)
+		m.session.Message = ""
 		return m, nil
 	default:
 		return m, nil
@@ -1148,6 +1148,52 @@ func (m *Model) openRequestBodyTypeSelect(pending pendingAction) (tea.Model, tea
 		m.openSelectFlow(flowRequestCreateBodyPick, "Create request", "Choose the request body type", "Enter choose  Esc cancel", items, pending)
 	}
 	return m, nil
+}
+
+const requestMethodCustomChoice = "__custom__"
+
+var requestMethodChoices = []dialogs.Choice{
+	{Key: "GET", Title: "GET", Description: "Fetch a resource without sending a request body"},
+	{Key: "POST", Title: "POST", Description: "Create or submit a resource with a request body"},
+	{Key: "PUT", Title: "PUT", Description: "Replace a resource with the provided representation"},
+	{Key: "PATCH", Title: "PATCH", Description: "Apply a partial update to a resource"},
+	{Key: "DELETE", Title: "DELETE", Description: "Delete a resource"},
+	{Key: "HEAD", Title: "HEAD", Description: "Fetch only response headers"},
+	{Key: "OPTIONS", Title: "OPTIONS", Description: "Discover available methods and capabilities"},
+	{Key: requestMethodCustomChoice, Title: "Custom…", Description: "Type a nonstandard HTTP method manually"},
+}
+
+func (m *Model) openRequestMethodSelect(pending pendingAction) {
+	current := strings.ToUpper(strings.TrimSpace(pending.RequestDraft.Method))
+	items := make([]dialogs.Choice, 0, len(requestMethodChoices))
+
+	appendChoice := func(key string) {
+		for _, choice := range requestMethodChoices {
+			if choice.Key == key {
+				items = append(items, choice)
+				return
+			}
+		}
+	}
+
+	if current != "" {
+		appendChoice(current)
+	} else {
+		appendChoice("GET")
+	}
+	for _, choice := range requestMethodChoices {
+		if choice.Key == current || (current == "" && choice.Key == "GET") {
+			continue
+		}
+		items = append(items, choice)
+	}
+
+	switch {
+	case pending.Identifier != "":
+		m.openSelectFlow(flowRequestEditMethodPick, "Edit request", "Choose the HTTP method", "Enter choose  Esc cancel", items, pending)
+	default:
+		m.openSelectFlow(flowRequestCreateMethodPick, "Create request", "Choose the HTTP method", "Enter choose  Esc cancel", items, pending)
+	}
 }
 
 func (m *Model) refreshForActiveScreen() tea.Cmd {
