@@ -130,6 +130,10 @@ func (m *Model) acceptPathPicker() (tea.Model, tea.Cmd) {
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, exportWorkspaceCmd(m.ctx, m.client, pending.Identifier, path)
+	case flowRequestCreateBodyLoadPath, flowRequestEditBodyLoadPath:
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, readRequestBodyCmd(path, pending)
 	case flowSendSavePath:
 		successMessage = "Saved response body to " + path
 	case flowSendExportPath:

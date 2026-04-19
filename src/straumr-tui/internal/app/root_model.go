@@ -34,6 +34,7 @@ type Model struct {
 	sendView      *send.View
 	textInput     dialogs.TextInputView
 	secretInput   dialogs.SecretInputView
+	bodyInput     dialogs.MultiLineInputView
 	confirm       dialogs.ConfirmView
 	selectView    dialogs.SelectView
 	keyValue      dialogs.KeyValueEditorView
@@ -98,6 +99,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyRequestEditorSeed(msg)
 	case requestInspectLoadedMsg:
 		return m.applyRequestInspect(msg), nil
+	case requestBodyLoadedMsg:
+		return m.applyRequestBodyLoaded(msg), nil
 	case requestPickerChoicesLoadedMsg:
 		return m.applyRequestPickerChoices(msg), nil
 	case workspaceInspectLoadedMsg:
@@ -726,6 +729,29 @@ func (m *Model) applyRequestInspect(msg requestInspectLoadedMsg) *Model {
 	return m
 }
 
+func (m *Model) applyRequestBodyLoaded(msg requestBodyLoadedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+
+	pending := msg.Pending
+	pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(pending.RequestDraft.BodyType), msg.Content)
+	m.session.Error = ""
+	m.session.Message = "Loaded request body from " + msg.Path
+
+	switch pending.Flow {
+	case flowRequestCreateBodyLoadPath:
+		m.openBodyInputFlow(flowRequestCreateBody, "Create request body", "Edit the request body. Use Ctrl+O to load from file when inline entry is inconvenient.", pending.RequestDraft.Body, pending)
+	case flowRequestEditBodyLoadPath:
+		m.openBodyInputFlow(flowRequestEditBody, "Edit request body", "Edit the request body. Use Ctrl+O to load from file when inline entry is inconvenient.", pending.RequestDraft.Body, pending)
+	}
+
+	return m
+}
+
 func (m *Model) applyWorkspaceInspect(msg workspaceInspectLoadedMsg) *Model {
 	m.session.Busy = false
 	if msg.Err != nil {
@@ -1147,6 +1173,24 @@ func (m *Model) openRequestBodyTypeSelect(pending pendingAction) (tea.Model, tea
 	default:
 		m.openSelectFlow(flowRequestCreateBodyPick, "Create request", "Choose the request body type", "Enter choose  Esc cancel", items, pending)
 	}
+	return m, nil
+}
+
+func (m *Model) openRequestBodyEditor(pending pendingAction) (tea.Model, tea.Cmd) {
+	title := "Create request body"
+	flow := flowRequestCreateBody
+	if pending.Identifier != "" {
+		title = "Edit request body"
+		flow = flowRequestEditBody
+	}
+
+	m.openBodyInputFlow(
+		flow,
+		title,
+		"Edit the request body. Use Ctrl+O to load from file when inline entry is inconvenient.",
+		pending.RequestDraft.Body,
+		pending,
+	)
 	return m, nil
 }
 

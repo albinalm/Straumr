@@ -170,6 +170,20 @@ func writeFileCmd(path, content, successMessage string) tea.Cmd {
 	}
 }
 
+func readRequestBodyCmd(path string, pending pendingAction) tea.Cmd {
+	return func() tea.Msg {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return requestBodyLoadedMsg{Pending: pending, Path: path, Err: err}
+		}
+		return requestBodyLoadedMsg{
+			Pending: pending,
+			Path:    path,
+			Content: string(content),
+		}
+	}
+}
+
 func copyToClipboardCmd(content, successMessage string) tea.Cmd {
 	return func() tea.Msg {
 		if runtime.GOOS != "windows" {

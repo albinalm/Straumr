@@ -3,6 +3,8 @@ package dialogs
 import (
 	"fmt"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Pair struct {
@@ -251,4 +253,227 @@ func maskedValue(value string) string {
 		return ""
 	}
 	return "******"
+}
+
+type MultiLineInputView struct {
+	OverlayState
+	Title   string
+	Message string
+	Value   string
+	Cursor  int
+}
+
+func (v *MultiLineInputView) Open(title, message, value string) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Message = message
+	v.Value = value
+	v.Cursor = len([]rune(value))
+}
+
+func (v *MultiLineInputView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Message = ""
+	v.Value = ""
+	v.Cursor = 0
+}
+
+func (v *MultiLineInputView) Result(accepted bool) InputResult {
+	return InputResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Value:     v.Value,
+	}
+}
+
+func (v *MultiLineInputView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
+	var b strings.Builder
+	if v.Title != "" {
+		b.WriteString(v.Title)
+		b.WriteString("\n")
+	}
+	if v.Message != "" {
+		b.WriteString(v.Message)
+		b.WriteString("\n")
+	}
+
+	lines := renderMultilineCursor(v.Value, v.Cursor)
+	if len(lines) == 0 {
+		lines = []string{"|"}
+	}
+
+	for _, line := range lines {
+		b.WriteString("  ")
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+
+	b.WriteString("Ctrl+S accept  Ctrl+O load file  Ctrl+L clear  Enter newline  Esc back")
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (v *MultiLineInputView) ApplyKey(msg tea.KeyMsg) ActionKind {
+	switch msg.String() {
+	case "ctrl+s":
+		return ActionAccept
+	case "esc":
+		return ActionCancel
+	case "left":
+		v.moveHorizontal(-1)
+	case "right":
+		v.moveHorizontal(1)
+	case "up":
+		v.moveVertical(-1)
+	case "down":
+		v.moveVertical(1)
+	case "home":
+		v.moveToLineEdge(false)
+	case "end":
+		v.moveToLineEdge(true)
+	case "backspace":
+		v.backspace()
+	case "delete":
+		v.deleteForward()
+	case "enter":
+		v.insertText("\n")
+	default:
+		switch {
+		case msg.Type == tea.KeySpace:
+			v.insertText(" ")
+		case len(msg.Runes) > 0:
+			v.insertText(string(msg.Runes))
+		}
+	}
+
+	return ActionNone
+}
+
+func (v *MultiLineInputView) SetValue(value string) {
+	v.Value = value
+	v.Cursor = len([]rune(value))
+}
+
+func (v *MultiLineInputView) moveHorizontal(delta int) {
+	runes := []rune(v.Value)
+	v.Cursor += delta
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	}
+	if v.Cursor > len(runes) {
+		v.Cursor = len(runes)
+	}
+}
+
+func (v *MultiLineInputView) moveVertical(delta int) {
+	line, col, lines := multilineCursorState(v.Value, v.Cursor)
+	if len(lines) == 0 {
+		return
+	}
+	target := line + delta
+	if target < 0 {
+		target = 0
+	}
+	if target >= len(lines) {
+		target = len(lines) - 1
+	}
+	targetCol := col
+	if targetCol > len(lines[target]) {
+		targetCol = len(lines[target])
+	}
+	v.Cursor = multilineIndexFromLineCol(lines, target, targetCol)
+}
+
+func (v *MultiLineInputView) moveToLineEdge(end bool) {
+	line, _, lines := multilineCursorState(v.Value, v.Cursor)
+	if len(lines) == 0 {
+		v.Cursor = 0
+		return
+	}
+	col := 0
+	if end {
+		col = len(lines[line])
+	}
+	v.Cursor = multilineIndexFromLineCol(lines, line, col)
+}
+
+func (v *MultiLineInputView) backspace() {
+	runes := []rune(v.Value)
+	if v.Cursor <= 0 || v.Cursor > len(runes) {
+		return
+	}
+	runes = append(runes[:v.Cursor-1], runes[v.Cursor:]...)
+	v.Cursor--
+	v.Value = string(runes)
+}
+
+func (v *MultiLineInputView) deleteForward() {
+	runes := []rune(v.Value)
+	if v.Cursor < 0 || v.Cursor >= len(runes) {
+		return
+	}
+	runes = append(runes[:v.Cursor], runes[v.Cursor+1:]...)
+	v.Value = string(runes)
+}
+
+func (v *MultiLineInputView) insertText(text string) {
+	runes := []rune(v.Value)
+	insert := []rune(text)
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	}
+	if v.Cursor > len(runes) {
+		v.Cursor = len(runes)
+	}
+	runes = append(runes[:v.Cursor], append(insert, runes[v.Cursor:]...)...)
+	v.Cursor += len(insert)
+	v.Value = string(runes)
+}
+
+func renderMultilineCursor(value string, cursor int) []string {
+	runes := []rune(value)
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor > len(runes) {
+		cursor = len(runes)
+	}
+	withCursor := append([]rune{}, runes[:cursor]...)
+	withCursor = append(withCursor, '|')
+	withCursor = append(withCursor, runes[cursor:]...)
+	return strings.Split(string(withCursor), "\n")
+}
+
+func multilineCursorState(value string, cursor int) (line int, col int, lines []string) {
+	lines = strings.Split(value, "\n")
+	if len(lines) == 0 {
+		lines = []string{""}
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+
+	offset := 0
+	for i, current := range lines {
+		length := len([]rune(current))
+		if cursor <= offset+length {
+			return i, cursor - offset, lines
+		}
+		offset += length + 1
+	}
+
+	last := len(lines) - 1
+	return last, len([]rune(lines[last])), lines
+}
+
+func multilineIndexFromLineCol(lines []string, line int, col int) int {
+	index := 0
+	for i := 0; i < line; i++ {
+		index += len([]rune(lines[i])) + 1
+	}
+	return index + col
 }

@@ -120,7 +120,7 @@ func (v *EditorView) Render() string {
 	b.WriteString(editorLine(v.Focus == EditorFieldBody, "Body", bodySummary(v.Draft)))
 	b.WriteString(editorLine(v.Focus == EditorFieldAuth, "Auth", v.Draft.Auth))
 	b.WriteString("\n")
-	b.WriteString("Enter submit  Esc cancel  j/k or Tab/Shift+Tab move")
+	b.WriteString("Enter submit  Esc cancel  up/down move")
 
 	return strings.TrimRight(b.String(), "\n")
 }

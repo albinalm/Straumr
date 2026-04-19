@@ -22,6 +22,7 @@ In progress. Go overlay helpers are present with structured result types, and th
 - Wired the shell to use the shared path picker for send save/export flows.
 - Extended shared path-picker usage to workspace import/export flows.
 - Reused the shared key/value overlay for custom-auth headers and params, not just request headers and params.
+- Added a shared multiline body overlay and reused the shared path picker to load request bodies from files.
 
 ## Work in progress
 
@@ -47,6 +48,7 @@ In progress. Go overlay helpers are present with structured result types, and th
 
 - Replace any remaining ad hoc path/file prompts with the shared picker primitives.
 - Replace any remaining ad hoc option-choice prompts with the shared select primitives.
+- Decide whether the multiline body overlay should grow save/export affordances or stay focused on load/edit/accept.
 - Decide whether the picker needs active-workspace quick locations from shell state.
 
 ## Resume notes
@@ -55,4 +57,5 @@ In progress. Go overlay helpers are present with structured result types, and th
 - The shared path picker is already in use for send save/export, and the shared select overlay is now in use for request auth/body-type choice.
 - The shared path picker is already in use for send save/export and workspace import/export, and the shared select overlay is now in use for request auth/body-type choice.
 - The shared select overlay now also covers the auth create/edit choice fields.
+- Request bodies now use a dedicated multiline overlay, with the shared path picker available for file-backed load.
 - The next pass should extend that reuse rather than creating new one-off prompts.

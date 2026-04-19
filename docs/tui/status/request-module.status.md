@@ -20,6 +20,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Replaced request auth selection with a CLI-backed picker using `list auth --json --workspace <ws>`.
 - Replaced request method entry with a shared select overlay plus custom-method fallback.
 - Replaced request body-type entry with a shared select overlay for the supported body modes.
+- Replaced the plain request-body prompt with a dedicated multiline body overlay and file-load path for larger payloads.
 - Added quick create/edit request flows in the shell for name, URL, method, auth, body/body type, headers, and params using `get/create/edit request --json`.
 - Wired request copy/delete through the shell to the typed CLI client.
 - Wired the embedded request editor submit path through the same JSON-safe request mutation commands instead of leaving it as a shell placeholder.
@@ -27,11 +28,11 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 
 ## Work in progress
 
-- Refining request detail presentation and remaining overlay ergonomics around the picker-backed flows.
+- Refining request detail presentation and remaining structured-overlay ergonomics around headers/params and inspect.
 
 ## Blockers
 
-- Large inline payloads need a safe CLI input path before final implementation.
+- Very large request bodies still ultimately depend on the current CLI `--data` contract even though the TUI body authoring path is better now.
 
 ## Files touched
 
@@ -55,4 +56,4 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Request create/edit now works as a quick flow for name, URL, method, auth, body/body type, headers, and params.
 - The embedded request editor submit path no longer dead-ends if the shell mounts it.
 - Request inspect is live and uses the JSON-safe get path.
-- Request method/auth/body type now use shared selectors; the remaining request gap is mostly detail polish, overlay refinement, and the large-body input path.
+- Request method/auth/body type now use shared selectors, request body editing has a dedicated overlay plus file import, and the remaining gap is mostly detail polish plus header/param editor refinement.

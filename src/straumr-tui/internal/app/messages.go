@@ -58,6 +58,13 @@ type requestInspectLoadedMsg struct {
 	RequestID string
 }
 
+type requestBodyLoadedMsg struct {
+	Pending pendingAction
+	Path    string
+	Content string
+	Err     error
+}
+
 type requestPickerChoicesLoadedMsg struct {
 	Flow    pendingFlow
 	Choices []pickerChoice

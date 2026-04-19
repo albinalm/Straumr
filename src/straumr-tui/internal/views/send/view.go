@@ -288,7 +288,7 @@ func renderBodyPane(v *View) string {
 }
 
 func renderFooter() string {
-	return "j/k or up/down scroll  tab/shift-tab switch pane  c copy pane  y copy template  b beautify  r revert  S save body  e export  d dry-run  R refresh  esc close"
+	return "j/k or up/down scroll  tab/shift-tab switch pane  c copy pane  p copy template  b beautify  R revert  w save body  x export  n dry-run  s refresh  esc close"
 }
 
 func (v *View) setBeautified(enabled bool) {
