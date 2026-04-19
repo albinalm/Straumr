@@ -1,0 +1,48 @@
+package app
+
+import (
+	"straumr-tui/internal/cli"
+	"straumr-tui/internal/state"
+)
+
+type bootstrapMsg struct {
+	Workspaces []cli.WorkspaceSummary
+	Active     *cli.WorkspaceSummary
+	Requests   []cli.RequestSummary
+	Err        error
+}
+
+type workspacesLoadedMsg struct {
+	Workspaces []cli.WorkspaceSummary
+	Err        error
+}
+
+type requestsLoadedMsg struct {
+	Workspace state.WorkspaceRef
+	Requests  []cli.RequestSummary
+	Err       error
+}
+
+type authsLoadedMsg struct {
+	Workspace state.WorkspaceRef
+	Auths     []cli.AuthSummary
+	Err       error
+}
+
+type secretsLoadedMsg struct {
+	Secrets []cli.SecretSummary
+	Err     error
+}
+
+type sendLoadedMsg struct {
+	Request state.RequestRef
+	Result  cli.SendSummary
+	Err     error
+}
+
+type statusMsg string
+
+type cliErrorMsg struct {
+	Scope string
+	Err   error
+}

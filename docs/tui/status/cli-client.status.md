@@ -6,7 +6,7 @@ Subprocess execution, stdout/stderr capture, JSON decode, exit-code handling, ca
 
 ## Current status
 
-CLI prework completed. Go implementation not started.
+CLI prework completed. Go subprocess client scaffold is in place.
 
 ## Completed work
 
@@ -15,14 +15,15 @@ CLI prework completed. Go implementation not started.
 - Defined cache/invalidation role.
 - Implemented the scoped CLI delta set needed to unblock strict TUI usage.
 - Updated the machine-readable docs to match the implemented contract.
+- Added the Go `straumr` client wrapper, executor, error parsing, list-result caching, and typed startup helpers.
 
 ## Work in progress
 
-- None.
+- Extending the typed client with the remaining request/send/mutation helpers as the TUI modules land.
 
 ## Blockers
 
-- Dotnet build/test verification is pending outside the sandbox.
+- The parallel auth/secret/send/dialog view packages are not yet build-complete.
 - Large inline payload handling is still an open design concern for future request/auth editing.
 
 ## Files touched
@@ -45,6 +46,14 @@ CLI prework completed. Go implementation not started.
 - `src/Straumr.Console.Cli/Models/SecretDeleteResult.cs`
 - `src/Straumr.Core/Services/Interfaces/IStraumrWorkspaceService.cs`
 - `src/Straumr.Core/Services/StraumrWorkspaceService.cs`
+- `src/straumr-tui/go.mod`
+- `src/straumr-tui/go.sum`
+- `src/straumr-tui/cmd/straumr-tui/main.go`
+- `src/straumr-tui/internal/cache/store.go`
+- `src/straumr-tui/internal/cli/client.go`
+- `src/straumr-tui/internal/cli/errors.go`
+- `src/straumr-tui/internal/cli/exec.go`
+- `src/straumr-tui/internal/cli/types.go`
 
 ## Important decisions
 
@@ -56,9 +65,9 @@ CLI prework completed. Go implementation not started.
 
 ## Next steps
 
-- Have the user run a dotnet build/test pass and report results.
-- Start the Go client wrapper and cache layer once the CLI changes are verified.
+- Finish the remaining typed wrappers for request/auth/secret/send flows.
+- Integrate the shell against the remaining feature view packages.
 
 ## Resume notes
 
-- The scoped CLI contract is implemented; `docs/tui/cli-contract-changes.md` now records the shipped behavior rather than proposed changes.
+- The Go subprocess layer is in place and verified for the foundation-owned packages; next work is feature-module integration.

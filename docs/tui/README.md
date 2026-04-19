@@ -1,6 +1,6 @@
 # Straumr Go TUI Design
 
-This directory contains the Phase 1 design for `straumr-tui`, a Go replacement for `Straumr.Console.Tui`.
+This directory contains the Phase 1 design and the Phase 3 foundation scaffold for `straumr-tui`, a Go replacement for `Straumr.Console.Tui`.
 
 ## Design goals
 
@@ -54,6 +54,12 @@ Remaining contract notes:
 
 - `request edit` supports inline JSON-safe mutation, but very large bodies can still hit command-length limits.
 - `delete workspace`, `delete request`, and `delete auth` accept `--json` but still use exit code rather than stdout JSON for success.
+
+Go TUI implementation status:
+
+- The root Bubble Tea scaffold, typed CLI exec layer, cache store, and startup routing are now in place.
+- Existing workspace/request view packages remain separate and are consumed by the shell without modification.
+- Auth/secret/send/dialog feature packages are being integrated in parallel.
 
 ## Document index
 

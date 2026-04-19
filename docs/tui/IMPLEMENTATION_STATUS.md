@@ -4,20 +4,20 @@
 
 - Phase 1: design complete
 - Phase 2: CLI contract completion implemented
-- Phase 3: Go TUI implementation not started
+- Phase 3: Go TUI foundation scaffold started
 
 ## Module status
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| App shell | Designed | Bubble Tea root model, navigation, refresh rules defined |
-| CLI client | Ready for Go implementation | Scoped CLI contract gaps closed; subprocess, JSON decode, stderr envelope parsing, cache rules defined |
-| Workspace | Ready for Go implementation | Structured rename path is now available |
-| Request | Designed | Full list/edit/send handoff flow defined |
-| Auth | Ready for Go implementation | Structured inline edit contract is now available |
-| Secret | Ready for Go implementation | Structured create/edit/delete contract is now available |
-| Send | Designed | JSON-only response viewer defined |
-| Dialogs/pickers | Designed | New picker direction defined |
+| App shell | Started | Bubble Tea root model, navigation, refresh rules, and startup routing scaffolded |
+| CLI client | Started | Subprocess execution, JSON decode, stderr envelope parsing, and cache layer scaffolded |
+| Workspace | View package present | Structured rename path is available; shell integration pending |
+| Request | View package present | List/editor views exist; shell integration pending |
+| Auth | View package in parallel | Structured inline edit contract is available |
+| Secret | View package in parallel | Structured create/edit/delete contract is available |
+| Send | View package in parallel | JSON-only response viewer planned |
+| Dialogs/pickers | View package in parallel | Shared picker direction planned |
 
 ## Open decisions
 
@@ -26,18 +26,16 @@
 
 ## Blockers
 
-- Dotnet build/test verification has not been run in this session.
+- Parallel view packages are still being completed.
 - Large inline payload handling is still an open contract concern for future TUI/editor work.
 
 ## Recommended implementation order
 
-1. Verify the CLI changes with a user-run dotnet build/test pass.
-2. Scaffold `straumr-tui` root app, keymap, and subprocess client.
-3. Implement workspace and request list screens plus caching/invalidation.
-4. Implement send view.
-5. Implement request editor.
-6. Implement auth and secret modules.
-7. Implement shared dialogs/path pickers last-mile polish.
+1. Integrate the root shell with the completed workspace/request view packages.
+2. Finish the typed client wrappers for request/send/auth/secret commands.
+3. Integrate send response rendering.
+4. Integrate auth and secret screens.
+5. Wire shared dialogs/path pickers.
 
 ## Files touched
 
@@ -65,3 +63,11 @@
 - `src/Straumr.Console.Cli/Models/SecretDeleteResult.cs`
 - `src/Straumr.Core/Services/Interfaces/IStraumrWorkspaceService.cs`
 - `src/Straumr.Core/Services/StraumrWorkspaceService.cs`
+- `src/straumr-tui/go.mod`
+- `src/straumr-tui/go.sum`
+- `src/straumr-tui/cmd/straumr-tui/main.go`
+- `src/straumr-tui/internal/app/**`
+- `src/straumr-tui/internal/cache/**`
+- `src/straumr-tui/internal/cli/**`
+- `src/straumr-tui/internal/state/**`
+- `src/straumr-tui/internal/ui/**`

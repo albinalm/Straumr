@@ -423,3 +423,11 @@ FodyWeavers.xsd
 
 # Private key
 minisign.key
+
+# Local AI assistant workspace state
+.claude/
+src/.claude/
+
+# Local Go build/module caches used for sandboxed verification
+.gocache/
+.gomodcache/
