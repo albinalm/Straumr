@@ -6,7 +6,7 @@ Request send flow, optional dry-run preview, response viewer, copy/beautify/expo
 
 ## Current status
 
-Designed. Implementation not started.
+Go response-view package is present and the shell can hand off requests to it.
 
 ## Completed work
 
@@ -14,6 +14,8 @@ Designed. Implementation not started.
 - Defined JSON-only send strategy.
 - Defined large-output handling requirements.
 - Confirmed shared JSON stderr envelope helper in CLI source.
+- Added the Go send view surface for request/response rendering and pane focus.
+- Wired the root shell to enter the send screen on request send actions.
 
 ## Work in progress
 
@@ -22,11 +24,13 @@ Designed. Implementation not started.
 ## Blockers
 
 - None beyond CLI binary resolution and general project scaffolding.
+- Response mutation/export/save actions still need shell-side completion.
 
 ## Files touched
 
 - `docs/tui/send-module.md`
 - `docs/tui/IMPLEMENTATION_STATUS.md`
+- `src/straumr-tui/internal/views/send/view.go`
 
 ## Important decisions
 
@@ -35,8 +39,9 @@ Designed. Implementation not started.
 
 ## Next steps
 
-- Implement after request list selection flow exists.
+- Wire CLI send responses into the response viewer.
+- Complete copy/export/save actions and dry-run handling.
 
 ## Resume notes
 
-- Reuse shared viewport and file-save dialog primitives.
+- The send view already renders the response shell; the remaining work is transport and action wiring.

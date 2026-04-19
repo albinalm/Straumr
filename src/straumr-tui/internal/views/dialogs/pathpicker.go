@@ -21,6 +21,7 @@ type PathEntry struct {
 }
 
 type PathPickerView struct {
+	OverlayState
 	Title          string
 	Message        string
 	Mode           PathMode
@@ -33,6 +34,33 @@ type PathPickerView struct {
 	Entries        []PathEntry
 }
 
+func (v *PathPickerView) Open(title, message string, mode PathMode, inputPath, currentDir string, mustExist bool, quickLocations, entries []PathEntry) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Message = message
+	v.Mode = mode
+	v.InputPath = inputPath
+	v.CurrentDir = currentDir
+	v.MustExist = mustExist
+	v.Cursor = 0
+	v.QuickLocations = append(v.QuickLocations[:0], quickLocations...)
+	v.SetEntries(entries)
+}
+
+func (v *PathPickerView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Message = ""
+	v.Mode = ""
+	v.InputPath = ""
+	v.CurrentDir = ""
+	v.Filter = ""
+	v.MustExist = false
+	v.Cursor = 0
+	v.QuickLocations = nil
+	v.Entries = nil
+}
+
 func (v *PathPickerView) SetEntries(entries []PathEntry) {
 	v.Entries = append(v.Entries[:0], entries...)
 	if v.Cursor >= len(v.Entries) {
@@ -41,6 +69,22 @@ func (v *PathPickerView) SetEntries(entries []PathEntry) {
 	if v.Cursor < 0 {
 		v.Cursor = 0
 	}
+}
+
+func (v *PathPickerView) Result(accepted bool) PathResult {
+	result := PathResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Mode:      v.Mode,
+		Path:      v.InputPath,
+	}
+	if v.Cursor >= 0 && v.Cursor < len(v.Entries) {
+		result.Entry = v.Entries[v.Cursor]
+	}
+	if result.Path == "" && result.Entry.Path != "" {
+		result.Path = result.Entry.Path
+	}
+	return result
 }
 
 func (v *PathPickerView) HandleKey(key Key) ActionKind {
@@ -69,6 +113,10 @@ func (v *PathPickerView) HandleKey(key Key) ActionKind {
 }
 
 func (v *PathPickerView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 
 	title := v.Title

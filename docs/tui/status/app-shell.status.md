@@ -6,23 +6,22 @@ Bubble Tea root model, navigation, shared screen state, refresh rules, global ke
 
 ## Current status
 
-Started. Root Bubble Tea scaffold is in place.
+In progress. Root Bubble Tea shell is in place and the main screens are wired.
 
 ## Completed work
 
 - Defined root-model responsibilities and boundaries.
 - Mapped startup behavior to existing TUI behavior.
 - Mapped shared keybindings and screen transitions.
-- Implemented the Go root model, startup binary resolution, shell routing, and workspace/request screen switching.
-- Added the session/state primitives and key translation helpers that the feature views consume.
+- Implemented the Go root model, startup binary resolution, shell routing, and workspace/request/auth/secret/send screen switching.
+- Added the session/state primitives, key translation helpers, and overlay hooks that the feature views consume.
 
 ## Work in progress
 
-- Integrating the root shell with the remaining auth/secret/send feature packages as they land.
+- Connecting mutation submission and overlay results back into the shell.
 
 ## Blockers
 
-- Parallel feature view packages are still landing in separate work.
 - Large-body request editing remains an open future concern.
 
 ## Files touched
@@ -38,6 +37,7 @@ Started. Root Bubble Tea scaffold is in place.
 - `src/straumr-tui/internal/state/session.go`
 - `src/straumr-tui/internal/ui/keymap.go`
 - `src/straumr-tui/internal/ui/layout.go`
+- `src/straumr-tui/internal/views/**`
 
 ## Important decisions
 
@@ -46,8 +46,8 @@ Started. Root Bubble Tea scaffold is in place.
 
 ## Next steps
 
-- Wire the remaining view packages into the shell and extend the refresh/mutation command handlers.
+- Wire the structured draft/result APIs from the view packages into the shell mutation handlers.
 
 ## Resume notes
 
-- The root shell is functional for workspaces and requests; next work is feature integration.
+- The root shell already renders all major screens; the next work is mutation and overlay completion.

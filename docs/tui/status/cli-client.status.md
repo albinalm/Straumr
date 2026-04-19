@@ -6,7 +6,7 @@ Subprocess execution, stdout/stderr capture, JSON decode, exit-code handling, ca
 
 ## Current status
 
-CLI prework completed. Go subprocess client scaffold is in place.
+CLI prework completed. Go subprocess client and cache layer are in place.
 
 ## Completed work
 
@@ -15,15 +15,14 @@ CLI prework completed. Go subprocess client scaffold is in place.
 - Defined cache/invalidation role.
 - Implemented the scoped CLI delta set needed to unblock strict TUI usage.
 - Updated the machine-readable docs to match the implemented contract.
-- Added the Go `straumr` client wrapper, executor, error parsing, list-result caching, and typed startup helpers.
+- Added the Go `straumr` client wrapper, executor, error parsing, list-result caching, typed startup helpers, and the initial request/send/auth/secret integration surface.
 
 ## Work in progress
 
-- Extending the typed client with the remaining request/send/mutation helpers as the TUI modules land.
+- Extending the typed client with the remaining mutation helpers and response handling the shell still needs.
 
 ## Blockers
 
-- The parallel auth/secret/send/dialog view packages are not yet build-complete.
 - Large inline payload handling is still an open design concern for future request/auth editing.
 
 ## Files touched
@@ -54,6 +53,7 @@ CLI prework completed. Go subprocess client scaffold is in place.
 - `src/straumr-tui/internal/cli/errors.go`
 - `src/straumr-tui/internal/cli/exec.go`
 - `src/straumr-tui/internal/cli/types.go`
+- `src/straumr-tui/internal/views/**`
 
 ## Important decisions
 
@@ -62,12 +62,13 @@ CLI prework completed. Go subprocess client scaffold is in place.
 - Large outputs should spill to temp files when needed.
 - Missing contract pieces should be fixed with additive structured CLI paths rather than TUI-side workarounds.
 - Keep the existing human editor/prompt flows available while adding machine-safe paths.
+- The current Go view packages now expose structured draft/result APIs for the shell to consume.
 
 ## Next steps
 
 - Finish the remaining typed wrappers for request/auth/secret/send flows.
-- Integrate the shell against the remaining feature view packages.
+- Connect the mutation results back into the shell refresh pipeline.
 
 ## Resume notes
 
-- The Go subprocess layer is in place and verified for the foundation-owned packages; next work is feature-module integration.
+- The Go subprocess layer is in place and verified; the remaining work is shell-level integration, not foundation setup.

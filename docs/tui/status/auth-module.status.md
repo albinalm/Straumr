@@ -6,7 +6,7 @@ Auth list, inspect, create, edit, copy, and delete for workspace-local auth defi
 
 ## Current status
 
-CLI contract ready. Go implementation not started.
+Go view package is present with type-aware draft extraction and inline edit support.
 
 ## Completed work
 
@@ -14,6 +14,8 @@ CLI contract ready. Go implementation not started.
 - Defined read/create/copy/delete CLI usage.
 - Implemented additive inline `edit auth` support reusing the create-flag surface.
 - Kept the existing interactive/editor-backed flows for non-inline usage.
+- Added auth draft extraction per type and explicit editor open/close helpers in the Go view package.
+- Added the structured auth list/edit surface in the Go shell.
 
 ## Work in progress
 
@@ -23,6 +25,7 @@ CLI contract ready. Go implementation not started.
 
 - Dotnet build/test verification is pending outside the sandbox.
 - Large auth payload input still has command-line length risk in future TUI/editor work.
+- Shell-level mutation submission still needs to consume the structured draft payloads.
 
 ## Files touched
 
@@ -32,6 +35,7 @@ CLI contract ready. Go implementation not started.
 - `src/Straumr.Console.Cli/Commands/Auth/AuthEditCommand.cs`
 - `src/Straumr.Console.Cli/Commands/Auth/AuthInlineConfigBuilder.cs`
 - `src/Straumr.Console.Cli/Commands/Auth/AuthInlineSettingsBase.cs`
+- `src/straumr-tui/internal/views/auth/**`
 
 ## Important decisions
 
@@ -40,9 +44,9 @@ CLI contract ready. Go implementation not started.
 
 ## Next steps
 
-- Verify the CLI change with a user-run dotnet build/test pass.
-- Implement auth forms against the structured CLI contract.
+- Wire auth draft submission into the shell mutation path.
+- Add shell-side auth picker and edit-overlay handling.
 
 ## Resume notes
 
-- `edit auth --json` is now safe for subprocess use when inline flags are present; `--json` with no inline flags still routes to the editor-backed path by design.
+- `edit auth --json` is safe for subprocess use when inline flags are present, and the Go view now exposes a type-aware draft payload.

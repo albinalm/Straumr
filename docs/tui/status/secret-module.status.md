@@ -6,7 +6,7 @@ Global secret list, inspect, create, edit, copy, and delete with masking rules.
 
 ## Current status
 
-CLI contract ready. Go implementation not started.
+Go view package is present with structured draft/result APIs.
 
 ## Completed work
 
@@ -15,6 +15,8 @@ CLI contract ready. Go implementation not started.
 - Implemented `create secret --json`.
 - Implemented inline `edit secret --json`.
 - Implemented `delete secret --json` with a small success object.
+- Added secret draft extraction and explicit editor open/close helpers in the Go view package.
+- Added delete-result and secret masking helpers for shell consumption.
 
 ## Work in progress
 
@@ -23,6 +25,7 @@ CLI contract ready. Go implementation not started.
 ## Blockers
 
 - Dotnet build/test verification is pending outside the sandbox.
+- Shell-level mutation submission still needs to consume the structured draft payloads.
 
 ## Files touched
 
@@ -33,6 +36,7 @@ CLI contract ready. Go implementation not started.
 - `src/Straumr.Console.Cli/Commands/Secret/SecretEditCommand.cs`
 - `src/Straumr.Console.Cli/Infrastructure/CliJsonContext.cs`
 - `src/Straumr.Console.Cli/Models/SecretDeleteResult.cs`
+- `src/straumr-tui/internal/views/secret/**`
 
 ## Important decisions
 
@@ -41,9 +45,9 @@ CLI contract ready. Go implementation not started.
 
 ## Next steps
 
-- Verify the CLI changes with a user-run dotnet build/test pass.
-- Implement the secret screen and dialogs against the structured contract.
+- Wire secret draft submission into the shell mutation path.
+- Connect the masking/edit overlays to the structured dialog helpers.
 
 ## Resume notes
 
-- `create secret --json` requires both arguments and does not prompt. `edit secret` keeps the editor flow when no inline flags are supplied.
+- `create secret --json` requires both arguments and does not prompt. The Go view now exposes a structured secret draft payload.

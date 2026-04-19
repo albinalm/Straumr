@@ -12,6 +12,7 @@ import (
 	"straumr-tui/internal/state"
 	"straumr-tui/internal/ui"
 	"straumr-tui/internal/views/auth"
+	"straumr-tui/internal/views/dialogs"
 	"straumr-tui/internal/views/request"
 	"straumr-tui/internal/views/secret"
 	"straumr-tui/internal/views/send"
@@ -30,6 +31,10 @@ type Model struct {
 	authView      *auth.View
 	secretView    *secret.View
 	sendView      *send.View
+	textInput     dialogs.TextInputView
+	secretInput   dialogs.SecretInputView
+	confirm       dialogs.ConfirmView
+	pending       *pendingAction
 }
 
 func NewModel(ctx context.Context, client *cli.Client, store *cache.Store) *Model {
@@ -81,6 +86,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applySecrets(msg), nil
 	case sendLoadedMsg:
 		return m.applySend(msg), nil
+	case mutationCompletedMsg:
+		return m.applyMutation(msg)
+	case secretEditorSeedMsg:
+		return m.applySecretEditorSeed(msg)
 	case cliErrorMsg:
 		m.session.Busy = false
 		m.session.Error = msg.Err.Error()
@@ -97,10 +106,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	body := m.renderActiveScreen()
+	if overlay := m.overlayView(); overlay != "" {
+		body = strings.TrimRight(body, "\n")
+		if body != "" {
+			body += "\n\n"
+		}
+		body += overlay
+	}
 	return ui.RenderShell(m.session, body)
 }
 
 func (m *Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.hasOverlay() {
+		return m.handleOverlayKey(msg)
+	}
+
+	if m.session.Screen == state.ScreenSend {
+		if key, ok := ui.SendKey(msg); ok && (key == send.KeyTab || key == send.KeyShiftTab) {
+			return m.handleSendKey(key)
+		}
+	}
+
 	if global, ok := ui.Global(msg); ok {
 		switch global {
 		case ui.GlobalQuit:
@@ -166,7 +192,37 @@ func (m *Model) handleWorkspaceKey(key workspace.Key) (tea.Model, tea.Cmd) {
 			return m, refreshRequestsCmd(m.ctx, m.client, action.Item.ID, action.Item.Name)
 		}
 		return m, nil
-	case workspace.ActionCreate, workspace.ActionDelete, workspace.ActionEdit, workspace.ActionCopy, workspace.ActionImport, workspace.ActionExport, workspace.ActionSearch, workspace.ActionCommand, workspace.ActionInspect:
+	case workspace.ActionCreate:
+		m.openTextFlow(flowWorkspaceCreateName, "Create workspace", "Name", "", "workspace name", "Enter the new workspace name", pendingAction{})
+		return m, nil
+	case workspace.ActionEdit:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.openTextFlow(flowWorkspaceEditName, "Rename workspace", "Name", action.Item.Name, "workspace name", "Rename the selected workspace", pendingAction{
+			Identifier: action.Item.ID,
+			Name:       action.Item.Name,
+		})
+		return m, nil
+	case workspace.ActionCopy:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.openTextFlow(flowWorkspaceCopyName, "Copy workspace", "New name", action.Item.Name+"-copy", "workspace name", "Enter the name for the copied workspace", pendingAction{
+			Identifier: action.Item.ID,
+			Name:       action.Item.Name,
+		})
+		return m, nil
+	case workspace.ActionDelete:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.openConfirmFlow(flowWorkspaceDeleteConfirm, "Delete workspace", fmt.Sprintf("Delete %s?", action.Item.Name), []string{"Cancel", "Delete"}, pendingAction{
+			Identifier: action.Item.ID,
+			Name:       action.Item.Name,
+		})
+		return m, nil
+	case workspace.ActionImport, workspace.ActionExport, workspace.ActionSearch, workspace.ActionCommand, workspace.ActionInspect:
 		m.session.Message = workspaceActionMessage(action.Kind, action.Item)
 		return m, nil
 	default:
@@ -206,7 +262,29 @@ func (m *Model) handleRequestKey(key request.Key) (tea.Model, tea.Cmd) {
 		m.requestView.Editor.Active = true
 		m.requestView.Editor.Message = requestActionMessage(action.Kind, action.Item)
 		return m, nil
-	case request.ActionCopy, request.ActionCreate, request.ActionDelete:
+	case request.ActionCopy:
+		if action.Item.ID == "" || m.requestView.WorkspaceID == "" {
+			return m, nil
+		}
+		m.openTextFlow(flowRequestCopyName, "Copy request", "New name", action.Item.Name+"-copy", "request name", "Enter the name for the copied request", pendingAction{
+			Identifier:    action.Item.ID,
+			Name:          action.Item.Name,
+			WorkspaceID:   m.requestView.WorkspaceID,
+			WorkspaceName: m.requestView.WorkspaceName,
+		})
+		return m, nil
+	case request.ActionDelete:
+		if action.Item.ID == "" || m.requestView.WorkspaceID == "" {
+			return m, nil
+		}
+		m.openConfirmFlow(flowRequestDeleteConfirm, "Delete request", fmt.Sprintf("Delete %s?", action.Item.Name), []string{"Cancel", "Delete"}, pendingAction{
+			Identifier:    action.Item.ID,
+			Name:          action.Item.Name,
+			WorkspaceID:   m.requestView.WorkspaceID,
+			WorkspaceName: m.requestView.WorkspaceName,
+		})
+		return m, nil
+	case request.ActionCreate:
 		m.session.Message = requestActionMessage(action.Kind, action.Item)
 		return m, nil
 	case request.ActionOpenEditor:
@@ -227,7 +305,29 @@ func (m *Model) handleAuthKey(key auth.Key) (tea.Model, tea.Cmd) {
 		m.authView.Editor.Active = true
 		m.authView.Message = authActionMessage(action.Kind, action.Item)
 		return m, nil
-	case auth.ActionCreate, auth.ActionDelete, auth.ActionCopy:
+	case auth.ActionCopy:
+		if action.Item.ID == "" || m.session.ActiveWorkspace == nil {
+			return m, nil
+		}
+		m.openTextFlow(flowAuthCopyName, "Copy auth", "New name", action.Item.Name+"-copy", "auth name", "Enter the name for the copied auth", pendingAction{
+			Identifier:    action.Item.ID,
+			Name:          action.Item.Name,
+			WorkspaceID:   m.session.ActiveWorkspace.ID,
+			WorkspaceName: m.session.ActiveWorkspace.Name,
+		})
+		return m, nil
+	case auth.ActionDelete:
+		if action.Item.ID == "" || m.session.ActiveWorkspace == nil {
+			return m, nil
+		}
+		m.openConfirmFlow(flowAuthDeleteConfirm, "Delete auth", fmt.Sprintf("Delete %s?", action.Item.Name), []string{"Cancel", "Delete"}, pendingAction{
+			Identifier:    action.Item.ID,
+			Name:          action.Item.Name,
+			WorkspaceID:   m.session.ActiveWorkspace.ID,
+			WorkspaceName: m.session.ActiveWorkspace.Name,
+		})
+		return m, nil
+	case auth.ActionCreate:
 		m.session.Message = authActionMessage(action.Kind, action.Item)
 		return m, nil
 	default:
@@ -241,11 +341,31 @@ func (m *Model) handleSecretKey(key secret.Key) (tea.Model, tea.Cmd) {
 	case secret.ActionMoveCursor, secret.ActionInspect, secret.ActionSearch, secret.ActionCommand:
 		return m, nil
 	case secret.ActionEdit, secret.ActionEditor:
-		m.secretView.Editor.Active = true
-		m.secretView.Message = secretActionMessage(action.Kind, action.Item)
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, seedSecretEditCmd(m.ctx, m.client, action.Item.ID, flowSecretEditLoad)
+	case secret.ActionCreate:
+		m.openTextFlow(flowSecretCreateName, "Create secret", "Name", "", "secret name", "Enter the new secret name", pendingAction{})
 		return m, nil
-	case secret.ActionCreate, secret.ActionDelete, secret.ActionCopy:
-		m.session.Message = secretActionMessage(action.Kind, action.Item)
+	case secret.ActionCopy:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.openTextFlow(flowSecretCopyName, "Copy secret", "New name", action.Item.Name+"-copy", "secret name", "Enter the name for the copied secret", pendingAction{
+			Identifier: action.Item.ID,
+			Name:       action.Item.Name,
+		})
+		return m, nil
+	case secret.ActionDelete:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.openConfirmFlow(flowSecretDeleteConfirm, "Delete secret", fmt.Sprintf("Delete %s?", action.Item.Name), []string{"Cancel", "Delete"}, pendingAction{
+			Identifier: action.Item.ID,
+			Name:       action.Item.Name,
+		})
 		return m, nil
 	default:
 		return m, nil
@@ -260,7 +380,14 @@ func (m *Model) handleSendKey(key send.Key) (tea.Model, tea.Cmd) {
 		return m, nil
 	case send.ActionSwitchPane, send.ActionScroll:
 		return m, nil
-	case send.ActionBeautify, send.ActionRevert, send.ActionCopyPane, send.ActionCopyTemplate, send.ActionSaveBody, send.ActionExport, send.ActionSend:
+	case send.ActionSend:
+		if m.session.ActiveRequest == nil {
+			return m, nil
+		}
+		m.session.Busy = true
+		m.sendView.SetStatus("Sending...")
+		return m, sendCmd(m.ctx, m.client, *m.session.ActiveRequest)
+	case send.ActionBeautify, send.ActionRevert, send.ActionCopyPane, send.ActionCopyTemplate, send.ActionSaveBody, send.ActionExport:
 		m.session.Message = sendActionMessage(action.Kind)
 		return m, nil
 	default:
@@ -367,6 +494,35 @@ func (m *Model) applySend(msg sendLoadedMsg) *Model {
 	return m
 }
 
+func (m *Model) applyMutation(msg mutationCompletedMsg) (tea.Model, tea.Cmd) {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m, nil
+	}
+
+	m.session.Error = ""
+	m.session.Message = msg.Message
+	return m, m.refreshScreen(msg.Screen)
+}
+
+func (m *Model) applySecretEditorSeed(msg secretEditorSeedMsg) (tea.Model, tea.Cmd) {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m, nil
+	}
+
+	m.openTextFlow(flowSecretEditName, "Edit secret", "Name", msg.Item.Name, "secret name", "Update the secret name", pendingAction{
+		Identifier: msg.Item.ID,
+		Name:       msg.Item.Name,
+		Value:      msg.Item.Value,
+	})
+	return m, nil
+}
+
 func (m *Model) renderActiveScreen() string {
 	switch m.session.Screen {
 	case state.ScreenWorkspaces:
@@ -409,8 +565,8 @@ func mapWorkspaces(items []cli.WorkspaceSummary) []workspace.Item {
 			Name:         item.Name,
 			Path:         item.Path,
 			Requests:     item.Requests,
-			Secrets:      nil,
-			Auths:        nil,
+			Secrets:      item.Secrets,
+			Auths:        item.Auths,
 			LastAccessed: item.LastAccessed,
 			Current:      item.IsCurrent,
 			Damaged:      damaged,
@@ -429,10 +585,10 @@ func mapRequests(items []cli.RequestSummary) []request.Item {
 			Name:         item.Name,
 			Method:       item.Method,
 			Host:         item.URI,
-			BodyType:     "",
-			Auth:         "",
+			BodyType:     item.BodyType,
+			Auth:         item.Auth,
 			LastAccessed: item.LastAccessed,
-			Current:      false,
+			Current:      item.Current,
 			Damaged:      damaged,
 			Missing:      missing,
 		})
@@ -444,9 +600,14 @@ func mapAuths(items []cli.AuthSummary) []auth.Item {
 	out := make([]auth.Item, 0, len(items))
 	for _, item := range items {
 		out = append(out, auth.Item{
-			ID:   item.ID,
-			Name: item.Name,
-			Type: item.Type,
+			ID:           item.ID,
+			Name:         item.Name,
+			Type:         item.Type,
+			AutoRenew:    item.AutoRenew,
+			LastAccessed: item.LastAccessed,
+			Current:      item.Current,
+			Damaged:      item.Damaged,
+			Missing:      item.Missing,
 		})
 	}
 	return out
@@ -457,12 +618,14 @@ func mapSecrets(items []cli.SecretSummary) []secret.Item {
 	for _, item := range items {
 		damaged, missing := statusFlags(item.Status)
 		out = append(out, secret.Item{
-			ID:          item.ID,
-			Name:        item.Name,
-			Status:      item.Status,
-			ValueMasked: maskedSecretValue(item.Status),
-			Damaged:     damaged,
-			Missing:     missing,
+			ID:           item.ID,
+			Name:         item.Name,
+			Status:       item.Status,
+			ValueMasked:  maskedSecretValue(item.Status),
+			LastAccessed: item.LastAccessed,
+			Current:      item.Current,
+			Damaged:      damaged,
+			Missing:      missing,
 		})
 	}
 	return out
@@ -513,6 +676,31 @@ func (m *Model) refreshForActiveScreen() tea.Cmd {
 		m.session.Message = "Nothing to refresh"
 	}
 	return nil
+}
+
+func (m *Model) refreshScreen(screen state.ScreenID) tea.Cmd {
+	switch screen {
+	case state.ScreenWorkspaces:
+		m.session.Busy = true
+		return bootstrapCmd(m.ctx, m.client)
+	case state.ScreenRequests:
+		if m.session.ActiveWorkspace == nil {
+			return nil
+		}
+		m.session.Busy = true
+		return refreshRequestsCmd(m.ctx, m.client, m.session.ActiveWorkspace.ID, m.session.ActiveWorkspace.Name)
+	case state.ScreenAuths:
+		if m.session.ActiveWorkspace == nil {
+			return nil
+		}
+		m.session.Busy = true
+		return refreshAuthsCmd(m.ctx, m.client, m.session.ActiveWorkspace.ID, m.session.ActiveWorkspace.Name)
+	case state.ScreenSecrets:
+		m.session.Busy = true
+		return refreshSecretsCmd(m.ctx, m.client)
+	default:
+		return nil
+	}
 }
 
 func intPtr(value int) *int {

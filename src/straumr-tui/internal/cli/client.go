@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"straumr-tui/internal/cache"
@@ -16,6 +18,8 @@ type Client struct {
 	binaryPath   string
 	workingDir   string
 	captureLimit int64
+	cacheMu      sync.Mutex
+	cacheKeys    map[string]struct{}
 }
 
 type Option func(*Client)
@@ -48,6 +52,7 @@ func NewClient(binaryPath string, opts ...Option) *Client {
 		},
 		binaryPath:   binaryPath,
 		captureLimit: 1 << 20,
+		cacheKeys:    make(map[string]struct{}),
 	}
 
 	for _, opt := range opts {
@@ -162,15 +167,6 @@ func (c *Client) ListSecrets(ctx context.Context) ([]SecretSummary, error) {
 	return secrets, nil
 }
 
-func (c *Client) SendRequest(ctx context.Context, requestID, workspaceID string) (SendSummary, error) {
-	args := []string{"send", requestID, "--json"}
-	if workspaceID != "" {
-		args = append(args, "--workspace", workspaceID)
-	}
-
-	return RunJSON[SendSummary](c, ctx, args)
-}
-
 func (c *Client) ResolveActiveWorkspace(ctx context.Context) (*WorkspaceSummary, error) {
 	workspaces, err := c.ListWorkspaces(ctx)
 	if err != nil {
@@ -190,7 +186,7 @@ func (c *Client) Invalidate(pattern string) {
 	if c.cache == nil {
 		return
 	}
-	c.cache.Delete(pattern)
+	c.invalidateKeys(pattern)
 }
 
 func (c *Client) InvalidateAll() {
@@ -198,6 +194,9 @@ func (c *Client) InvalidateAll() {
 		return
 	}
 	c.cache.Clear()
+	c.cacheMu.Lock()
+	c.cacheKeys = make(map[string]struct{})
+	c.cacheMu.Unlock()
 }
 
 func (c *Client) cached(key string) (any, bool) {
@@ -214,6 +213,68 @@ func (c *Client) store(key string, value any, ttl time.Duration) {
 	}
 
 	c.cache.Set(key, value, ttl)
+	c.cacheMu.Lock()
+	if c.cacheKeys == nil {
+		c.cacheKeys = make(map[string]struct{})
+	}
+	c.cacheKeys[key] = struct{}{}
+	c.cacheMu.Unlock()
+}
+
+func (c *Client) storeAliases(value any, ttl time.Duration, keys ...string) {
+	for _, key := range keys {
+		if key == "" {
+			continue
+		}
+		c.store(key, value, ttl)
+	}
+}
+
+func (c *Client) invalidateKeys(keys ...string) {
+	if c.cache == nil {
+		return
+	}
+
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+
+	if len(keys) == 0 {
+		return
+	}
+
+	explicit := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		if key == "" {
+			continue
+		}
+		explicit[key] = struct{}{}
+	}
+
+	for key := range explicit {
+		c.cache.Delete(key)
+		delete(c.cacheKeys, key)
+	}
+}
+
+func (c *Client) invalidatePrefix(prefix string) {
+	if c.cache == nil {
+		return
+	}
+
+	c.cacheMu.Lock()
+	keys := make([]string, 0, len(c.cacheKeys))
+	for key := range c.cacheKeys {
+		if strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
+		}
+	}
+	c.cacheMu.Unlock()
+
+	c.invalidateKeys(keys...)
+}
+
+func (c *Client) cacheKey(parts ...string) string {
+	return strings.Join(parts, ":")
 }
 
 func joinArgs(args []string) string {

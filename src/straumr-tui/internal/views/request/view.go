@@ -87,6 +87,22 @@ func NewView() *View {
 	}
 }
 
+func (v *View) OpenEditor(mode EditorMode, draft Draft) {
+	v.Editor.Open(mode, draft)
+}
+
+func (v *View) CloseEditor() {
+	v.Editor.Close()
+}
+
+func (v *View) EditorDraft() MutationDraft {
+	return v.Editor.Snapshot()
+}
+
+func (v *View) EditorSubmission() Submission {
+	return v.Editor.Submit()
+}
+
 func (v *View) SetItems(items []Item) {
 	v.Items = append(v.Items[:0], items...)
 	v.List.SetRows(toRows(v.Items))

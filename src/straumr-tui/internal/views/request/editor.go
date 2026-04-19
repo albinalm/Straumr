@@ -62,7 +62,35 @@ type EditorView struct {
 	Message string
 }
 
+func (v *EditorView) Open(mode EditorMode, draft Draft) {
+	v.Active = true
+	v.Mode = mode
+	v.Focus = EditorFieldName
+	v.Draft = draft
+	v.Message = ""
+}
+
+func (v *EditorView) Close() {
+	v.Active = false
+	v.Message = ""
+}
+
+func (v *EditorView) Snapshot() MutationDraft {
+	return v.Draft.MutationDraft()
+}
+
+func (v *EditorView) Submit() Submission {
+	return Submission{
+		Mode:  v.Mode,
+		Draft: v.Snapshot(),
+	}
+}
+
 func (v *EditorView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 
 	title := "Request editor"

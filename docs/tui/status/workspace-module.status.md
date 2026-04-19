@@ -6,7 +6,7 @@ Workspace list, activate, create, copy, import, export, delete, inspect, and wor
 
 ## Current status
 
-CLI contract ready. Go implementation not started.
+Go view package is present and wired into the root shell.
 
 ## Completed work
 
@@ -14,6 +14,7 @@ CLI contract ready. Go implementation not started.
 - Defined required CLI calls and state transitions.
 - Implemented the structured workspace rename path needed for strict TUI support.
 - Added workspace service update support for inline rename.
+- Added the Go workspace list/navigation view and shell routing for workspace selection.
 
 ## Work in progress
 
@@ -21,7 +22,7 @@ CLI contract ready. Go implementation not started.
 
 ## Blockers
 
-- Dotnet build/test verification is pending outside the sandbox.
+- Mutation and refresh wiring still need to be tightened in the shell.
 
 ## Files touched
 
@@ -30,6 +31,7 @@ CLI contract ready. Go implementation not started.
 - `src/Straumr.Console.Cli/Commands/Workspace/WorkspaceEditCommand.cs`
 - `src/Straumr.Core/Services/Interfaces/IStraumrWorkspaceService.cs`
 - `src/Straumr.Core/Services/StraumrWorkspaceService.cs`
+- `src/straumr-tui/internal/views/workspace/view.go`
 
 ## Important decisions
 
@@ -39,9 +41,8 @@ CLI contract ready. Go implementation not started.
 
 ## Next steps
 
-- Verify the CLI changes with a user-run dotnet build/test pass.
-- Implement workspace list screen and active-workspace handoff.
+- Wire workspace mutation submission and post-mutation refresh through the shell.
 
 ## Resume notes
 
-- `edit workspace --name <new-name> --json` is now the TUI-safe update path. Without `--name`, the editor-backed flow still exists.
+- `edit workspace --name <new-name> --json` is the TUI-safe update path. The Go shell already knows how to enter the workspace screen.

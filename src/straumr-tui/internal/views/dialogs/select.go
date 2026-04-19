@@ -46,12 +46,33 @@ type Choice struct {
 }
 
 type SelectView struct {
+	OverlayState
 	Title   string
 	Message string
 	Help    string
 	Filter  string
 	Cursor  int
 	Items   []Choice
+}
+
+func (v *SelectView) Open(title, message, help string, items []Choice) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Message = message
+	v.Help = help
+	v.Filter = ""
+	v.Cursor = 0
+	v.SetItems(items)
+}
+
+func (v *SelectView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Message = ""
+	v.Help = ""
+	v.Filter = ""
+	v.Cursor = 0
+	v.Items = nil
 }
 
 func (v *SelectView) SetItems(items []Choice) {
@@ -62,6 +83,19 @@ func (v *SelectView) SetItems(items []Choice) {
 	if v.Cursor < 0 {
 		v.Cursor = 0
 	}
+}
+
+func (v *SelectView) Result(accepted bool) SelectionResult {
+	result := SelectionResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Index:     v.Cursor,
+		Filter:    v.Filter,
+	}
+	if v.Cursor >= 0 && v.Cursor < len(v.Items) {
+		result.Choice = v.Items[v.Cursor]
+	}
+	return result
 }
 
 func (v *SelectView) HandleKey(key Key) ActionKind {
@@ -96,6 +130,10 @@ func (v *SelectView) HandleKey(key Key) ActionKind {
 }
 
 func (v *SelectView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 
 	if v.Title != "" {
@@ -138,10 +176,27 @@ func (v *SelectView) Render() string {
 }
 
 type ConfirmView struct {
+	OverlayState
 	Title   string
 	Message string
 	Options []string
 	Cursor  int
+}
+
+func (v *ConfirmView) Open(title, message string, options []string) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Message = message
+	v.Cursor = 0
+	v.SetOptions(options)
+}
+
+func (v *ConfirmView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Message = ""
+	v.Options = nil
+	v.Cursor = 0
 }
 
 func (v *ConfirmView) SetOptions(options []string) {
@@ -152,6 +207,18 @@ func (v *ConfirmView) SetOptions(options []string) {
 	if v.Cursor < 0 {
 		v.Cursor = 0
 	}
+}
+
+func (v *ConfirmView) Result(accepted bool) ConfirmResult {
+	result := ConfirmResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Index:     v.Cursor,
+	}
+	if v.Cursor >= 0 && v.Cursor < len(v.Options) {
+		result.Choice = v.Options[v.Cursor]
+	}
+	return result
 }
 
 func (v *ConfirmView) HandleKey(key Key) ActionKind {
@@ -176,6 +243,10 @@ func (v *ConfirmView) HandleKey(key Key) ActionKind {
 }
 
 func (v *ConfirmView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 	if v.Title != "" {
 		b.WriteString(v.Title)

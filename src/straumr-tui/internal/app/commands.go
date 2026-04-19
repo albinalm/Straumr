@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"straumr-tui/internal/cli"
 	"straumr-tui/internal/state"
@@ -120,6 +121,180 @@ func sendCmd(ctx context.Context, client *cli.Client, request state.RequestRef) 
 			Request: request,
 			Result:  result,
 			Err:     err,
+		}
+	}
+}
+
+func createWorkspaceCmd(ctx context.Context, client *cli.Client, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CreateWorkspace(ctx, name, "")
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenWorkspaces,
+			Message: fmt.Sprintf("Created workspace %s", result.Name),
+		}
+	}
+}
+
+func editWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.EditWorkspace(ctx, identifier, cli.WorkspaceEditOptions{Name: name})
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenWorkspaces,
+			Message: fmt.Sprintf("Renamed workspace to %s", result.Name),
+		}
+	}
+}
+
+func copyWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CopyWorkspace(ctx, identifier, name, "")
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenWorkspaces,
+			Message: fmt.Sprintf("Copied workspace to %s", result.Name),
+		}
+	}
+}
+
+func deleteWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		err := client.DeleteWorkspace(ctx, identifier)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenWorkspaces,
+			Message: fmt.Sprintf("Deleted workspace %s", name),
+		}
+	}
+}
+
+func deleteRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		err := client.DeleteRequest(ctx, workspaceID, identifier)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenRequests,
+			Message: fmt.Sprintf("Deleted request %s", name),
+		}
+	}
+}
+
+func copyRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CopyRequest(ctx, workspaceID, identifier, name)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenRequests,
+			Message: fmt.Sprintf("Copied request to %s", result.Name),
+		}
+	}
+}
+
+func deleteAuthCmd(ctx context.Context, client *cli.Client, workspaceID, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		err := client.DeleteAuth(ctx, workspaceID, identifier)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenAuths,
+			Message: fmt.Sprintf("Deleted auth %s", name),
+		}
+	}
+}
+
+func copyAuthCmd(ctx context.Context, client *cli.Client, workspaceID, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CopyAuth(ctx, workspaceID, identifier, name)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenAuths,
+			Message: fmt.Sprintf("Copied auth to %s", result.Name),
+		}
+	}
+}
+
+func seedSecretEditCmd(ctx context.Context, client *cli.Client, identifier string, action pendingFlow) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetSecret(ctx, identifier)
+		return secretEditorSeedMsg{
+			Item:   item,
+			Err:    err,
+			Action: action,
+		}
+	}
+}
+
+func createSecretCmd(ctx context.Context, client *cli.Client, name, value string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CreateSecret(ctx, cli.SecretCreateOptions{Name: name, Value: value})
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenSecrets,
+			Message: fmt.Sprintf("Created secret %s", result.Name),
+		}
+	}
+}
+
+func editSecretCmd(ctx context.Context, client *cli.Client, identifier, name, value string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.EditSecret(ctx, identifier, cli.SecretEditOptions{
+			Name:  &name,
+			Value: &value,
+		})
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenSecrets,
+			Message: fmt.Sprintf("Updated secret %s", result.Name),
+		}
+	}
+}
+
+func copySecretCmd(ctx context.Context, client *cli.Client, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CopySecret(ctx, identifier, name)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenSecrets,
+			Message: fmt.Sprintf("Copied secret to %s", result.Name),
+		}
+	}
+}
+
+func deleteSecretCmd(ctx context.Context, client *cli.Client, identifier, name string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.DeleteSecret(ctx, identifier)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
+		}
+		deletedName := result.Name
+		if deletedName == "" {
+			deletedName = name
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenSecrets,
+			Message: fmt.Sprintf("Deleted secret %s", deletedName),
 		}
 	}
 }

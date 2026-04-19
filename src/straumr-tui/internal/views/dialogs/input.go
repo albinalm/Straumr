@@ -12,6 +12,7 @@ type Pair struct {
 }
 
 type TextInputView struct {
+	OverlayState
 	Title       string
 	Label       string
 	Value       string
@@ -20,7 +21,39 @@ type TextInputView struct {
 	Cursor      int
 }
 
+func (v *TextInputView) Open(title, label, value, placeholder, message string) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Label = label
+	v.Value = value
+	v.Placeholder = placeholder
+	v.Message = message
+	v.Cursor = len(value)
+}
+
+func (v *TextInputView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Label = ""
+	v.Value = ""
+	v.Placeholder = ""
+	v.Message = ""
+	v.Cursor = 0
+}
+
+func (v *TextInputView) Result(accepted bool) InputResult {
+	return InputResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Value:     v.Value,
+	}
+}
+
 func (v *TextInputView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 
 	if v.Title != "" {
@@ -55,7 +88,25 @@ type SecretInputView struct {
 	Visible bool
 }
 
+func (v *SecretInputView) Open(title, label, value, placeholder, message string) {
+	v.TextInputView.Open(title, label, value, placeholder, message)
+	v.Visible = false
+}
+
+func (v *SecretInputView) Close() {
+	v.TextInputView.Close()
+	v.Visible = false
+}
+
+func (v *SecretInputView) Result(accepted bool) InputResult {
+	return v.TextInputView.Result(accepted)
+}
+
 func (v *SecretInputView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 
 	title := titleOrDefault(v.TextInputView.Title, "Secret input")
@@ -80,10 +131,27 @@ func (v *SecretInputView) Render() string {
 }
 
 type KeyValueEditorView struct {
+	OverlayState
 	Title   string
 	Message string
 	Items   []Pair
 	Cursor  int
+}
+
+func (v *KeyValueEditorView) Open(title, message string, items []Pair) {
+	v.OverlayState.Open()
+	v.Title = title
+	v.Message = message
+	v.Cursor = 0
+	v.SetItems(items)
+}
+
+func (v *KeyValueEditorView) Close() {
+	v.OverlayState.Close()
+	v.Title = ""
+	v.Message = ""
+	v.Items = nil
+	v.Cursor = 0
 }
 
 func (v *KeyValueEditorView) SetItems(items []Pair) {
@@ -94,6 +162,19 @@ func (v *KeyValueEditorView) SetItems(items []Pair) {
 	if v.Cursor < 0 {
 		v.Cursor = 0
 	}
+}
+
+func (v *KeyValueEditorView) Result(accepted bool) KeyValueResult {
+	result := KeyValueResult{
+		Accepted:  accepted,
+		Cancelled: !accepted,
+		Index:     v.Cursor,
+		Items:     append([]Pair(nil), v.Items...),
+	}
+	if v.Cursor >= 0 && v.Cursor < len(v.Items) {
+		result.Item = v.Items[v.Cursor]
+	}
+	return result
 }
 
 func (v *KeyValueEditorView) HandleKey(key Key) ActionKind {
@@ -120,6 +201,10 @@ func (v *KeyValueEditorView) HandleKey(key Key) ActionKind {
 }
 
 func (v *KeyValueEditorView) Render() string {
+	if !v.Active {
+		return ""
+	}
+
 	var b strings.Builder
 	if v.Title != "" {
 		b.WriteString(v.Title)

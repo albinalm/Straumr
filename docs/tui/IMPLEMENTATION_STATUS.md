@@ -4,38 +4,38 @@
 
 - Phase 1: design complete
 - Phase 2: CLI contract completion implemented
-- Phase 3: Go TUI foundation scaffold started
+- Phase 3: Go TUI view scaffolding and shell integration in progress
 
 ## Module status
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| App shell | Started | Bubble Tea root model, navigation, refresh rules, and startup routing scaffolded |
-| CLI client | Started | Subprocess execution, JSON decode, stderr envelope parsing, and cache layer scaffolded |
-| Workspace | View package present | Structured rename path is available; shell integration pending |
-| Request | View package present | List/editor views exist; shell integration pending |
-| Auth | View package in parallel | Structured inline edit contract is available |
-| Secret | View package in parallel | Structured create/edit/delete contract is available |
-| Send | View package in parallel | JSON-only response viewer planned |
-| Dialogs/pickers | View package in parallel | Shared picker direction planned |
+| App shell | In progress | Root Bubble Tea model, navigation, screen routing, and send handoff are in place |
+| CLI client | In progress | Subprocess execution, JSON decode, stderr envelope parsing, cache, and typed wrappers are in place |
+| Workspace | Scaffolded | View package is present and wired into the root shell; structured rename support exists |
+| Request | Scaffolded | View/editor package is present with structured draft extraction; shell mutation wiring is still being completed |
+| Auth | Scaffolded | View/editor package is present with type-aware draft extraction and inline edit support |
+| Secret | Scaffolded | View/editor package is present with structured draft extraction and JSON-safe create/edit/delete paths |
+| Send | Scaffolded | Response-view package is present and wired to request send handoff |
+| Dialogs/pickers | Scaffolded | Overlay and picker packages are present with structured result types |
 
 ## Open decisions
 
 - Add a CLI-safe large-body input contract for request/auth payloads to avoid command-line length limits.
-- Decide how `straumr-tui` resolves the `straumr` binary in dev and packaged builds.
+- Decide which remaining request/auth mutation paths should be submitted through dialogs versus direct inline forms.
 
 ## Blockers
 
-- Parallel view packages are still being completed.
-- Large inline payload handling is still an open contract concern for future TUI/editor work.
+- No current blocking issues in the owned Go view packages.
+- Large inline payload handling remains a future contract concern for request/auth editing.
 
 ## Recommended implementation order
 
-1. Integrate the root shell with the completed workspace/request view packages.
-2. Finish the typed client wrappers for request/send/auth/secret commands.
-3. Integrate send response rendering.
-4. Integrate auth and secret screens.
-5. Wire shared dialogs/path pickers.
+1. Finish request mutation submission and request-auth selection wiring.
+2. Wire auth and secret mutation submission through the shell.
+3. Complete send response/export/save actions against the send view.
+4. Refine dialogs and path picker interactions.
+5. Tighten cache invalidation and refresh rules around successful mutations.
 
 ## Files touched
 
@@ -71,3 +71,4 @@
 - `src/straumr-tui/internal/cli/**`
 - `src/straumr-tui/internal/state/**`
 - `src/straumr-tui/internal/ui/**`
+- `src/straumr-tui/internal/views/**`
