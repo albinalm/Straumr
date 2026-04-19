@@ -352,9 +352,18 @@ func (m *Model) handleRequestKey(key request.Key) (tea.Model, tea.Cmd) {
 		})
 		return m, nil
 	case request.ActionSubmit:
+		if m.requestView.WorkspaceID == "" {
+			m.requestView.CloseEditor()
+			m.session.Message = "No workspace selected"
+			return m, nil
+		}
+		submission := m.requestView.EditorSubmission()
 		m.requestView.CloseEditor()
-		m.session.Message = "Request editor submission is not wired yet"
-		return m, nil
+		m.session.Busy = true
+		if submission.Mode == request.EditorModeEdit && submission.Item.ID != "" {
+			return m, editRequestCmd(m.ctx, m.client, m.requestView.WorkspaceID, submission.Item.ID, submission.Draft)
+		}
+		return m, createRequestCmd(m.ctx, m.client, m.requestView.WorkspaceID, submission.Draft)
 	case request.ActionCancel:
 		m.requestView.CloseEditor()
 		return m, nil

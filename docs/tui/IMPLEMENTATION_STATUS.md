@@ -10,11 +10,11 @@
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| App shell | In progress | Root Bubble Tea model, overlay flows, workspace/secret CRUD, workspace import/export, auth create/edit, entity inspect overlays, request inspect plus richer request quick flows, and send save/export/copy handoff are in place |
+| App shell | In progress | Root Bubble Tea model, overlay flows, workspace/secret CRUD, workspace import/export, auth create/edit with picker-backed choice fields, entity inspect overlays, request inspect plus richer request quick flows, and send save/export/copy handoff are in place |
 | CLI client | Implemented | Subprocess execution, JSON decode, stderr envelope parsing, cache, and typed wrappers for workspace/request/auth/secret/send are in place |
 | Workspace | In progress | View package is wired and create/rename/copy/delete plus import/export/inspect now execute through the shell |
 | Request | In progress | View/editor package exposes structured drafts and the shell now drives inspect/create/edit/copy/delete plus auth/body/header/param quick-flow fields via JSON-safe CLI calls, with select overlays now used for auth and body-type choice |
-| Auth | Implemented | View/editor package exposes type-aware mutation drafts; shell create/edit/copy/delete/inspect now execute through JSON-safe CLI calls |
+| Auth | Implemented | View/editor package exposes type-aware mutation drafts; shell create/edit/copy/delete/inspect now execute through JSON-safe CLI calls, and shared select overlays now drive auth type/grant/PKCE/body-type/extraction-source choices |
 | Secret | Implemented | View package is wired and create/edit/copy/delete/inspect now execute through the shell |
 | Send | In progress | Response-view package is wired to real send, dry-run, save-body, export, copy-pane/template, and view-level beautify/revert behavior; save/export now use the shared path picker and the send view polish is improving |
 | Dialogs/pickers | In progress | Overlay and picker packages are present with structured result types, and the shared path picker is now mounted by the shell for send save/export flows |
@@ -31,8 +31,8 @@
 
 ## Recommended implementation order
 
-1. Reuse shared select/path overlays in the remaining ad hoc auth and workspace shell flows.
-2. Refine request/entity inspect detail presentation and remaining overlay polish.
+1. Refine request/entity inspect detail presentation and remaining overlay polish.
+2. Reuse shared path/select overlays in any remaining ad hoc shell prompts.
 3. Tighten cache invalidation and refresh rules around successful mutations.
 
 ## Files touched

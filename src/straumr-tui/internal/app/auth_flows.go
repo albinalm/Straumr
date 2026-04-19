@@ -6,6 +6,7 @@ import (
 
 	"straumr-tui/internal/cli"
 	"straumr-tui/internal/views/auth"
+	"straumr-tui/internal/views/dialogs"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -25,21 +26,8 @@ func (m *Model) advanceAuthTextFlow(value string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		pending.AuthDraft.Name = value
-		currentType := pending.AuthDraft.Type
-		if strings.TrimSpace(currentType) == "" {
-			currentType = "bearer"
-		}
-		m.openTextFlow(flowAuthType, authTitle(pending), "Type", currentType, "bearer|basic|oauth2|oauth2-client-credentials|oauth2-authorization-code|oauth2-password|custom", "Choose the auth type", pending)
+		m.openAuthTypeSelect(pending)
 		return m, nil
-	case flowAuthType:
-		normalized, ok := normalizeAuthTypeInput(value)
-		if !ok {
-			m.textInput.Message = "Use bearer, basic, oauth2, oauth2-client-credentials, oauth2-authorization-code, oauth2-password, or custom"
-			return m, nil
-		}
-		pending.AuthDraft.Type = normalized
-		applyAuthTypeDefaults(&pending.AuthDraft)
-		return m, m.openNextAuthField(pending)
 	case flowAuthPrefix:
 		pending.AuthDraft.Prefix = value
 		return m, m.openAuthAutoRenewConfirm(pending)
@@ -49,15 +37,6 @@ func (m *Model) advanceAuthTextFlow(value string) (tea.Model, tea.Cmd) {
 			m.openSecretFlow(flowAuthPassword, authTitle(pending), "Password", pending.AuthDraft.Password, "password", "Enter the password", pending)
 			return m, nil
 		}
-		return m, nil
-	case flowAuthGrant:
-		grant, ok := normalizeGrantInput(value)
-		if !ok {
-			m.textInput.Message = "Use client-credentials, authorization-code, or password"
-			return m, nil
-		}
-		pending.AuthDraft.Grant = grant
-		m.openTextFlow(flowAuthTokenURL, authTitle(pending), "Token URL", pending.AuthDraft.TokenURL, "https://auth.example.com/token", "Enter the OAuth2 token URL", pending)
 		return m, nil
 	case flowAuthTokenURL:
 		pending.AuthDraft.TokenURL = value
@@ -76,16 +55,7 @@ func (m *Model) advanceAuthTextFlow(value string) (tea.Model, tea.Cmd) {
 		return m, nil
 	case flowAuthRedirectURI:
 		pending.AuthDraft.RedirectURI = value
-		m.openTextFlow(flowAuthPKCE, authTitle(pending), "PKCE", pending.AuthDraft.PKCE, "S256|plain|disabled", "Enter the PKCE mode", pending)
-		return m, nil
-	case flowAuthPKCE:
-		pkce, ok := normalizePKCEInput(value)
-		if !ok {
-			m.textInput.Message = "Use S256, plain, or disabled"
-			return m, nil
-		}
-		pending.AuthDraft.PKCE = pkce
-		m.openTextFlow(flowAuthScope, authTitle(pending), "Scope", pending.AuthDraft.Scope, "read write", "Enter the OAuth2 scope", pending)
+		m.openAuthPKCESelect(pending)
 		return m, nil
 	case flowAuthCustomURL:
 		pending.AuthDraft.CustomURL = value
@@ -97,15 +67,7 @@ func (m *Model) advanceAuthTextFlow(value string) (tea.Model, tea.Cmd) {
 		return m, nil
 	case flowAuthCustomBody:
 		pending.AuthDraft.CustomBody = value
-		m.openTextFlow(flowAuthCustomBodyType, authTitle(pending), "Body type", pending.AuthDraft.CustomBodyType, "json|xml|text|form|multipart|raw|none", "Enter the custom auth body type", pending)
-		return m, nil
-	case flowAuthCustomBodyType:
-		pending.AuthDraft.CustomBodyType = normalizeBodyTypeForCLI(value)
-		m.openTextFlow(flowAuthExtractionSource, authTitle(pending), "Extraction source", pending.AuthDraft.ExtractionSource, "jsonpath|header|regex", "Enter the extraction source", pending)
-		return m, nil
-	case flowAuthExtractionSource:
-		pending.AuthDraft.ExtractionSource = strings.ToLower(strings.TrimSpace(value))
-		m.openTextFlow(flowAuthExtractionExpr, authTitle(pending), "Extraction expression", pending.AuthDraft.ExtractionExpression, "access_token", "Enter the extraction expression", pending)
+		m.openAuthCustomBodyTypeSelect(pending)
 		return m, nil
 	case flowAuthExtractionExpr:
 		pending.AuthDraft.ExtractionExpression = value
@@ -195,13 +157,13 @@ func (m *Model) openNextAuthField(pending pendingAction) tea.Cmd {
 	case "basic":
 		m.openTextFlow(flowAuthUsername, authTitle(pending), "Username", pending.AuthDraft.Username, "username", "Enter the username", pending)
 	case "oauth2":
-		m.openTextFlow(flowAuthGrant, authTitle(pending), "Grant", pending.AuthDraft.Grant, "client-credentials|authorization-code|password", "Enter the OAuth2 grant", pending)
+		m.openAuthGrantSelect(pending)
 	case "oauth2-client-credentials", "oauth2-authorization-code", "oauth2-password":
 		m.openTextFlow(flowAuthTokenURL, authTitle(pending), "Token URL", pending.AuthDraft.TokenURL, "https://auth.example.com/token", "Enter the OAuth2 token URL", pending)
 	case "custom":
 		m.openTextFlow(flowAuthCustomURL, authTitle(pending), "Custom URL", pending.AuthDraft.CustomURL, "https://api.example.com/login", "Enter the custom auth request URL", pending)
 	default:
-		m.openTextFlow(flowAuthType, authTitle(pending), "Type", pending.AuthDraft.Type, "bearer|basic|oauth2|oauth2-client-credentials|oauth2-authorization-code|oauth2-password|custom", "Choose the auth type", pending)
+		m.openAuthTypeSelect(pending)
 	}
 	return nil
 }
@@ -220,6 +182,61 @@ func authTitle(pending pendingAction) string {
 		return "Edit auth"
 	}
 	return "Create auth"
+}
+
+func (m *Model) openAuthTypeSelect(pending pendingAction) {
+	m.openSelectFlow(
+		flowAuthTypePick,
+		authTitle(pending),
+		"Choose the auth type",
+		"Enter choose  Esc cancel",
+		authChoiceItems(authTypeChoices, pending.AuthDraft.Type, "bearer"),
+		pending,
+	)
+}
+
+func (m *Model) openAuthGrantSelect(pending pendingAction) {
+	m.openSelectFlow(
+		flowAuthGrantPick,
+		authTitle(pending),
+		"Choose the OAuth2 grant",
+		"Enter choose  Esc cancel",
+		authChoiceItems(authGrantChoices, pending.AuthDraft.Grant, "client-credentials"),
+		pending,
+	)
+}
+
+func (m *Model) openAuthPKCESelect(pending pendingAction) {
+	m.openSelectFlow(
+		flowAuthPKCEPick,
+		authTitle(pending),
+		"Choose the PKCE mode",
+		"Enter choose  Esc cancel",
+		authChoiceItems(authPKCEChoices, pending.AuthDraft.PKCE, "S256"),
+		pending,
+	)
+}
+
+func (m *Model) openAuthCustomBodyTypeSelect(pending pendingAction) {
+	m.openSelectFlow(
+		flowAuthCustomBodyTypePick,
+		authTitle(pending),
+		"Choose the custom auth body type",
+		"Enter choose  Esc cancel",
+		authChoiceItems(authBodyTypeChoices, pending.AuthDraft.CustomBodyType, "json"),
+		pending,
+	)
+}
+
+func (m *Model) openAuthExtractionSourceSelect(pending pendingAction) {
+	m.openSelectFlow(
+		flowAuthExtractionSourcePick,
+		authTitle(pending),
+		"Choose the token extraction source",
+		"Enter choose  Esc cancel",
+		authChoiceItems(authExtractionSourceChoices, pending.AuthDraft.ExtractionSource, "jsonpath"),
+		pending,
+	)
 }
 
 func normalizeAuthTypeInput(value string) (string, bool) {
@@ -468,4 +485,68 @@ func resolveBodyForType(bodyType string, bodies map[string]string) string {
 		return value
 	}
 	return ""
+}
+
+var authTypeChoices = []pickerChoice{
+	{Key: "bearer", Title: "Bearer", Description: "Static bearer token with configurable prefix"},
+	{Key: "basic", Title: "Basic", Description: "Username and password credentials"},
+	{Key: "oauth2", Title: "OAuth2", Description: "Choose the grant in the next step"},
+	{Key: "oauth2-client-credentials", Title: "OAuth2 Client Credentials", Description: "Client credentials grant with token URL"},
+	{Key: "oauth2-authorization-code", Title: "OAuth2 Authorization Code", Description: "Authorization code grant with redirect and PKCE"},
+	{Key: "oauth2-password", Title: "OAuth2 Password", Description: "Resource owner password grant"},
+	{Key: "custom", Title: "Custom", Description: "Custom request and token extraction rules"},
+}
+
+var authGrantChoices = []pickerChoice{
+	{Key: "client-credentials", Title: "Client credentials", Description: "Use client ID and client secret to fetch a token"},
+	{Key: "authorization-code", Title: "Authorization code", Description: "Use authorization URL, redirect URI, and PKCE"},
+	{Key: "password", Title: "Password", Description: "Use username and password with OAuth2 token endpoint"},
+}
+
+var authPKCEChoices = []pickerChoice{
+	{Key: "S256", Title: "S256", Description: "Recommended PKCE challenge method"},
+	{Key: "plain", Title: "Plain", Description: "Use plain-text PKCE challenge"},
+	{Key: "disabled", Title: "Disabled", Description: "Do not use PKCE"},
+}
+
+var authBodyTypeChoices = requestBodyTypeChoices
+
+var authExtractionSourceChoices = []pickerChoice{
+	{Key: "jsonpath", Title: "JSONPath", Description: "Extract the token from a JSON body"},
+	{Key: "header", Title: "Header", Description: "Extract the token from a response header"},
+	{Key: "regex", Title: "Regex", Description: "Extract the token using a regular expression"},
+}
+
+func authChoiceItems(choices []pickerChoice, currentValue, fallbackValue string) []dialogs.Choice {
+	current := strings.TrimSpace(currentValue)
+	if current == "" {
+		current = fallbackValue
+	}
+
+	items := make([]dialogs.Choice, 0, len(choices))
+	appendChoice := func(match string) {
+		for _, choice := range choices {
+			if strings.EqualFold(choice.Key, match) {
+				items = append(items, dialogs.Choice{
+					Key:         choice.Key,
+					Title:       choice.Title,
+					Description: choice.Description,
+				})
+				return
+			}
+		}
+	}
+
+	appendChoice(current)
+	for _, choice := range choices {
+		if strings.EqualFold(choice.Key, current) {
+			continue
+		}
+		items = append(items, dialogs.Choice{
+			Key:         choice.Key,
+			Title:       choice.Title,
+			Description: choice.Description,
+		})
+	}
+	return items
 }

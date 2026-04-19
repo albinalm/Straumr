@@ -18,10 +18,11 @@ Completed for the current TUI scope. The Go view package exposes type-aware draf
 - Added the structured auth list/edit surface in the Go shell.
 - Added shell-friendly auth editor accessors such as `OpenCreate`, `OpenEdit`, `EditorActive`, `EditorMode`, and `MutationDraft.ConfigType()`.
 - Wired auth inspect through `get auth --json` into a read-only details overlay.
+- Replaced auth choice-like text prompts with shared select overlays for auth type, OAuth2 grant, PKCE, custom body type, and extraction source.
 
 ## Work in progress
 
-- None for the current TUI scope.
+- Minor auth overlay polish remains, but the main create/edit shell flow is wired for the current scope.
 
 ## Files touched
 
@@ -41,9 +42,10 @@ Completed for the current TUI scope. The Go view package exposes type-aware draf
 
 ## Next steps
 
-- None for the current TUI scope.
+- Keep auth aligned with shared overlay primitives as broader shell cleanup continues.
 
 ## Resume notes
 
 - `edit auth --json` is safe for subprocess use when inline flags are present, and the Go view exposes a type-aware draft payload plus a shell-facing config discriminator.
 - Auth inspect is live through the JSON-safe get path.
+- Auth create/edit now uses picker-backed choice fields for type/grant/PKCE/body type/extraction source.

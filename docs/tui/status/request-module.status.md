@@ -21,6 +21,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Replaced request body-type entry with a shared select overlay for the supported body modes.
 - Added quick create/edit request flows in the shell for name, URL, method, auth, body/body type, headers, and params using `get/create/edit request --json`.
 - Wired request copy/delete through the shell to the typed CLI client.
+- Wired the embedded request editor submit path through the same JSON-safe request mutation commands instead of leaving it as a shell placeholder.
 - Polished the request view/editor rendering so the editor groups fields more clearly.
 
 ## Work in progress
@@ -51,5 +52,6 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 ## Resume notes
 
 - Request create/edit now works as a quick flow for name, URL, method, auth, body/body type, headers, and params.
+- The embedded request editor submit path no longer dead-ends if the shell mounts it.
 - Request inspect is live and uses the JSON-safe get path.
 - Request auth now uses a real auth picker and body type uses a select overlay; the remaining request gap is mostly detail polish and overlay refinement.

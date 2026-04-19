@@ -19,8 +19,10 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 - Wired auth create/edit/copy/delete through overlay-backed shell flows.
 - Wired secret create/edit/copy/delete through overlay-backed shell flows.
 - Wired request create/edit quick flows plus request copy/delete through overlay-backed shell flows, including auth/body/header/param round-tripping.
+- Wired the embedded request editor submit path through the same JSON-safe request mutation commands instead of a placeholder shell message.
 - Wired request inspect through `get request --json` into a read-only details overlay.
 - Replaced request auth and body-type free-form text steps with shared select overlays, with auth choices loaded from `list auth --json`.
+- Replaced auth create/edit choice-like text steps with shared select overlays for auth type, OAuth2 grant, PKCE, custom body type, and extraction source.
 - Wired workspace/auth/secret inspect through their respective `get ... --json` commands into read-only detail overlays.
 - Wired workspace import/export through the shell, with export/import path collection using the shared path picker.
 - Wired send refresh, dry-run, save-body, export, clipboard copy, and view-level beautify/revert behavior into the send screen.
@@ -28,7 +30,7 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 
 ## Work in progress
 
-- General overlay polish and broader shared picker/select reuse outside the send screen and request editor.
+- General overlay polish and broader shared picker/select reuse outside the send screen, request editor, and the now-picker-backed auth create/edit flow.
 
 ## Blockers
 
@@ -57,12 +59,12 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 ## Next steps
 
 - Reuse the shared path picker in more shell flows that still fall back to simple text entry.
-- Reuse the shared select overlay in more auth/workspace shell flows that still fall back to simple text entry.
+- Reuse the shared select overlay in any remaining shell prompts that still fall back to simple text entry for finite choices.
 - Tighten cache invalidation and refresh rules around successful mutations.
 
 ## Resume notes
 
 - The shell already owns the mutation round-trip for workspace, auth, secret, and the request quick flows including auth/body/header/param.
 - Workspace/auth/secret/request inspect now round-trip through their JSON-safe get paths.
-- Request auth/body-type use select overlays, and workspace import/export plus send save/export mount the shared path picker.
+- Request auth/body-type and auth create/edit choice fields now use select overlays, and workspace import/export plus send save/export mount the shared path picker.
 - The next shell-critical slice is broader overlay reuse and general shell cleanup.
