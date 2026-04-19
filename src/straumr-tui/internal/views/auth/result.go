@@ -12,6 +12,28 @@ type MutationDraft struct {
 	Config    AuthConfigDraft
 }
 
+// ConfigType returns the canonical auth type for the structured config payload.
+// The shell can use this to branch on auth families without depending on CLI
+// flag names or concrete editor fields.
+func (d MutationDraft) ConfigType() string {
+	switch d.Config.(type) {
+	case BearerConfigDraft:
+		return "bearer"
+	case BasicConfigDraft:
+		return "basic"
+	case OAuth2ConfigDraft:
+		return "oauth2"
+	case CustomConfigDraft:
+		return "custom"
+	case UnknownConfigDraft:
+		if unknown, ok := d.Config.(UnknownConfigDraft); ok {
+			return normalizeType(unknown.Type)
+		}
+	}
+
+	return normalizeType(d.Type)
+}
+
 type AuthConfigDraft interface {
 	isAuthConfigDraft()
 }

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"straumr-tui/internal/views/dialogs"
+	"straumr-tui/internal/views/request"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -16,6 +17,13 @@ const (
 	flowWorkspaceEditName      pendingFlow = "workspace-edit-name"
 	flowWorkspaceCopyName      pendingFlow = "workspace-copy-name"
 	flowWorkspaceDeleteConfirm pendingFlow = "workspace-delete-confirm"
+	flowRequestCreateName      pendingFlow = "request-create-name"
+	flowRequestCreateURL       pendingFlow = "request-create-url"
+	flowRequestCreateMethod    pendingFlow = "request-create-method"
+	flowRequestEditLoad        pendingFlow = "request-edit-load"
+	flowRequestEditName        pendingFlow = "request-edit-name"
+	flowRequestEditURL         pendingFlow = "request-edit-url"
+	flowRequestEditMethod      pendingFlow = "request-edit-method"
 	flowRequestCopyName        pendingFlow = "request-copy-name"
 	flowRequestDeleteConfirm   pendingFlow = "request-delete-confirm"
 	flowAuthCopyName           pendingFlow = "auth-copy-name"
@@ -36,6 +44,7 @@ type pendingAction struct {
 	Value         string
 	WorkspaceID   string
 	WorkspaceName string
+	RequestDraft  request.Draft
 }
 
 func (m *Model) hasOverlay() bool {
@@ -191,6 +200,71 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, copyRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, value)
+	case flowRequestCreateName:
+		if value == "" {
+			m.textInput.Message = "Request name is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithName(value)
+		m.openTextFlow(flowRequestCreateURL, "Create request", "URL", pending.RequestDraft.URL, "https://example.com", "Enter the request URL", pending)
+		return m, nil
+	case flowRequestCreateURL:
+		if value == "" {
+			m.textInput.Message = "Request URL is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithURL(value)
+		method := pending.RequestDraft.Method
+		if strings.TrimSpace(method) == "" {
+			method = "GET"
+			pending.RequestDraft = pending.RequestDraft.WithMethod(method)
+		}
+		m.openTextFlow(flowRequestCreateMethod, "Create request", "Method", method, "GET", "Enter the HTTP method", pending)
+		return m, nil
+	case flowRequestCreateMethod:
+		if value == "" {
+			m.textInput.Message = "HTTP method is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(value))
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, createRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.RequestDraft.MutationDraft())
+	case flowRequestEditName:
+		if value == "" {
+			m.textInput.Message = "Request name is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithName(value)
+		m.openTextFlow(flowRequestEditURL, "Edit request", "URL", pending.RequestDraft.URL, "https://example.com", "Update the request URL", pending)
+		return m, nil
+	case flowRequestEditURL:
+		if value == "" {
+			m.textInput.Message = "Request URL is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithURL(value)
+		method := pending.RequestDraft.Method
+		if strings.TrimSpace(method) == "" {
+			method = "GET"
+		}
+		m.openTextFlow(flowRequestEditMethod, "Edit request", "Method", method, "GET", "Update the HTTP method", pending)
+		return m, nil
+	case flowRequestEditMethod:
+		if value == "" {
+			m.textInput.Message = "HTTP method is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(value))
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, editRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, pending.RequestDraft.MutationDraft())
 	case flowAuthCopyName:
 		if value == "" {
 			m.textInput.Message = "Auth name is required"

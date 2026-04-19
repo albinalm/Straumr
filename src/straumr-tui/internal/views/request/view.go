@@ -36,6 +36,8 @@ type ActionKind string
 const (
 	ActionNone       ActionKind = ""
 	ActionMoveCursor ActionKind = "move-cursor"
+	ActionSubmit     ActionKind = "submit"
+	ActionCancel     ActionKind = "cancel"
 	ActionSend       ActionKind = "send"
 	ActionCreate     ActionKind = "create"
 	ActionDelete     ActionKind = "delete"
@@ -71,6 +73,7 @@ type View struct {
 	Items         []Item
 	WorkspaceName string
 	WorkspaceID   string
+	target        Item
 	Message       string
 	Editor        EditorView
 }
@@ -88,11 +91,33 @@ func NewView() *View {
 }
 
 func (v *View) OpenEditor(mode EditorMode, draft Draft) {
+	target := Item{}
+	if mode == EditorModeEdit {
+		target = v.currentItem()
+	}
+	v.OpenEditorForItem(mode, target, draft)
+}
+
+func (v *View) OpenCreateEditor(draft Draft) {
+	v.OpenEditorForItem(EditorModeCreate, Item{}, draft)
+}
+
+func (v *View) OpenEditEditor(target Item, draft Draft) {
+	v.OpenEditorForItem(EditorModeEdit, target, draft)
+}
+
+func (v *View) OpenEditorForItem(mode EditorMode, target Item, draft Draft) {
+	v.target = target
 	v.Editor.Open(mode, draft)
 }
 
 func (v *View) CloseEditor() {
+	v.target = Item{}
 	v.Editor.Close()
+}
+
+func (v *View) SetEditorDraft(draft Draft) {
+	v.Editor.SetDraft(draft)
 }
 
 func (v *View) EditorDraft() MutationDraft {
@@ -100,7 +125,15 @@ func (v *View) EditorDraft() MutationDraft {
 }
 
 func (v *View) EditorSubmission() Submission {
-	return v.Editor.Submit()
+	return NewSubmission(v.Editor.Mode, v.target, v.Editor.Draft)
+}
+
+func (v *View) CurrentItem() Item {
+	return v.currentItem()
+}
+
+func (v *View) HandleEditorKey(key Key) Action {
+	return v.handleEditorKey(key)
 }
 
 func (v *View) SetItems(items []Item) {
@@ -128,16 +161,7 @@ func (v *View) Render() string {
 
 func (v *View) HandleKey(key Key) Action {
 	if v.Editor.Active {
-		switch key {
-		case KeyCancel:
-			v.Editor.Active = false
-			return Action{Kind: ActionNone}
-		case KeyEnter:
-			v.Editor.Active = false
-			return Action{Kind: ActionOpenEditor, Item: v.currentItem()}
-		default:
-			return Action{Kind: ActionNone, Item: v.currentItem()}
-		}
+		return v.handleEditorKey(key)
 	}
 
 	switch key {
@@ -173,6 +197,22 @@ func (v *View) HandleKey(key Key) Action {
 		return Action{Kind: ActionCommand}
 	default:
 		return Action{Kind: ActionNone}
+	}
+}
+
+func (v *View) handleEditorKey(key Key) Action {
+	action := v.Editor.HandleKey(key)
+	switch action.Kind {
+	case EditorActionMove:
+		return Action{Kind: ActionMoveCursor, Item: v.currentItem()}
+	case EditorActionSubmit:
+		v.Editor.Active = false
+		return Action{Kind: ActionSubmit, Item: v.target}
+	case EditorActionCancel:
+		v.Editor.Active = false
+		return Action{Kind: ActionCancel, Item: v.target}
+	default:
+		return Action{Kind: ActionNone, Item: v.currentItem()}
 	}
 }
 

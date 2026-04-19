@@ -6,7 +6,7 @@ Auth list, inspect, create, edit, copy, and delete for workspace-local auth defi
 
 ## Current status
 
-Go view package is present with type-aware draft extraction and inline edit support.
+In progress. The Go view package exposes type-aware draft extraction and the shell already wires copy/delete, but create/edit submission is still pending.
 
 ## Completed work
 
@@ -16,16 +16,15 @@ Go view package is present with type-aware draft extraction and inline edit supp
 - Kept the existing interactive/editor-backed flows for non-inline usage.
 - Added auth draft extraction per type and explicit editor open/close helpers in the Go view package.
 - Added the structured auth list/edit surface in the Go shell.
+- Added shell-friendly auth editor accessors such as `OpenCreate`, `OpenEdit`, `EditorActive`, `EditorMode`, and `MutationDraft.ConfigType()`.
 
 ## Work in progress
 
-- None.
+- Wiring create/edit submission in the shell against the type-aware auth mutation draft.
 
 ## Blockers
 
-- Dotnet build/test verification is pending outside the sandbox.
 - Large auth payload input still has command-line length risk in future TUI/editor work.
-- Shell-level mutation submission still needs to consume the structured draft payloads.
 
 ## Files touched
 
@@ -45,8 +44,8 @@ Go view package is present with type-aware draft extraction and inline edit supp
 ## Next steps
 
 - Wire auth draft submission into the shell mutation path.
-- Add shell-side auth picker and edit-overlay handling.
+- Add shell-side auth picker and edit-overlay handling for the different auth families.
 
 ## Resume notes
 
-- `edit auth --json` is safe for subprocess use when inline flags are present, and the Go view now exposes a type-aware draft payload.
+- `edit auth --json` is safe for subprocess use when inline flags are present, and the Go view now exposes a type-aware draft payload plus a shell-facing config discriminator.

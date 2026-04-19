@@ -86,6 +86,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applySecrets(msg), nil
 	case sendLoadedMsg:
 		return m.applySend(msg), nil
+	case dryRunLoadedMsg:
+		return m.applyDryRun(msg), nil
+	case requestEditorSeedMsg:
+		return m.applyRequestEditorSeed(msg)
 	case mutationCompletedMsg:
 		return m.applyMutation(msg)
 	case secretEditorSeedMsg:
@@ -259,9 +263,11 @@ func (m *Model) handleRequestKey(key request.Key) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case request.ActionEdit, request.ActionEditAlt:
-		m.requestView.Editor.Active = true
-		m.requestView.Editor.Message = requestActionMessage(action.Kind, action.Item)
-		return m, nil
+		if action.Item.ID == "" || m.requestView.WorkspaceID == "" {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, seedRequestEditCmd(m.ctx, m.client, m.requestView.WorkspaceID, action.Item.ID, flowRequestEditLoad)
 	case request.ActionCopy:
 		if action.Item.ID == "" || m.requestView.WorkspaceID == "" {
 			return m, nil
@@ -285,11 +291,22 @@ func (m *Model) handleRequestKey(key request.Key) (tea.Model, tea.Cmd) {
 		})
 		return m, nil
 	case request.ActionCreate:
-		m.session.Message = requestActionMessage(action.Kind, action.Item)
+		if m.requestView.WorkspaceID == "" {
+			m.session.Message = "No workspace selected"
+			return m, nil
+		}
+		m.openTextFlow(flowRequestCreateName, "Create request", "Name", "", "request name", "Enter the new request name", pendingAction{
+			WorkspaceID:   m.requestView.WorkspaceID,
+			WorkspaceName: m.requestView.WorkspaceName,
+			RequestDraft:  request.NewDraft().WithMethod("GET"),
+		})
 		return m, nil
-	case request.ActionOpenEditor:
-		m.requestView.Editor.Active = false
-		m.session.Message = "Request editor submit is not wired yet"
+	case request.ActionSubmit:
+		m.requestView.CloseEditor()
+		m.session.Message = "Request editor submission is not wired yet"
+		return m, nil
+	case request.ActionCancel:
+		m.requestView.CloseEditor()
 		return m, nil
 	default:
 		return m, nil
@@ -387,6 +404,13 @@ func (m *Model) handleSendKey(key send.Key) (tea.Model, tea.Cmd) {
 		m.session.Busy = true
 		m.sendView.SetStatus("Sending...")
 		return m, sendCmd(m.ctx, m.client, *m.session.ActiveRequest)
+	case send.ActionDryRun:
+		if m.session.ActiveRequest == nil {
+			return m, nil
+		}
+		m.session.Busy = true
+		m.sendView.SetStatus("Dry run...")
+		return m, dryRunCmd(m.ctx, m.client, *m.session.ActiveRequest)
 	case send.ActionBeautify, send.ActionRevert, send.ActionCopyPane, send.ActionCopyTemplate, send.ActionSaveBody, send.ActionExport:
 		m.session.Message = sendActionMessage(action.Kind)
 		return m, nil
@@ -492,6 +516,86 @@ func (m *Model) applySend(msg sendLoadedMsg) *Model {
 	})
 	m.session.Error = ""
 	return m
+}
+
+func (m *Model) applyDryRun(msg dryRunLoadedMsg) *Model {
+	m.session.Busy = false
+	m.sendView.SetRequest(send.Request{
+		Name:   msg.Request.Name,
+		Method: msg.Request.Method,
+		URI:    msg.Request.URI,
+	})
+
+	if msg.Err != nil {
+		m.sendView.SetStatus("Dry run failed")
+		m.sendView.SetError(msg.Err.Error())
+		m.session.Error = msg.Err.Error()
+		return m
+	}
+
+	notes := []string{}
+	if msg.Result.Auth != nil && strings.TrimSpace(*msg.Result.Auth) != "" {
+		notes = append(notes, "Auth: "+strings.TrimSpace(*msg.Result.Auth))
+	}
+	if msg.Result.BodyType != "" {
+		notes = append(notes, "Body type: "+msg.Result.BodyType)
+	}
+
+	body := ""
+	if msg.Result.Body != nil {
+		body = *msg.Result.Body
+	}
+
+	m.sendView.SetStatus("Dry run ready")
+	m.sendView.SetResponse(send.Response{
+		StatusText: "Preview only",
+		Summary:    summarizeFlatHeaders(msg.Result.Headers),
+		Body:       body,
+		RawBody:    body,
+		Notes:      notes,
+	})
+	m.session.Error = ""
+	return m
+}
+
+func (m *Model) applyRequestEditorSeed(msg requestEditorSeedMsg) (tea.Model, tea.Cmd) {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m, nil
+	}
+
+	draft := request.NewDraft().
+		WithName(msg.Item.Name).
+		WithURL(msg.Item.Uri).
+		WithMethod(msg.Item.Method)
+
+	if msg.Item.Body != nil || msg.Item.BodyType != "" {
+		body := ""
+		if msg.Item.Body != nil {
+			body = *msg.Item.Body
+		}
+		draft = draft.WithBody(msg.Item.BodyType, body)
+	}
+	if msg.Item.AuthID != nil {
+		draft = draft.WithAuth(*msg.Item.AuthID)
+	}
+	for key, value := range msg.Item.Params {
+		draft = draft.WithParam(key, value)
+	}
+	for key, value := range msg.Item.Headers {
+		draft = draft.WithHeader(key, value)
+	}
+
+	m.openTextFlow(flowRequestEditName, "Edit request", "Name", draft.Name, "request name", "Update the request name", pendingAction{
+		Identifier:    msg.Item.ID,
+		Name:          msg.Item.Name,
+		WorkspaceID:   m.requestView.WorkspaceID,
+		WorkspaceName: m.requestView.WorkspaceName,
+		RequestDraft:  draft,
+	})
+	return m, nil
 }
 
 func (m *Model) applyMutation(msg mutationCompletedMsg) (tea.Model, tea.Cmd) {
@@ -733,6 +837,18 @@ func summarizeHeaders(headers map[string][]string) string {
 	lines := make([]string, 0, len(headers))
 	for key, values := range headers {
 		lines = append(lines, fmt.Sprintf("%s: %s", key, strings.Join(values, ", ")))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func summarizeFlatHeaders(headers map[string]string) string {
+	if len(headers) == 0 {
+		return "(no headers)"
+	}
+
+	lines := make([]string, 0, len(headers))
+	for key, value := range headers {
+		lines = append(lines, fmt.Sprintf("%s: %s", key, value))
 	}
 	return strings.Join(lines, "\n")
 }

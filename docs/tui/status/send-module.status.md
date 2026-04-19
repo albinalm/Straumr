@@ -6,7 +6,7 @@ Request send flow, optional dry-run preview, response viewer, copy/beautify/expo
 
 ## Current status
 
-Go response-view package is present and the shell can hand off requests to it.
+In progress. The send screen is wired to real send and dry-run CLI calls.
 
 ## Completed work
 
@@ -16,15 +16,16 @@ Go response-view package is present and the shell can hand off requests to it.
 - Confirmed shared JSON stderr envelope helper in CLI source.
 - Added the Go send view surface for request/response rendering and pane focus.
 - Wired the root shell to enter the send screen on request send actions.
+- Wired `send --json` results into the response viewer.
+- Wired `send --dry-run --json` into the send screen as a preview path.
 
 ## Work in progress
 
-- None.
+- Completing save/export/copy actions from the send screen.
 
 ## Blockers
 
-- None beyond CLI binary resolution and general project scaffolding.
-- Response mutation/export/save actions still need shell-side completion.
+- None beyond the remaining shell-side action wiring.
 
 ## Files touched
 
@@ -39,9 +40,10 @@ Go response-view package is present and the shell can hand off requests to it.
 
 ## Next steps
 
-- Wire CLI send responses into the response viewer.
-- Complete copy/export/save actions and dry-run handling.
+- Complete copy/export/save actions.
+- Add clearer dry-run/send affordances in the rendered view.
 
 ## Resume notes
 
-- The send view already renders the response shell; the remaining work is transport and action wiring.
+- Transport is already live for both send and dry-run.
+- The remaining send work is action completion and view polish.

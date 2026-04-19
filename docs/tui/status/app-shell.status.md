@@ -6,7 +6,7 @@ Bubble Tea root model, navigation, shared screen state, refresh rules, global ke
 
 ## Current status
 
-In progress. Root Bubble Tea shell is in place and the main screens are wired.
+In progress. Root Bubble Tea shell is in place, the main screens are wired, and several real mutation flows now round-trip through the CLI.
 
 ## Completed work
 
@@ -15,10 +15,14 @@ In progress. Root Bubble Tea shell is in place and the main screens are wired.
 - Mapped shared keybindings and screen transitions.
 - Implemented the Go root model, startup binary resolution, shell routing, and workspace/request/auth/secret/send screen switching.
 - Added the session/state primitives, key translation helpers, and overlay hooks that the feature views consume.
+- Wired workspace create/rename/copy/delete through overlay-backed shell flows.
+- Wired secret create/edit/copy/delete through overlay-backed shell flows.
+- Wired request create/edit quick flows plus request copy/delete through overlay-backed shell flows.
+- Wired send refresh and dry-run into the send screen.
 
 ## Work in progress
 
-- Connecting mutation submission and overlay results back into the shell.
+- Completing auth create/edit submission and the richer request edit overlays.
 
 ## Blockers
 
@@ -46,8 +50,11 @@ In progress. Root Bubble Tea shell is in place and the main screens are wired.
 
 ## Next steps
 
-- Wire the structured draft/result APIs from the view packages into the shell mutation handlers.
+- Finish auth create/edit shell flows using the type-aware auth mutation drafts.
+- Extend request editing beyond name/url/method into auth/body/header/param overlays.
+- Complete send save/export actions.
 
 ## Resume notes
 
-- The root shell already renders all major screens; the next work is mutation and overlay completion.
+- The shell already owns the mutation round-trip for workspace, secret, and the quick request flows.
+- The next shell-critical slice is auth create/edit, then richer request editing.

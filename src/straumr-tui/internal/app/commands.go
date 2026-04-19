@@ -6,6 +6,7 @@ import (
 
 	"straumr-tui/internal/cli"
 	"straumr-tui/internal/state"
+	"straumr-tui/internal/views/request"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -125,6 +126,77 @@ func sendCmd(ctx context.Context, client *cli.Client, request state.RequestRef) 
 	}
 }
 
+func dryRunCmd(ctx context.Context, client *cli.Client, request state.RequestRef) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.DryRunRequest(ctx, request.ID, request.WorkspaceID, nil, nil)
+		return dryRunLoadedMsg{
+			Request: request,
+			Result:  result,
+			Err:     err,
+		}
+	}
+}
+
+func seedRequestEditCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, action pendingFlow) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetRequest(ctx, workspaceID, identifier)
+		return requestEditorSeedMsg{
+			Item:   item,
+			Err:    err,
+			Action: action,
+		}
+	}
+}
+
+func createRequestCmd(ctx context.Context, client *cli.Client, workspaceID string, draft request.MutationDraft) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CreateRequest(ctx, workspaceID, draft.Name, draft.URL, cli.RequestCreateOptions{
+			Method:   draft.Method,
+			Headers:  formatRequestHeaders(draft.Headers),
+			Params:   formatRequestParams(draft.Params),
+			Data:     draft.Body,
+			BodyType: draft.BodyType,
+			Auth:     draft.Auth,
+		})
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenRequests,
+			Message: fmt.Sprintf("Created request %s", result.Name),
+		}
+	}
+}
+
+func editRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, draft request.MutationDraft) tea.Cmd {
+	return func() tea.Msg {
+		name := draft.Name
+		url := draft.URL
+		method := draft.Method
+		data := draft.Body
+		bodyType := draft.BodyType
+		auth := draft.Auth
+
+		result, err := client.EditRequest(ctx, workspaceID, identifier, cli.RequestEditOptions{
+			Name:     &name,
+			Uri:      &url,
+			Method:   &method,
+			Headers:  formatRequestHeaders(draft.Headers),
+			Params:   formatRequestParams(draft.Params),
+			Data:     &data,
+			BodyType: &bodyType,
+			Auth:     &auth,
+		})
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenRequests,
+			Message: fmt.Sprintf("Updated request %s", result.Name),
+		}
+	}
+}
+
 func createWorkspaceCmd(ctx context.Context, client *cli.Client, name string) tea.Cmd {
 	return func() tea.Msg {
 		result, err := client.CreateWorkspace(ctx, name, "")
@@ -188,6 +260,28 @@ func deleteRequestCmd(ctx context.Context, client *cli.Client, workspaceID, iden
 			Message: fmt.Sprintf("Deleted request %s", name),
 		}
 	}
+}
+
+func formatRequestHeaders(headers []request.Pair) []string {
+	values := make([]string, 0, len(headers))
+	for _, header := range headers {
+		if header.Key == "" {
+			continue
+		}
+		values = append(values, fmt.Sprintf("%s: %s", header.Key, header.Value))
+	}
+	return values
+}
+
+func formatRequestParams(params []request.Pair) []string {
+	values := make([]string, 0, len(params))
+	for _, param := range params {
+		if param.Key == "" {
+			continue
+		}
+		values = append(values, fmt.Sprintf("%s=%s", param.Key, param.Value))
+	}
+	return values
 }
 
 func copyRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identifier, name string) tea.Cmd {

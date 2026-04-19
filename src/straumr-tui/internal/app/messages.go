@@ -40,6 +40,18 @@ type sendLoadedMsg struct {
 	Err     error
 }
 
+type dryRunLoadedMsg struct {
+	Request state.RequestRef
+	Result  cli.DryRunResult
+	Err     error
+}
+
+type requestEditorSeedMsg struct {
+	Item   cli.RequestGetResult
+	Err    error
+	Action pendingFlow
+}
+
 type mutationCompletedMsg struct {
 	Screen  state.ScreenID
 	Message string

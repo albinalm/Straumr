@@ -211,6 +211,8 @@ func SendKey(msg tea.KeyMsg) (send.Key, bool) {
 		return send.KeySaveBody, true
 	case "x":
 		return send.KeyExport, true
+	case "n":
+		return send.KeyDryRun, true
 	case "s":
 		return send.KeyRefresh, true
 	default:

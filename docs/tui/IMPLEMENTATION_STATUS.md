@@ -10,13 +10,13 @@
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| App shell | In progress | Root Bubble Tea model, navigation, screen routing, and send handoff are in place |
-| CLI client | In progress | Subprocess execution, JSON decode, stderr envelope parsing, cache, and typed wrappers are in place |
-| Workspace | Scaffolded | View package is present and wired into the root shell; structured rename support exists |
-| Request | Scaffolded | View/editor package is present with structured draft extraction; shell mutation wiring is still being completed |
-| Auth | Scaffolded | View/editor package is present with type-aware draft extraction and inline edit support |
-| Secret | Scaffolded | View/editor package is present with structured draft extraction and JSON-safe create/edit/delete paths |
-| Send | Scaffolded | Response-view package is present and wired to request send handoff |
+| App shell | In progress | Root Bubble Tea model, overlay flows, workspace/secret CRUD, request copy/delete/create/edit quick flows, and send handoff are in place |
+| CLI client | Implemented | Subprocess execution, JSON decode, stderr envelope parsing, cache, and typed wrappers for workspace/request/auth/secret/send are in place |
+| Workspace | In progress | View package is wired and create/rename/copy/delete now execute through the shell |
+| Request | In progress | View/editor package exposes structured drafts and the shell now drives create/edit/copy/delete via JSON-safe CLI calls |
+| Auth | In progress | View/editor package exposes type-aware mutation drafts; shell copy/delete are wired, create/edit are still pending |
+| Secret | In progress | View package is wired and create/edit/copy/delete now execute through the shell |
+| Send | In progress | Response-view package is wired to real send and dry-run flows |
 | Dialogs/pickers | Scaffolded | Overlay and picker packages are present with structured result types |
 
 ## Open decisions
@@ -31,8 +31,8 @@
 
 ## Recommended implementation order
 
-1. Finish request mutation submission and request-auth selection wiring.
-2. Wire auth and secret mutation submission through the shell.
+1. Finish auth create/edit submission through the shell, using the type-aware draft surface.
+2. Extend request editing beyond the current quick-flow fields into auth/body/header/param overlays.
 3. Complete send response/export/save actions against the send view.
 4. Refine dialogs and path picker interactions.
 5. Tighten cache invalidation and refresh rules around successful mutations.

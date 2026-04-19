@@ -22,6 +22,7 @@ const (
 	KeyRevert       Key = "revert"
 	KeySaveBody     Key = "save-body"
 	KeyExport       Key = "export"
+	KeyDryRun       Key = "dry-run"
 	KeyRefresh      Key = "refresh"
 )
 
@@ -109,6 +110,8 @@ func (v *View) HandleKey(key Key) Action {
 		return Action{Kind: ActionSaveBody}
 	case KeyExport:
 		return Action{Kind: ActionExport}
+	case KeyDryRun:
+		return Action{Kind: ActionDryRun}
 	case KeyRefresh:
 		return Action{Kind: ActionSend}
 	default:
@@ -145,6 +148,10 @@ func (v *View) Render() string {
 	b.WriteString("\n")
 	b.WriteString(renderMeta(v.Response))
 	b.WriteString("\n")
+	if notes := renderNotes(v.Response); notes != "" {
+		b.WriteString(notes)
+		b.WriteString("\n")
+	}
 	b.WriteString(renderSummaryPane(v.Response))
 	b.WriteString("\n\n")
 	b.WriteString(renderBodyPane(v))
@@ -218,6 +225,26 @@ func renderMeta(response Response) string {
 	}
 
 	return fmt.Sprintf("Response: %s", strings.Join(meta, "  "))
+}
+
+func renderNotes(response Response) string {
+	if len(response.Notes) == 0 {
+		return ""
+	}
+
+	lines := []string{"Notes"}
+	for _, note := range response.Notes {
+		if strings.TrimSpace(note) == "" {
+			continue
+		}
+		lines = append(lines, "  "+note)
+	}
+
+	if len(lines) == 1 {
+		return ""
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func renderSummaryPane(response Response) string {

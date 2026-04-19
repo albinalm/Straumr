@@ -70,6 +70,10 @@ func (v *EditorView) Open(mode EditorMode, draft Draft) {
 	v.Message = ""
 }
 
+func (v *EditorView) SetDraft(draft Draft) {
+	v.Draft = draft
+}
+
 func (v *EditorView) Close() {
 	v.Active = false
 	v.Message = ""
@@ -79,11 +83,12 @@ func (v *EditorView) Snapshot() MutationDraft {
 	return v.Draft.MutationDraft()
 }
 
+func (v *EditorView) CurrentDraft() Draft {
+	return v.Draft.Clone()
+}
+
 func (v *EditorView) Submit() Submission {
-	return Submission{
-		Mode:  v.Mode,
-		Draft: v.Snapshot(),
-	}
+	return NewSubmission(v.Mode, Item{}, v.Draft)
 }
 
 func (v *EditorView) Render() string {

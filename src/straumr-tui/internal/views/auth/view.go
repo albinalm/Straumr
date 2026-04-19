@@ -89,8 +89,31 @@ func (v *View) OpenEditor(mode EditorMode, draft Draft) {
 	v.Editor.Open(mode, draft)
 }
 
+// OpenCreate opens the editor in create mode with the provided presentation
+// draft. This keeps the root shell from having to mention editor mode values
+// directly when it is creating a new auth.
+func (v *View) OpenCreate(draft Draft) {
+	v.OpenEditor(EditorModeCreate, draft)
+}
+
+// OpenEdit opens the editor in edit mode with the provided presentation draft.
+func (v *View) OpenEdit(draft Draft) {
+	v.OpenEditor(EditorModeEdit, draft)
+}
+
 func (v *View) CloseEditor() {
 	v.Editor.Close()
+}
+
+// EditorActive reports whether the auth editor overlay is currently mounted.
+func (v *View) EditorActive() bool {
+	return v.Editor.Active
+}
+
+// EditorMode returns the current editor mode so the shell can tell create and
+// edit submissions apart without inspecting internal editor fields.
+func (v *View) EditorMode() EditorMode {
+	return v.Editor.Mode
 }
 
 func (v *View) EditorDraft() MutationDraft {
