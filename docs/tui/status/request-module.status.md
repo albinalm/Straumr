@@ -6,7 +6,7 @@ Request list, inspect, create, edit, copy, delete, and send-view handoff.
 
 ## Current status
 
-In progress. The view package exposes structured draft/result APIs, and the shell now drives create/edit/copy/delete plus auth/body quick-flow fields through the JSON-safe request commands.
+In progress. The view package exposes structured draft/result APIs, and the shell now drives inspect/create/edit/copy/delete plus auth/body/header/param quick-flow fields through the JSON-safe request commands.
 
 ## Completed work
 
@@ -16,12 +16,13 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Identified large-body input as a contract concern.
 - Added request draft extraction and explicit editor open/close helpers in the Go view package.
 - Added request list rendering and send handoff hooks in the Go shell.
-- Added quick create/edit request flows in the shell for name, URL, method, auth, and body/body type using `get/create/edit request --json`.
+- Wired request inspect through `get request --json` into a details overlay with headers, params, auth ID, timestamps, and body preview.
+- Added quick create/edit request flows in the shell for name, URL, method, auth, body/body type, headers, and params using `get/create/edit request --json`.
 - Wired request copy/delete through the shell to the typed CLI client.
 
 ## Work in progress
 
-- Extending the request edit flow to cover header/param overlays and richer inspect/detail handling.
+- Refining the request detail presentation and remaining overlay ergonomics.
 
 ## Blockers
 
@@ -41,10 +42,10 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 
 ## Next steps
 
-- Add header/param editing overlays that feed the structured request draft.
-- Improve request inspect/detail handling around the seeded draft flow.
+- Refine the request detail presentation and overlay UX now that inspect is wired.
+- Decide whether request auth selection should stay text-driven or move to a shared picker.
 
 ## Resume notes
 
-- Request create/edit now works as a quick flow for name, URL, method, auth, and body/body type.
-- The remaining request gap is header/param editing plus richer detail polish.
+- Request create/edit now works as a quick flow for name, URL, method, auth, body/body type, headers, and params.
+- Request inspect is live and uses the JSON-safe get path; the remaining request gap is mostly detail polish and overlay refinement.

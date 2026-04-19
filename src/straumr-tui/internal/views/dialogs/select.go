@@ -8,19 +8,20 @@ import (
 type Key string
 
 const (
-	KeyUp       Key = "up"
-	KeyDown     Key = "down"
-	KeyLeft     Key = "left"
-	KeyRight    Key = "right"
-	KeyHome     Key = "home"
-	KeyEnd      Key = "end"
-	KeyEnter    Key = "enter"
-	KeyCancel   Key = "cancel"
-	KeySearch   Key = "search"
-	KeyDelete   Key = "delete"
-	KeyTab      Key = "tab"
-	KeyShiftTab Key = "shift-tab"
-	KeyOpen     Key = "open"
+	KeyUp        Key = "up"
+	KeyDown      Key = "down"
+	KeyLeft      Key = "left"
+	KeyRight     Key = "right"
+	KeyHome      Key = "home"
+	KeyEnd       Key = "end"
+	KeyEnter     Key = "enter"
+	KeyCancel    Key = "cancel"
+	KeySearch    Key = "search"
+	KeyDelete    Key = "delete"
+	KeyBackspace Key = "backspace"
+	KeyTab       Key = "tab"
+	KeyShiftTab  Key = "shift-tab"
+	KeyOpen      Key = "open"
 )
 
 type ActionKind string

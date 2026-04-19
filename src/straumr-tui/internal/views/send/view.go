@@ -1,6 +1,7 @@
 package send
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -78,6 +79,9 @@ type View struct {
 	BodyScroll    int
 	Beautified    bool
 	Available     bool
+	bodySource    string
+	bodyRendered  string
+	bodyNotice    string
 }
 
 func NewView() *View {
@@ -101,10 +105,10 @@ func (v *View) HandleKey(key Key) Action {
 	case KeyCopyTemplate:
 		return Action{Kind: ActionCopyTemplate}
 	case KeyBeautify:
-		v.Beautified = true
+		v.setBeautified(true)
 		return Action{Kind: ActionBeautify}
 	case KeyRevert:
-		v.Beautified = false
+		v.setBeautified(false)
 		return Action{Kind: ActionRevert}
 	case KeySaveBody:
 		return Action{Kind: ActionSaveBody}
@@ -133,10 +137,12 @@ func (v *View) SetRequest(request Request) {
 
 func (v *View) SetResponse(response Response) {
 	v.Response = response
+	v.refreshBodyPresentation()
 }
 
 func (v *View) SetError(message string) {
 	v.Response.Error = message
+	v.refreshBodyPresentation()
 }
 
 func (v *View) Render() string {
@@ -260,18 +266,86 @@ func renderSummaryPane(response Response) string {
 }
 
 func renderBodyPane(v *View) string {
-	lines := []string{"Body"}
-	body := v.Response.Body
+	lines := []string{bodyPaneTitle(v)}
+	if v.bodyNotice != "" {
+		lines = append(lines, "  "+v.bodyNotice)
+	}
+	body := v.bodyRendered
 	if body == "" {
-		if v.Response.RawBody == "" {
-			lines = append(lines, "  (empty)")
-			return strings.Join(lines, "\n")
-		}
-		body = v.Response.RawBody
+		body = v.bodySource
+	}
+	if body == "" {
+		lines = append(lines, "  (empty)")
+		return strings.Join(lines, "\n")
 	}
 
 	for _, line := range strings.Split(body, "\n") {
 		lines = append(lines, "  "+line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (v *View) setBeautified(enabled bool) {
+	v.Beautified = enabled
+	v.refreshBodyPresentation()
+}
+
+func (v *View) refreshBodyPresentation() {
+	v.bodyNotice = ""
+	v.bodySource = resolveBodySource(v.Response)
+	v.bodyRendered = v.bodySource
+
+	if v.bodySource == "" {
+		return
+	}
+
+	if !v.Beautified {
+		return
+	}
+
+	pretty, ok := beautifyJSON(v.bodySource)
+	if !ok {
+		v.bodyNotice = "Beautify unavailable: body is not valid JSON"
+		return
+	}
+
+	v.bodyRendered = pretty
+}
+
+func resolveBodySource(response Response) string {
+	if strings.TrimSpace(response.RawBody) != "" {
+		return response.RawBody
+	}
+
+	return response.Body
+}
+
+func bodyPaneTitle(v *View) string {
+	switch {
+	case v.bodySource == "":
+		return "Body"
+	case v.Beautified:
+		return "Body (beautified)"
+	default:
+		return "Body (raw)"
+	}
+}
+
+func beautifyJSON(value string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "", false
+	}
+
+	var decoded any
+	if err := json.Unmarshal([]byte(trimmed), &decoded); err != nil {
+		return "", false
+	}
+
+	formatted, err := json.MarshalIndent(decoded, "", "  ")
+	if err != nil {
+		return "", false
+	}
+
+	return string(formatted), true
 }

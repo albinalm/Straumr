@@ -52,6 +52,12 @@ type requestEditorSeedMsg struct {
 	Action pendingFlow
 }
 
+type requestInspectLoadedMsg struct {
+	Item      cli.RequestGetResult
+	Err       error
+	RequestID string
+}
+
 type authEditorSeedMsg struct {
 	Item   cli.AuthGetResult
 	Err    error

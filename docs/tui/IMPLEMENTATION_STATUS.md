@@ -10,14 +10,14 @@
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| App shell | In progress | Root Bubble Tea model, overlay flows, workspace/secret CRUD, auth create/edit, richer request quick flows, and send save/export/copy handoff are in place |
+| App shell | In progress | Root Bubble Tea model, overlay flows, workspace/secret CRUD, auth create/edit, request inspect plus richer request quick flows, and send save/export/copy handoff are in place |
 | CLI client | Implemented | Subprocess execution, JSON decode, stderr envelope parsing, cache, and typed wrappers for workspace/request/auth/secret/send are in place |
 | Workspace | In progress | View package is wired and create/rename/copy/delete now execute through the shell |
-| Request | In progress | View/editor package exposes structured drafts and the shell now drives create/edit/copy/delete plus auth/body quick-flow fields via JSON-safe CLI calls |
+| Request | In progress | View/editor package exposes structured drafts and the shell now drives inspect/create/edit/copy/delete plus auth/body/header/param quick-flow fields via JSON-safe CLI calls |
 | Auth | Implemented | View/editor package exposes type-aware mutation drafts; shell create/edit/copy/delete now execute through JSON-safe CLI calls |
 | Secret | Implemented | View package is wired and create/edit/copy/delete now execute through the shell |
-| Send | In progress | Response-view package is wired to real send, dry-run, save-body, export, and copy-pane/template flows |
-| Dialogs/pickers | Scaffolded | Overlay and picker packages are present with structured result types |
+| Send | In progress | Response-view package is wired to real send, dry-run, save-body, export, copy-pane/template, and view-level beautify/revert behavior; save/export now use the shared path picker |
+| Dialogs/pickers | In progress | Overlay and picker packages are present with structured result types, and the shared path picker is now mounted by the shell for send save/export flows |
 
 ## Open decisions
 
@@ -31,10 +31,9 @@
 
 ## Recommended implementation order
 
-1. Extend request editing beyond the current quick-flow fields into header/param overlays and richer inspect/detail flows.
-2. Refine dialogs and path picker interactions.
-3. Improve send-pane beautify/revert formatting behavior.
-4. Tighten cache invalidation and refresh rules around successful mutations.
+1. Refine request inspect/detail and remaining overlay polish now that the inspect path is wired.
+2. Reuse the shared path picker beyond send save/export where it replaces ad hoc path entry.
+3. Tighten cache invalidation and refresh rules around successful mutations.
 
 ## Files touched
 

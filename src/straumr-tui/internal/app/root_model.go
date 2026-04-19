@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -34,6 +35,9 @@ type Model struct {
 	textInput     dialogs.TextInputView
 	secretInput   dialogs.SecretInputView
 	confirm       dialogs.ConfirmView
+	keyValue      dialogs.KeyValueEditorView
+	pathPicker    dialogs.PathPickerView
+	lastDirs      map[pendingFlow]string
 	pending       *pendingAction
 }
 
@@ -47,6 +51,7 @@ func NewModel(ctx context.Context, client *cli.Client, store *cache.Store) *Mode
 		authView:      auth.NewView(),
 		secretView:    secret.NewView(),
 		sendView:      send.NewView(),
+		lastDirs:      make(map[pendingFlow]string),
 		session: state.Session{
 			Screen: state.ScreenWorkspaces,
 		},
@@ -90,6 +95,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyDryRun(msg), nil
 	case requestEditorSeedMsg:
 		return m.applyRequestEditorSeed(msg)
+	case requestInspectLoadedMsg:
+		return m.applyRequestInspect(msg), nil
 	case authEditorSeedMsg:
 		return m.applyAuthEditorSeed(msg)
 	case mutationCompletedMsg:
@@ -241,8 +248,14 @@ func (m *Model) handleWorkspaceKey(key workspace.Key) (tea.Model, tea.Cmd) {
 func (m *Model) handleRequestKey(key request.Key) (tea.Model, tea.Cmd) {
 	action := m.requestView.HandleKey(key)
 	switch action.Kind {
-	case request.ActionMoveCursor, request.ActionInspect, request.ActionSearch, request.ActionCommand:
+	case request.ActionMoveCursor, request.ActionSearch, request.ActionCommand:
 		return m, nil
+	case request.ActionInspect:
+		if action.Item.ID == "" || m.requestView.WorkspaceID == "" {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, inspectRequestCmd(m.ctx, m.client, m.requestView.WorkspaceID, action.Item.ID)
 	case request.ActionSend:
 		m.session.SetRequest(
 			action.Item.ID,
@@ -430,13 +443,13 @@ func (m *Model) handleSendKey(key send.Key) (tea.Model, tea.Cmd) {
 		return m, dryRunCmd(m.ctx, m.client, *m.session.ActiveRequest)
 	case send.ActionSaveBody:
 		path := defaultSendBodyPath(m.session.ActiveRequest, m.sendView.Response)
-		m.openTextFlow(flowSendSavePath, "Save response body", "Path", path, ".\\response-body.txt", "Enter a file path for the response body", pendingAction{
+		m.openPathFlow(flowSendSavePath, "Save response body", "Type a path, use j/k to browse, h/l to move directories, Tab to complete, Enter to save.", path, pendingAction{
 			OutputText: sendBodyText(m.sendView.Response),
 		})
 		return m, nil
 	case send.ActionExport:
 		path := defaultSendExportPath(m.session.ActiveRequest)
-		m.openTextFlow(flowSendExportPath, "Export response", "Path", path, ".\\response-export.txt", "Enter a file path for the full response export", pendingAction{
+		m.openPathFlow(flowSendExportPath, "Export response", "Type a path, use j/k to browse, h/l to move directories, Tab to complete, Enter to export.", path, pendingAction{
 			OutputText: formatSendExport(m.sendView.Request, m.sendView.Response),
 		})
 		return m, nil
@@ -631,6 +644,32 @@ func (m *Model) applyRequestEditorSeed(msg requestEditorSeedMsg) (tea.Model, tea
 		RequestDraft:  draft,
 	})
 	return m, nil
+}
+
+func (m *Model) applyRequestInspect(msg requestInspectLoadedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+
+	item := m.requestView.CurrentItem()
+	title := "Request details"
+	if strings.TrimSpace(msg.Item.Name) != "" {
+		title = "Request details: " + msg.Item.Name
+	} else if item.ID != "" {
+		title = "Request details: " + item.ID
+	} else if msg.RequestID != "" {
+		title = "Request details: " + msg.RequestID
+	}
+
+	m.openConfirmFlow(flowRequestInspect, title, formatRequestInspectMessage(msg.Item), []string{"Close"}, pendingAction{
+		Identifier:    msg.RequestID,
+		WorkspaceID:   m.requestView.WorkspaceID,
+		WorkspaceName: m.requestView.WorkspaceName,
+	})
+	return m
 }
 
 func (m *Model) applyAuthEditorSeed(msg authEditorSeedMsg) (tea.Model, tea.Cmd) {
@@ -842,6 +881,70 @@ func secretActionMessage(kind secret.ActionKind, item secret.Item) string {
 
 func sendActionMessage(kind send.ActionKind) string {
 	return fmt.Sprintf("%s requested", kind)
+}
+
+func formatRequestInspectMessage(item cli.RequestGetResult) string {
+	lines := []string{
+		"ID: " + fallbackText(item.ID, "(unknown)"),
+		"Name: " + fallbackText(item.Name, "(unnamed)"),
+		"Method: " + fallbackText(item.Method, "(empty)"),
+		"URL: " + fallbackText(item.Uri, "(empty)"),
+		"Body type: " + fallbackText(item.BodyType, "none"),
+	}
+
+	if item.AuthID != nil && strings.TrimSpace(*item.AuthID) != "" {
+		lines = append(lines, "Auth ID: "+strings.TrimSpace(*item.AuthID))
+	} else {
+		lines = append(lines, "Auth ID: (none)")
+	}
+
+	lines = append(lines,
+		"Headers: "+formatFlatMapLines(item.Headers),
+		"Params: "+formatFlatMapLines(item.Params),
+		"Last accessed: "+fallbackText(item.LastAccessed, "(unknown)"),
+		"Modified: "+fallbackText(item.Modified, "(unknown)"),
+	)
+
+	body := "(empty)"
+	if item.Body != nil && strings.TrimSpace(*item.Body) != "" {
+		body = trimPreview(*item.Body, 400)
+	}
+	lines = append(lines, "Body preview:", body)
+
+	return strings.Join(lines, "\n")
+}
+
+func formatFlatMapLines(values map[string]string) string {
+	if len(values) == 0 {
+		return "(none)"
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	lines := make([]string, 0, len(keys))
+	for _, key := range keys {
+		lines = append(lines, "  - "+key+" = "+values[key])
+	}
+	return "\n" + strings.Join(lines, "\n")
+}
+
+func trimPreview(value string, limit int) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || len(trimmed) <= limit {
+		return trimmed
+	}
+	return trimmed[:limit] + "..."
+}
+
+func fallbackText(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }
 
 func (m *Model) refreshForActiveScreen() tea.Cmd {

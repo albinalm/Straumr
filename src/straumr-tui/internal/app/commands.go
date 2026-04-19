@@ -187,6 +187,17 @@ func seedRequestEditCmd(ctx context.Context, client *cli.Client, workspaceID, id
 	}
 }
 
+func inspectRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetRequest(ctx, workspaceID, identifier)
+		return requestInspectLoadedMsg{
+			Item:      item,
+			Err:       err,
+			RequestID: identifier,
+		}
+	}
+}
+
 func seedAuthEditCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, action pendingFlow) tea.Cmd {
 	return func() tea.Msg {
 		item, err := client.GetAuth(ctx, workspaceID, identifier)

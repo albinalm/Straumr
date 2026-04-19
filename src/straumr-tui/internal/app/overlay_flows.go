@@ -24,7 +24,16 @@ const (
 	flowRequestCreateAuth      pendingFlow = "request-create-auth"
 	flowRequestCreateBodyType  pendingFlow = "request-create-body-type"
 	flowRequestCreateBody      pendingFlow = "request-create-body"
+	flowRequestHeadersEditor   pendingFlow = "request-headers-editor"
+	flowRequestHeaderAddKey    pendingFlow = "request-header-add-key"
+	flowRequestHeaderAddValue  pendingFlow = "request-header-add-value"
+	flowRequestHeaderEditValue pendingFlow = "request-header-edit-value"
+	flowRequestParamsEditor    pendingFlow = "request-params-editor"
+	flowRequestParamAddKey     pendingFlow = "request-param-add-key"
+	flowRequestParamAddValue   pendingFlow = "request-param-add-value"
+	flowRequestParamEditValue  pendingFlow = "request-param-edit-value"
 	flowRequestEditLoad        pendingFlow = "request-edit-load"
+	flowRequestInspect         pendingFlow = "request-inspect"
 	flowRequestEditName        pendingFlow = "request-edit-name"
 	flowRequestEditURL         pendingFlow = "request-edit-url"
 	flowRequestEditMethod      pendingFlow = "request-edit-method"
@@ -75,6 +84,7 @@ type pendingAction struct {
 	Identifier    string
 	Name          string
 	Value         string
+	PairKey       string
 	WorkspaceID   string
 	WorkspaceName string
 	RequestDraft  request.Draft
@@ -84,7 +94,7 @@ type pendingAction struct {
 }
 
 func (m *Model) hasOverlay() bool {
-	return m.textInput.Active || m.secretInput.Active || m.confirm.Active
+	return m.textInput.Active || m.secretInput.Active || m.confirm.Active || m.keyValue.Active || m.pathPicker.Active
 }
 
 func (m *Model) overlayView() string {
@@ -95,6 +105,10 @@ func (m *Model) overlayView() string {
 		return m.secretInput.Render()
 	case m.confirm.Active:
 		return m.confirm.Render()
+	case m.keyValue.Active:
+		return m.keyValue.Render()
+	case m.pathPicker.Active:
+		return m.pathPicker.Render()
 	default:
 		return ""
 	}
@@ -104,6 +118,8 @@ func (m *Model) clearOverlays() {
 	m.textInput.Close()
 	m.secretInput.Close()
 	m.confirm.Close()
+	m.keyValue.Close()
+	m.pathPicker.Close()
 	m.pending = nil
 }
 
@@ -128,6 +144,13 @@ func (m *Model) openConfirmFlow(flow pendingFlow, title, message string, options
 	m.confirm.Open(title, message, options)
 }
 
+func (m *Model) openKeyValueFlow(flow pendingFlow, title, message string, items []dialogs.Pair, pending pendingAction) {
+	m.clearOverlays()
+	pending.Flow = flow
+	m.pending = &pending
+	m.keyValue.Open(title, message, items)
+}
+
 func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case m.textInput.Active:
@@ -136,6 +159,10 @@ func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSecretInputKey(msg)
 	case m.confirm.Active:
 		return m.handleConfirmKey(msg)
+	case m.keyValue.Active:
+		return m.handleKeyValueKey(msg)
+	case m.pathPicker.Active:
+		return m.handlePathPickerKey(msg)
 	default:
 		return m, nil
 	}
@@ -188,6 +215,80 @@ func (m *Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.acceptConfirm(choice)
 	case dialogs.ActionCancel:
 		m.clearOverlays()
+		return m, nil
+	default:
+		return m, nil
+	}
+}
+
+func (m *Model) handleKeyValueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.pending == nil {
+		m.clearOverlays()
+		return m, nil
+	}
+
+	if msg.String() == "c" {
+		switch m.pending.Flow {
+		case flowRequestHeadersEditor:
+			pending := *m.pending
+			m.openTextFlow(flowRequestHeaderAddKey, "Request headers", "Header name", "", "Header-Name", "Enter the header name", pending)
+			return m, nil
+		case flowRequestParamsEditor:
+			pending := *m.pending
+			m.openTextFlow(flowRequestParamAddKey, "Request params", "Param name", "", "param", "Enter the query parameter name", pending)
+			return m, nil
+		}
+	}
+
+	key, ok := dialogKey(msg)
+	if !ok {
+		return m, nil
+	}
+
+	switch m.keyValue.HandleKey(key) {
+	case dialogs.ActionMove:
+		return m, nil
+	case dialogs.ActionEditValue:
+		result := m.keyValue.Result(true)
+		if result.Item.Key == "" {
+			return m, nil
+		}
+		pending := *m.pending
+		pending.PairKey = result.Item.Key
+		switch m.pending.Flow {
+		case flowRequestHeadersEditor:
+			m.openTextFlow(flowRequestHeaderEditValue, "Request headers", "Header value", result.Item.Value, "(empty)", "Update the header value", pending)
+		case flowRequestParamsEditor:
+			m.openTextFlow(flowRequestParamEditValue, "Request params", "Param value", result.Item.Value, "(empty)", "Update the parameter value", pending)
+		}
+		return m, nil
+	case dialogs.ActionDelete:
+		result := m.keyValue.Result(true)
+		if result.Item.Key == "" {
+			return m, nil
+		}
+		switch m.pending.Flow {
+		case flowRequestHeadersEditor:
+			pending := *m.pending
+			pending.RequestDraft = pending.RequestDraft.WithoutHeader(result.Item.Key)
+			m.openRequestHeadersEditor(pending)
+		case flowRequestParamsEditor:
+			pending := *m.pending
+			pending.RequestDraft = pending.RequestDraft.WithoutParam(result.Item.Key)
+			m.openRequestParamsEditor(pending)
+		}
+		return m, nil
+	case dialogs.ActionCancel:
+		switch m.pending.Flow {
+		case flowRequestHeadersEditor:
+			pending := *m.pending
+			m.openRequestParamsEditor(pending)
+		case flowRequestParamsEditor:
+			return m.finalizeRequestDraft(*m.pending)
+		default:
+			m.clearOverlays()
+			return m, nil
+		}
 		return m, nil
 	default:
 		return m, nil
@@ -290,18 +391,58 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		pending.RequestDraft = pending.RequestDraft.WithBody(bodyType, pending.RequestDraft.Body)
 		if bodyType == "none" {
 			pending.RequestDraft = pending.RequestDraft.WithBody("none", "")
-			m.clearOverlays()
-			m.session.Busy = true
-			return m, createRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.RequestDraft.MutationDraft())
+			m.openRequestHeadersEditor(pending)
+			return m, nil
 		}
 		m.openTextFlow(flowRequestCreateBody, "Create request", "Body", pending.RequestDraft.Body, "(optional)", "Enter the request body", pending)
 		return m, nil
 	case flowRequestCreateBody:
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(pending.RequestDraft.BodyType), value)
-		m.clearOverlays()
-		m.session.Busy = true
-		return m, createRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.RequestDraft.MutationDraft())
+		m.openRequestHeadersEditor(pending)
+		return m, nil
+	case flowRequestHeaderAddKey:
+		if value == "" {
+			m.textInput.Message = "Header name is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.PairKey = value
+		m.openTextFlow(flowRequestHeaderAddValue, "Request headers", "Header value", "", "(empty)", "Enter the header value", pending)
+		return m, nil
+	case flowRequestHeaderAddValue:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithHeader(pending.PairKey, value)
+		pending.PairKey = ""
+		m.openRequestHeadersEditor(pending)
+		return m, nil
+	case flowRequestHeaderEditValue:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithHeader(pending.PairKey, value)
+		pending.PairKey = ""
+		m.openRequestHeadersEditor(pending)
+		return m, nil
+	case flowRequestParamAddKey:
+		if value == "" {
+			m.textInput.Message = "Parameter name is required"
+			return m, nil
+		}
+		pending := *m.pending
+		pending.PairKey = value
+		m.openTextFlow(flowRequestParamAddValue, "Request params", "Param value", "", "(empty)", "Enter the query parameter value", pending)
+		return m, nil
+	case flowRequestParamAddValue:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithParam(pending.PairKey, value)
+		pending.PairKey = ""
+		m.openRequestParamsEditor(pending)
+		return m, nil
+	case flowRequestParamEditValue:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithParam(pending.PairKey, value)
+		pending.PairKey = ""
+		m.openRequestParamsEditor(pending)
+		return m, nil
 	case flowRequestEditName:
 		if value == "" {
 			m.textInput.Message = "Request name is required"
@@ -351,18 +492,16 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		pending.RequestDraft = pending.RequestDraft.WithBody(bodyType, pending.RequestDraft.Body)
 		if bodyType == "none" {
 			pending.RequestDraft = pending.RequestDraft.WithBody("none", "")
-			m.clearOverlays()
-			m.session.Busy = true
-			return m, editRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, pending.RequestDraft.MutationDraft())
+			m.openRequestHeadersEditor(pending)
+			return m, nil
 		}
 		m.openTextFlow(flowRequestEditBody, "Edit request", "Body", pending.RequestDraft.Body, "(optional)", "Enter the request body", pending)
 		return m, nil
 	case flowRequestEditBody:
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(pending.RequestDraft.BodyType), value)
-		m.clearOverlays()
-		m.session.Busy = true
-		return m, editRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, pending.RequestDraft.MutationDraft())
+		m.openRequestHeadersEditor(pending)
+		return m, nil
 	case flowAuthCopyName:
 		if value == "" {
 			m.textInput.Message = "Auth name is required"
@@ -399,24 +538,6 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, copySecretCmd(m.ctx, m.client, identifier, value)
-	case flowSendSavePath:
-		if value == "" {
-			m.textInput.Message = "A file path is required"
-			return m, nil
-		}
-		content := m.pending.OutputText
-		m.clearOverlays()
-		m.session.Busy = true
-		return m, writeFileCmd(value, content, "Saved response body to "+value)
-	case flowSendExportPath:
-		if value == "" {
-			m.textInput.Message = "A file path is required"
-			return m, nil
-		}
-		content := m.pending.OutputText
-		m.clearOverlays()
-		m.session.Busy = true
-		return m, writeFileCmd(value, content, "Exported response to "+value)
 	default:
 		m.clearOverlays()
 		return m, nil
@@ -522,6 +643,10 @@ func dialogKey(msg tea.KeyMsg) (dialogs.Key, bool) {
 		return dialogs.KeyTab, true
 	case "shift+tab", "backtab":
 		return dialogs.KeyShiftTab, true
+	case "backspace":
+		return dialogs.KeyBackspace, true
+	case "delete":
+		return dialogs.KeyDelete, true
 	default:
 		return "", false
 	}
@@ -557,6 +682,55 @@ func isAuthFlow(flow pendingFlow) bool {
 	default:
 		return false
 	}
+}
+
+func (m *Model) openRequestHeadersEditor(pending pendingAction) {
+	m.openKeyValueFlow(
+		flowRequestHeadersEditor,
+		requestFlowTitle(pending),
+		"Headers: j/k move  Enter edit value  c add  d delete  Esc continue",
+		dialogPairsFromRequestPairs(pending.RequestDraft.Headers),
+		pending,
+	)
+}
+
+func (m *Model) openRequestParamsEditor(pending pendingAction) {
+	m.openKeyValueFlow(
+		flowRequestParamsEditor,
+		requestFlowTitle(pending),
+		"Params: j/k move  Enter edit value  c add  d delete  Esc finish",
+		dialogPairsFromRequestPairs(pending.RequestDraft.Params),
+		pending,
+	)
+}
+
+func (m *Model) finalizeRequestDraft(pending pendingAction) (tea.Model, tea.Cmd) {
+	m.clearOverlays()
+	m.session.Busy = true
+
+	if pending.Identifier != "" {
+		return m, editRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, pending.RequestDraft.MutationDraft())
+	}
+
+	return m, createRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.RequestDraft.MutationDraft())
+}
+
+func requestFlowTitle(pending pendingAction) string {
+	if pending.Identifier != "" {
+		return "Edit request"
+	}
+	return "Create request"
+}
+
+func dialogPairsFromRequestPairs(items []request.Pair) []dialogs.Pair {
+	out := make([]dialogs.Pair, 0, len(items))
+	for _, item := range items {
+		out = append(out, dialogs.Pair{
+			Key:   item.Key,
+			Value: item.Value,
+		})
+	}
+	return out
 }
 
 func applyTextEdit(value *string, cursor *int, msg tea.KeyMsg) {

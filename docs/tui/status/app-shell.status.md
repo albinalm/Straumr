@@ -18,12 +18,14 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 - Wired workspace create/rename/copy/delete through overlay-backed shell flows.
 - Wired auth create/edit/copy/delete through overlay-backed shell flows.
 - Wired secret create/edit/copy/delete through overlay-backed shell flows.
-- Wired request create/edit quick flows plus request copy/delete through overlay-backed shell flows, including auth/body round-tripping.
-- Wired send refresh, dry-run, save-body, export, and clipboard copy actions into the send screen.
+- Wired request create/edit quick flows plus request copy/delete through overlay-backed shell flows, including auth/body/header/param round-tripping.
+- Wired request inspect through `get request --json` into a read-only details overlay.
+- Wired send refresh, dry-run, save-body, export, clipboard copy, and view-level beautify/revert behavior into the send screen.
+- Replaced the send save/export raw path text input with the shared path-picker overlay and shell-managed filesystem browsing.
 
 ## Work in progress
 
-- Extending request editing beyond the current quick-flow fields into header/param overlays and richer detail handling.
+- General overlay polish and broader shared picker reuse outside the send screen.
 
 ## Blockers
 
@@ -51,10 +53,11 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 
 ## Next steps
 
-- Extend request editing beyond the current quick-flow fields into header/param overlays and richer detail handling.
-- Improve send-pane beautify/revert formatting behavior.
+- Reuse the shared path picker in more shell flows that still fall back to simple text entry.
+- Tighten cache invalidation and refresh rules around successful mutations.
 
 ## Resume notes
 
-- The shell already owns the mutation round-trip for workspace, auth, secret, and the request quick flows including auth/body.
-- The next shell-critical slice is header/param request editing, then send-pane formatting polish.
+- The shell already owns the mutation round-trip for workspace, auth, secret, and the request quick flows including auth/body/header/param.
+- Request inspect now round-trips through `get request --json`, and send save/export now mount the shared path picker.
+- The next shell-critical slice is broader picker reuse and general shell cleanup.

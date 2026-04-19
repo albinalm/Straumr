@@ -6,7 +6,7 @@ Request send flow, optional dry-run preview, response viewer, copy/beautify/expo
 
 ## Current status
 
-In progress. The send screen is wired to real send, dry-run, save-body, export, and clipboard copy actions.
+In progress. The send screen is wired to real send, dry-run, save-body, export, clipboard copy, and beautify/revert presentation behavior.
 
 ## Completed work
 
@@ -19,15 +19,17 @@ In progress. The send screen is wired to real send, dry-run, save-body, export, 
 - Wired `send --json` results into the response viewer.
 - Wired `send --dry-run --json` into the send screen as a preview path.
 - Wired save-body and export into file-backed shell actions.
+- Swapped send save/export target entry from raw text input to the shared path-picker overlay.
 - Wired copy-pane and copy-template into shell-side clipboard actions.
+- Beautify/revert now changes the rendered body presentation and pretty-prints valid JSON responses.
 
 ## Work in progress
 
-- Polishing beautify and revert behavior from the send screen.
+- Improving overall send-view polish and affordances around the now-shared export/save picker flow.
 
 ## Blockers
 
-- None beyond the remaining send-pane formatting polish.
+- None beyond remaining view polish.
 
 ## Files touched
 
@@ -46,9 +48,10 @@ In progress. The send screen is wired to real send, dry-run, save-body, export, 
 ## Next steps
 
 - Add clearer dry-run/send affordances in the rendered view.
-- Improve beautify/revert formatting behavior.
+- Refine the remaining send-view polish and ergonomics.
 
 ## Resume notes
 
 - Transport is already live for send, dry-run, save-body, export, and copy.
-- The remaining send work is view polish and formatting behavior.
+- Send save/export now use the shared picker rather than ad hoc path text entry.
+- Beautify/revert is now a real presentation feature; the remaining send work is polish.
