@@ -6,7 +6,7 @@ Global secret list, inspect, create, edit, copy, and delete with masking rules.
 
 ## Current status
 
-Completed for the current TUI scope. The Go view package is present with structured draft/result APIs, and the shell now wires create/edit/copy/delete through JSON-safe CLI calls.
+Completed for the current TUI scope. The Go view package is present with structured draft/result APIs, and the shell now wires create/edit/copy/delete/inspect through JSON-safe CLI calls.
 
 ## Completed work
 
@@ -17,6 +17,7 @@ Completed for the current TUI scope. The Go view package is present with structu
 - Implemented `delete secret --json` with a small success object.
 - Added secret draft extraction and explicit editor open/close helpers in the Go view package.
 - Added delete-result and secret masking helpers for shell consumption.
+- Wired secret inspect through `get secret --json` into a masked details overlay.
 
 ## Work in progress
 
@@ -50,4 +51,5 @@ Completed for the current TUI scope. The Go view package is present with structu
 
 ## Resume notes
 
-- `create secret --json` requires both arguments and does not prompt. The Go view now exposes a structured secret draft payload.
+- `create secret --json` requires both arguments and does not prompt. The Go view exposes a structured secret draft payload.
+- Secret inspect is live and keeps the value masked by default.

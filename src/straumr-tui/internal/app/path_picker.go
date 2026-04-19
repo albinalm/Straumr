@@ -14,16 +14,19 @@ import (
 func (m *Model) openPathFlow(flow pendingFlow, title, message, value string, pending pendingAction) {
 	m.clearOverlays()
 	pending.Flow = flow
+	if pending.PathMode == "" {
+		pending.PathMode = dialogs.PathModeSave
+	}
 	m.pending = &pending
 
 	currentDir, inputPath := m.resolvePathPickerStart(flow, value)
 	m.pathPicker.Open(
 		title,
 		message,
-		dialogs.PathModeSave,
+		pending.PathMode,
 		inputPath,
 		currentDir,
-		false,
+		pending.PathMustExist,
 		m.pathPickerQuickLocations(flow, currentDir),
 		m.pathPickerEntries(currentDir),
 	)
@@ -97,7 +100,19 @@ func (m *Model) acceptPathPicker() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if info, err := os.Stat(path); err == nil && info.IsDir() {
+	info, statErr := os.Stat(path)
+	if pending := m.pending; pending != nil && pending.PathMustExist && statErr != nil {
+		m.pathPicker.Message = "The selected path must exist"
+		return m, nil
+	}
+	if pending := m.pending; pending != nil && pending.PathDirectory {
+		if statErr != nil || !info.IsDir() {
+			m.pathPicker.Message = "Choose an existing directory"
+			return m, nil
+		}
+	}
+
+	if info != nil && info.IsDir() && (m.pending == nil || !m.pending.PathDirectory) {
 		m.pathPickerOpenDirectory(path)
 		return m, nil
 	}
@@ -107,6 +122,14 @@ func (m *Model) acceptPathPicker() (tea.Model, tea.Cmd) {
 	content := pending.OutputText
 	successMessage := "Saved file to " + path
 	switch pending.Flow {
+	case flowWorkspaceImportPath:
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, importWorkspaceCmd(m.ctx, m.client, path)
+	case flowWorkspaceExportPath:
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, exportWorkspaceCmd(m.ctx, m.client, pending.Identifier, path)
 	case flowSendSavePath:
 		successMessage = "Saved response body to " + path
 	case flowSendExportPath:

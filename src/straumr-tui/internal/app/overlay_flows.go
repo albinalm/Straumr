@@ -17,6 +17,9 @@ const (
 	flowWorkspaceCreateName    pendingFlow = "workspace-create-name"
 	flowWorkspaceEditName      pendingFlow = "workspace-edit-name"
 	flowWorkspaceCopyName      pendingFlow = "workspace-copy-name"
+	flowWorkspaceImportPath    pendingFlow = "workspace-import-path"
+	flowWorkspaceExportPath    pendingFlow = "workspace-export-path"
+	flowWorkspaceInspect       pendingFlow = "workspace-inspect"
 	flowWorkspaceDeleteConfirm pendingFlow = "workspace-delete-confirm"
 	flowRequestCreateName      pendingFlow = "request-create-name"
 	flowRequestCreateURL       pendingFlow = "request-create-url"
@@ -71,6 +74,7 @@ const (
 	flowAuthAutoRenew          pendingFlow = "auth-auto-renew"
 	flowAuthEditLoad           pendingFlow = "auth-edit-load"
 	flowAuthCopyName           pendingFlow = "auth-copy-name"
+	flowAuthInspect            pendingFlow = "auth-inspect"
 	flowAuthDeleteConfirm      pendingFlow = "auth-delete-confirm"
 	flowSecretCreateName       pendingFlow = "secret-create-name"
 	flowSecretCreateValue      pendingFlow = "secret-create-value"
@@ -78,6 +82,7 @@ const (
 	flowSecretEditName         pendingFlow = "secret-edit-name"
 	flowSecretEditValue        pendingFlow = "secret-edit-value"
 	flowSecretCopyName         pendingFlow = "secret-copy-name"
+	flowSecretInspect          pendingFlow = "secret-inspect"
 	flowSecretDeleteConfirm    pendingFlow = "secret-delete-confirm"
 	flowSendSavePath           pendingFlow = "send-save-path"
 	flowSendExportPath         pendingFlow = "send-export-path"
@@ -95,6 +100,9 @@ type pendingAction struct {
 	AuthDraft     auth.Draft
 	AuthMode      auth.EditorMode
 	OutputText    string
+	PathMode      dialogs.PathMode
+	PathMustExist bool
+	PathDirectory bool
 }
 
 func (m *Model) hasOverlay() bool {

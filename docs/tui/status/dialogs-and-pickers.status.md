@@ -18,6 +18,7 @@ In progress. Go overlay helpers are present with structured result types, and th
 - Expanded the shared path picker to handle typed path editing, focus between path/quick locations/browsable entries, and clearer help text.
 - Mounted the shared select overlay in the shell for request auth and body-type choice.
 - Wired the shell to use the shared path picker for send save/export flows.
+- Extended shared path-picker usage to workspace import/export flows.
 
 ## Work in progress
 
@@ -49,4 +50,5 @@ In progress. Go overlay helpers are present with structured result types, and th
 
 - This module is now the shared overlay surface the shell can mount for workspace, request, auth, secret, and send flows.
 - The shared path picker is already in use for send save/export, and the shared select overlay is now in use for request auth/body-type choice.
+- The shared path picker is already in use for send save/export and workspace import/export, and the shared select overlay is now in use for request auth/body-type choice.
 - The next pass should extend that reuse rather than creating new one-off prompts.

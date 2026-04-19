@@ -70,6 +70,26 @@ func (c *Client) CopyWorkspace(ctx context.Context, identifier, newName, outputD
 	return workspace, nil
 }
 
+func (c *Client) ImportWorkspace(ctx context.Context, path string) (WorkspaceCreateResult, error) {
+	workspace, err := RunJSON[WorkspaceCreateResult](c, ctx, []string{"import", "workspace", path, "--json"})
+	if err != nil {
+		return WorkspaceCreateResult{}, err
+	}
+
+	c.invalidatePrefix(c.cacheKey("workspace", "get"))
+	c.invalidateKeys(c.cacheKey("workspaces:list"))
+	return workspace, nil
+}
+
+func (c *Client) ExportWorkspace(ctx context.Context, identifier, outputDir string) (WorkspaceExportResult, error) {
+	result, err := RunJSON[WorkspaceExportResult](c, ctx, []string{"export", "workspace", identifier, outputDir, "--json"})
+	if err != nil {
+		return WorkspaceExportResult{}, err
+	}
+
+	return result, nil
+}
+
 func (c *Client) DeleteWorkspace(ctx context.Context, identifier string) error {
 	_, err := RunJSON[struct{}](c, ctx, []string{"delete", "workspace", identifier, "--json"})
 	if err != nil {

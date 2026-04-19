@@ -6,7 +6,7 @@ Auth list, inspect, create, edit, copy, and delete for workspace-local auth defi
 
 ## Current status
 
-Completed for the current TUI scope. The Go view package exposes type-aware draft extraction and the shell now wires create/edit, copy, and delete through JSON-safe CLI calls.
+Completed for the current TUI scope. The Go view package exposes type-aware draft extraction and the shell now wires create/edit/copy/delete/inspect through JSON-safe CLI calls.
 
 ## Completed work
 
@@ -17,6 +17,7 @@ Completed for the current TUI scope. The Go view package exposes type-aware draf
 - Added auth draft extraction per type and explicit editor open/close helpers in the Go view package.
 - Added the structured auth list/edit surface in the Go shell.
 - Added shell-friendly auth editor accessors such as `OpenCreate`, `OpenEdit`, `EditorActive`, `EditorMode`, and `MutationDraft.ConfigType()`.
+- Wired auth inspect through `get auth --json` into a read-only details overlay.
 
 ## Work in progress
 
@@ -44,4 +45,5 @@ Completed for the current TUI scope. The Go view package exposes type-aware draf
 
 ## Resume notes
 
-- `edit auth --json` is safe for subprocess use when inline flags are present, and the Go view now exposes a type-aware draft payload plus a shell-facing config discriminator.
+- `edit auth --json` is safe for subprocess use when inline flags are present, and the Go view exposes a type-aware draft payload plus a shell-facing config discriminator.
+- Auth inspect is live through the JSON-safe get path.

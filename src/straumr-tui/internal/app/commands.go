@@ -242,6 +242,13 @@ func inspectRequestCmd(ctx context.Context, client *cli.Client, workspaceID, ide
 	}
 }
 
+func inspectWorkspaceCmd(ctx context.Context, client *cli.Client, identifier string) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetWorkspace(ctx, identifier)
+		return workspaceInspectLoadedMsg{Item: item, Err: err}
+	}
+}
+
 func seedAuthEditCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, action pendingFlow) tea.Cmd {
 	return func() tea.Msg {
 		item, err := client.GetAuth(ctx, workspaceID, identifier)
@@ -250,6 +257,13 @@ func seedAuthEditCmd(ctx context.Context, client *cli.Client, workspaceID, ident
 			Err:    err,
 			Action: action,
 		}
+	}
+}
+
+func inspectAuthCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetAuth(ctx, workspaceID, identifier)
+		return authInspectLoadedMsg{Item: item, Err: err}
 	}
 }
 
@@ -364,6 +378,32 @@ func copyWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, name 
 		return mutationCompletedMsg{
 			Screen:  state.ScreenWorkspaces,
 			Message: fmt.Sprintf("Copied workspace to %s", result.Name),
+		}
+	}
+}
+
+func importWorkspaceCmd(ctx context.Context, client *cli.Client, path string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.ImportWorkspace(ctx, path)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenWorkspaces,
+			Message: fmt.Sprintf("Imported workspace %s", result.Name),
+		}
+	}
+}
+
+func exportWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, outputDir string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.ExportWorkspace(ctx, identifier, outputDir)
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenWorkspaces,
+			Message: fmt.Sprintf("Exported workspace to %s", result.Path),
 		}
 	}
 }
@@ -610,6 +650,13 @@ func seedSecretEditCmd(ctx context.Context, client *cli.Client, identifier strin
 			Err:    err,
 			Action: action,
 		}
+	}
+}
+
+func inspectSecretCmd(ctx context.Context, client *cli.Client, identifier string) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetSecret(ctx, identifier)
+		return secretInspectLoadedMsg{Item: item, Err: err}
 	}
 }
 

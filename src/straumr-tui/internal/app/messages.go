@@ -64,10 +64,20 @@ type requestPickerChoicesLoadedMsg struct {
 	Err     error
 }
 
+type workspaceInspectLoadedMsg struct {
+	Item cli.WorkspaceGetResult
+	Err  error
+}
+
 type authEditorSeedMsg struct {
 	Item   cli.AuthGetResult
 	Err    error
 	Action pendingFlow
+}
+
+type authInspectLoadedMsg struct {
+	Item cli.AuthGetResult
+	Err  error
 }
 
 type mutationCompletedMsg struct {
@@ -85,6 +95,11 @@ type secretEditorSeedMsg struct {
 	Item   cli.SecretGetResult
 	Err    error
 	Action pendingFlow
+}
+
+type secretInspectLoadedMsg struct {
+	Item cli.SecretGetResult
+	Err  error
 }
 
 type statusMsg string

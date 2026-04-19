@@ -61,6 +61,10 @@ type WorkspaceCreateResult struct {
 	Path string `json:"Path"`
 }
 
+type WorkspaceExportResult struct {
+	Path string `json:"Path"`
+}
+
 type WorkspaceGetResult struct {
 	ID           string    `json:"Id"`
 	Name         string    `json:"Name"`

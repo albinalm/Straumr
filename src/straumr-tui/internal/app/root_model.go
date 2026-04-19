@@ -100,14 +100,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyRequestInspect(msg), nil
 	case requestPickerChoicesLoadedMsg:
 		return m.applyRequestPickerChoices(msg), nil
+	case workspaceInspectLoadedMsg:
+		return m.applyWorkspaceInspect(msg), nil
 	case authEditorSeedMsg:
 		return m.applyAuthEditorSeed(msg)
+	case authInspectLoadedMsg:
+		return m.applyAuthInspect(msg), nil
 	case mutationCompletedMsg:
 		return m.applyMutation(msg)
 	case shellActionCompletedMsg:
 		return m.applyShellAction(msg), nil
 	case secretEditorSeedMsg:
 		return m.applySecretEditorSeed(msg)
+	case secretInspectLoadedMsg:
+		return m.applySecretInspect(msg), nil
 	case cliErrorMsg:
 		m.session.Busy = false
 		m.session.Error = msg.Err.Error()
@@ -240,7 +246,31 @@ func (m *Model) handleWorkspaceKey(key workspace.Key) (tea.Model, tea.Cmd) {
 			Name:       action.Item.Name,
 		})
 		return m, nil
-	case workspace.ActionImport, workspace.ActionExport, workspace.ActionSearch, workspace.ActionCommand, workspace.ActionInspect:
+	case workspace.ActionInspect:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, inspectWorkspaceCmd(m.ctx, m.client, action.Item.ID)
+	case workspace.ActionImport:
+		m.openPathFlow(flowWorkspaceImportPath, "Import workspace", "Type or browse to an existing workspace file. Enter imports the file, l opens directories.", "", pendingAction{
+			PathMode:      dialogs.PathModeOpen,
+			PathMustExist: true,
+		})
+		return m, nil
+	case workspace.ActionExport:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.openPathFlow(flowWorkspaceExportPath, "Export workspace", "Choose an existing output directory. Tab to the path field to accept the current directory.", "", pendingAction{
+			Identifier:    action.Item.ID,
+			Name:          action.Item.Name,
+			PathMode:      dialogs.PathModeOpen,
+			PathMustExist: true,
+			PathDirectory: true,
+		})
+		return m, nil
+	case workspace.ActionSearch, workspace.ActionCommand:
 		m.session.Message = workspaceActionMessage(action.Kind, action.Item)
 		return m, nil
 	default:
@@ -336,8 +366,14 @@ func (m *Model) handleRequestKey(key request.Key) (tea.Model, tea.Cmd) {
 func (m *Model) handleAuthKey(key auth.Key) (tea.Model, tea.Cmd) {
 	action := m.authView.HandleKey(key)
 	switch action.Kind {
-	case auth.ActionMoveCursor, auth.ActionInspect, auth.ActionSearch, auth.ActionCommand:
+	case auth.ActionMoveCursor, auth.ActionSearch, auth.ActionCommand:
 		return m, nil
+	case auth.ActionInspect:
+		if action.Item.ID == "" || m.session.ActiveWorkspace == nil {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, inspectAuthCmd(m.ctx, m.client, m.session.ActiveWorkspace.ID, action.Item.ID)
 	case auth.ActionEdit, auth.ActionOpenEditor:
 		if action.Item.ID == "" || m.session.ActiveWorkspace == nil {
 			return m, nil
@@ -388,8 +424,14 @@ func (m *Model) handleAuthKey(key auth.Key) (tea.Model, tea.Cmd) {
 func (m *Model) handleSecretKey(key secret.Key) (tea.Model, tea.Cmd) {
 	action := m.secretView.HandleKey(key)
 	switch action.Kind {
-	case secret.ActionMoveCursor, secret.ActionInspect, secret.ActionSearch, secret.ActionCommand:
+	case secret.ActionMoveCursor, secret.ActionSearch, secret.ActionCommand:
 		return m, nil
+	case secret.ActionInspect:
+		if action.Item.ID == "" {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, inspectSecretCmd(m.ctx, m.client, action.Item.ID)
 	case secret.ActionEdit, secret.ActionEditor:
 		if action.Item.ID == "" {
 			return m, nil
@@ -675,6 +717,22 @@ func (m *Model) applyRequestInspect(msg requestInspectLoadedMsg) *Model {
 	return m
 }
 
+func (m *Model) applyWorkspaceInspect(msg workspaceInspectLoadedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+
+	title := "Workspace details"
+	if strings.TrimSpace(msg.Item.Name) != "" {
+		title = "Workspace details: " + msg.Item.Name
+	}
+	m.openConfirmFlow(flowWorkspaceInspect, title, formatWorkspaceInspectMessage(msg.Item), []string{"Close"}, pendingAction{})
+	return m
+}
+
 func (m *Model) applyRequestPickerChoices(msg requestPickerChoicesLoadedMsg) *Model {
 	m.session.Busy = false
 	if msg.Err != nil {
@@ -735,6 +793,22 @@ func (m *Model) applyAuthEditorSeed(msg authEditorSeedMsg) (tea.Model, tea.Cmd) 
 	return m, nil
 }
 
+func (m *Model) applyAuthInspect(msg authInspectLoadedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+
+	title := "Auth details"
+	if strings.TrimSpace(msg.Item.Name) != "" {
+		title = "Auth details: " + msg.Item.Name
+	}
+	m.openConfirmFlow(flowAuthInspect, title, formatAuthInspectMessage(msg.Item), []string{"Close"}, pendingAction{})
+	return m
+}
+
 func (m *Model) applyMutation(msg mutationCompletedMsg) (tea.Model, tea.Cmd) {
 	m.session.Busy = false
 	if msg.Err != nil {
@@ -774,6 +848,22 @@ func (m *Model) applySecretEditorSeed(msg secretEditorSeedMsg) (tea.Model, tea.C
 		Value:      msg.Item.Value,
 	})
 	return m, nil
+}
+
+func (m *Model) applySecretInspect(msg secretInspectLoadedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+
+	title := "Secret details"
+	if strings.TrimSpace(msg.Item.Name) != "" {
+		title = "Secret details: " + msg.Item.Name
+	}
+	m.openConfirmFlow(flowSecretInspect, title, formatSecretInspectMessage(msg.Item), []string{"Close"}, pendingAction{})
+	return m
 }
 
 func (m *Model) renderActiveScreen() string {
@@ -945,6 +1035,58 @@ func formatRequestInspectMessage(item cli.RequestGetResult) string {
 	lines = append(lines, "Body preview:", body)
 
 	return strings.Join(lines, "\n")
+}
+
+func formatWorkspaceInspectMessage(item cli.WorkspaceGetResult) string {
+	return strings.Join([]string{
+		"ID: " + fallbackText(item.ID, "(unknown)"),
+		"Name: " + fallbackText(item.Name, "(unnamed)"),
+		fmt.Sprintf("Requests: %d", len(item.Requests)),
+		fmt.Sprintf("Auths: %d", len(item.Auths)),
+		fmt.Sprintf("Secrets: %d", len(item.Secrets)),
+		"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
+		"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
+	}, "\n")
+}
+
+func formatAuthInspectMessage(item cli.AuthGetResult) string {
+	typeLabel := "(unknown)"
+	if draft, err := authDraftFromResult(item); err == nil {
+		typeLabel = draft.Type
+	}
+
+	configPreview := "(unavailable)"
+	if len(item.Config) > 0 {
+		if pretty, err := json.MarshalIndent(json.RawMessage(item.Config), "", "  "); err == nil {
+			configPreview = trimPreview(string(pretty), 500)
+		}
+	}
+
+	return strings.Join([]string{
+		"ID: " + fallbackText(item.ID, "(unknown)"),
+		"Name: " + fallbackText(item.Name, "(unnamed)"),
+		"Type: " + typeLabel,
+		fmt.Sprintf("Auto renew: %t", item.AutoRenewAuth),
+		"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
+		"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
+		"Config preview:",
+		configPreview,
+	}, "\n")
+}
+
+func formatSecretInspectMessage(item cli.SecretGetResult) string {
+	masked := "••••••"
+	if strings.TrimSpace(item.Value) == "" {
+		masked = "(empty)"
+	}
+	return strings.Join([]string{
+		"ID: " + fallbackText(item.ID, "(unknown)"),
+		"Name: " + fallbackText(item.Name, "(unnamed)"),
+		"Value: " + masked,
+		fmt.Sprintf("Value length: %d", len(item.Value)),
+		"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
+		"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
+	}, "\n")
 }
 
 func formatFlatMapLines(values map[string]string) string {
