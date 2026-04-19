@@ -6,7 +6,7 @@ Global secret list, inspect, create, edit, copy, and delete with masking rules.
 
 ## Current status
 
-Go view package is present with structured draft/result APIs.
+Completed for the current TUI scope. The Go view package is present with structured draft/result APIs, and the shell now wires create/edit/copy/delete through JSON-safe CLI calls.
 
 ## Completed work
 
@@ -25,7 +25,7 @@ Go view package is present with structured draft/result APIs.
 ## Blockers
 
 - Dotnet build/test verification is pending outside the sandbox.
-- Shell-level mutation submission still needs to consume the structured draft payloads.
+- None for the current TUI scope.
 
 ## Files touched
 
@@ -36,6 +36,7 @@ Go view package is present with structured draft/result APIs.
 - `src/Straumr.Console.Cli/Commands/Secret/SecretEditCommand.cs`
 - `src/Straumr.Console.Cli/Infrastructure/CliJsonContext.cs`
 - `src/Straumr.Console.Cli/Models/SecretDeleteResult.cs`
+- `src/straumr-tui/internal/app/overlay_flows.go`
 - `src/straumr-tui/internal/views/secret/**`
 
 ## Important decisions
@@ -45,8 +46,7 @@ Go view package is present with structured draft/result APIs.
 
 ## Next steps
 
-- Wire secret draft submission into the shell mutation path.
-- Connect the masking/edit overlays to the structured dialog helpers.
+- None for the current TUI scope.
 
 ## Resume notes
 

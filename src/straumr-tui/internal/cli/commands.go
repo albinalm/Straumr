@@ -446,6 +446,7 @@ func appendAuthCreateFlags(args []string, opts AuthCreateOptions) []string {
 }
 
 func appendAuthEditFlags(args []string, opts AuthEditOptions) []string {
+	args = appendIfPointer(args, "--name", opts.Name)
 	args = appendIfPointer(args, "--type", opts.Type)
 	args = appendAuthMutationFlags(args, opts.Secret, opts.Prefix, opts.Username, opts.Password, opts.GrantType,
 		opts.TokenURL, opts.ClientID, opts.ClientSecret, opts.Scope, opts.AuthorizationURL, opts.RedirectURI,

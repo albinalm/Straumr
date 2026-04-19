@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 
+	"straumr-tui/internal/views/auth"
 	"straumr-tui/internal/views/dialogs"
 	"straumr-tui/internal/views/request"
 
@@ -20,12 +21,42 @@ const (
 	flowRequestCreateName      pendingFlow = "request-create-name"
 	flowRequestCreateURL       pendingFlow = "request-create-url"
 	flowRequestCreateMethod    pendingFlow = "request-create-method"
+	flowRequestCreateAuth      pendingFlow = "request-create-auth"
+	flowRequestCreateBodyType  pendingFlow = "request-create-body-type"
+	flowRequestCreateBody      pendingFlow = "request-create-body"
 	flowRequestEditLoad        pendingFlow = "request-edit-load"
 	flowRequestEditName        pendingFlow = "request-edit-name"
 	flowRequestEditURL         pendingFlow = "request-edit-url"
 	flowRequestEditMethod      pendingFlow = "request-edit-method"
+	flowRequestEditAuth        pendingFlow = "request-edit-auth"
+	flowRequestEditBodyType    pendingFlow = "request-edit-body-type"
+	flowRequestEditBody        pendingFlow = "request-edit-body"
 	flowRequestCopyName        pendingFlow = "request-copy-name"
 	flowRequestDeleteConfirm   pendingFlow = "request-delete-confirm"
+	flowAuthName               pendingFlow = "auth-name"
+	flowAuthType               pendingFlow = "auth-type"
+	flowAuthSecret             pendingFlow = "auth-secret"
+	flowAuthPrefix             pendingFlow = "auth-prefix"
+	flowAuthUsername           pendingFlow = "auth-username"
+	flowAuthPassword           pendingFlow = "auth-password"
+	flowAuthGrant              pendingFlow = "auth-grant"
+	flowAuthTokenURL           pendingFlow = "auth-token-url"
+	flowAuthClientID           pendingFlow = "auth-client-id"
+	flowAuthClientSecret       pendingFlow = "auth-client-secret"
+	flowAuthScope              pendingFlow = "auth-scope"
+	flowAuthAuthorizationURL   pendingFlow = "auth-authorization-url"
+	flowAuthRedirectURI        pendingFlow = "auth-redirect-uri"
+	flowAuthPKCE               pendingFlow = "auth-pkce"
+	flowAuthCustomURL          pendingFlow = "auth-custom-url"
+	flowAuthCustomMethod       pendingFlow = "auth-custom-method"
+	flowAuthCustomBody         pendingFlow = "auth-custom-body"
+	flowAuthCustomBodyType     pendingFlow = "auth-custom-body-type"
+	flowAuthExtractionSource   pendingFlow = "auth-extraction-source"
+	flowAuthExtractionExpr     pendingFlow = "auth-extraction-expression"
+	flowAuthApplyHeaderName    pendingFlow = "auth-apply-header-name"
+	flowAuthApplyHeaderTpl     pendingFlow = "auth-apply-header-template"
+	flowAuthAutoRenew          pendingFlow = "auth-auto-renew"
+	flowAuthEditLoad           pendingFlow = "auth-edit-load"
 	flowAuthCopyName           pendingFlow = "auth-copy-name"
 	flowAuthDeleteConfirm      pendingFlow = "auth-delete-confirm"
 	flowSecretCreateName       pendingFlow = "secret-create-name"
@@ -35,6 +66,8 @@ const (
 	flowSecretEditValue        pendingFlow = "secret-edit-value"
 	flowSecretCopyName         pendingFlow = "secret-copy-name"
 	flowSecretDeleteConfirm    pendingFlow = "secret-delete-confirm"
+	flowSendSavePath           pendingFlow = "send-save-path"
+	flowSendExportPath         pendingFlow = "send-export-path"
 )
 
 type pendingAction struct {
@@ -45,6 +78,9 @@ type pendingAction struct {
 	WorkspaceID   string
 	WorkspaceName string
 	RequestDraft  request.Draft
+	AuthDraft     auth.Draft
+	AuthMode      auth.EditorMode
+	OutputText    string
 }
 
 func (m *Model) hasOverlay() bool {
@@ -164,6 +200,10 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if isAuthFlow(m.pending.Flow) {
+		return m.advanceAuthTextFlow(value)
+	}
+
 	switch m.pending.Flow {
 	case flowWorkspaceCreateName:
 		if value == "" {
@@ -230,6 +270,35 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		}
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(value))
+		m.openTextFlow(flowRequestCreateAuth, "Create request", "Auth", pending.RequestDraft.Auth, "(blank for none)", "Enter an auth name or ID, or leave blank for none", pending)
+		return m, nil
+	case flowRequestCreateAuth:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithAuth(value)
+		bodyType := pending.RequestDraft.BodyType
+		if strings.TrimSpace(bodyType) == "" {
+			bodyType = "none"
+		}
+		m.openTextFlow(flowRequestCreateBodyType, "Create request", "Body type", bodyType, "none|json|xml|text|form|multipart|raw", "Enter the body type", pending)
+		return m, nil
+	case flowRequestCreateBodyType:
+		pending := *m.pending
+		bodyType := normalizeBodyTypeForCLI(value)
+		if bodyType == "" {
+			bodyType = "none"
+		}
+		pending.RequestDraft = pending.RequestDraft.WithBody(bodyType, pending.RequestDraft.Body)
+		if bodyType == "none" {
+			pending.RequestDraft = pending.RequestDraft.WithBody("none", "")
+			m.clearOverlays()
+			m.session.Busy = true
+			return m, createRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.RequestDraft.MutationDraft())
+		}
+		m.openTextFlow(flowRequestCreateBody, "Create request", "Body", pending.RequestDraft.Body, "(optional)", "Enter the request body", pending)
+		return m, nil
+	case flowRequestCreateBody:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(pending.RequestDraft.BodyType), value)
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, createRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.RequestDraft.MutationDraft())
@@ -262,6 +331,35 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		}
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(value))
+		m.openTextFlow(flowRequestEditAuth, "Edit request", "Auth", pending.RequestDraft.Auth, "(blank for none)", "Enter an auth name or ID, or leave blank for none", pending)
+		return m, nil
+	case flowRequestEditAuth:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithAuth(value)
+		bodyType := pending.RequestDraft.BodyType
+		if strings.TrimSpace(bodyType) == "" {
+			bodyType = "none"
+		}
+		m.openTextFlow(flowRequestEditBodyType, "Edit request", "Body type", bodyType, "none|json|xml|text|form|multipart|raw", "Enter the body type", pending)
+		return m, nil
+	case flowRequestEditBodyType:
+		pending := *m.pending
+		bodyType := normalizeBodyTypeForCLI(value)
+		if bodyType == "" {
+			bodyType = "none"
+		}
+		pending.RequestDraft = pending.RequestDraft.WithBody(bodyType, pending.RequestDraft.Body)
+		if bodyType == "none" {
+			pending.RequestDraft = pending.RequestDraft.WithBody("none", "")
+			m.clearOverlays()
+			m.session.Busy = true
+			return m, editRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, pending.RequestDraft.MutationDraft())
+		}
+		m.openTextFlow(flowRequestEditBody, "Edit request", "Body", pending.RequestDraft.Body, "(optional)", "Enter the request body", pending)
+		return m, nil
+	case flowRequestEditBody:
+		pending := *m.pending
+		pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(pending.RequestDraft.BodyType), value)
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, editRequestCmd(m.ctx, m.client, pending.WorkspaceID, pending.Identifier, pending.RequestDraft.MutationDraft())
@@ -301,6 +399,24 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, copySecretCmd(m.ctx, m.client, identifier, value)
+	case flowSendSavePath:
+		if value == "" {
+			m.textInput.Message = "A file path is required"
+			return m, nil
+		}
+		content := m.pending.OutputText
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, writeFileCmd(value, content, "Saved response body to "+value)
+	case flowSendExportPath:
+		if value == "" {
+			m.textInput.Message = "A file path is required"
+			return m, nil
+		}
+		content := m.pending.OutputText
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, writeFileCmd(value, content, "Exported response to "+value)
 	default:
 		m.clearOverlays()
 		return m, nil
@@ -311,6 +427,10 @@ func (m *Model) acceptSecretInput(value string) (tea.Model, tea.Cmd) {
 	if m.pending == nil {
 		m.clearOverlays()
 		return m, nil
+	}
+
+	if isAuthFlow(m.pending.Flow) {
+		return m.advanceAuthSecretFlow(value)
 	}
 
 	if strings.TrimSpace(value) == "" {
@@ -339,6 +459,10 @@ func (m *Model) acceptConfirm(choice string) (tea.Model, tea.Cmd) {
 	if m.pending == nil {
 		m.clearOverlays()
 		return m, nil
+	}
+
+	if isAuthFlow(m.pending.Flow) {
+		return m.advanceAuthConfirmFlow(choice)
 	}
 
 	pending := *m.pending
@@ -400,6 +524,38 @@ func dialogKey(msg tea.KeyMsg) (dialogs.Key, bool) {
 		return dialogs.KeyShiftTab, true
 	default:
 		return "", false
+	}
+}
+
+func isAuthFlow(flow pendingFlow) bool {
+	switch flow {
+	case flowAuthName,
+		flowAuthType,
+		flowAuthSecret,
+		flowAuthPrefix,
+		flowAuthUsername,
+		flowAuthPassword,
+		flowAuthGrant,
+		flowAuthTokenURL,
+		flowAuthClientID,
+		flowAuthClientSecret,
+		flowAuthScope,
+		flowAuthAuthorizationURL,
+		flowAuthRedirectURI,
+		flowAuthPKCE,
+		flowAuthCustomURL,
+		flowAuthCustomMethod,
+		flowAuthCustomBody,
+		flowAuthCustomBodyType,
+		flowAuthExtractionSource,
+		flowAuthExtractionExpr,
+		flowAuthApplyHeaderName,
+		flowAuthApplyHeaderTpl,
+		flowAuthAutoRenew,
+		flowAuthEditLoad:
+		return true
+	default:
+		return false
 	}
 }
 

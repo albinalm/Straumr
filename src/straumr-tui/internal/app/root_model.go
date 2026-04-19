@@ -90,8 +90,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyDryRun(msg), nil
 	case requestEditorSeedMsg:
 		return m.applyRequestEditorSeed(msg)
+	case authEditorSeedMsg:
+		return m.applyAuthEditorSeed(msg)
 	case mutationCompletedMsg:
 		return m.applyMutation(msg)
+	case shellActionCompletedMsg:
+		return m.applyShellAction(msg), nil
 	case secretEditorSeedMsg:
 		return m.applySecretEditorSeed(msg)
 	case cliErrorMsg:
@@ -319,9 +323,11 @@ func (m *Model) handleAuthKey(key auth.Key) (tea.Model, tea.Cmd) {
 	case auth.ActionMoveCursor, auth.ActionInspect, auth.ActionSearch, auth.ActionCommand:
 		return m, nil
 	case auth.ActionEdit, auth.ActionOpenEditor:
-		m.authView.Editor.Active = true
-		m.authView.Message = authActionMessage(action.Kind, action.Item)
-		return m, nil
+		if action.Item.ID == "" || m.session.ActiveWorkspace == nil {
+			return m, nil
+		}
+		m.session.Busy = true
+		return m, seedAuthEditCmd(m.ctx, m.client, m.session.ActiveWorkspace.ID, action.Item.ID, flowAuthEditLoad)
 	case auth.ActionCopy:
 		if action.Item.ID == "" || m.session.ActiveWorkspace == nil {
 			return m, nil
@@ -345,7 +351,18 @@ func (m *Model) handleAuthKey(key auth.Key) (tea.Model, tea.Cmd) {
 		})
 		return m, nil
 	case auth.ActionCreate:
-		m.session.Message = authActionMessage(action.Kind, action.Item)
+		if m.session.ActiveWorkspace == nil {
+			m.session.Message = "No workspace selected"
+			return m, nil
+		}
+		m.openTextFlow(flowAuthName, "Create auth", "Name", "", "auth name", "Enter the new auth name", pendingAction{
+			WorkspaceID:   m.session.ActiveWorkspace.ID,
+			WorkspaceName: m.session.ActiveWorkspace.Name,
+			AuthMode:      auth.EditorModeCreate,
+			AuthDraft: auth.Draft{
+				AutoRenew: true,
+			},
+		})
 		return m, nil
 	default:
 		return m, nil
@@ -411,7 +428,25 @@ func (m *Model) handleSendKey(key send.Key) (tea.Model, tea.Cmd) {
 		m.session.Busy = true
 		m.sendView.SetStatus("Dry run...")
 		return m, dryRunCmd(m.ctx, m.client, *m.session.ActiveRequest)
-	case send.ActionBeautify, send.ActionRevert, send.ActionCopyPane, send.ActionCopyTemplate, send.ActionSaveBody, send.ActionExport:
+	case send.ActionSaveBody:
+		path := defaultSendBodyPath(m.session.ActiveRequest, m.sendView.Response)
+		m.openTextFlow(flowSendSavePath, "Save response body", "Path", path, ".\\response-body.txt", "Enter a file path for the response body", pendingAction{
+			OutputText: sendBodyText(m.sendView.Response),
+		})
+		return m, nil
+	case send.ActionExport:
+		path := defaultSendExportPath(m.session.ActiveRequest)
+		m.openTextFlow(flowSendExportPath, "Export response", "Path", path, ".\\response-export.txt", "Enter a file path for the full response export", pendingAction{
+			OutputText: formatSendExport(m.sendView.Request, m.sendView.Response),
+		})
+		return m, nil
+	case send.ActionCopyPane:
+		m.session.Busy = true
+		return m, copyToClipboardCmd(sendPaneText(m.sendView), "Copied active pane to the clipboard")
+	case send.ActionCopyTemplate:
+		m.session.Busy = true
+		return m, copyToClipboardCmd(formatSendExport(m.sendView.Request, m.sendView.Response), "Copied response export to the clipboard")
+	case send.ActionBeautify, send.ActionRevert:
 		m.session.Message = sendActionMessage(action.Kind)
 		return m, nil
 	default:
@@ -598,6 +633,36 @@ func (m *Model) applyRequestEditorSeed(msg requestEditorSeedMsg) (tea.Model, tea
 	return m, nil
 }
 
+func (m *Model) applyAuthEditorSeed(msg authEditorSeedMsg) (tea.Model, tea.Cmd) {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m, nil
+	}
+
+	draft, err := authDraftFromResult(msg.Item)
+	if err != nil {
+		m.session.Error = err.Error()
+		m.session.Message = err.Error()
+		return m, nil
+	}
+
+	identifier := msg.Item.ID
+	if identifier == "" && len(m.authView.Items) > 0 {
+		identifier = m.authView.Items[m.authView.List.State.Cursor].ID
+	}
+
+	m.openTextFlow(flowAuthName, "Edit auth", "Name", draft.Name, "auth name", "Update the auth name", pendingAction{
+		Identifier:    identifier,
+		WorkspaceID:   m.session.ActiveWorkspace.ID,
+		WorkspaceName: m.session.ActiveWorkspace.Name,
+		AuthMode:      auth.EditorModeEdit,
+		AuthDraft:     draft,
+	})
+	return m, nil
+}
+
 func (m *Model) applyMutation(msg mutationCompletedMsg) (tea.Model, tea.Cmd) {
 	m.session.Busy = false
 	if msg.Err != nil {
@@ -609,6 +674,18 @@ func (m *Model) applyMutation(msg mutationCompletedMsg) (tea.Model, tea.Cmd) {
 	m.session.Error = ""
 	m.session.Message = msg.Message
 	return m, m.refreshScreen(msg.Screen)
+}
+
+func (m *Model) applyShellAction(msg shellActionCompletedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+	m.session.Error = ""
+	m.session.Message = msg.Message
+	return m
 }
 
 func (m *Model) applySecretEditorSeed(msg secretEditorSeedMsg) (tea.Model, tea.Cmd) {
@@ -851,6 +928,130 @@ func summarizeFlatHeaders(headers map[string]string) string {
 		lines = append(lines, fmt.Sprintf("%s: %s", key, value))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func sendBodyText(response send.Response) string {
+	if response.Body != "" {
+		return response.Body
+	}
+	return response.RawBody
+}
+
+func defaultSendBodyPath(request *state.RequestRef, response send.Response) string {
+	name := "response-body"
+	if request != nil && strings.TrimSpace(request.Name) != "" {
+		name = sanitizeFilename(request.Name) + "-body"
+	}
+	ext := ".txt"
+	if looksLikeJSON(response.Body) || looksLikeJSON(response.RawBody) {
+		ext = ".json"
+	}
+	return name + ext
+}
+
+func defaultSendExportPath(request *state.RequestRef) string {
+	name := "response-export"
+	if request != nil && strings.TrimSpace(request.Name) != "" {
+		name = sanitizeFilename(request.Name) + "-response"
+	}
+	return name + ".txt"
+}
+
+func formatSendExport(request send.Request, response send.Response) string {
+	var b strings.Builder
+	b.WriteString("Request\n")
+	if request.Name != "" {
+		b.WriteString("Name: " + request.Name + "\n")
+	}
+	if request.Method != "" || request.URI != "" {
+		b.WriteString("Line: " + strings.TrimSpace(request.Method+" "+request.URI) + "\n")
+	}
+	if request.Auth != "" {
+		b.WriteString("Auth: " + request.Auth + "\n")
+	}
+	b.WriteString("\nResponse\n")
+	if response.StatusText != "" {
+		b.WriteString("Status: " + response.StatusText + "\n")
+	}
+	if response.HTTPVersion != "" {
+		b.WriteString("HTTP Version: " + response.HTTPVersion + "\n")
+	}
+	if response.Duration > 0 {
+		b.WriteString(fmt.Sprintf("DurationMs: %d\n", response.Duration.Milliseconds()))
+	}
+	if len(response.Notes) > 0 {
+		b.WriteString("Notes:\n")
+		for _, note := range response.Notes {
+			if strings.TrimSpace(note) == "" {
+				continue
+			}
+			b.WriteString("- " + note + "\n")
+		}
+	}
+	if response.Summary != "" {
+		b.WriteString("\nHeaders\n")
+		b.WriteString(response.Summary)
+		b.WriteString("\n")
+	}
+	body := sendBodyText(response)
+	if body != "" {
+		b.WriteString("\nBody\n")
+		b.WriteString(body)
+		if !strings.HasSuffix(body, "\n") {
+			b.WriteString("\n")
+		}
+	}
+	if response.Error != "" {
+		b.WriteString("\nError\n")
+		b.WriteString(response.Error)
+		if !strings.HasSuffix(response.Error, "\n") {
+			b.WriteString("\n")
+		}
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+func sanitizeFilename(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "response"
+	}
+	replacer := strings.NewReplacer(
+		"\\", "-",
+		"/", "-",
+		":", "-",
+		"*", "-",
+		"?", "-",
+		"\"", "-",
+		"<", "-",
+		">", "-",
+		"|", "-",
+		" ", "-",
+	)
+	value = replacer.Replace(value)
+	value = strings.Trim(value, "-.")
+	if value == "" {
+		return "response"
+	}
+	return value
+}
+
+func looksLikeJSON(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
+}
+
+func sendPaneText(view *send.View) string {
+	if view == nil {
+		return ""
+	}
+	if view.FocusedPane == send.PaneSummary {
+		if view.Response.Summary != "" {
+			return view.Response.Summary
+		}
+		return view.Response.StatusText
+	}
+	return sendBodyText(view.Response)
 }
 
 func formatBody(body any) string {

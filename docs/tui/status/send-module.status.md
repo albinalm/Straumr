@@ -6,7 +6,7 @@ Request send flow, optional dry-run preview, response viewer, copy/beautify/expo
 
 ## Current status
 
-In progress. The send screen is wired to real send and dry-run CLI calls.
+In progress. The send screen is wired to real send, dry-run, save-body, export, and clipboard copy actions.
 
 ## Completed work
 
@@ -18,19 +18,24 @@ In progress. The send screen is wired to real send and dry-run CLI calls.
 - Wired the root shell to enter the send screen on request send actions.
 - Wired `send --json` results into the response viewer.
 - Wired `send --dry-run --json` into the send screen as a preview path.
+- Wired save-body and export into file-backed shell actions.
+- Wired copy-pane and copy-template into shell-side clipboard actions.
 
 ## Work in progress
 
-- Completing save/export/copy actions from the send screen.
+- Polishing beautify and revert behavior from the send screen.
 
 ## Blockers
 
-- None beyond the remaining shell-side action wiring.
+- None beyond the remaining send-pane formatting polish.
 
 ## Files touched
 
 - `docs/tui/send-module.md`
 - `docs/tui/IMPLEMENTATION_STATUS.md`
+- `src/straumr-tui/internal/app/commands.go`
+- `src/straumr-tui/internal/app/overlay_flows.go`
+- `src/straumr-tui/internal/app/root_model.go`
 - `src/straumr-tui/internal/views/send/view.go`
 
 ## Important decisions
@@ -40,10 +45,10 @@ In progress. The send screen is wired to real send and dry-run CLI calls.
 
 ## Next steps
 
-- Complete copy/export/save actions.
 - Add clearer dry-run/send affordances in the rendered view.
+- Improve beautify/revert formatting behavior.
 
 ## Resume notes
 
-- Transport is already live for both send and dry-run.
-- The remaining send work is action completion and view polish.
+- Transport is already live for send, dry-run, save-body, export, and copy.
+- The remaining send work is view polish and formatting behavior.

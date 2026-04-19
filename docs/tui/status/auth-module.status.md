@@ -6,7 +6,7 @@ Auth list, inspect, create, edit, copy, and delete for workspace-local auth defi
 
 ## Current status
 
-In progress. The Go view package exposes type-aware draft extraction and the shell already wires copy/delete, but create/edit submission is still pending.
+Completed for the current TUI scope. The Go view package exposes type-aware draft extraction and the shell now wires create/edit, copy, and delete through JSON-safe CLI calls.
 
 ## Completed work
 
@@ -20,11 +20,7 @@ In progress. The Go view package exposes type-aware draft extraction and the she
 
 ## Work in progress
 
-- Wiring create/edit submission in the shell against the type-aware auth mutation draft.
-
-## Blockers
-
-- Large auth payload input still has command-line length risk in future TUI/editor work.
+- None for the current TUI scope.
 
 ## Files touched
 
@@ -34,6 +30,7 @@ In progress. The Go view package exposes type-aware draft extraction and the she
 - `src/Straumr.Console.Cli/Commands/Auth/AuthEditCommand.cs`
 - `src/Straumr.Console.Cli/Commands/Auth/AuthInlineConfigBuilder.cs`
 - `src/Straumr.Console.Cli/Commands/Auth/AuthInlineSettingsBase.cs`
+- `src/straumr-tui/internal/app/auth_flows.go`
 - `src/straumr-tui/internal/views/auth/**`
 
 ## Important decisions
@@ -43,8 +40,7 @@ In progress. The Go view package exposes type-aware draft extraction and the she
 
 ## Next steps
 
-- Wire auth draft submission into the shell mutation path.
-- Add shell-side auth picker and edit-overlay handling for the different auth families.
+- None for the current TUI scope.
 
 ## Resume notes
 

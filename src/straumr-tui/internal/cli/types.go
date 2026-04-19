@@ -195,6 +195,7 @@ type AuthCreateOptions struct {
 }
 
 type AuthEditOptions struct {
+	Name                 *string
 	Type                 *string
 	Secret               *string
 	Prefix               *string

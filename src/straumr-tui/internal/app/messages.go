@@ -52,8 +52,19 @@ type requestEditorSeedMsg struct {
 	Action pendingFlow
 }
 
+type authEditorSeedMsg struct {
+	Item   cli.AuthGetResult
+	Err    error
+	Action pendingFlow
+}
+
 type mutationCompletedMsg struct {
 	Screen  state.ScreenID
+	Message string
+	Err     error
+}
+
+type shellActionCompletedMsg struct {
 	Message string
 	Err     error
 }

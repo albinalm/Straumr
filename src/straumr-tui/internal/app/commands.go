@@ -3,9 +3,15 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"straumr-tui/internal/cli"
 	"straumr-tui/internal/state"
+	"straumr-tui/internal/views/auth"
 	"straumr-tui/internal/views/request"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -137,6 +143,39 @@ func dryRunCmd(ctx context.Context, client *cli.Client, request state.RequestRef
 	}
 }
 
+func writeFileCmd(path, content, successMessage string) tea.Cmd {
+	return func() tea.Msg {
+		dir := filepath.Dir(path)
+		if dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return shellActionCompletedMsg{Err: err}
+			}
+		}
+
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return shellActionCompletedMsg{Err: err}
+		}
+
+		return shellActionCompletedMsg{Message: successMessage}
+	}
+}
+
+func copyToClipboardCmd(content, successMessage string) tea.Cmd {
+	return func() tea.Msg {
+		if runtime.GOOS != "windows" {
+			return shellActionCompletedMsg{Err: fmt.Errorf("clipboard copy is only implemented for Windows right now")}
+		}
+
+		cmd := exec.Command("cmd", "/c", "clip")
+		cmd.Stdin = strings.NewReader(content)
+		if err := cmd.Run(); err != nil {
+			return shellActionCompletedMsg{Err: err}
+		}
+
+		return shellActionCompletedMsg{Message: successMessage}
+	}
+}
+
 func seedRequestEditCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, action pendingFlow) tea.Cmd {
 	return func() tea.Msg {
 		item, err := client.GetRequest(ctx, workspaceID, identifier)
@@ -148,14 +187,26 @@ func seedRequestEditCmd(ctx context.Context, client *cli.Client, workspaceID, id
 	}
 }
 
+func seedAuthEditCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, action pendingFlow) tea.Cmd {
+	return func() tea.Msg {
+		item, err := client.GetAuth(ctx, workspaceID, identifier)
+		return authEditorSeedMsg{
+			Item:   item,
+			Err:    err,
+			Action: action,
+		}
+	}
+}
+
 func createRequestCmd(ctx context.Context, client *cli.Client, workspaceID string, draft request.MutationDraft) tea.Cmd {
 	return func() tea.Msg {
+		bodyType := normalizeBodyTypeForCLI(draft.BodyType)
 		result, err := client.CreateRequest(ctx, workspaceID, draft.Name, draft.URL, cli.RequestCreateOptions{
 			Method:   draft.Method,
 			Headers:  formatRequestHeaders(draft.Headers),
 			Params:   formatRequestParams(draft.Params),
 			Data:     draft.Body,
-			BodyType: draft.BodyType,
+			BodyType: bodyType,
 			Auth:     draft.Auth,
 		})
 		if err != nil {
@@ -174,7 +225,7 @@ func editRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identi
 		url := draft.URL
 		method := draft.Method
 		data := draft.Body
-		bodyType := draft.BodyType
+		bodyType := normalizeBodyTypeForCLI(draft.BodyType)
 		auth := draft.Auth
 
 		result, err := client.EditRequest(ctx, workspaceID, identifier, cli.RequestEditOptions{
@@ -193,6 +244,32 @@ func editRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identi
 		return mutationCompletedMsg{
 			Screen:  state.ScreenRequests,
 			Message: fmt.Sprintf("Updated request %s", result.Name),
+		}
+	}
+}
+
+func createAuthCmd(ctx context.Context, client *cli.Client, workspaceID string, draft auth.MutationDraft) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.CreateAuth(ctx, workspaceID, draft.Name, authCreateOptionsFromDraft(draft))
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenAuths,
+			Message: fmt.Sprintf("Created auth %s", result.Name),
+		}
+	}
+}
+
+func editAuthCmd(ctx context.Context, client *cli.Client, workspaceID, identifier string, draft auth.MutationDraft) tea.Cmd {
+	return func() tea.Msg {
+		result, err := client.EditAuth(ctx, workspaceID, identifier, authEditOptionsFromDraft(draft))
+		if err != nil {
+			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
+		}
+		return mutationCompletedMsg{
+			Screen:  state.ScreenAuths,
+			Message: fmt.Sprintf("Updated auth %s", result.Name),
 		}
 	}
 }
@@ -282,6 +359,153 @@ func formatRequestParams(params []request.Pair) []string {
 		values = append(values, fmt.Sprintf("%s=%s", param.Key, param.Value))
 	}
 	return values
+}
+
+func authCreateOptionsFromDraft(draft auth.MutationDraft) cli.AuthCreateOptions {
+	options := cli.AuthCreateOptions{
+		Type:      normalizeAuthTypeForCLI(draft.ConfigType(), draft),
+		AutoRenew: boolPtr(draft.AutoRenew),
+	}
+	applyAuthDraftToCreateOptions(draft, &options)
+	return options
+}
+
+func authEditOptionsFromDraft(draft auth.MutationDraft) cli.AuthEditOptions {
+	options := cli.AuthEditOptions{
+		Name:      stringPtr(draft.Name),
+		Type:      stringPtr(normalizeAuthTypeForCLI(draft.ConfigType(), draft)),
+		AutoRenew: boolPtr(draft.AutoRenew),
+	}
+	applyAuthDraftToEditOptions(draft, &options)
+	return options
+}
+
+func applyAuthDraftToCreateOptions(draft auth.MutationDraft, options *cli.AuthCreateOptions) {
+	switch cfg := draft.Config.(type) {
+	case auth.BearerConfigDraft:
+		options.Secret = stringPtr(cfg.Secret)
+		options.Prefix = stringPtr(cfg.Prefix)
+	case auth.BasicConfigDraft:
+		options.Username = stringPtr(cfg.Username)
+		options.Password = stringPtr(cfg.Password)
+	case auth.OAuth2ConfigDraft:
+		options.GrantType = stringPtr(cfg.Grant)
+		options.TokenURL = stringPtr(cfg.TokenURL)
+		options.ClientID = stringPtr(cfg.ClientID)
+		options.ClientSecret = stringPtr(cfg.ClientSecret)
+		options.Scope = stringPtr(cfg.Scope)
+		options.AuthorizationURL = stringPtr(cfg.AuthorizationURL)
+		options.RedirectURI = stringPtr(cfg.RedirectURI)
+		options.PKCE = stringPtr(cfg.PKCE)
+		options.Username = stringPtr(cfg.Username)
+		options.Password = stringPtr(cfg.Password)
+	case auth.CustomConfigDraft:
+		options.CustomURL = stringPtr(cfg.URL)
+		options.CustomMethod = stringPtr(cfg.Method)
+		options.CustomHeaders = formatAuthPairs(cfg.Headers, ": ")
+		options.CustomParams = formatAuthPairs(cfg.Params, "=")
+		options.CustomBody = stringPtr(cfg.Body)
+		options.CustomBodyType = stringPtr(normalizeBodyTypeForCLI(cfg.BodyType))
+		options.ExtractionSource = stringPtr(cfg.ExtractionSource)
+		options.ExtractionExpression = stringPtr(cfg.ExtractionExpression)
+		options.ApplyHeaderName = stringPtr(cfg.ApplyHeaderName)
+		options.ApplyHeaderTemplate = stringPtr(cfg.ApplyHeaderTemplate)
+	}
+}
+
+func applyAuthDraftToEditOptions(draft auth.MutationDraft, options *cli.AuthEditOptions) {
+	switch cfg := draft.Config.(type) {
+	case auth.BearerConfigDraft:
+		options.Secret = stringPtr(cfg.Secret)
+		options.Prefix = stringPtr(cfg.Prefix)
+	case auth.BasicConfigDraft:
+		options.Username = stringPtr(cfg.Username)
+		options.Password = stringPtr(cfg.Password)
+	case auth.OAuth2ConfigDraft:
+		options.GrantType = stringPtr(cfg.Grant)
+		options.TokenURL = stringPtr(cfg.TokenURL)
+		options.ClientID = stringPtr(cfg.ClientID)
+		options.ClientSecret = stringPtr(cfg.ClientSecret)
+		options.Scope = stringPtr(cfg.Scope)
+		options.AuthorizationURL = stringPtr(cfg.AuthorizationURL)
+		options.RedirectURI = stringPtr(cfg.RedirectURI)
+		options.PKCE = stringPtr(cfg.PKCE)
+		options.Username = stringPtr(cfg.Username)
+		options.Password = stringPtr(cfg.Password)
+	case auth.CustomConfigDraft:
+		options.CustomURL = stringPtr(cfg.URL)
+		options.CustomMethod = stringPtr(cfg.Method)
+		options.CustomHeaders = formatAuthPairs(cfg.Headers, ": ")
+		options.CustomParams = formatAuthPairs(cfg.Params, "=")
+		options.CustomBody = stringPtr(cfg.Body)
+		options.CustomBodyType = stringPtr(normalizeBodyTypeForCLI(cfg.BodyType))
+		options.ExtractionSource = stringPtr(cfg.ExtractionSource)
+		options.ExtractionExpression = stringPtr(cfg.ExtractionExpression)
+		options.ApplyHeaderName = stringPtr(cfg.ApplyHeaderName)
+		options.ApplyHeaderTemplate = stringPtr(cfg.ApplyHeaderTemplate)
+	}
+}
+
+func normalizeAuthTypeForCLI(configType string, draft auth.MutationDraft) string {
+	typ := strings.ToLower(strings.TrimSpace(configType))
+	if typ == "oauth2" {
+		if cfg, ok := draft.Config.(auth.OAuth2ConfigDraft); ok {
+			switch strings.ToLower(strings.TrimSpace(cfg.Grant)) {
+			case "client-credentials":
+				return "oauth2-client-credentials"
+			case "authorization-code":
+				return "oauth2-authorization-code"
+			case "password":
+				return "oauth2-password"
+			}
+		}
+	}
+	return typ
+}
+
+func normalizeBodyTypeForCLI(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "none":
+		return "none"
+	case "json":
+		return "json"
+	case "xml":
+		return "xml"
+	case "text":
+		return "text"
+	case "formurlencoded", "form", "form-urlencoded":
+		return "form"
+	case "multipartform", "multipart":
+		return "multipart"
+	case "raw":
+		return "raw"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func formatAuthPairs(items []auth.Pair, separator string) []string {
+	values := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.Key == "" {
+			continue
+		}
+		values = append(values, item.Key+separator+item.Value)
+	}
+	return values
+}
+
+func stringPtr(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	v := value
+	return &v
+}
+
+func boolPtr(value bool) *bool {
+	v := value
+	return &v
 }
 
 func copyRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identifier, name string) tea.Cmd {

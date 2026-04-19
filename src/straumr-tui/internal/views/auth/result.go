@@ -67,6 +67,8 @@ type OAuth2ConfigDraft struct {
 	AuthorizationURL string
 	RedirectURI      string
 	PKCE             string
+	Username         string
+	Password         string
 }
 
 func (OAuth2ConfigDraft) isAuthConfigDraft() {}
@@ -120,6 +122,8 @@ func (d Draft) MutationDraft() MutationDraft {
 			AuthorizationURL: d.AuthorizationURL,
 			RedirectURI:      d.RedirectURI,
 			PKCE:             d.PKCE,
+			Username:         d.Username,
+			Password:         d.Password,
 		}
 	case "custom":
 		mut.Config = CustomConfigDraft{

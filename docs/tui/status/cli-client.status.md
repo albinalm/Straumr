@@ -6,7 +6,7 @@ Subprocess execution, stdout/stderr capture, JSON decode, exit-code handling, ca
 
 ## Current status
 
-CLI prework completed. Go subprocess client and cache layer are in place.
+Completed for the current TUI scope. Go subprocess client, typed wrappers, and cache layer are in place.
 
 ## Completed work
 
@@ -19,11 +19,7 @@ CLI prework completed. Go subprocess client and cache layer are in place.
 
 ## Work in progress
 
-- Extending the typed client with the remaining mutation helpers and response handling the shell still needs.
-
-## Blockers
-
-- Large inline payload handling is still an open design concern for future request/auth editing.
+- None for the current scope.
 
 ## Files touched
 
@@ -66,9 +62,8 @@ CLI prework completed. Go subprocess client and cache layer are in place.
 
 ## Next steps
 
-- Finish the remaining typed wrappers for request/auth/secret/send flows.
-- Connect the mutation results back into the shell refresh pipeline.
+- None for the current TUI work.
 
 ## Resume notes
 
-- The Go subprocess layer is in place and verified; the remaining work is shell-level integration, not foundation setup.
+- The Go subprocess layer is in place and verified; the remaining work is shell-level polish and richer request editing.
