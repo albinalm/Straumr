@@ -158,9 +158,11 @@ func (v *View) Render() string {
 		b.WriteString(notes)
 		b.WriteString("\n")
 	}
-	b.WriteString(renderSummaryPane(v.Response))
+	b.WriteString(renderSummaryPane(v.Response, v.FocusedPane == PaneSummary))
 	b.WriteString("\n\n")
 	b.WriteString(renderBodyPane(v))
+	b.WriteString("\n")
+	b.WriteString(renderFooter())
 
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -253,8 +255,8 @@ func renderNotes(response Response) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderSummaryPane(response Response) string {
-	lines := []string{"Summary"}
+func renderSummaryPane(response Response, active bool) string {
+	lines := []string{paneHeading("Summary", active)}
 	if response.Summary == "" {
 		lines = append(lines, "  (empty)")
 	} else {
@@ -283,6 +285,10 @@ func renderBodyPane(v *View) string {
 		lines = append(lines, "  "+line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func renderFooter() string {
+	return "j/k or up/down scroll  tab/shift-tab switch pane  c copy pane  y copy template  b beautify  r revert  S save body  e export  d dry-run  R refresh  esc close"
 }
 
 func (v *View) setBeautified(enabled bool) {
@@ -321,14 +327,25 @@ func resolveBodySource(response Response) string {
 }
 
 func bodyPaneTitle(v *View) string {
+	label := "Body"
 	switch {
 	case v.bodySource == "":
-		return "Body"
+		label = "Body"
 	case v.Beautified:
-		return "Body (beautified)"
+		label = "Body (beautified)"
 	default:
-		return "Body (raw)"
+		label = "Body (raw)"
 	}
+
+	return paneHeading(label, v.FocusedPane == PaneBody)
+}
+
+func paneHeading(label string, active bool) string {
+	if active {
+		return label + " [active]"
+	}
+
+	return label
 }
 
 func beautifyJSON(value string) (string, bool) {

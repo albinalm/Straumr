@@ -35,6 +35,7 @@ type Model struct {
 	textInput     dialogs.TextInputView
 	secretInput   dialogs.SecretInputView
 	confirm       dialogs.ConfirmView
+	selectView    dialogs.SelectView
 	keyValue      dialogs.KeyValueEditorView
 	pathPicker    dialogs.PathPickerView
 	lastDirs      map[pendingFlow]string
@@ -97,6 +98,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyRequestEditorSeed(msg)
 	case requestInspectLoadedMsg:
 		return m.applyRequestInspect(msg), nil
+	case requestPickerChoicesLoadedMsg:
+		return m.applyRequestPickerChoices(msg), nil
 	case authEditorSeedMsg:
 		return m.applyAuthEditorSeed(msg)
 	case mutationCompletedMsg:
@@ -672,6 +675,36 @@ func (m *Model) applyRequestInspect(msg requestInspectLoadedMsg) *Model {
 	return m
 }
 
+func (m *Model) applyRequestPickerChoices(msg requestPickerChoicesLoadedMsg) *Model {
+	m.session.Busy = false
+	if msg.Err != nil {
+		m.session.Error = msg.Err.Error()
+		m.session.Message = msg.Err.Error()
+		return m
+	}
+	if m.pending == nil {
+		return m
+	}
+
+	pending := *m.pending
+	items := make([]dialogs.Choice, 0, len(msg.Choices))
+	for _, choice := range msg.Choices {
+		items = append(items, dialogs.Choice{
+			Key:         choice.Key,
+			Title:       choice.Title,
+			Description: choice.Description,
+		})
+	}
+
+	switch msg.Flow {
+	case flowRequestCreateAuthPick:
+		m.openSelectFlow(flowRequestCreateAuthPick, "Create request", "Choose an auth binding", "Enter choose  Esc cancel", items, pending)
+	case flowRequestEditAuthPick:
+		m.openSelectFlow(flowRequestEditAuthPick, "Edit request", "Choose an auth binding", "Enter choose  Esc cancel", items, pending)
+	}
+	return m
+}
+
 func (m *Model) applyAuthEditorSeed(msg authEditorSeedMsg) (tea.Model, tea.Cmd) {
 	m.session.Busy = false
 	if msg.Err != nil {
@@ -945,6 +978,25 @@ func fallbackText(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func (m *Model) openRequestBodyTypeSelect(pending pendingAction) (tea.Model, tea.Cmd) {
+	items := make([]dialogs.Choice, 0, len(requestBodyTypeChoices))
+	for _, choice := range requestBodyTypeChoices {
+		items = append(items, dialogs.Choice{
+			Key:         choice.Key,
+			Title:       choice.Title,
+			Description: choice.Description,
+		})
+	}
+
+	switch {
+	case pending.Identifier != "":
+		m.openSelectFlow(flowRequestEditBodyPick, "Edit request", "Choose the request body type", "Enter choose  Esc cancel", items, pending)
+	default:
+		m.openSelectFlow(flowRequestCreateBodyPick, "Create request", "Choose the request body type", "Enter choose  Esc cancel", items, pending)
+	}
+	return m, nil
 }
 
 func (m *Model) refreshForActiveScreen() tea.Cmd {

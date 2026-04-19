@@ -58,6 +58,12 @@ type requestInspectLoadedMsg struct {
 	RequestID string
 }
 
+type requestPickerChoicesLoadedMsg struct {
+	Flow    pendingFlow
+	Choices []pickerChoice
+	Err     error
+}
+
 type authEditorSeedMsg struct {
 	Item   cli.AuthGetResult
 	Err    error
@@ -86,4 +92,10 @@ type statusMsg string
 type cliErrorMsg struct {
 	Scope string
 	Err   error
+}
+
+type pickerChoice struct {
+	Key         string
+	Title       string
+	Description string
 }

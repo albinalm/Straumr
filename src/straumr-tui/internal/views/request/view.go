@@ -84,7 +84,7 @@ func NewView() *View {
 			State: common.ListState{
 				Title:     "Requests",
 				EmptyText: "No requests found",
-				Hints:     "j/k or up/down move  g/G top/bottom  enter send  i inspect  s send  c create  d delete  e edit  E editor  y copy  / search  : command",
+				Hints:     "j/k or up/down move  g/G top/bottom  enter or s send  i inspect  c create  d delete  e edit  E editor  y copy  / search  : command",
 			},
 		},
 	}
@@ -271,7 +271,7 @@ func requestSummary(item Item) string {
 func requestDetails(item Item) []string {
 	details := []string{}
 	if item.BodyType != "" {
-		details = append(details, fmt.Sprintf("body: %s", item.BodyType))
+		details = append(details, fmt.Sprintf("body type: %s", item.BodyType))
 	}
 	if item.Auth != "" {
 		details = append(details, fmt.Sprintf("auth: %s", item.Auth))

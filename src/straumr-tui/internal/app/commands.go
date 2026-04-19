@@ -17,6 +17,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var requestBodyTypeChoices = []pickerChoice{
+	{Key: "none", Title: "No body", Description: "Clear body content and send no request body"},
+	{Key: "json", Title: "JSON", Description: "Send a JSON request body"},
+	{Key: "xml", Title: "XML", Description: "Send an XML request body"},
+	{Key: "text", Title: "Text", Description: "Send a plain text request body"},
+	{Key: "form", Title: "Form", Description: "Send URL-encoded form data"},
+	{Key: "multipart", Title: "Multipart", Description: "Send multipart form data"},
+	{Key: "raw", Title: "Raw", Description: "Send an untyped raw body"},
+}
+
 func bootstrapCmd(ctx context.Context, client *cli.Client) tea.Cmd {
 	return func() tea.Msg {
 		workspaces, err := client.ListWorkspaces(ctx)
@@ -184,6 +194,40 @@ func seedRequestEditCmd(ctx context.Context, client *cli.Client, workspaceID, id
 			Err:    err,
 			Action: action,
 		}
+	}
+}
+
+func loadRequestAuthChoicesCmd(ctx context.Context, client *cli.Client, workspaceID string, flow pendingFlow) tea.Cmd {
+	return func() tea.Msg {
+		choices := []pickerChoice{
+			{Key: "", Title: "No auth", Description: "Send the request without an auth binding"},
+		}
+
+		auths, err := client.ListAuths(ctx, workspaceID)
+		if err != nil {
+			return requestPickerChoicesLoadedMsg{Flow: flow, Err: err}
+		}
+
+		for _, item := range auths {
+			label := strings.TrimSpace(item.Name)
+			if label == "" {
+				label = item.ID
+			}
+			description := strings.TrimSpace(item.Type)
+			if item.AutoRenew {
+				if description != "" {
+					description += " · "
+				}
+				description += "auto renew"
+			}
+			choices = append(choices, pickerChoice{
+				Key:         item.ID,
+				Title:       label,
+				Description: description,
+			})
+		}
+
+		return requestPickerChoicesLoadedMsg{Flow: flow, Choices: choices}
 	}
 }
 

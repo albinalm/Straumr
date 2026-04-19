@@ -21,7 +21,9 @@ const (
 	flowRequestCreateName      pendingFlow = "request-create-name"
 	flowRequestCreateURL       pendingFlow = "request-create-url"
 	flowRequestCreateMethod    pendingFlow = "request-create-method"
+	flowRequestCreateAuthPick  pendingFlow = "request-create-auth-pick"
 	flowRequestCreateAuth      pendingFlow = "request-create-auth"
+	flowRequestCreateBodyPick  pendingFlow = "request-create-body-pick"
 	flowRequestCreateBodyType  pendingFlow = "request-create-body-type"
 	flowRequestCreateBody      pendingFlow = "request-create-body"
 	flowRequestHeadersEditor   pendingFlow = "request-headers-editor"
@@ -37,7 +39,9 @@ const (
 	flowRequestEditName        pendingFlow = "request-edit-name"
 	flowRequestEditURL         pendingFlow = "request-edit-url"
 	flowRequestEditMethod      pendingFlow = "request-edit-method"
+	flowRequestEditAuthPick    pendingFlow = "request-edit-auth-pick"
 	flowRequestEditAuth        pendingFlow = "request-edit-auth"
+	flowRequestEditBodyPick    pendingFlow = "request-edit-body-pick"
 	flowRequestEditBodyType    pendingFlow = "request-edit-body-type"
 	flowRequestEditBody        pendingFlow = "request-edit-body"
 	flowRequestCopyName        pendingFlow = "request-copy-name"
@@ -94,7 +98,7 @@ type pendingAction struct {
 }
 
 func (m *Model) hasOverlay() bool {
-	return m.textInput.Active || m.secretInput.Active || m.confirm.Active || m.keyValue.Active || m.pathPicker.Active
+	return m.textInput.Active || m.secretInput.Active || m.confirm.Active || m.selectView.Active || m.keyValue.Active || m.pathPicker.Active
 }
 
 func (m *Model) overlayView() string {
@@ -105,6 +109,8 @@ func (m *Model) overlayView() string {
 		return m.secretInput.Render()
 	case m.confirm.Active:
 		return m.confirm.Render()
+	case m.selectView.Active:
+		return m.selectView.Render()
 	case m.keyValue.Active:
 		return m.keyValue.Render()
 	case m.pathPicker.Active:
@@ -118,6 +124,7 @@ func (m *Model) clearOverlays() {
 	m.textInput.Close()
 	m.secretInput.Close()
 	m.confirm.Close()
+	m.selectView.Close()
 	m.keyValue.Close()
 	m.pathPicker.Close()
 	m.pending = nil
@@ -144,6 +151,13 @@ func (m *Model) openConfirmFlow(flow pendingFlow, title, message string, options
 	m.confirm.Open(title, message, options)
 }
 
+func (m *Model) openSelectFlow(flow pendingFlow, title, message, help string, items []dialogs.Choice, pending pendingAction) {
+	m.clearOverlays()
+	pending.Flow = flow
+	m.pending = &pending
+	m.selectView.Open(title, message, help, items)
+}
+
 func (m *Model) openKeyValueFlow(flow pendingFlow, title, message string, items []dialogs.Pair, pending pendingAction) {
 	m.clearOverlays()
 	pending.Flow = flow
@@ -159,10 +173,29 @@ func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSecretInputKey(msg)
 	case m.confirm.Active:
 		return m.handleConfirmKey(msg)
+	case m.selectView.Active:
+		return m.handleSelectKey(msg)
 	case m.keyValue.Active:
 		return m.handleKeyValueKey(msg)
 	case m.pathPicker.Active:
 		return m.handlePathPickerKey(msg)
+	default:
+		return m, nil
+	}
+}
+
+func (m *Model) handleSelectKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key, ok := dialogKey(msg)
+	if !ok {
+		return m, nil
+	}
+
+	switch m.selectView.HandleKey(key) {
+	case dialogs.ActionAccept:
+		return m.acceptSelect(strings.TrimSpace(m.selectView.Result(true).Choice.Key))
+	case dialogs.ActionCancel:
+		m.clearOverlays()
+		return m, nil
 	default:
 		return m, nil
 	}
@@ -371,17 +404,13 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		}
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(value))
-		m.openTextFlow(flowRequestCreateAuth, "Create request", "Auth", pending.RequestDraft.Auth, "(blank for none)", "Enter an auth name or ID, or leave blank for none", pending)
-		return m, nil
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, loadRequestAuthChoicesCmd(m.ctx, m.client, pending.WorkspaceID, flowRequestCreateAuthPick)
 	case flowRequestCreateAuth:
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithAuth(value)
-		bodyType := pending.RequestDraft.BodyType
-		if strings.TrimSpace(bodyType) == "" {
-			bodyType = "none"
-		}
-		m.openTextFlow(flowRequestCreateBodyType, "Create request", "Body type", bodyType, "none|json|xml|text|form|multipart|raw", "Enter the body type", pending)
-		return m, nil
+		return m.openRequestBodyTypeSelect(pending)
 	case flowRequestCreateBodyType:
 		pending := *m.pending
 		bodyType := normalizeBodyTypeForCLI(value)
@@ -472,17 +501,13 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		}
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithMethod(strings.ToUpper(value))
-		m.openTextFlow(flowRequestEditAuth, "Edit request", "Auth", pending.RequestDraft.Auth, "(blank for none)", "Enter an auth name or ID, or leave blank for none", pending)
-		return m, nil
+		m.clearOverlays()
+		m.session.Busy = true
+		return m, loadRequestAuthChoicesCmd(m.ctx, m.client, pending.WorkspaceID, flowRequestEditAuthPick)
 	case flowRequestEditAuth:
 		pending := *m.pending
 		pending.RequestDraft = pending.RequestDraft.WithAuth(value)
-		bodyType := pending.RequestDraft.BodyType
-		if strings.TrimSpace(bodyType) == "" {
-			bodyType = "none"
-		}
-		m.openTextFlow(flowRequestEditBodyType, "Edit request", "Body type", bodyType, "none|json|xml|text|form|multipart|raw", "Enter the body type", pending)
-		return m, nil
+		return m.openRequestBodyTypeSelect(pending)
 	case flowRequestEditBodyType:
 		pending := *m.pending
 		bodyType := normalizeBodyTypeForCLI(value)
@@ -538,6 +563,44 @@ func (m *Model) acceptTextInput(value string) (tea.Model, tea.Cmd) {
 		m.clearOverlays()
 		m.session.Busy = true
 		return m, copySecretCmd(m.ctx, m.client, identifier, value)
+	default:
+		m.clearOverlays()
+		return m, nil
+	}
+}
+
+func (m *Model) acceptSelect(choice string) (tea.Model, tea.Cmd) {
+	if m.pending == nil {
+		m.clearOverlays()
+		return m, nil
+	}
+
+	pending := *m.pending
+	switch pending.Flow {
+	case flowRequestCreateAuthPick:
+		pending.RequestDraft = pending.RequestDraft.WithAuth(choice)
+		return m.openRequestBodyTypeSelect(pending)
+	case flowRequestEditAuthPick:
+		pending.RequestDraft = pending.RequestDraft.WithAuth(choice)
+		return m.openRequestBodyTypeSelect(pending)
+	case flowRequestCreateBodyPick:
+		pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(choice), pending.RequestDraft.Body)
+		if normalizeBodyTypeForCLI(choice) == "none" {
+			pending.RequestDraft = pending.RequestDraft.WithBody("none", "")
+			m.openRequestHeadersEditor(pending)
+			return m, nil
+		}
+		m.openTextFlow(flowRequestCreateBody, "Create request", "Body", pending.RequestDraft.Body, "(optional)", "Enter the request body", pending)
+		return m, nil
+	case flowRequestEditBodyPick:
+		pending.RequestDraft = pending.RequestDraft.WithBody(normalizeBodyTypeForCLI(choice), pending.RequestDraft.Body)
+		if normalizeBodyTypeForCLI(choice) == "none" {
+			pending.RequestDraft = pending.RequestDraft.WithBody("none", "")
+			m.openRequestHeadersEditor(pending)
+			return m, nil
+		}
+		m.openTextFlow(flowRequestEditBody, "Edit request", "Body", pending.RequestDraft.Body, "(optional)", "Enter the request body", pending)
+		return m, nil
 	default:
 		m.clearOverlays()
 		return m, nil

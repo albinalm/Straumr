@@ -109,13 +109,17 @@ func (v *EditorView) Render() string {
 		b.WriteString(v.Message)
 		b.WriteString("\n")
 	}
+	b.WriteString(editorSection("Basics"))
 	b.WriteString(editorLine(v.Focus == EditorFieldName, "Name", v.Draft.Name))
 	b.WriteString(editorLine(v.Focus == EditorFieldURL, "URL", v.Draft.URL))
 	b.WriteString(editorLine(v.Focus == EditorFieldMethod, "Method", v.Draft.Method))
+	b.WriteString("\n")
+	b.WriteString(editorSection("Request Data"))
 	b.WriteString(editorLine(v.Focus == EditorFieldParams, "Params", fmt.Sprintf("%d entries", len(v.Draft.Params))))
 	b.WriteString(editorLine(v.Focus == EditorFieldHeaders, "Headers", fmt.Sprintf("%d entries", len(v.Draft.Headers))))
 	b.WriteString(editorLine(v.Focus == EditorFieldBody, "Body", bodySummary(v.Draft)))
 	b.WriteString(editorLine(v.Focus == EditorFieldAuth, "Auth", v.Draft.Auth))
+	b.WriteString("\n")
 	b.WriteString("Enter submit  Esc cancel  j/k or Tab/Shift+Tab move")
 
 	return strings.TrimRight(b.String(), "\n")
@@ -179,6 +183,10 @@ func editorLine(selected bool, label, value string) string {
 	}
 
 	return fmt.Sprintf("%s%s: %s\n", marker, label, value)
+}
+
+func editorSection(title string) string {
+	return fmt.Sprintf("%s\n", title)
 }
 
 func bodySummary(draft Draft) string {
