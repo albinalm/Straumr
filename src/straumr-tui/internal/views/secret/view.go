@@ -157,6 +157,7 @@ func (v *View) HandleKey(key Key) Action {
 func (v *View) Render() string {
 	state := v.List.State
 	state.Message = v.Message
+	state.Footer = fmt.Sprintf("%d/%d secrets", len(v.Items), len(v.Items))
 	out := common.Render(state, toRows(v.Items))
 
 	if v.Editor.Active {
@@ -194,18 +195,15 @@ func toRows(items []Item) []common.Row {
 }
 
 func secretSummary(item Item) string {
-	if item.Status == "" {
+	if item.ID == "" {
 		return item.ID
 	}
 
-	return item.Status
+	return item.ID
 }
 
 func secretDetails(item Item) []string {
-	details := []string{}
-	if item.ValueMasked != "" {
-		details = append(details, fmt.Sprintf("value: %s", item.ValueMasked))
-	}
+	details := []string{secretMetaLine(item)}
 	if item.Modified != nil {
 		details = append(details, fmt.Sprintf("modified: %s", item.Modified.Format("2006-01-02 15:04:05")))
 	}
@@ -220,6 +218,20 @@ func displayName(name, fallback string) string {
 		return name
 	}
 	return fallback
+}
+
+func secretMetaLine(item Item) string {
+	parts := []string{}
+	if strings.TrimSpace(item.Status) != "" {
+		parts = append(parts, item.Status)
+	}
+	if strings.TrimSpace(item.ValueMasked) != "" {
+		parts = append(parts, item.ValueMasked)
+	}
+	if len(parts) == 0 {
+		return item.ID
+	}
+	return strings.Join(parts, " • ")
 }
 
 func boolText(value bool) string {

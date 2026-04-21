@@ -233,56 +233,63 @@ func (v *PathPickerView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-
 	title := v.Title
 	if title == "" {
 		title = "Path picker"
 	}
-	b.WriteString(title)
-	b.WriteString("\n")
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
 
+	content := []string{}
 	if modeLabel := pathModeLabel(v.Mode); modeLabel != "" {
-		b.WriteString(fmt.Sprintf("Mode: %s\n", modeLabel))
+		content = append(content, renderDialogMuted(fmt.Sprintf("Mode: %s", modeLabel)))
 	}
 	if v.CurrentDir != "" {
-		b.WriteString(fmt.Sprintf("Current directory: %s\n", v.CurrentDir))
+		content = append(content, renderDialogMuted(fmt.Sprintf("Current directory: %s", v.CurrentDir)))
 	}
-	b.WriteString(fmt.Sprintf("Path: %s\n", renderEditableValue(v.InputPath, "(type a path)", v.Focus == PathFocusPath, v.InputCursor)))
-	b.WriteString(fmt.Sprintf("Focus: %s\n", pathFocusLabel(v.Focus)))
+	content = append(content,
+		renderDialogField(
+			fmt.Sprintf("Path: %s", renderEditableValue(v.InputPath, "(type a path)", v.Focus == PathFocusPath, v.InputCursor)),
+			v.Focus == PathFocusPath,
+		),
+		renderDialogMuted(fmt.Sprintf("Focus: %s", pathFocusLabel(v.Focus))),
+	)
 
 	if len(v.QuickLocations) > 0 {
-		b.WriteString("Quick locations\n")
+		rows := make([]string, 0, len(v.QuickLocations))
 		for index, item := range v.QuickLocations {
-			b.WriteString(renderPathEntry(item, index == v.QuickCursor, true))
-			b.WriteString("\n")
+			rows = append(rows, renderDialogRow(
+				renderPathEntry(item, index == v.QuickCursor, true),
+				v.Focus == PathFocusQuick && index == v.QuickCursor,
+			))
 		}
+		content = append(content, renderDialogSection("Quick locations", rows))
 	}
 
-	b.WriteString("Browsable entries\n")
 	if len(v.Entries) > 0 {
+		rows := make([]string, 0, len(v.Entries))
 		for index, item := range v.Entries {
-			b.WriteString(renderPathEntry(item, index == v.Cursor, false))
-			b.WriteString("\n")
+			rows = append(rows, renderDialogRow(
+				renderPathEntry(item, index == v.Cursor, false),
+				v.Focus == PathFocusEntries && index == v.Cursor,
+			))
 		}
+		content = append(content, renderDialogSection("Browsable entries", rows))
 	} else {
-		b.WriteString("(empty)\n")
+		content = append(content, renderDialogSection("Browsable entries", []string{renderDialogMuted("(empty)")}))
 	}
 
 	if v.Filter != "" {
-		b.WriteString(fmt.Sprintf("Filter: %s\n", v.Filter))
+		content = append(content, renderDialogMuted(fmt.Sprintf("Filter: %s", v.Filter)))
 	}
 	if v.MustExist {
-		b.WriteString(pathRequirementLabel(v.Mode))
-		b.WriteString("\n")
+		content = append(content, renderDialogMuted(pathRequirementLabel(v.Mode)))
 	}
-	b.WriteString(pathPickerHelp(v.Help, len(v.QuickLocations) > 0, len(v.Entries) > 0))
 
-	return strings.TrimRight(b.String(), "\n")
+	return renderDialogChrome(
+		title,
+		v.Message,
+		content,
+		pathPickerHelp(v.Help, len(v.QuickLocations) > 0, len(v.Entries) > 0),
+	)
 }
 
 func renderPathEntry(entry PathEntry, selected, quick bool) string {

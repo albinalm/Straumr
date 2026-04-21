@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"straumr-tui/internal/state"
@@ -12,6 +13,10 @@ import (
 func RenderShell(session state.Session, body string) string {
 	styles := theme.CurrentStyles()
 	sections := make([]string, 0, 4)
+	header := renderHeader(session, styles)
+	if header != "" {
+		sections = append(sections, header)
+	}
 
 	if session.Message != "" {
 		sections = append(sections, styles.Message.Render(session.Message))
@@ -30,7 +35,7 @@ func RenderShell(session state.Session, body string) string {
 	return styles.Shell.Render(overlayTopRight(combined, renderBanner(styles), shellWidth(session, combined)))
 }
 
-func renderTabs(active state.ScreenID) string {
+func renderTabs(active state.ScreenID, styles theme.Styles) string {
 	screens := []state.ScreenID{
 		state.ScreenWorkspaces,
 		state.ScreenRequests,
@@ -41,14 +46,37 @@ func renderTabs(active state.ScreenID) string {
 
 	labels := make([]string, 0, len(screens))
 	for _, screen := range screens {
-		label := string(screen)
+		label := strings.ToUpper(string(screen))
 		if screen == active {
-			label = "[" + label + "]"
+			labels = append(labels, styles.TabActive.Render(label))
+			continue
 		}
-		labels = append(labels, label)
+		labels = append(labels, styles.TabInactive.Render(label))
 	}
 
-	return strings.Join(labels, "  ")
+	return lipgloss.JoinHorizontal(lipgloss.Top, labels...)
+}
+
+func renderHeader(session state.Session, styles theme.Styles) string {
+	left := renderTabs(session.Screen, styles)
+
+	contextParts := make([]string, 0, 3)
+	if session.ActiveWorkspace != nil && strings.TrimSpace(session.ActiveWorkspace.Name) != "" {
+		contextParts = append(contextParts, fmt.Sprintf("workspace: %s", session.ActiveWorkspace.Name))
+	}
+	if session.ActiveRequest != nil && strings.TrimSpace(session.ActiveRequest.Name) != "" {
+		contextParts = append(contextParts, fmt.Sprintf("request: %s", session.ActiveRequest.Name))
+	}
+	if session.Busy {
+		contextParts = append(contextParts, "busy")
+	}
+
+	if len(contextParts) == 0 {
+		return styles.Header.Render(left)
+	}
+
+	right := styles.Context.Render(strings.Join(contextParts, "  •  "))
+	return styles.Header.Render(lipgloss.JoinHorizontal(lipgloss.Top, left, "   ", right))
 }
 
 func renderBanner(styles theme.Styles) string {

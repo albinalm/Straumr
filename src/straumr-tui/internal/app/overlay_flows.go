@@ -136,28 +136,35 @@ func (m *Model) hasOverlay() bool {
 }
 
 func (m *Model) overlayView() string {
+	var content string
 	switch {
 	case m.textInput.Active:
-		return m.textInput.Render()
+		content = m.textInput.Render()
 	case m.secretInput.Active:
-		return m.secretInput.Render()
+		content = m.secretInput.Render()
 	case m.bodyInput.Active:
-		return m.bodyInput.Render()
+		content = m.bodyInput.Render()
 	case m.pairInput.Active:
-		return m.pairInput.Render()
+		content = m.pairInput.Render()
 	case m.textViewer.Active:
-		return m.textViewer.Render()
+		content = m.textViewer.Render()
 	case m.confirm.Active:
-		return m.confirm.Render()
+		content = m.confirm.Render()
 	case m.selectView.Active:
-		return m.selectView.Render()
+		content = m.selectView.Render()
 	case m.keyValue.Active:
-		return m.keyValue.Render()
+		content = m.keyValue.Render()
 	case m.pathPicker.Active:
-		return m.pathPicker.Render()
+		content = m.pathPicker.Render()
 	default:
 		return ""
 	}
+
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+	return content
 }
 
 func (m *Model) clearOverlays() {

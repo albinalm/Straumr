@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"straumr-tui/internal/ui/theme"
 )
 
@@ -159,11 +161,11 @@ func (v *View) Render() string {
 		sections = append(sections, notes)
 	}
 
-	summary := styles.Panel.Render(renderSummaryPane(v.Response, v.FocusedPane == PaneSummary))
-	body := styles.Panel.Render(renderBodyPane(v))
+	summary := renderPane(renderSummaryPane(v.Response, v.FocusedPane == PaneSummary), v.FocusedPane == PaneSummary)
+	body := renderPane(renderBodyPane(v), v.FocusedPane == PaneBody)
 	sections = append(sections, summary, body)
 
-	return strings.TrimRight(styles.Shell.Render(strings.Join(sections, "\n\n")), "\n")
+	return strings.TrimRight(strings.Join(sections, "\n\n"), "\n")
 }
 
 func (v *View) switchPane(reverse bool) {
@@ -186,68 +188,67 @@ func (v *View) switchPane(reverse bool) {
 func renderStatus(text string) string {
 	styles := theme.CurrentStyles()
 	if text == "" {
-		return styles.Muted.Render("Status: idle")
+		return styles.Muted.Render("• Waiting for request")
 	}
 
-	return styles.Success.Render(fmt.Sprintf("Status: %s", text))
+	return styles.Success.Render("✓ " + text)
 }
 
 func renderRequest(request Request) string {
 	styles := theme.CurrentStyles()
-	parts := []string{}
-	if request.Method != "" {
-		parts = append(parts, theme.MethodStyle(request.Method).Render(strings.ToUpper(request.Method)))
+	method := theme.MethodStyle(request.Method).Render(strings.ToUpper(strings.TrimSpace(request.Method)))
+	uri := strings.TrimSpace(request.URI)
+	if method == "" {
+		method = styles.Muted.Render("REQUEST")
 	}
-	if request.URI != "" {
-		parts = append(parts, request.URI)
-	}
-	line := strings.Join(parts, " ")
-	if line == "" {
-		line = "(no request loaded)"
+	if uri == "" {
+		uri = styles.Muted.Render("(no request loaded)")
 	}
 
-	if request.Name != "" {
-		return fmt.Sprintf("%s\n  %s", styles.PanelTitle.Render("Request: "+request.Name), line)
+	lines := []string{}
+	if strings.TrimSpace(request.Name) != "" {
+		lines = append(lines, styles.PanelTitle.Render(request.Name))
 	}
-
-	return fmt.Sprintf("%s", styles.PanelTitle.Render("Request: "+line))
+	lines = append(lines, method+"  "+styles.Info.Underline(true).Render(uri))
+	return strings.Join(lines, "\n")
 }
 
 func renderMeta(response Response) string {
 	styles := theme.CurrentStyles()
 	if response.Error != "" {
-		return fmt.Sprintf("%s\n  %s", styles.Danger.Render("Response: error"), response.Error)
+		return styles.Danger.Render(response.Error)
 	}
 
 	meta := []string{}
 	if response.StatusText != "" {
-		meta = append(meta, response.StatusText)
+		meta = append(meta, styles.Success.Render(response.StatusText))
 	}
 	if response.Duration > 0 {
-		meta = append(meta, fmt.Sprintf("%d ms", response.Duration.Milliseconds()))
+		meta = append(meta, styles.Info.Render(fmt.Sprintf("%d ms", response.Duration.Milliseconds())))
 	}
 	if response.HTTPVersion != "" {
-		meta = append(meta, response.HTTPVersion)
+		meta = append(meta, styles.RowTitle.Render(response.HTTPVersion))
 	}
 
 	if len(meta) == 0 {
 		return styles.Muted.Render("Response: pending")
 	}
 
-	return fmt.Sprintf("%s %s", styles.PanelTitle.Render("Response:"), strings.Join(meta, "  "))
+	return strings.Join(meta, styles.Muted.Render(" • "))
 }
 
 func renderNotes(response Response) string {
+	styles := theme.CurrentStyles()
 	if len(response.Notes) == 0 {
 		return ""
 	}
 
-	lines := []string{"Notes"}
+	lines := []string{styles.PanelTitle.Render("Notes")}
 	for _, note := range response.Notes {
 		if strings.TrimSpace(note) == "" {
 			continue
 		}
-		lines = append(lines, "  "+note)
+		lines = append(lines, "  "+styles.RowDetail.Render(note))
 	}
 
 	if len(lines) == 1 {
@@ -258,13 +259,21 @@ func renderNotes(response Response) string {
 }
 
 func renderSummaryPane(response Response, active bool) string {
-	lines := []string{paneHeading("Summary", active)}
-	if response.Summary == "" {
-		lines = append(lines, "  (empty)")
-	} else {
-		for _, line := range strings.Split(response.Summary, "\n") {
-			lines = append(lines, "  "+line)
+	lines := []string{paneHeading("Headers", active)}
+	if strings.TrimSpace(response.Summary) == "" {
+		lines = append(lines, emptyPaneLine())
+		return strings.Join(lines, "\n")
+	}
+
+	for _, line := range strings.Split(response.Summary, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
 		}
+		lines = append(lines, renderSummaryLine(line))
+	}
+
+	if len(lines) == 1 {
+		lines = append(lines, emptyPaneLine())
 	}
 	return strings.Join(lines, "\n")
 }
@@ -272,19 +281,19 @@ func renderSummaryPane(response Response, active bool) string {
 func renderBodyPane(v *View) string {
 	lines := []string{bodyPaneTitle(v)}
 	if v.bodyNotice != "" {
-		lines = append(lines, "  "+v.bodyNotice)
+		lines = append(lines, "  "+theme.CurrentStyles().Warning.Render(v.bodyNotice))
 	}
 	body := v.bodyRendered
 	if body == "" {
 		body = v.bodySource
 	}
 	if body == "" {
-		lines = append(lines, "  (empty)")
+		lines = append(lines, emptyPaneLine())
 		return strings.Join(lines, "\n")
 	}
 
 	for _, line := range strings.Split(body, "\n") {
-		lines = append(lines, "  "+line)
+		lines = append(lines, "  "+theme.CurrentStyles().RowDetail.Render(line))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -343,11 +352,12 @@ func bodyPaneTitle(v *View) string {
 }
 
 func paneHeading(label string, active bool) string {
+	styles := theme.CurrentStyles()
 	if active {
-		return label + " [active]"
+		return styles.PanelTitle.Render(label + " [active]")
 	}
 
-	return label
+	return styles.PanelTitle.Render(label)
 }
 
 func beautifyJSON(value string) (string, bool) {
@@ -367,4 +377,75 @@ func beautifyJSON(value string) (string, bool) {
 	}
 
 	return string(formatted), true
+}
+
+func renderPane(body string, active bool) string {
+	styles := theme.CurrentStyles()
+	panel := styles.Panel
+	if active {
+		if border := theme.Active().Primary; strings.TrimSpace(border) != "" {
+			if resolved := resolvePanelColor(border); resolved != "" {
+				panel = panel.BorderForeground(lipgloss.Color(resolved))
+			}
+		}
+	}
+	return panel.Render(body)
+}
+
+func renderSummaryLine(line string) string {
+	styles := theme.CurrentStyles()
+	if key, value, ok := strings.Cut(line, ":"); ok {
+		return "  " + styles.RowSummary.Render(strings.TrimSpace(key)+":") + " " + styles.RowDetail.Render(strings.TrimSpace(value))
+	}
+	return "  " + styles.RowDetail.Render(line)
+}
+
+func emptyPaneLine() string {
+	return "  " + theme.CurrentStyles().Muted.Render("(empty)")
+}
+
+func resolvePanelColor(token string) string {
+	trimmed := strings.TrimSpace(token)
+	if trimmed == "" {
+		return ""
+	}
+	if strings.HasPrefix(trimmed, "#") {
+		return trimmed
+	}
+	switch strings.ToLower(trimmed) {
+	case "black":
+		return "0"
+	case "red":
+		return "1"
+	case "green":
+		return "2"
+	case "yellow":
+		return "3"
+	case "blue":
+		return "4"
+	case "magenta":
+		return "5"
+	case "cyan":
+		return "6"
+	case "gray", "grey":
+		return "7"
+	case "darkgray", "darkgrey":
+		return "8"
+	case "brightred":
+		return "9"
+	case "brightgreen":
+		return "10"
+	case "brightyellow":
+		return "11"
+	case "brightblue":
+		return "12"
+	case "brightmagenta":
+		return "13"
+	case "brightcyan":
+		return "14"
+	case "white":
+		return "15"
+	default:
+		return trimmed
+	}
 }

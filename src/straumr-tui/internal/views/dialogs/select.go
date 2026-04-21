@@ -135,45 +135,37 @@ func (v *SelectView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-
-	if v.Title != "" {
-		b.WriteString(v.Title)
-		b.WriteString("\n")
-	}
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
+	content := []string{}
 	if v.Filter != "" {
-		b.WriteString(fmt.Sprintf("Filter: %s\n", v.Filter))
+		content = append(content, renderDialogMuted(fmt.Sprintf("Filter: %s", v.Filter)))
 	}
+	rows := make([]string, 0, len(v.Items))
 	for index, item := range v.Items {
-		prefix := "  "
-		if index == v.Cursor {
-			prefix = "> "
-		}
-
-		line := prefix + item.Title
+		line := item.Title
 		if item.Disabled {
 			line += " [disabled]"
 		}
-		b.WriteString(line)
-		b.WriteString("\n")
+		rows = append(rows, renderDialogRow(line, index == v.Cursor))
 		if item.Description != "" {
-			b.WriteString("  ")
-			b.WriteString(item.Description)
-			b.WriteString("\n")
+			rows = append(rows, renderDialogMuted(item.Description))
 		}
 	}
 	if len(v.Items) == 0 {
-		b.WriteString("(empty)\n")
+		rows = append(rows, renderDialogMuted("(empty)"))
 	}
-	if v.Help != "" {
-		b.WriteString(v.Help)
+	content = append(content, renderDialogSection("Choices", rows))
+
+	help := v.Help
+	if strings.TrimSpace(help) == "" {
+		help = "Enter accept  / filter  Esc cancel"
 	}
 
-	return strings.TrimRight(b.String(), "\n")
+	return renderDialogChrome(
+		titleOrDefault(v.Title, "Select"),
+		v.Message,
+		content,
+		help,
+	)
 }
 
 type ConfirmView struct {
@@ -248,23 +240,19 @@ func (v *ConfirmView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-	if v.Title != "" {
-		b.WriteString(v.Title)
-		b.WriteString("\n")
-	}
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
+	rows := make([]string, 0, len(v.Options))
 	for index, option := range v.Options {
-		prefix := "  "
-		if index == v.Cursor {
-			prefix = "> "
-		}
-		b.WriteString(prefix)
-		b.WriteString(option)
-		b.WriteString("\n")
+		rows = append(rows, renderDialogRow(option, index == v.Cursor))
 	}
-	return strings.TrimRight(b.String(), "\n")
+
+	if len(rows) == 0 {
+		rows = append(rows, renderDialogMuted("(empty)"))
+	}
+
+	return renderDialogChrome(
+		titleOrDefault(v.Title, "Confirm"),
+		v.Message,
+		[]string{renderDialogSection("Options", rows)},
+		"Enter accept  Esc cancel",
+	)
 }

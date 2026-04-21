@@ -146,7 +146,9 @@ func (v *View) SetItems(items []Item) {
 
 func (v *View) Render() string {
 	state := v.List.State
+	state.Title = requestTitle(v.WorkspaceName)
 	state.Message = v.messageLine()
+	state.Footer = fmt.Sprintf("%d/%d requests", len(v.Items), len(v.Items))
 	out := common.Render(state, toRows(v.Items))
 
 	if v.Editor.Active {
@@ -233,7 +235,7 @@ func (v *View) messageLine() string {
 		return "No workspace selected"
 	}
 
-	return fmt.Sprintf("Workspace: %s", v.WorkspaceName)
+	return ""
 }
 
 func toRows(items []Item) []common.Row {
@@ -241,7 +243,7 @@ func toRows(items []Item) []common.Row {
 	for _, item := range items {
 		rows = append(rows, common.Row{
 			Key:     item.ID,
-			Title:   displayName(item.Name, item.ID),
+			Title:   requestName(item),
 			Summary: requestSummary(item),
 			Details: requestDetails(item),
 			Current: item.Current,
@@ -253,31 +255,17 @@ func toRows(items []Item) []common.Row {
 }
 
 func requestSummary(item Item) string {
-	if item.Method == "" && item.Host == "" {
+	if item.ID == "" {
 		return item.ID
 	}
 
-	if item.Method == "" {
-		return item.Host
-	}
-
-	if item.Host == "" {
-		return item.Method
-	}
-
-	return fmt.Sprintf("%s %s", item.Method, item.Host)
+	return item.ID
 }
 
 func requestDetails(item Item) []string {
-	details := []string{}
-	if item.BodyType != "" {
-		details = append(details, fmt.Sprintf("body type: %s", item.BodyType))
-	}
-	if item.Auth != "" {
-		details = append(details, fmt.Sprintf("auth: %s", item.Auth))
-	}
+	details := []string{requestMetaLine(item)}
 	if item.LastAccessed != nil {
-		details = append(details, fmt.Sprintf("last accessed: %s", item.LastAccessed.Format("2006-01-02 15:04:05")))
+		details[0] += " • " + item.LastAccessed.Format("2006-01-02")
 	}
 	return details
 }
@@ -287,4 +275,42 @@ func displayName(name, fallback string) string {
 		return name
 	}
 	return fallback
+}
+
+func requestName(item Item) string {
+	name := displayName(item.Name, item.ID)
+	if method := strings.TrimSpace(item.Method); method != "" {
+		return strings.ToUpper(method) + " " + name
+	}
+	return name
+}
+
+func requestTitle(workspaceName string) string {
+	if strings.TrimSpace(workspaceName) == "" {
+		return "Requests"
+	}
+	return fmt.Sprintf("Requests - %s", workspaceName)
+}
+
+func requestMetaLine(item Item) string {
+	parts := []string{}
+	if strings.TrimSpace(item.Host) != "" {
+		parts = append(parts, item.Host)
+	}
+	if strings.TrimSpace(item.BodyType) != "" {
+		parts = append(parts, item.BodyType)
+	} else {
+		parts = append(parts, "No body")
+	}
+	if strings.TrimSpace(item.Auth) != "" {
+		parts = append(parts, item.Auth)
+	} else {
+		parts = append(parts, "No auth")
+	}
+
+	if len(parts) == 0 {
+		return item.ID
+	}
+
+	return strings.Join(parts, " • ")
 }

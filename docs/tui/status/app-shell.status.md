@@ -35,10 +35,11 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 - Corrected request/send on-screen key hints where they had drifted from the actual shell keymap.
 - Replaced the send save/export raw path text input with the shared path-picker overlay and shell-managed filesystem browsing.
 - Tightened post-mutation refresh behavior so create/edit/copy flows reselect the affected item after refresh and request edits no longer leave stale active-request state behind.
+- Added the visual shell header with screen tabs, workspace/request context, and the screenshot-aligned top-right `STRAUMR` banner through the new theme system.
 
 ## Work in progress
 
-- General overlay polish and broader shared picker/select reuse outside the send screen, request editor, and the now-picker-backed auth create/edit flow.
+- General shell cleanup and visual polish now that the theme system is active.
 - Further inspect/detail presentation polish now that the shell has a reusable viewer instead of per-entity one-off detail handling.
 
 ## Blockers
@@ -67,13 +68,14 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 
 ## Next steps
 
-- Reuse the shared path picker in more shell flows that still fall back to simple text entry.
-- Reuse the shared select overlay in any remaining shell prompts that still fall back to simple text entry for finite choices.
+- Tighten the shell/header spacing and narrow-width behavior against live manual screenshots.
 - Keep tightening shell cleanup around mutation follow-up behavior now that selection preservation is in place.
+- Reuse shared overlays anywhere the shell still falls back to text entry for obviously finite choices or path selection.
 
 ## Resume notes
 
 - The shell already owns the mutation round-trip for workspace, auth, secret, and the request quick flows including auth/body/header/param.
 - Workspace/auth/secret/request inspect now round-trip through their JSON-safe get paths.
 - Request method/auth/body-type and auth create/edit choice fields now use select overlays, request bodies use a dedicated multiline overlay with file import, request/custom-auth metadata entries use a shared pair editor overlay, workspace/request/auth/secret inspect all use the same scrollable text viewer, workspace import/export plus send save/export mount the shared path picker, and mutation refresh now preserves the affected selection instead of dropping the user back onto whichever row was previously focused.
-- The next shell-critical slice is broader overlay reuse and general shell cleanup.
+- The shell also now owns the top-level themed header/tab/banner presentation, so future visual work should extend that path instead of styling around it in individual screens.
+- The next shell-critical slice is narrower visual polish and any remaining overlay reuse.

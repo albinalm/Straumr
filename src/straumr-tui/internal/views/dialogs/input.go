@@ -56,22 +56,21 @@ func (v *TextInputView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-
-	if v.Title != "" {
-		b.WriteString(v.Title)
-		b.WriteString("\n")
-	}
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
 	label := v.Label
 	if label == "" {
 		label = "Value"
 	}
-	b.WriteString(fmt.Sprintf("%s: %s", label, displayOrPlaceholder(v.Value, v.Placeholder)))
-	return strings.TrimRight(b.String(), "\n")
+	field := renderDialogField(
+		fmt.Sprintf("%s: %s", label, displayOrPlaceholder(v.Value, v.Placeholder)),
+		true,
+	)
+
+	return renderDialogChrome(
+		titleOrDefault(v.Title, "Input"),
+		v.Message,
+		[]string{field},
+		"Enter accept  Esc cancel",
+	)
 }
 
 func (v *TextInputView) HandleKey(key Key) ActionKind {
@@ -109,15 +108,7 @@ func (v *SecretInputView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-
 	title := titleOrDefault(v.TextInputView.Title, "Secret input")
-	b.WriteString(title)
-	b.WriteString("\n")
-	if v.TextInputView.Message != "" {
-		b.WriteString(v.TextInputView.Message)
-		b.WriteString("\n")
-	}
 	label := v.TextInputView.Label
 	if label == "" {
 		label = "Value"
@@ -128,8 +119,17 @@ func (v *SecretInputView) Render() string {
 		value = maskedValue(value)
 	}
 
-	b.WriteString(fmt.Sprintf("%s: %s", label, displayOrPlaceholder(value, v.TextInputView.Placeholder)))
-	return strings.TrimRight(b.String(), "\n")
+	field := renderDialogField(
+		fmt.Sprintf("%s: %s", label, displayOrPlaceholder(value, v.TextInputView.Placeholder)),
+		true,
+	)
+
+	return renderDialogChrome(
+		title,
+		v.TextInputView.Message,
+		[]string{field},
+		"Enter accept  Esc cancel",
+	)
 }
 
 type KeyValueEditorView struct {
@@ -207,31 +207,33 @@ func (v *KeyValueEditorView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-	if v.Title != "" {
-		b.WriteString(v.Title)
-		b.WriteString("\n")
-	}
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
 	if len(v.Items) == 0 {
-		b.WriteString("(empty)")
-		return b.String()
+		return renderDialogChrome(
+			titleOrDefault(v.Title, "Key/value editor"),
+			v.Message,
+			[]string{renderDialogMuted("(empty)")},
+			"Enter edit  Delete remove  Esc cancel",
+		)
 	}
+
+	rows := make([]string, 0, len(v.Items))
 	for index, item := range v.Items {
-		prefix := "  "
-		if index == v.Cursor {
-			prefix = "> "
-		}
 		value := item.Value
 		if item.Sensitive {
 			value = maskedValue(value)
 		}
-		b.WriteString(fmt.Sprintf("%s%s: %s\n", prefix, item.Key, displayOrPlaceholder(value, "(empty)")))
+		rows = append(rows, renderDialogRow(
+			fmt.Sprintf("%s: %s", item.Key, displayOrPlaceholder(value, "(empty)")),
+			index == v.Cursor,
+		))
 	}
-	return strings.TrimRight(b.String(), "\n")
+
+	return renderDialogChrome(
+		titleOrDefault(v.Title, "Key/value editor"),
+		v.Message,
+		[]string{renderDialogSection("Entries", rows)},
+		"Enter edit  Delete remove  Esc cancel",
+	)
 }
 
 func displayOrPlaceholder(value, placeholder string) string {
@@ -292,29 +294,22 @@ func (v *MultiLineInputView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-	if v.Title != "" {
-		b.WriteString(v.Title)
-		b.WriteString("\n")
-	}
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
-
 	lines := renderMultilineCursor(v.Value, v.Cursor)
 	if len(lines) == 0 {
 		lines = []string{"|"}
 	}
 
+	bodyLines := make([]string, 0, len(lines))
 	for _, line := range lines {
-		b.WriteString("  ")
-		b.WriteString(line)
-		b.WriteString("\n")
+		bodyLines = append(bodyLines, line)
 	}
 
-	b.WriteString("Ctrl+S accept  Ctrl+O load file  Ctrl+L clear  Enter newline  Esc back")
-	return strings.TrimRight(b.String(), "\n")
+	return renderDialogChrome(
+		titleOrDefault(v.Title, "Body editor"),
+		v.Message,
+		[]string{renderDialogTextBlock(strings.Join(bodyLines, "\n"), true)},
+		"Ctrl+S accept  Ctrl+O load file  Ctrl+L clear  Enter newline  Esc back",
+	)
 }
 
 func (v *MultiLineInputView) ApplyKey(msg tea.KeyMsg) ActionKind {
@@ -534,29 +529,23 @@ func (v *PairInputView) Render() string {
 		return ""
 	}
 
-	var b strings.Builder
-	if v.Title != "" {
-		b.WriteString(v.Title)
-		b.WriteString("\n")
-	}
-	if v.Message != "" {
-		b.WriteString(v.Message)
-		b.WriteString("\n")
-	}
-
-	keyPrefix := "  "
-	valuePrefix := "  "
-	if v.Focus == PairInputFieldKey {
-		keyPrefix = "> "
-	}
-	if v.Focus == PairInputFieldValue {
-		valuePrefix = "> "
+	fields := []string{
+		renderDialogField(
+			fmt.Sprintf("Key: %s", renderSingleLineCursor(v.Key, v.KeyCursor, "Header-Name")),
+			v.Focus == PairInputFieldKey,
+		),
+		renderDialogField(
+			fmt.Sprintf("Value: %s", renderSingleLineCursor(v.Value, v.ValueCursor, "(empty)")),
+			v.Focus == PairInputFieldValue,
+		),
 	}
 
-	b.WriteString(fmt.Sprintf("%sKey: %s\n", keyPrefix, renderSingleLineCursor(v.Key, v.KeyCursor, "Header-Name")))
-	b.WriteString(fmt.Sprintf("%sValue: %s\n", valuePrefix, renderSingleLineCursor(v.Value, v.ValueCursor, "(empty)")))
-	b.WriteString("Enter next/accept  Tab switch field  Ctrl+S accept  Esc cancel")
-	return strings.TrimRight(b.String(), "\n")
+	return renderDialogChrome(
+		titleOrDefault(v.Title, "Pair editor"),
+		v.Message,
+		fields,
+		"Enter next/accept  Tab switch field  Ctrl+S accept  Esc cancel",
+	)
 }
 
 func (v *PairInputView) ApplyKey(msg tea.KeyMsg) ActionKind {

@@ -187,7 +187,9 @@ func (v *View) HandleKey(key Key) Action {
 
 func (v *View) Render() string {
 	state := v.List.State
+	state.Title = authTitle(v.WorkspaceName)
 	state.Message = v.messageLine()
+	state.Footer = fmt.Sprintf("%d/%d auths", len(v.Items), len(v.Items))
 	out := common.Render(state, toRows(v.Items))
 
 	if v.Editor.Active {
@@ -217,7 +219,7 @@ func (v *View) messageLine() string {
 		return "No workspace selected"
 	}
 
-	return fmt.Sprintf("Workspace: %s", v.WorkspaceName)
+	return ""
 }
 
 func toRows(items []Item) []common.Row {
@@ -237,15 +239,15 @@ func toRows(items []Item) []common.Row {
 }
 
 func authSummary(item Item) string {
-	if item.Type == "" {
+	if item.ID == "" {
 		return item.ID
 	}
 
-	return item.Type
+	return item.ID
 }
 
 func authDetails(item Item) []string {
-	details := []string{fmt.Sprintf("auto renew: %s", boolText(item.AutoRenew))}
+	details := []string{authMetaLine(item)}
 	if item.Modified != nil {
 		details = append(details, fmt.Sprintf("modified: %s", item.Modified.Format("2006-01-02 15:04:05")))
 	}
@@ -267,4 +269,20 @@ func boolText(value bool) string {
 		return "on"
 	}
 	return "off"
+}
+
+func authTitle(workspaceName string) string {
+	if strings.TrimSpace(workspaceName) == "" {
+		return "Auths"
+	}
+	return fmt.Sprintf("Auths - %s", workspaceName)
+}
+
+func authMetaLine(item Item) string {
+	parts := []string{}
+	if strings.TrimSpace(item.Type) != "" {
+		parts = append(parts, item.Type)
+	}
+	parts = append(parts, "auto renew "+boolText(item.AutoRenew))
+	return strings.Join(parts, " • ")
 }

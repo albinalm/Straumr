@@ -6,7 +6,7 @@ Shared overlays, forms, selectors, confirmations, key/value editor, and redesign
 
 ## Current status
 
-In progress. Go overlay helpers are present with structured result types, and the shell now mounts the shared path picker plus the reusable text viewer for real flows.
+In progress. Go overlay helpers are present with structured result types, themed rendering, and the shell now mounts the shared path picker plus the reusable text viewer for real flows.
 
 ## Completed work
 
@@ -25,11 +25,12 @@ In progress. Go overlay helpers are present with structured result types, and th
 - Added a shared multiline body overlay and reused the shared path picker to load request bodies from files.
 - Added a shared pair editor overlay for request/auth metadata entries so key and value can be edited in one step.
 - Added a shared read-only text viewer overlay for scrollable inspect/detail presentation across workspace, request, auth, and secret screens.
+- Added first-pass themed dialog rendering so inputs, selectors, pickers, confirms, pair editors, and text viewers no longer appear as raw terminal text.
 
 ## Work in progress
 
 - Reusing the shared picker in more shell flows and tightening picker ergonomics after first integration.
-- Tightening overlay ergonomics after first integration and reusing the shared picker/select surfaces in the remaining ad hoc shell prompts.
+- Reducing visual duplication between dialog-local styling helpers and the shared theme package as the semantic style API matures.
 
 ## Blockers
 
@@ -53,6 +54,7 @@ In progress. Go overlay helpers are present with structured result types, and th
 - Decide whether the multiline body overlay should grow save/export affordances or stay focused on load/edit/accept.
 - Decide whether the shared pair editor is sufficient long term or if a richer table/form editor is still warranted.
 - Decide whether the picker needs active-workspace quick locations from shell state.
+- Fold any obviously reusable dialog style roles back into `internal/ui/theme` rather than growing a second long-term style system under `internal/views/dialogs`.
 
 ## Resume notes
 

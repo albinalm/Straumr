@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"straumr-tui/internal/ui/theme"
 	"straumr-tui/internal/views/common"
 )
 
@@ -113,22 +114,15 @@ func (v *View) SetItems(items []Item) {
 func (v *View) Render() string {
 	state := v.List.State
 	state.Message = v.Message
+	state.Footer = fmt.Sprintf("%d/%d workspaces", len(v.Items), len(v.Items))
 	rows := toRows(v.Items)
 	out := common.Render(state, rows)
 
 	if v.MenuOpen {
-		menu := []string{
-			"Open workspace:",
-			menuChoiceLine(v.MenuCursor == 0, "Requests"),
-			menuChoiceLine(v.MenuCursor == 1, "Auths"),
-			menuChoiceLine(v.MenuCursor == 2, "Secrets"),
-			menuChoiceLine(v.MenuCursor == 3, "Set active"),
-			"Esc cancel  Enter confirm",
-		}
 		if out != "" {
 			out += "\n\n"
 		}
-		out += strings.Join(menu, "\n")
+		out += renderMenu(v.MenuCursor)
 	}
 
 	return out
@@ -236,22 +230,25 @@ func toRows(items []Item) []common.Row {
 }
 
 func workspaceSummary(item Item) string {
-	if item.Path == "" {
+	if item.ID == "" {
 		return item.ID
 	}
 
-	return item.Path
+	return item.ID
 }
 
 func workspaceDetails(item Item) []string {
 	stats := make([]string, 0, 3)
-	stats = append(stats, fmt.Sprintf("%s", countText("request", item.Requests)))
-	stats = append(stats, fmt.Sprintf("%s", countText("secret", item.Secrets)))
-	stats = append(stats, fmt.Sprintf("%s", countText("auth", item.Auths)))
+	stats = append(stats, countText("req", item.Requests))
+	stats = append(stats, countText("sec", item.Secrets))
+	stats = append(stats, countText("auth", item.Auths))
 
-	details := []string{strings.Join(stats, "  ")}
+	details := []string{strings.Join(stats, " • ")}
 	if item.LastAccessed != nil {
-		details = append(details, fmt.Sprintf("last accessed: %s", item.LastAccessed.Format("2006-01-02 15:04:05")))
+		details[0] += " • " + item.LastAccessed.Format("2006-01-02")
+	}
+	if item.Path != "" {
+		details = append(details, "path: "+item.Path)
 	}
 	return details
 }
@@ -268,14 +265,28 @@ func countText(label string, value *int) string {
 		return fmt.Sprintf("%s: n/a", label)
 	}
 
-	return fmt.Sprintf("%s: %d", label, *value)
+	return fmt.Sprintf("%d %s", *value, label)
 }
 
 func menuChoiceLine(selected bool, label string) string {
 	prefix := "  "
 	if selected {
-		prefix = "> "
+		prefix = "▸ "
 	}
 
 	return prefix + label
+}
+
+func renderMenu(cursor int) string {
+	styles := theme.CurrentStyles()
+	lines := []string{
+		styles.PanelTitle.Render("Workspace"),
+		menuChoiceLine(cursor == 0, "Requests"),
+		menuChoiceLine(cursor == 1, "Auths"),
+		menuChoiceLine(cursor == 2, "Secrets"),
+		menuChoiceLine(cursor == 3, "Set active"),
+		"",
+		styles.Muted.Render("Esc cancel  Enter confirm"),
+	}
+	return styles.Panel.Render(strings.Join(lines, "\n"))
 }
