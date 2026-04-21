@@ -132,7 +132,7 @@ type pendingAction struct {
 }
 
 func (m *Model) hasOverlay() bool {
-	return m.textInput.Active || m.secretInput.Active || m.bodyInput.Active || m.pairInput.Active || m.confirm.Active || m.selectView.Active || m.keyValue.Active || m.pathPicker.Active
+	return m.textInput.Active || m.secretInput.Active || m.bodyInput.Active || m.pairInput.Active || m.textViewer.Active || m.confirm.Active || m.selectView.Active || m.keyValue.Active || m.pathPicker.Active
 }
 
 func (m *Model) overlayView() string {
@@ -145,6 +145,8 @@ func (m *Model) overlayView() string {
 		return m.bodyInput.Render()
 	case m.pairInput.Active:
 		return m.pairInput.Render()
+	case m.textViewer.Active:
+		return m.textViewer.Render()
 	case m.confirm.Active:
 		return m.confirm.Render()
 	case m.selectView.Active:
@@ -163,6 +165,7 @@ func (m *Model) clearOverlays() {
 	m.secretInput.Close()
 	m.bodyInput.Close()
 	m.pairInput.Close()
+	m.textViewer.Close()
 	m.confirm.Close()
 	m.selectView.Close()
 	m.keyValue.Close()
@@ -198,6 +201,13 @@ func (m *Model) openPairInputFlow(flow pendingFlow, title, message, key, value s
 	m.pairInput.Open(title, message, key, value)
 }
 
+func (m *Model) openTextViewerFlow(flow pendingFlow, title, body string, pending pendingAction) {
+	m.clearOverlays()
+	pending.Flow = flow
+	m.pending = &pending
+	m.textViewer.Open(title, "j/k or up/down scroll  g/G top/bottom  Enter/Esc close", body)
+}
+
 func (m *Model) openConfirmFlow(flow pendingFlow, title, message string, options []string, pending pendingAction) {
 	m.clearOverlays()
 	pending.Flow = flow
@@ -229,6 +239,8 @@ func (m *Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleBodyInputKey(msg)
 	case m.pairInput.Active:
 		return m.handlePairInputKey(msg)
+	case m.textViewer.Active:
+		return m.handleTextViewerKey(msg)
 	case m.confirm.Active:
 		return m.handleConfirmKey(msg)
 	case m.selectView.Active:
@@ -362,6 +374,21 @@ func (m *Model) handlePairInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		default:
 			m.clearOverlays()
 		}
+		return m, nil
+	default:
+		return m, nil
+	}
+}
+
+func (m *Model) handleTextViewerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key, ok := dialogKey(msg)
+	if !ok {
+		return m, nil
+	}
+
+	switch m.textViewer.HandleKey(key) {
+	case dialogs.ActionAccept, dialogs.ActionCancel:
+		m.clearOverlays()
 		return m, nil
 	default:
 		return m, nil

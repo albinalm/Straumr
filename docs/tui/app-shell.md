@@ -9,6 +9,11 @@ Define the Bubble Tea root application, top-level navigation, shared state, refr
 - Bootstrap the session by resolving the CLI binary and initial workspace context.
 - Start on `Requests` when a current workspace exists; otherwise start on `Workspaces`.
 - Maintain the active screen, prior screen context, focused pane, and overlay stack.
+- Preserve the established shell composition:
+  - top-left help strip
+  - top-right `STRAUMR` banner
+  - framed main content panels
+  - bottom summary/status affordances
 - Preserve familiar navigation patterns:
   - `j/k`, `g/G`, `/`, `:`
   - `Enter`/`o` open
@@ -46,6 +51,7 @@ Define the Bubble Tea root application, top-level navigation, shared state, refr
 - Does not decode CLI JSON directly; that belongs to `cli-client`.
 - Does not know entity-specific mutation details; those belong to the module docs below.
 - Does not implement storage/business logic.
+- Should consume semantic styles from `visual-system.md` rather than hardcoding its own colors or frame treatment.
 
 ## Proposed Go structure
 
@@ -58,8 +64,8 @@ Use a single root `tea.Model` with child screen models and modal overlays. Prefe
 
 ## References
 
+- Visual contract: `docs/tui/visual-system.md`, `README.md`, `docs/themes.md`
 - Existing shell/navigation: `src/Straumr.Console.Tui/Screens/Base/ModelScreen.cs`
 - Screen engine: `src/Straumr.Console.Tui/Infrastructure/ScreenEngine.cs`
 - Navigation context: `src/Straumr.Console.Tui/Infrastructure/ScreenNavigationContext.cs`
 - CLI contract: `docs/agents-doc.md`, `docs/command-reference.md`
-

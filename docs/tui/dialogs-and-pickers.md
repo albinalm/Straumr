@@ -17,6 +17,7 @@ Define the reusable overlays and field editors used across all screens, with spe
   - save/export targets
 - Keep VIM-style navigation and command consistency across overlays.
 - Support modal layering without losing parent-screen context.
+- Follow the shared visual system so overlays feel like Straumr prompts, not generic popup boxes.
 
 ## Inputs
 
@@ -40,6 +41,7 @@ Define the reusable overlays and field editors used across all screens, with spe
 - Owns overlay UX and validation feedback.
 - Does not call the CLI itself.
 - Does not contain entity-specific persistence logic.
+- Must consume semantic styles from `visual-system.md` rather than defining ad hoc colors or borders per dialog.
 
 ## File/path picker redesign
 
@@ -61,7 +63,7 @@ Replace the current file-system prompt with a safer, clearer picker:
 
 ## References
 
+- Visual system: `docs/tui/visual-system.md`, `docs/themes.md`
 - Existing prompt host: `src/Straumr.Console.Tui/Console/TuiInteractiveConsole.cs`
 - Current file picker: `src/Straumr.Console.Tui/Components/Prompts/FileSave/FileSystemPromptBase.cs`
 - Current prompt set: `src/Straumr.Console.Tui/Screens/Prompts/`
-

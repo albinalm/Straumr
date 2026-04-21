@@ -36,11 +36,13 @@ type Model struct {
 	secretInput   dialogs.SecretInputView
 	bodyInput     dialogs.MultiLineInputView
 	pairInput     dialogs.PairInputView
+	textViewer    dialogs.TextViewerView
 	confirm       dialogs.ConfirmView
 	selectView    dialogs.SelectView
 	keyValue      dialogs.KeyValueEditorView
 	pathPicker    dialogs.PathPickerView
 	lastDirs      map[pendingFlow]string
+	pendingSelect map[state.ScreenID]string
 	pending       *pendingAction
 }
 
@@ -55,6 +57,7 @@ func NewModel(ctx context.Context, client *cli.Client, store *cache.Store) *Mode
 		secretView:    secret.NewView(),
 		sendView:      send.NewView(),
 		lastDirs:      make(map[pendingFlow]string),
+		pendingSelect: make(map[state.ScreenID]string),
 		session: state.Session{
 			Screen: state.ScreenWorkspaces,
 		},
@@ -533,12 +536,14 @@ func (m *Model) applyBootstrap(msg bootstrapMsg) (tea.Model, tea.Cmd) {
 	}
 
 	m.workspaceView.SetItems(mapWorkspaces(msg.Workspaces))
+	m.applyPendingSelection(state.ScreenWorkspaces)
 	if msg.Active != nil {
 		m.session.SetWorkspace(msg.Active.ID, msg.Active.Name)
 		m.requestView.WorkspaceID = msg.Active.ID
 		m.requestView.WorkspaceName = msg.Active.Name
 		m.session.Screen = state.ScreenRequests
 		m.requestView.SetItems(mapRequests(msg.Requests))
+		m.applyPendingSelection(state.ScreenRequests)
 		m.session.Busy = false
 		return m, nil
 	}
@@ -553,6 +558,7 @@ func (m *Model) applyBootstrap(msg bootstrapMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) applyWorkspaces(msg workspacesLoadedMsg) *Model {
 	m.workspaceView.SetItems(mapWorkspaces(msg.Workspaces))
+	m.applyPendingSelection(state.ScreenWorkspaces)
 	m.session.Busy = false
 	if msg.Err != nil {
 		m.session.Error = msg.Err.Error()
@@ -564,6 +570,7 @@ func (m *Model) applyRequests(msg requestsLoadedMsg) *Model {
 	m.requestView.WorkspaceID = msg.Workspace.ID
 	m.requestView.WorkspaceName = msg.Workspace.Name
 	m.requestView.SetItems(mapRequests(msg.Requests))
+	m.applyPendingSelection(state.ScreenRequests)
 	m.session.Busy = false
 	if msg.Err != nil {
 		m.session.Error = msg.Err.Error()
@@ -574,6 +581,7 @@ func (m *Model) applyRequests(msg requestsLoadedMsg) *Model {
 func (m *Model) applyAuths(msg authsLoadedMsg) *Model {
 	m.authView.WorkspaceName = msg.Workspace.Name
 	m.authView.SetItems(mapAuths(msg.Auths))
+	m.applyPendingSelection(state.ScreenAuths)
 	m.session.Busy = false
 	if msg.Err != nil {
 		m.session.Error = msg.Err.Error()
@@ -583,6 +591,7 @@ func (m *Model) applyAuths(msg authsLoadedMsg) *Model {
 
 func (m *Model) applySecrets(msg secretsLoadedMsg) *Model {
 	m.secretView.SetItems(mapSecrets(msg.Secrets))
+	m.applyPendingSelection(state.ScreenSecrets)
 	m.session.Busy = false
 	if msg.Err != nil {
 		m.session.Error = msg.Err.Error()
@@ -722,7 +731,7 @@ func (m *Model) applyRequestInspect(msg requestInspectLoadedMsg) *Model {
 		title = "Request details: " + msg.RequestID
 	}
 
-	m.openConfirmFlow(flowRequestInspect, title, formatRequestInspectMessage(msg.Item), []string{"Close"}, pendingAction{
+	m.openTextViewerFlow(flowRequestInspect, title, formatRequestInspectMessage(msg.Item), pendingAction{
 		Identifier:    msg.RequestID,
 		WorkspaceID:   m.requestView.WorkspaceID,
 		WorkspaceName: m.requestView.WorkspaceName,
@@ -765,7 +774,7 @@ func (m *Model) applyWorkspaceInspect(msg workspaceInspectLoadedMsg) *Model {
 	if strings.TrimSpace(msg.Item.Name) != "" {
 		title = "Workspace details: " + msg.Item.Name
 	}
-	m.openConfirmFlow(flowWorkspaceInspect, title, formatWorkspaceInspectMessage(msg.Item), []string{"Close"}, pendingAction{})
+	m.openTextViewerFlow(flowWorkspaceInspect, title, formatWorkspaceInspectMessage(msg.Item), pendingAction{})
 	return m
 }
 
@@ -841,7 +850,7 @@ func (m *Model) applyAuthInspect(msg authInspectLoadedMsg) *Model {
 	if strings.TrimSpace(msg.Item.Name) != "" {
 		title = "Auth details: " + msg.Item.Name
 	}
-	m.openConfirmFlow(flowAuthInspect, title, formatAuthInspectMessage(msg.Item), []string{"Close"}, pendingAction{})
+	m.openTextViewerFlow(flowAuthInspect, title, formatAuthInspectMessage(msg.Item), pendingAction{})
 	return m
 }
 
@@ -851,6 +860,49 @@ func (m *Model) applyMutation(msg mutationCompletedMsg) (tea.Model, tea.Cmd) {
 		m.session.Error = msg.Err.Error()
 		m.session.Message = msg.Err.Error()
 		return m, nil
+	}
+
+	if msg.UpdatedWorkspace != nil {
+		if m.session.ActiveWorkspace != nil && m.session.ActiveWorkspace.ID == msg.UpdatedWorkspace.ID {
+			m.session.SetWorkspace(msg.UpdatedWorkspace.ID, msg.UpdatedWorkspace.Name)
+		}
+	}
+
+	if msg.UpdatedRequest != nil {
+		if m.session.ActiveRequest != nil && m.session.ActiveRequest.ID == msg.UpdatedRequest.ID {
+			workspaceName := msg.UpdatedRequest.WorkspaceName
+			if workspaceName == "" && m.session.ActiveWorkspace != nil && m.session.ActiveWorkspace.ID == msg.UpdatedRequest.WorkspaceID {
+				workspaceName = m.session.ActiveWorkspace.Name
+			}
+			m.session.SetRequest(
+				msg.UpdatedRequest.ID,
+				msg.UpdatedRequest.Name,
+				msg.UpdatedRequest.Method,
+				msg.UpdatedRequest.URI,
+				msg.UpdatedRequest.WorkspaceID,
+				workspaceName,
+			)
+			m.sendView.SetRequest(send.Request{
+				Name:   msg.UpdatedRequest.Name,
+				Method: msg.UpdatedRequest.Method,
+				URI:    msg.UpdatedRequest.URI,
+			})
+		}
+	}
+
+	if msg.DeletedRequestID != "" {
+		if m.session.ActiveRequest != nil && m.session.ActiveRequest.ID == msg.DeletedRequestID {
+			m.session.SetRequest("", "", "", "", "", "")
+			if m.session.Screen == state.ScreenSend {
+				m.sendView.SetRequest(send.Request{})
+				m.sendView.SetResponse(send.Response{})
+				m.sendView.SetStatus("")
+			}
+		}
+	}
+
+	if msg.SelectID != "" {
+		m.pendingSelect[msg.Screen] = msg.SelectID
 	}
 
 	m.session.Error = ""
@@ -898,7 +950,7 @@ func (m *Model) applySecretInspect(msg secretInspectLoadedMsg) *Model {
 	if strings.TrimSpace(msg.Item.Name) != "" {
 		title = "Secret details: " + msg.Item.Name
 	}
-	m.openConfirmFlow(flowSecretInspect, title, formatSecretInspectMessage(msg.Item), []string{"Close"}, pendingAction{})
+	m.openTextViewerFlow(flowSecretInspect, title, formatSecretInspectMessage(msg.Item), pendingAction{})
 	return m
 }
 
@@ -946,7 +998,7 @@ func mapWorkspaces(items []cli.WorkspaceSummary) []workspace.Item {
 			Requests:     item.Requests,
 			Secrets:      item.Secrets,
 			Auths:        item.Auths,
-			LastAccessed: item.LastAccessed,
+			LastAccessed: flexibleTimePtr(item.LastAccessed),
 			Current:      item.IsCurrent,
 			Damaged:      damaged,
 			Missing:      missing,
@@ -966,7 +1018,7 @@ func mapRequests(items []cli.RequestSummary) []request.Item {
 			Host:         item.URI,
 			BodyType:     item.BodyType,
 			Auth:         item.Auth,
-			LastAccessed: item.LastAccessed,
+			LastAccessed: flexibleTimePtr(item.LastAccessed),
 			Current:      item.Current,
 			Damaged:      damaged,
 			Missing:      missing,
@@ -983,7 +1035,7 @@ func mapAuths(items []cli.AuthSummary) []auth.Item {
 			Name:         item.Name,
 			Type:         item.Type,
 			AutoRenew:    item.AutoRenew,
-			LastAccessed: item.LastAccessed,
+			LastAccessed: flexibleTimePtr(item.LastAccessed),
 			Current:      item.Current,
 			Damaged:      item.Damaged,
 			Missing:      item.Missing,
@@ -1001,7 +1053,7 @@ func mapSecrets(items []cli.SecretSummary) []secret.Item {
 			Name:         item.Name,
 			Status:       item.Status,
 			ValueMasked:  maskedSecretValue(item.Status),
-			LastAccessed: item.LastAccessed,
+			LastAccessed: flexibleTimePtr(item.LastAccessed),
 			Current:      item.Current,
 			Damaged:      damaged,
 			Missing:      missing,
@@ -1043,46 +1095,53 @@ func sendActionMessage(kind send.ActionKind) string {
 }
 
 func formatRequestInspectMessage(item cli.RequestGetResult) string {
-	lines := []string{
-		"ID: " + fallbackText(item.ID, "(unknown)"),
-		"Name: " + fallbackText(item.Name, "(unnamed)"),
-		"Method: " + fallbackText(item.Method, "(empty)"),
-		"URL: " + fallbackText(item.Uri, "(empty)"),
-		"Body type: " + fallbackText(item.BodyType, "none"),
-	}
-
+	authID := "(none)"
 	if item.AuthID != nil && strings.TrimSpace(*item.AuthID) != "" {
-		lines = append(lines, "Auth ID: "+strings.TrimSpace(*item.AuthID))
-	} else {
-		lines = append(lines, "Auth ID: (none)")
+		authID = strings.TrimSpace(*item.AuthID)
 	}
-
-	lines = append(lines,
-		"Headers: "+formatFlatMapLines(item.Headers),
-		"Params: "+formatFlatMapLines(item.Params),
-		"Last accessed: "+fallbackText(item.LastAccessed, "(unknown)"),
-		"Modified: "+fallbackText(item.Modified, "(unknown)"),
-	)
 
 	body := "(empty)"
 	if item.Body != nil && strings.TrimSpace(*item.Body) != "" {
-		body = trimPreview(*item.Body, 400)
+		body = trimPreview(*item.Body, 800)
 	}
-	lines = append(lines, "Body preview:", body)
 
-	return strings.Join(lines, "\n")
+	sections := []string{
+		formatInspectSection("Request", []string{
+			"ID: " + fallbackText(item.ID, "(unknown)"),
+			"Name: " + fallbackText(item.Name, "(unnamed)"),
+			"Method: " + fallbackText(item.Method, "(empty)"),
+			"URL: " + fallbackText(item.Uri, "(empty)"),
+			"Body type: " + fallbackText(item.BodyType, "none"),
+			"Auth ID: " + authID,
+		}),
+		formatInspectSection("Headers", []string{formatFlatMapLines(item.Headers)}),
+		formatInspectSection("Params", []string{formatFlatMapLines(item.Params)}),
+		formatInspectSection("Timestamps", []string{
+			"Last accessed: " + fallbackText(item.LastAccessed, "(unknown)"),
+			"Modified: " + fallbackText(item.Modified, "(unknown)"),
+		}),
+		formatInspectSection("Body Preview", []string{body}),
+	}
+
+	return strings.Join(sections, "\n\n")
 }
 
 func formatWorkspaceInspectMessage(item cli.WorkspaceGetResult) string {
 	return strings.Join([]string{
-		"ID: " + fallbackText(item.ID, "(unknown)"),
-		"Name: " + fallbackText(item.Name, "(unnamed)"),
-		fmt.Sprintf("Requests: %d", len(item.Requests)),
-		fmt.Sprintf("Auths: %d", len(item.Auths)),
-		fmt.Sprintf("Secrets: %d", len(item.Secrets)),
-		"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
-		"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
-	}, "\n")
+		formatInspectSection("Workspace", []string{
+			"ID: " + fallbackText(item.ID, "(unknown)"),
+			"Name: " + fallbackText(item.Name, "(unnamed)"),
+		}),
+		formatInspectSection("Contents", []string{
+			fmt.Sprintf("Requests: %d", len(item.Requests)),
+			fmt.Sprintf("Auths: %d", len(item.Auths)),
+			fmt.Sprintf("Secrets: %d", len(item.Secrets)),
+		}),
+		formatInspectSection("Timestamps", []string{
+			"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
+			"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
+		}),
+	}, "\n\n")
 }
 
 func formatAuthInspectMessage(item cli.AuthGetResult) string {
@@ -1099,15 +1158,18 @@ func formatAuthInspectMessage(item cli.AuthGetResult) string {
 	}
 
 	return strings.Join([]string{
-		"ID: " + fallbackText(item.ID, "(unknown)"),
-		"Name: " + fallbackText(item.Name, "(unnamed)"),
-		"Type: " + typeLabel,
-		fmt.Sprintf("Auto renew: %t", item.AutoRenewAuth),
-		"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
-		"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
-		"Config preview:",
-		configPreview,
-	}, "\n")
+		formatInspectSection("Auth", []string{
+			"ID: " + fallbackText(item.ID, "(unknown)"),
+			"Name: " + fallbackText(item.Name, "(unnamed)"),
+			"Type: " + typeLabel,
+			fmt.Sprintf("Auto renew: %t", item.AutoRenewAuth),
+		}),
+		formatInspectSection("Timestamps", []string{
+			"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
+			"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
+		}),
+		formatInspectSection("Config Preview", []string{configPreview}),
+	}, "\n\n")
 }
 
 func formatSecretInspectMessage(item cli.SecretGetResult) string {
@@ -1116,13 +1178,21 @@ func formatSecretInspectMessage(item cli.SecretGetResult) string {
 		masked = "(empty)"
 	}
 	return strings.Join([]string{
-		"ID: " + fallbackText(item.ID, "(unknown)"),
-		"Name: " + fallbackText(item.Name, "(unnamed)"),
-		"Value: " + masked,
-		fmt.Sprintf("Value length: %d", len(item.Value)),
-		"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
-		"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
-	}, "\n")
+		formatInspectSection("Secret", []string{
+			"ID: " + fallbackText(item.ID, "(unknown)"),
+			"Name: " + fallbackText(item.Name, "(unnamed)"),
+			"Value: " + masked,
+			fmt.Sprintf("Value length: %d", len(item.Value)),
+		}),
+		formatInspectSection("Timestamps", []string{
+			"Last accessed: " + item.LastAccessed.Format("2006-01-02 15:04:05"),
+			"Modified: " + item.Modified.Format("2006-01-02 15:04:05"),
+		}),
+	}, "\n\n")
+}
+
+func formatInspectSection(title string, lines []string) string {
+	return title + "\n" + strings.Join(lines, "\n")
 }
 
 func formatFlatMapLines(values map[string]string) string {
@@ -1141,6 +1211,35 @@ func formatFlatMapLines(values map[string]string) string {
 		lines = append(lines, "  - "+key+" = "+values[key])
 	}
 	return "\n" + strings.Join(lines, "\n")
+}
+
+func (m *Model) applyPendingSelection(screen state.ScreenID) {
+	selectID := m.pendingSelect[screen]
+	if selectID == "" {
+		return
+	}
+
+	switch screen {
+	case state.ScreenWorkspaces:
+		m.workspaceView.List.SelectKey(selectID)
+	case state.ScreenRequests:
+		m.requestView.List.SelectKey(selectID)
+	case state.ScreenAuths:
+		m.authView.List.SelectKey(selectID)
+	case state.ScreenSecrets:
+		m.secretView.List.SelectKey(selectID)
+	}
+
+	delete(m.pendingSelect, screen)
+}
+
+func flexibleTimePtr(value *cli.FlexibleTime) *time.Time {
+	if value == nil {
+		return nil
+	}
+
+	parsed := value.Time
+	return &parsed
 }
 
 func trimPreview(value string, limit int) string {

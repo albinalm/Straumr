@@ -9,6 +9,7 @@ import (
 
 	"straumr-tui/internal/cache"
 	"straumr-tui/internal/cli"
+	"straumr-tui/internal/ui/theme"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -21,6 +22,7 @@ func Run(ctx context.Context) error {
 
 	store := cache.NewStore()
 	client := cli.NewClient(binaryPath, cli.WithCache(store))
+	theme.SetActive(theme.Load())
 	model := NewModel(ctx, client, store)
 
 	program := tea.NewProgram(model, tea.WithAltScreen())

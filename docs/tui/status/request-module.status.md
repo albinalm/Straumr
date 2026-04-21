@@ -16,7 +16,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 - Identified large-body input as a contract concern.
 - Added request draft extraction and explicit editor open/close helpers in the Go view package.
 - Added request list rendering and send handoff hooks in the Go shell.
-- Wired request inspect through `get request --json` into a details overlay with headers, params, auth ID, timestamps, and body preview.
+- Wired request inspect through `get request --json` into the shared scrollable text viewer overlay with sectioned headers, params, auth ID, timestamps, and body preview.
 - Replaced request auth selection with a CLI-backed picker using `list auth --json --workspace <ws>`.
 - Replaced request method entry with a shared select overlay plus custom-method fallback.
 - Replaced request body-type entry with a shared select overlay for the supported body modes.
@@ -29,7 +29,7 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 
 ## Work in progress
 
-- Refining request detail presentation and remaining structured-overlay ergonomics around inspect and list/detail layout.
+- Refining request detail presentation and remaining structured-overlay ergonomics around the shared inspect viewer and list/detail layout.
 
 ## Blockers
 
@@ -56,5 +56,5 @@ In progress. The view package exposes structured draft/result APIs, and the shel
 
 - Request create/edit now works as a quick flow for name, URL, method, auth, body/body type, headers, and params.
 - The embedded request editor submit path no longer dead-ends if the shell mounts it.
-- Request inspect is live and uses the JSON-safe get path.
+- Request inspect is live through the JSON-safe get path and now renders inside the shared read-only text viewer overlay.
 - Request method/auth/body type now use shared selectors, request body editing has a dedicated overlay plus file import, request headers/params use a shared pair editor overlay, and the remaining gap is mostly detail polish.

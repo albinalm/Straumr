@@ -296,8 +296,16 @@ func createRequestCmd(ctx context.Context, client *cli.Client, workspaceID strin
 			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenRequests,
-			Message: fmt.Sprintf("Created request %s", result.Name),
+			Screen:   state.ScreenRequests,
+			Message:  fmt.Sprintf("Created request %s", result.Name),
+			SelectID: result.ID,
+			UpdatedRequest: &state.RequestRef{
+				ID:          result.ID,
+				Name:        result.Name,
+				Method:      result.Method,
+				URI:         result.Uri,
+				WorkspaceID: workspaceID,
+			},
 		}
 	}
 }
@@ -325,8 +333,16 @@ func editRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identi
 			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenRequests,
-			Message: fmt.Sprintf("Updated request %s", result.Name),
+			Screen:   state.ScreenRequests,
+			Message:  fmt.Sprintf("Updated request %s", result.Name),
+			SelectID: result.ID,
+			UpdatedRequest: &state.RequestRef{
+				ID:          result.ID,
+				Name:        result.Name,
+				Method:      result.Method,
+				URI:         result.Uri,
+				WorkspaceID: workspaceID,
+			},
 		}
 	}
 }
@@ -338,8 +354,9 @@ func createAuthCmd(ctx context.Context, client *cli.Client, workspaceID string, 
 			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenAuths,
-			Message: fmt.Sprintf("Created auth %s", result.Name),
+			Screen:   state.ScreenAuths,
+			Message:  fmt.Sprintf("Created auth %s", result.Name),
+			SelectID: result.ID,
 		}
 	}
 }
@@ -351,8 +368,9 @@ func editAuthCmd(ctx context.Context, client *cli.Client, workspaceID, identifie
 			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenAuths,
-			Message: fmt.Sprintf("Updated auth %s", result.Name),
+			Screen:   state.ScreenAuths,
+			Message:  fmt.Sprintf("Updated auth %s", result.Name),
+			SelectID: result.ID,
 		}
 	}
 }
@@ -364,8 +382,13 @@ func createWorkspaceCmd(ctx context.Context, client *cli.Client, name string) te
 			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenWorkspaces,
-			Message: fmt.Sprintf("Created workspace %s", result.Name),
+			Screen:   state.ScreenWorkspaces,
+			Message:  fmt.Sprintf("Created workspace %s", result.Name),
+			SelectID: result.ID,
+			UpdatedWorkspace: &state.WorkspaceRef{
+				ID:   result.ID,
+				Name: result.Name,
+			},
 		}
 	}
 }
@@ -377,8 +400,13 @@ func editWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, name 
 			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenWorkspaces,
-			Message: fmt.Sprintf("Renamed workspace to %s", result.Name),
+			Screen:   state.ScreenWorkspaces,
+			Message:  fmt.Sprintf("Renamed workspace to %s", result.Name),
+			SelectID: result.ID,
+			UpdatedWorkspace: &state.WorkspaceRef{
+				ID:   result.ID,
+				Name: result.Name,
+			},
 		}
 	}
 }
@@ -390,8 +418,13 @@ func copyWorkspaceCmd(ctx context.Context, client *cli.Client, identifier, name 
 			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenWorkspaces,
-			Message: fmt.Sprintf("Copied workspace to %s", result.Name),
+			Screen:   state.ScreenWorkspaces,
+			Message:  fmt.Sprintf("Copied workspace to %s", result.Name),
+			SelectID: result.ID,
+			UpdatedWorkspace: &state.WorkspaceRef{
+				ID:   result.ID,
+				Name: result.Name,
+			},
 		}
 	}
 }
@@ -403,8 +436,13 @@ func importWorkspaceCmd(ctx context.Context, client *cli.Client, path string) te
 			return mutationCompletedMsg{Screen: state.ScreenWorkspaces, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenWorkspaces,
-			Message: fmt.Sprintf("Imported workspace %s", result.Name),
+			Screen:   state.ScreenWorkspaces,
+			Message:  fmt.Sprintf("Imported workspace %s", result.Name),
+			SelectID: result.ID,
+			UpdatedWorkspace: &state.WorkspaceRef{
+				ID:   result.ID,
+				Name: result.Name,
+			},
 		}
 	}
 }
@@ -442,8 +480,9 @@ func deleteRequestCmd(ctx context.Context, client *cli.Client, workspaceID, iden
 			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenRequests,
-			Message: fmt.Sprintf("Deleted request %s", name),
+			Screen:           state.ScreenRequests,
+			Message:          fmt.Sprintf("Deleted request %s", name),
+			DeletedRequestID: identifier,
 		}
 	}
 }
@@ -624,8 +663,16 @@ func copyRequestCmd(ctx context.Context, client *cli.Client, workspaceID, identi
 			return mutationCompletedMsg{Screen: state.ScreenRequests, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenRequests,
-			Message: fmt.Sprintf("Copied request to %s", result.Name),
+			Screen:   state.ScreenRequests,
+			Message:  fmt.Sprintf("Copied request to %s", result.Name),
+			SelectID: result.ID,
+			UpdatedRequest: &state.RequestRef{
+				ID:          result.ID,
+				Name:        result.Name,
+				Method:      result.Method,
+				URI:         result.Uri,
+				WorkspaceID: workspaceID,
+			},
 		}
 	}
 }
@@ -650,8 +697,9 @@ func copyAuthCmd(ctx context.Context, client *cli.Client, workspaceID, identifie
 			return mutationCompletedMsg{Screen: state.ScreenAuths, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenAuths,
-			Message: fmt.Sprintf("Copied auth to %s", result.Name),
+			Screen:   state.ScreenAuths,
+			Message:  fmt.Sprintf("Copied auth to %s", result.Name),
+			SelectID: result.ID,
 		}
 	}
 }
@@ -681,8 +729,9 @@ func createSecretCmd(ctx context.Context, client *cli.Client, name, value string
 			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenSecrets,
-			Message: fmt.Sprintf("Created secret %s", result.Name),
+			Screen:   state.ScreenSecrets,
+			Message:  fmt.Sprintf("Created secret %s", result.Name),
+			SelectID: result.ID,
 		}
 	}
 }
@@ -697,8 +746,9 @@ func editSecretCmd(ctx context.Context, client *cli.Client, identifier, name, va
 			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenSecrets,
-			Message: fmt.Sprintf("Updated secret %s", result.Name),
+			Screen:   state.ScreenSecrets,
+			Message:  fmt.Sprintf("Updated secret %s", result.Name),
+			SelectID: result.ID,
 		}
 	}
 }
@@ -710,8 +760,9 @@ func copySecretCmd(ctx context.Context, client *cli.Client, identifier, name str
 			return mutationCompletedMsg{Screen: state.ScreenSecrets, Err: err}
 		}
 		return mutationCompletedMsg{
-			Screen:  state.ScreenSecrets,
-			Message: fmt.Sprintf("Copied secret to %s", result.Name),
+			Screen:   state.ScreenSecrets,
+			Message:  fmt.Sprintf("Copied secret to %s", result.Name),
+			SelectID: result.ID,
 		}
 	}
 }

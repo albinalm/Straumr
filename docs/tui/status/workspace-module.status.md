@@ -16,7 +16,7 @@ In progress. The Go view package is wired into the root shell, and workspace cre
 - Added workspace service update support for inline rename.
 - Added the Go workspace list/navigation view and shell routing for workspace selection.
 - Wired workspace create/rename/copy/delete through the typed CLI client and shell overlays.
-- Wired workspace inspect through `get workspace --json` into a read-only details overlay.
+- Wired workspace inspect through `get workspace --json` into the shared read-only text viewer overlay.
 - Wired workspace import/export through the shell, using the shared path picker for path collection.
 
 ## Work in progress
@@ -50,4 +50,4 @@ In progress. The Go view package is wired into the root shell, and workspace cre
 ## Resume notes
 
 - `edit workspace --name <new-name> --json` is the TUI-safe rename path.
-- Workspace inspect/import/export are live in the shell, and the next pass is about polish rather than basic wiring.
+- Workspace inspect/import/export are live in the shell, with inspect now reusing the shared text viewer overlay, and the next pass is about polish rather than basic wiring.

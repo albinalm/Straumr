@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"straumr-tui/internal/ui/theme"
 )
 
 type Key string
@@ -146,25 +148,22 @@ func (v *View) SetError(message string) {
 }
 
 func (v *View) Render() string {
-	var b strings.Builder
-
-	b.WriteString(renderStatus(v.StatusText))
-	b.WriteString("\n")
-	b.WriteString(renderRequest(v.Request))
-	b.WriteString("\n")
-	b.WriteString(renderMeta(v.Response))
-	b.WriteString("\n")
-	if notes := renderNotes(v.Response); notes != "" {
-		b.WriteString(notes)
-		b.WriteString("\n")
+	styles := theme.CurrentStyles()
+	sections := []string{
+		styles.HelpText.Render(renderFooter()),
+		renderStatus(v.StatusText),
+		renderRequest(v.Request),
+		renderMeta(v.Response),
 	}
-	b.WriteString(renderSummaryPane(v.Response, v.FocusedPane == PaneSummary))
-	b.WriteString("\n\n")
-	b.WriteString(renderBodyPane(v))
-	b.WriteString("\n")
-	b.WriteString(renderFooter())
+	if notes := renderNotes(v.Response); notes != "" {
+		sections = append(sections, notes)
+	}
 
-	return strings.TrimRight(b.String(), "\n")
+	summary := styles.Panel.Render(renderSummaryPane(v.Response, v.FocusedPane == PaneSummary))
+	body := styles.Panel.Render(renderBodyPane(v))
+	sections = append(sections, summary, body)
+
+	return strings.TrimRight(styles.Shell.Render(strings.Join(sections, "\n\n")), "\n")
 }
 
 func (v *View) switchPane(reverse bool) {
@@ -185,17 +184,19 @@ func (v *View) switchPane(reverse bool) {
 }
 
 func renderStatus(text string) string {
+	styles := theme.CurrentStyles()
 	if text == "" {
-		return "Status: idle"
+		return styles.Muted.Render("Status: idle")
 	}
 
-	return fmt.Sprintf("Status: %s", text)
+	return styles.Success.Render(fmt.Sprintf("Status: %s", text))
 }
 
 func renderRequest(request Request) string {
+	styles := theme.CurrentStyles()
 	parts := []string{}
 	if request.Method != "" {
-		parts = append(parts, strings.ToUpper(request.Method))
+		parts = append(parts, theme.MethodStyle(request.Method).Render(strings.ToUpper(request.Method)))
 	}
 	if request.URI != "" {
 		parts = append(parts, request.URI)
@@ -206,15 +207,16 @@ func renderRequest(request Request) string {
 	}
 
 	if request.Name != "" {
-		return fmt.Sprintf("Request: %s\n  %s", request.Name, line)
+		return fmt.Sprintf("%s\n  %s", styles.PanelTitle.Render("Request: "+request.Name), line)
 	}
 
-	return fmt.Sprintf("Request: %s", line)
+	return fmt.Sprintf("%s", styles.PanelTitle.Render("Request: "+line))
 }
 
 func renderMeta(response Response) string {
+	styles := theme.CurrentStyles()
 	if response.Error != "" {
-		return fmt.Sprintf("Response: error\n  %s", response.Error)
+		return fmt.Sprintf("%s\n  %s", styles.Danger.Render("Response: error"), response.Error)
 	}
 
 	meta := []string{}
@@ -229,10 +231,10 @@ func renderMeta(response Response) string {
 	}
 
 	if len(meta) == 0 {
-		return "Response: pending"
+		return styles.Muted.Render("Response: pending")
 	}
 
-	return fmt.Sprintf("Response: %s", strings.Join(meta, "  "))
+	return fmt.Sprintf("%s %s", styles.PanelTitle.Render("Response:"), strings.Join(meta, "  "))
 }
 
 func renderNotes(response Response) string {

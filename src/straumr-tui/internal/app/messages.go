@@ -88,9 +88,13 @@ type authInspectLoadedMsg struct {
 }
 
 type mutationCompletedMsg struct {
-	Screen  state.ScreenID
-	Message string
-	Err     error
+	Screen           state.ScreenID
+	Message          string
+	Err              error
+	SelectID         string
+	UpdatedWorkspace *state.WorkspaceRef
+	UpdatedRequest   *state.RequestRef
+	DeletedRequestID string
 }
 
 type shellActionCompletedMsg struct {

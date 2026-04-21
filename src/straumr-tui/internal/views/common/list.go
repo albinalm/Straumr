@@ -1,8 +1,9 @@
 package common
 
 import (
-	"fmt"
 	"strings"
+
+	"straumr-tui/internal/ui/theme"
 )
 
 // Row is a presentation-only item used by the workspace and request views.
@@ -124,65 +125,30 @@ func (v *ListView) SelectKey(key string) bool {
 }
 
 func Render(state ListState, rows []Row) string {
-	var b strings.Builder
-
-	if state.Title != "" {
-		b.WriteString(state.Title)
-		b.WriteString("\n")
-	}
+	styles := theme.CurrentStyles()
+	sections := make([]string, 0, 3)
 
 	if state.Hints != "" {
-		b.WriteString(state.Hints)
-		b.WriteString("\n")
+		sections = append(sections, styles.HelpText.Render(state.Hints))
 	}
-
 	if state.Message != "" {
-		b.WriteString(state.Message)
-		b.WriteString("\n")
+		sections = append(sections, styles.Message.Render(state.Message))
 	}
 
-	if len(rows) == 0 {
-		if state.EmptyText != "" {
-			b.WriteString(state.EmptyText)
-			b.WriteString("\n")
+	content := state.EmptyText
+	if len(rows) > 0 {
+		rendered := make([]string, 0, len(rows))
+		for index, row := range rows {
+			rendered = append(rendered, renderRow(row, index == state.Cursor, state.Width))
 		}
-		return strings.TrimRight(b.String(), "\n")
+		content = strings.Join(rendered, "\n")
 	}
 
-	for index, row := range rows {
-		prefix := " "
-		if index == state.Cursor {
-			prefix = ">"
-		}
+	panelTitle := styles.PanelTitle.Render(state.Title)
+	panelBody := styles.Panel.Render(content)
+	sections = append(sections, panelTitle+"\n"+panelBody)
 
-		status := rowStatus(row)
-		if status != "" {
-			status = fmt.Sprintf(" [%s]", status)
-		}
-
-		b.WriteString(prefix)
-		b.WriteString(" ")
-		b.WriteString(row.Title)
-		b.WriteString(status)
-		b.WriteString("\n")
-
-		if row.Summary != "" {
-			b.WriteString("   ")
-			b.WriteString(row.Summary)
-			b.WriteString("\n")
-		}
-
-		for _, detail := range row.Details {
-			if detail == "" {
-				continue
-			}
-			b.WriteString("   ")
-			b.WriteString(detail)
-			b.WriteString("\n")
-		}
-	}
-
-	return strings.TrimRight(b.String(), "\n")
+	return strings.TrimRight(strings.Join(sections, "\n\n"), "\n")
 }
 
 func rowStatus(row Row) string {
@@ -196,4 +162,56 @@ func rowStatus(row Row) string {
 	default:
 		return ""
 	}
+}
+
+func renderRow(row Row, selected bool, width int) string {
+	styles := theme.CurrentStyles()
+	lines := make([]string, 0, 2+len(row.Details))
+
+	title := renderRowTitle(row)
+	status := rowStatus(row)
+	if status != "" {
+		title += " " + styles.Muted.Render("["+status+"]")
+	}
+	lines = append(lines, title)
+
+	if row.Summary != "" {
+		lines = append(lines, "  "+styles.RowSummary.Render(row.Summary))
+	}
+
+	for _, detail := range row.Details {
+		if detail == "" {
+			continue
+		}
+		lines = append(lines, "  "+styles.RowDetail.Render(detail))
+	}
+
+	block := strings.Join(lines, "\n")
+	if selected {
+		style := styles.RowSelected.PaddingLeft(1).PaddingRight(1)
+		if width > 6 {
+			style = style.Width(width - 6)
+		}
+		return style.Render(block)
+	}
+
+	return " " + block
+}
+
+func renderRowTitle(row Row) string {
+	styles := theme.CurrentStyles()
+	title := styles.RowTitle.Render(row.Title)
+	fields := strings.Fields(row.Title)
+	if len(fields) > 0 {
+		method := fields[0]
+		if rendered := theme.MethodStyle(method).Render(method); rendered != method {
+			title = rendered + strings.TrimPrefix(row.Title, method)
+		}
+	}
+
+	if row.Current {
+		title = styles.RowCurrent.Render(title)
+	}
+
+	return title
 }

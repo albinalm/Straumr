@@ -6,7 +6,7 @@ Shared overlays, forms, selectors, confirmations, key/value editor, and redesign
 
 ## Current status
 
-In progress. Go overlay helpers are present with structured result types, and the shared path picker is now mounted by the shell for send save/export flows.
+In progress. Go overlay helpers are present with structured result types, and the shell now mounts the shared path picker plus the reusable text viewer for real flows.
 
 ## Completed work
 
@@ -24,6 +24,7 @@ In progress. Go overlay helpers are present with structured result types, and th
 - Reused the shared key/value overlay for custom-auth headers and params, not just request headers and params.
 - Added a shared multiline body overlay and reused the shared path picker to load request bodies from files.
 - Added a shared pair editor overlay for request/auth metadata entries so key and value can be edited in one step.
+- Added a shared read-only text viewer overlay for scrollable inspect/detail presentation across workspace, request, auth, and secret screens.
 
 ## Work in progress
 
@@ -61,4 +62,5 @@ In progress. Go overlay helpers are present with structured result types, and th
 - The shared select overlay now also covers the auth create/edit choice fields.
 - Request bodies now use a dedicated multiline overlay, with the shared path picker available for file-backed load.
 - Request and custom-auth metadata entries now use a shared pair editor overlay.
+- Workspace/request/auth/secret inspect now reuse the same read-only text viewer overlay instead of entity-specific detail prompts.
 - The next pass should extend that reuse rather than creating new one-off prompts.

@@ -5,6 +5,7 @@ This directory contains the Phase 1 design and the Phase 3 foundation scaffold f
 ## Design goals
 
 - Replace the existing .NET TUI with a Go TUI that feels familiar to current users.
+- Preserve the established Straumr visual language from the existing TUI screenshots and theme system, not just the workflows.
 - Keep the existing CLI/domain model: `workspace`, `request`, `auth`, `secret`.
 - Use the `straumr` CLI as the only backend through discrete subprocess calls.
 - Treat CLI JSON on stdout, structured JSON errors on stderr, and exit codes as the contract.
@@ -27,6 +28,25 @@ This directory contains the Phase 1 design and the Phase 3 foundation scaffold f
 - `Secrets` list
 - `Send` response viewer
 - Shared overlays for confirm/select/form/key-value edit/file-path pick/save
+
+## Visual baseline
+
+The visual baseline is part of the product contract. Future agents must reference:
+
+- `README.md`
+- `docs/media/tui-workspaces.png`
+- `docs/media/tui-requests.png`
+- `docs/media/tui-send.png`
+- `docs/themes.md`
+
+The Go TUI should preserve:
+
+- top-left help strip
+- top-right `STRAUMR` ASCII banner
+- framed panels on a dark surface
+- green primary emphasis
+- blue info/method accents
+- boxed send/detail layouts
 
 ## Proposed Go package layout
 
@@ -72,4 +92,5 @@ Go TUI implementation status:
 - `secret-module.md`
 - `send-module.md`
 - `dialogs-and-pickers.md`
+- `visual-system.md`
 - `IMPLEMENTATION_STATUS.md`

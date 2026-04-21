@@ -22,21 +22,24 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 - Replaced request method entry with a shared select overlay plus custom-method fallback.
 - Replaced the plain request-body prompt with a dedicated multiline body overlay and file-load path.
 - Replaced request and custom-auth metadata add/edit prompts with a shared pair editor overlay.
+- Consolidated request/workspace/auth/secret inspect into the same reusable scrollable read-only text viewer overlay with sectioned detail formatting.
 - Wired the embedded request editor submit path through the same JSON-safe request mutation commands instead of a placeholder shell message.
-- Wired request inspect through `get request --json` into a read-only details overlay.
+- Wired request inspect through `get request --json` into the shared read-only text viewer overlay.
 - Replaced request auth and body-type free-form text steps with shared select overlays, with auth choices loaded from `list auth --json`.
 - Replaced auth create/edit choice-like text steps with shared select overlays for auth type, OAuth2 grant, PKCE, custom body type, and extraction source.
 - Wired custom-auth headers and params through the shared key/value overlay before the custom body/extraction steps.
-- Wired workspace/auth/secret inspect through their respective `get ... --json` commands into read-only detail overlays.
+- Wired workspace/auth/secret inspect through their respective `get ... --json` commands into the shared read-only text viewer overlay.
 - Wired workspace import/export through the shell, with export/import path collection using the shared path picker.
 - Wired send refresh, dry-run, save-body, export, clipboard copy, and view-level beautify/revert behavior into the send screen.
 - Stopped shadowing send beautify/revert with a generic shell status message so the send view owns that presentation behavior end-to-end.
 - Corrected request/send on-screen key hints where they had drifted from the actual shell keymap.
 - Replaced the send save/export raw path text input with the shared path-picker overlay and shell-managed filesystem browsing.
+- Tightened post-mutation refresh behavior so create/edit/copy flows reselect the affected item after refresh and request edits no longer leave stale active-request state behind.
 
 ## Work in progress
 
 - General overlay polish and broader shared picker/select reuse outside the send screen, request editor, and the now-picker-backed auth create/edit flow.
+- Further inspect/detail presentation polish now that the shell has a reusable viewer instead of per-entity one-off detail handling.
 
 ## Blockers
 
@@ -66,11 +69,11 @@ In progress. Root Bubble Tea shell is in place, the main screens are wired, and 
 
 - Reuse the shared path picker in more shell flows that still fall back to simple text entry.
 - Reuse the shared select overlay in any remaining shell prompts that still fall back to simple text entry for finite choices.
-- Tighten cache invalidation and refresh rules around successful mutations.
+- Keep tightening shell cleanup around mutation follow-up behavior now that selection preservation is in place.
 
 ## Resume notes
 
 - The shell already owns the mutation round-trip for workspace, auth, secret, and the request quick flows including auth/body/header/param.
 - Workspace/auth/secret/request inspect now round-trip through their JSON-safe get paths.
-- Request method/auth/body-type and auth create/edit choice fields now use select overlays, request bodies use a dedicated multiline overlay with file import, request/custom-auth metadata entries use a shared pair editor overlay, and workspace import/export plus send save/export mount the shared path picker.
+- Request method/auth/body-type and auth create/edit choice fields now use select overlays, request bodies use a dedicated multiline overlay with file import, request/custom-auth metadata entries use a shared pair editor overlay, workspace/request/auth/secret inspect all use the same scrollable text viewer, workspace import/export plus send save/export mount the shared path picker, and mutation refresh now preserves the affected selection instead of dropping the user back onto whichever row was previously focused.
 - The next shell-critical slice is broader overlay reuse and general shell cleanup.

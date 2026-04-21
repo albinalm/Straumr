@@ -16,6 +16,7 @@ Completed for the current TUI scope. Go subprocess client, typed wrappers, and c
 - Implemented the scoped CLI delta set needed to unblock strict TUI usage.
 - Updated the machine-readable docs to match the implemented contract.
 - Added the Go `straumr` client wrapper, executor, error parsing, list-result caching, typed startup helpers, and the initial request/send/auth/secret integration surface.
+- Added flexible timestamp decoding in the typed JSON layer so CLI payloads with or without timezone suffixes decode cleanly.
 
 ## Work in progress
 
@@ -66,4 +67,4 @@ Completed for the current TUI scope. Go subprocess client, typed wrappers, and c
 
 ## Resume notes
 
-- The Go subprocess layer is in place and verified; the remaining work is shell-level polish and richer request editing.
+- The Go subprocess layer is in place and verified; the typed decode layer now accepts CLI timestamps both with and without timezone suffixes, and the remaining work is shell-level polish and richer request editing.
