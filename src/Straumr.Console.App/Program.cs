@@ -1,6 +1,8 @@
 ﻿using Straumr.Console.Cli.Integration;
 using Straumr.Console.Shared.Integrations;
+#if INCLUDE_TUI
 using Straumr.Console.Tui.Integration;
+#endif
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Straumr.Console.App;
@@ -10,8 +12,11 @@ internal static class Program
     public static async Task<int> Main(string[] args)
     {
         ConsoleIntegrationCatalog catalog = new ConsoleIntegrationCatalog()
-            .AddInstaller<CliConsoleIntegrationInstaller>()
-            .AddInstaller<TuiConsoleIntegrationInstaller>();
+            .AddInstaller<CliConsoleIntegrationInstaller>();
+
+#if INCLUDE_TUI
+        catalog.AddInstaller<TuiConsoleIntegrationInstaller>();
+#endif
 
         IReadOnlyList<IConsoleIntegration> integrations = catalog.Build();
         var services = new ServiceCollection();

@@ -8,20 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Terminal.Gui" Version="2.0.0-beta.92" />
+        <PackageReference Include="XenoAtom.Terminal.UI" Version="3.9.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Straumr.Core\Straumr.Core.csproj" />
         <ProjectReference Include="..\Straumr.Console.Shared\Straumr.Console.Shared.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <TrimmerRootDescriptor Include="TuiRoots.xml" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Infrastructure\" />
     </ItemGroup>
 
 </Project>

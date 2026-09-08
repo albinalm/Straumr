@@ -13,14 +13,14 @@ Straumr has four primary object types:
 
 Straumr is workspace-centric. Most `request` and `auth` commands require an active workspace before they can run. Commands that operate on requests or auths accept a `-w|--workspace <name-or-id>` flag to target a workspace for that invocation without changing the globally active one.
 
-## Two Frontends
+## Frontends
 
-Straumr ships two interactive surfaces that share the same underlying services:
+Straumr currently provides one functional frontend and one rewrite scaffold:
 
-- **TUI**: a full-screen Terminal.Gui experience for browsing and editing workspaces, requests, auths, and secrets, and for sending requests interactively.
 - **CLI**: a Spectre.Console command tree for everything scriptable and automation-friendly.
+- **TUI scaffold**: an intentionally blank XenoAtom.Terminal.UI full-screen host.
 
-Running `straumr` with no arguments launches the TUI. If a workspace is already active, the TUI boots into the requests screen; otherwise it starts on the workspaces screen. Anything you change inside the TUI is written through the same storage the CLI uses, so you can switch between them freely.
+Running `straumr` with no arguments launches the blank TUI scaffold. Exit it with `Ctrl+Q`. Use CLI commands for application functionality while the TUI is rebuilt.
 
 Running `straumr` with any command-noun argument (`list`, `create`, `send`, …) dispatches to the CLI. The rest of this document focuses on CLI usage, since that is the surface that appears in scripts and documentation-worthy procedures.
 
@@ -122,7 +122,7 @@ Straumr supports three request-authoring modes from the CLI.
 
 ### Interactive Prompt Mode
 
-Running `create request` with just a name opens an in-CLI menu-driven prompt flow (this is the Spectre prompt flow, not the full-screen TUI):
+Running `create request` with just a name opens an in-CLI menu-driven prompt flow:
 
 ```sh
 straumr create request get-users
@@ -143,8 +143,6 @@ Prompt UX details:
 - menus support search
 - `Escape` backs out of the current prompt
 - body editing for freeform content uses `$EDITOR`
-
-For a full-screen request editor with keyboard navigation across workspaces, requests, auths, and secrets at once, launch the TUI instead by running `straumr` with no arguments.
 
 ### Editor Mode
 
@@ -181,7 +179,7 @@ straumr create request get-users https://api.example.com/users --method GET --js
 
 ### Inline Edit Mode
 
-Update specific fields of an existing request without entering the interactive TUI:
+Update specific fields of an existing request without opening an editor:
 
 ```sh
 straumr edit request get-users --name get-all-users
@@ -253,7 +251,7 @@ Editor mode writes raw auth JSON to a temp file. Auth IDs may not be changed dur
 
 ### Non-Interactive Auth Creation
 
-For scripts and agents, pass `--type` to bypass the TUI. All four auth types are supported inline.
+For scripts and agents, pass `--type` to choose an auth type non-interactively. All four auth types are supported inline.
 
 **Bearer:**
 
@@ -371,7 +369,7 @@ straumr copy secret api-token api-token-backup
 straumr delete secret api-token
 ```
 
-Secret edit is editor-only. There is no interactive secret TUI.
+Secret edit is editor-only.
 
 Secrets are referenced as:
 

@@ -10,7 +10,7 @@ Current package highlights:
 
 - `Spectre.Console`
 - `Spectre.Console.Cli`
-- `Terminal.Gui` (v2, used by the interactive TUI)
+- `XenoAtom.Terminal.UI` (foundation for the TUI rewrite)
 - `Microsoft.Extensions.DependencyInjection`
 - `Microsoft.Extensions.Http`
 - `Humanizer.Core`
@@ -28,8 +28,8 @@ Projects:
 
 - `src/Straumr.Console.App/Straumr.Console.App.csproj` — host executable (the `straumr` binary)
 - `src/Straumr.Console.Cli/Straumr.Console.Cli.csproj` — Spectre.Console CLI integration
-- `src/Straumr.Console.Tui/Straumr.Console.Tui.csproj` — Terminal.Gui TUI integration
-- `src/Straumr.Console.Shared/Straumr.Console.Shared.csproj` — shared integration/theme/editor plumbing
+- `src/Straumr.Console.Tui/Straumr.Console.Tui.csproj` — blank XenoAtom.Terminal.UI integration
+- `src/Straumr.Console.Shared/Straumr.Console.Shared.csproj` — shared integration/editor plumbing
 - `src/Straumr.Core/Straumr.Core.csproj` — storage, models, HTTP, auth, and secret services
 
 Typical commands:
@@ -38,7 +38,10 @@ Typical commands:
 dotnet build src/Straumr.sln
 dotnet run --project src/Straumr.Console.App -- --help
 dotnet run --project src/Straumr.Console.App -- list workspace --json
+dotnet publish src/Straumr.Console.App -p:IncludeTui=false
 ```
+
+`IncludeTui` defaults to `true`. Set it to `false` when building or publishing a CLI-only binary; this removes the TUI project reference and the complete XenoAtom dependency graph from the host.
 
 Notes:
 
@@ -61,9 +64,7 @@ Using the built binary avoids triggering a new NuGet restore when network access
 - `src/Straumr.Console.Shared/Integrations/ConsoleIntegrationResolver.cs`: picks CLI vs TUI per invocation
 - `src/Straumr.Console.Cli/Integration/CliConsoleIntegration.cs`: CLI service registration and Spectre command tree
 - `src/Straumr.Console.Cli/Infrastructure/StraumrCommandRegistry.cs`: command-name catalog used by the resolver
-- `src/Straumr.Console.Tui/Integration/TuiConsoleIntegration.cs`: TUI service registration and boot sequence
-- `src/Straumr.Console.Tui/Infrastructure/ScreenEngine.cs`: TUI screen stack and DI-driven screen resolution
-- `src/Straumr.Console.Tui/TuiApp.cs`: Terminal.Gui lifetime and window/scheme wiring
+- `src/Straumr.Console.Tui/Integration/TuiConsoleIntegration.cs`: empty full-screen host for the TUI rewrite
 - `src/Straumr.Core/Services/StraumrRequestService.cs`: request orchestration and send pipeline
 - `src/Straumr.Core/Services/StraumrAuthService.cs`: OAuth/custom auth implementation
 - `src/Straumr.Core/Services/StraumrWorkspaceService.cs`: workspace registry and package import/export
@@ -133,7 +134,7 @@ The host project (`Straumr.Console.App`) publishes with:
 - `PublishAot=true`
 - `InvariantGlobalization=true`
 
-The host aggregates trimmer root descriptors from each integration (`CliRoots.xml`, `TuiRoots.xml`) alongside its own `MyRoots.xml` so Spectre.Console.Cli and Terminal.Gui types survive trimming.
+The host includes `CliRoots.xml` alongside its own `MyRoots.xml` so Spectre.Console.Cli types survive trimming. The new TUI dependency is Native AOT-oriented and does not use a custom root descriptor.
 
 Linux packaging creates:
 

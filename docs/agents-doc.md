@@ -183,7 +183,7 @@ straumr get secret <id> --json
 
 ### 6. Edit requests inline
 
-Update specific fields without entering the interactive TUI:
+Update specific fields without opening an editor:
 
 ```sh
 straumr edit request <id> --name new-name

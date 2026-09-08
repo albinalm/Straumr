@@ -4,8 +4,8 @@ Straumr is a five-project .NET solution:
 
 - `Straumr.Console.App`: host executable. Builds the integration catalog, wires DI, resolves which integration to run, and invokes it.
 - `Straumr.Console.Cli`: Spectre.Console command-line interface and command orchestration.
-- `Straumr.Console.Tui`: Terminal.Gui-based interactive terminal UI built on a screen engine and reusable components.
-- `Straumr.Console.Shared`: cross-integration plumbing — integration abstractions, theme loading, request editor state, interactive console interface.
+- `Straumr.Console.Tui`: intentionally blank XenoAtom.Terminal.UI host ready for the TUI rewrite.
+- `Straumr.Console.Shared`: cross-integration plumbing — integration abstractions, request editor state, and interactive console interface.
 - `Straumr.Core`: storage, domain models, HTTP execution, auth, and secret resolution.
 
 The CLI and TUI are implemented as peer _console integrations_. Both are registered at startup; one of them is picked per invocation based on the arguments.
@@ -28,7 +28,9 @@ On startup, `Straumr.Console.App/Program.cs`:
 
 In practice, `straumr` with no arguments launches the TUI, while `straumr list request --json` and any other command-noun invocation is routed to the CLI.
 
-Each integration is responsible for loading persisted options through `StraumrOptionsService` before it runs. All stateful behavior flows through the service interfaces in `Straumr.Core.Services.Interfaces`.
+The host's TUI reference is conditional. Passing `-p:IncludeTui=false` at build or publish time excludes `Straumr.Console.Tui` and its transitive dependencies. In that configuration the CLI is the only registered integration, so a bare invocation is also handled by the CLI.
+
+The CLI loads persisted options through `StraumrOptionsService` before it runs. The placeholder TUI has no application services or stateful behavior yet.
 
 ## Solution Structure
 
@@ -43,15 +45,15 @@ Primary responsibilities:
 Key areas:
 
 - `Program.cs`: integration catalog, DI setup, resolver call, integration dispatch
-- `Straumr.Console.App.csproj`: publish flags (`PublishSingleFile`, `SelfContained`, `PublishAot`), icon, and trimmer roots aggregated from each integration's `*Roots.xml`
+- `Straumr.Console.App.csproj`: publish flags (`PublishSingleFile`, `SelfContained`, `PublishAot`), icon, and CLI/host trimmer roots
+- `IncludeTui`: MSBuild property that defaults to `true`; when `false`, both the TUI project reference and its registration code are omitted
 
 ### `Straumr.Console.Shared`
 
 Primary responsibilities:
 
 - integration abstraction and resolver
-- theme loading and theme options
-- shared request-editor state used by both CLI and TUI editing flows
+- framework-neutral request-editor state available to interactive frontends
 - `IInteractiveConsole` abstraction for interactive prompts
 
 Key areas:
@@ -59,8 +61,6 @@ Key areas:
 - `Integrations/IConsoleIntegration.cs`: contract every integration must implement
 - `Integrations/ConsoleIntegrationCatalog.cs`: fluent registration of integration installers
 - `Integrations/ConsoleIntegrationResolver.cs`: name/alias/command matching
-- `Helpers/ThemeLoader.cs`: reads `theme.json` from the options directory
-- `Theme/StraumrTheme.cs`: semantic palette (surface, primary, method colors, etc.)
 - `Models/RequestEditorState.cs`: shared request-edit snapshot used by interactive flows
 
 ### `Straumr.Console.Cli`
@@ -87,25 +87,7 @@ Key areas:
 
 ### `Straumr.Console.Tui`
 
-Primary responsibilities:
-
-- interactive, full-screen TUI using `Terminal.Gui` v2
-- screen-based navigation for workspaces, requests, auths, secrets, and request sending
-- reusable prompt components (selection, form, table, text input, message, details, key/value editor)
-- TUI-side implementations of the request, auth, and body editors
-
-Key areas:
-
-- `Integration/TuiConsoleIntegration.cs`: the `IConsoleIntegration` implementation; registers TUI services and boots into either `WorkspacesScreen` or `RequestsScreen` depending on whether a current workspace is already set
-- `TuiApp.cs`: thin wrapper around `Terminal.Gui`'s `Application` lifecycle, owning the main `Window`, the active scheme, and the key-event plumbing
-- `Infrastructure/ScreenEngine.cs` and `ScreenNavigationContext.cs`: screen stack, resolution via DI, navigation primitives
-- `Infrastructure/TuiAppResolver.cs` and `TuiApplicationContext.cs`: per-run `TuiApp` lifetime management
-- `Screens/*`: one screen class per object type (`WorkspacesScreen`, `RequestsScreen`, `AuthsScreen`, `SecretsScreen`, `SendScreen`) plus shared `ModelScreen`/`Screen` base classes and prompt screens that wrap prompt components in screen form
-- `Components/*`: Terminal.Gui view building blocks organized by role (`Bars/`, `Branding/`, `ListViews/`, `Panels/`, `Prompts/`, `Text/`, `TextFields/`)
-- `Services/*`: `RequestEditor`, `AuthEditor`, `BodyEditor`, `WorkspaceGuard`, and `TuiOperationExecutor` — TUI-specific orchestration behind the screens
-- `Helpers/*`: color resolution, HTTP method markup, send-result formatting, and key bindings
-- `Console/TuiInteractiveConsole.cs`: the TUI implementation of `IInteractiveConsole`
-- `TuiRoots.xml`: trimmer root descriptor for the TUI assembly under AOT
+This project is the clean foundation for the TUI rewrite. It references `XenoAtom.Terminal.UI` and currently contains only `Integration/TuiConsoleIntegration.cs`, which launches an empty `VStack` in the framework's full-screen host. It deliberately registers no services and implements no application behavior yet.
 
 ### `Straumr.Core`
 
@@ -244,7 +226,7 @@ Presentation then branches into:
 
 ## Prompt and Editor UX
 
-Straumr exposes two interactive surfaces, both backed by the same `Straumr.Core` services.
+Straumr currently exposes CLI interactive prompts backed by `Straumr.Core`. The TUI integration is an empty rewrite host.
 
 ### CLI interactive prompts (inside a Spectre command)
 
@@ -260,28 +242,7 @@ Capabilities:
 
 ### TUI (`Straumr.Console.Tui`)
 
-Used when the user launches the interactive terminal UI.
-
-Capabilities:
-
-- Terminal.Gui v2 application built around `TuiApp` and a `ScreenEngine` screen stack
-- themed via `StraumrTheme`, loaded from `theme.json` in the options directory (falls back to defaults if missing or invalid)
-- per-screen key handling and prompt-screen dispatch through `ScreenNavigationContext`
-- reusable prompt components for selection, form, table, text input, message, details, and key/value editing
-- dedicated editors for requests, auths, and bodies under `Services/` that drive the screens without duplicating core logic
-- `TuiInteractiveConsole` implements `IInteractiveConsole` so shared editor state works the same way it does for the CLI
-
-## TUI Navigation Flow
-
-When `TuiConsoleIntegration.RunAsync` executes:
-
-1. options are loaded through `StraumrOptionsService`
-2. `StraumrTheme` is resolved from DI (loaded eagerly via `ThemeLoader`)
-3. a `ScreenEngine` is constructed around the service provider, theme, and `TuiAppResolver`
-4. the engine starts on `RequestsScreen` if a current workspace is already active, otherwise on `WorkspacesScreen`
-5. screens push prompts or additional screens through `ScreenNavigationContext`, and the engine shuts down the `TuiApp` when navigation completes
-
-Trimmer preservation is handled through `TuiRoots.xml` (aggregated into the host csproj alongside `CliRoots.xml`).
+Running `straumr` with no arguments selects the TUI integration and starts an empty XenoAtom.Terminal.UI full-screen application. The default framework exit gesture is `Ctrl+Q`. Screens, navigation, theming, editors, and domain-service registrations will be introduced as part of the rewrite.
 
 ## Serialization Strategy
 
@@ -311,9 +272,8 @@ Trimming preservation is layered:
 
 - `Straumr.Console.App/MyRoots.xml` covers the host
 - `Straumr.Console.Cli/CliRoots.xml` preserves Spectre command types
-- `Straumr.Console.Tui/TuiRoots.xml` preserves Terminal.Gui view/driver types
 
-`Straumr.Console.App.csproj` aggregates each integration's `*Roots.xml` as `TrimmerRootDescriptor` items, so the host picks them up automatically. `CliConsoleIntegration` and `TuiApp` carry explicit `UnconditionalSuppressMessage` attributes for the dynamic-code paths that Spectre.Console.Cli and Terminal.Gui require.
+`Straumr.Console.App.csproj` includes the CLI descriptor alongside the host descriptor. `CliConsoleIntegration` carries explicit `UnconditionalSuppressMessage` attributes for Spectre.Console.Cli's dynamic-code paths. XenoAtom.Terminal.UI is Native AOT-oriented and does not require the removed TUI descriptor.
 
 ## Current Design Boundaries
 

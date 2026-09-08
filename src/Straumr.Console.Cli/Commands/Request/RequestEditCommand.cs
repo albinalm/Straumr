@@ -318,7 +318,7 @@ public class RequestEditCommand(
     {
         state.ApplyTo(request);
         try { requestService.UpdateAsync(request, workspaceEntry).GetAwaiter().GetResult(); }
-        catch { /* shown in TUI status bar as failure if needed */ }
+        catch { /* best-effort cleanup */ }
     }
 
     private async Task<bool> TrySaveChangesAsync(

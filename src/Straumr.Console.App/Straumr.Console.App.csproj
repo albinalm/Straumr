@@ -14,20 +14,25 @@
         <Company>Albin Alm</Company>
         <Product>Straumr</Product>
         <AssemblyName>straumr</AssemblyName>
+        <IncludeTui Condition="'$(IncludeTui)' == ''">true</IncludeTui>
 
         <!-- Suppress AOT/trim warnings from third-party packages -->
         <NoWarn>$(NoWarn);IL2026;IL2104;IL3000;IL3053</NoWarn>
     </PropertyGroup>
 
+    <PropertyGroup Condition="'$(IncludeTui)' == 'true'">
+        <DefineConstants>$(DefineConstants);INCLUDE_TUI</DefineConstants>
+    </PropertyGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\Straumr.Console.Cli\Straumr.Console.Cli.csproj" />
-        <ProjectReference Include="..\Straumr.Console.Tui\Straumr.Console.Tui.csproj" />
+        <ProjectReference Include="..\Straumr.Console.Tui\Straumr.Console.Tui.csproj"
+                          Condition="'$(IncludeTui)' == 'true'" />
         <ProjectReference Include="..\Straumr.Console.Shared\Straumr.Console.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <IntegrationRootDescriptor Include="..\Straumr.Console.Cli\CliRoots.xml" Condition="Exists('..\Straumr.Console.Cli\CliRoots.xml')" />
-        <IntegrationRootDescriptor Include="..\Straumr.Console.Tui\TuiRoots.xml" Condition="Exists('..\Straumr.Console.Tui\TuiRoots.xml')" />
         <TrimmerRootDescriptor Include="@(IntegrationRootDescriptor)" />
         <TrimmerRootDescriptor Include="MyRoots.xml" />
     </ItemGroup>

@@ -20,11 +20,6 @@ public static class ConsoleIntegrationResolver
             return (defaultIntegration, args);
         }
 
-        if(args.Length > 0 && integrations.Count(x => !x.OnlyRunOnEntrypoint) == 1)
-        {
-            return (integrations.Single(x => !x.OnlyRunOnEntrypoint), args);
-        }
-
         string requestedName = args[0];
         IConsoleIntegration? requested = integrations.FirstOrDefault(integration =>
             NameMatches(integration.Name, requestedName) || HasMatchingAlias(integration, requestedName));
@@ -42,6 +37,15 @@ public static class ConsoleIntegrationResolver
         {
             //Will return the console integration that has a matching command
             return (byCommand, args);
+        }
+
+        IConsoleIntegration[] argumentIntegrations = integrations
+            .Where(integration => !integration.OnlyRunOnEntrypoint)
+            .ToArray();
+
+        if (argumentIntegrations.Length == 1)
+        {
+            return (argumentIntegrations[0], args);
         }
 
         return (defaultIntegration, args);
