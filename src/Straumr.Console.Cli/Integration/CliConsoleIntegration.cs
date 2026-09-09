@@ -11,8 +11,10 @@ using Straumr.Console.Cli.Commands.Config;
 using Straumr.Console.Cli.Commands.Request;
 using Straumr.Console.Cli.Commands.Secret;
 using Straumr.Console.Cli.Commands.Workspace;
+using Straumr.Console.Cli.Console;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Shared.Integrations;
+using Straumr.Console.Shared.Interfaces;
 using Straumr.Core.Extensions;
 using Straumr.Core.Services.Interfaces;
 
@@ -62,6 +64,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     {
         services.AddStraumrCore();
         services.TryAddSingleton<EmptyCommandSettings>();
+        services.TryAddSingleton<IInteractiveConsole, CliInteractiveConsole>();
 
         if (_commandApp is null)
         {

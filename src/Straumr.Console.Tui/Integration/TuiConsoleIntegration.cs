@@ -1,4 +1,5 @@
 using Straumr.Console.Shared.Integrations;
+using Straumr.Console.Tui.Visuals;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
@@ -19,7 +20,22 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        await Terminal.RunAsync(new VStack(), () => TerminalLoopResult.Continue, cancellationToken);
+        
+        var mainVisual = new MainVisual(serviceProvider);
+
+        await Terminal.RunAsync(
+            mainVisual,
+            async _ =>
+            {
+                await mainVisual.LoadRequestsAsync(cancellationToken);
+                mainVisual.DismissCommandPromptIfUnfocused();
+                return mainVisual.ExitRequested
+                    ? TerminalLoopResult.Stop
+                    : TerminalLoopResult.Continue;
+            },
+            new TerminalRunOptions(),
+            cancellationToken);
+        
         return 0;
     }
 }
