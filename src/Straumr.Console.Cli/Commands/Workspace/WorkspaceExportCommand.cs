@@ -5,6 +5,8 @@ using Spectre.Console.Cli;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
 using Straumr.Core.Services.Interfaces;
+using Straumr.Core.Models;
+using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Console.Cli.Commands.Workspace;
@@ -15,7 +17,9 @@ public class WorkspaceExportCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        string outputFile = await workspaceService.ExportAsync(settings.Workspace, settings.OutputPath);
+        StraumrWorkspace workspace =
+            await GetWorkspaceAsync(workspaceService, settings.Workspace, cancellationToken: cancellation);
+        string outputFile = await workspaceService.ExportAsync(workspace.Id, settings.OutputPath, cancellation);
 
         if (settings.Json)
         {

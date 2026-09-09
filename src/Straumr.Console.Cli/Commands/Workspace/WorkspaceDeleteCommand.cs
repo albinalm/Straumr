@@ -17,13 +17,22 @@ public class WorkspaceDeleteCommand(IStraumrWorkspaceService workspaceService)
     {
         try
         {
-            await workspaceService.DeleteAsync(settings.Identifier);
-            if (!settings.Json)
+            if (Guid.TryParse(settings.Identifier, out Guid id))
             {
-                AnsiConsole.MarkupLine($"[green]Deleted workspace[/] [bold]{settings.Identifier}[/]");
+                try
+                {
+                    await workspaceService.DeleteAsync(id, cancellation);
+                    return Success(settings);
+                }
+                catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
+                {
+                }
             }
 
-            return 0;
+            Straumr.Core.Models.StraumrWorkspace workspace = await workspaceService.GetAsync(
+                settings.Identifier, cancellationToken: cancellation);
+            await workspaceService.DeleteAsync(workspace.Id, cancellation);
+            return Success(settings);
         }
         catch (StraumrException ex)
         {
@@ -35,6 +44,16 @@ public class WorkspaceDeleteCommand(IStraumrWorkspaceService workspaceService)
             WriteError(ex.Message, settings.Json);
             return -1;
         }
+    }
+
+    private static int Success(Settings settings)
+    {
+        if (!settings.Json)
+        {
+            AnsiConsole.MarkupLine($"[green]Deleted workspace[/] [bold]{settings.Identifier}[/]");
+        }
+
+        return 0;
     }
 
     public sealed class Settings : CommandSettings

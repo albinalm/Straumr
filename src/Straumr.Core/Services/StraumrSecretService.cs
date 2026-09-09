@@ -11,41 +11,71 @@ public class StraumrSecretService(
     IStraumrFileService fileService,
     IStraumrOptionsService optionsService) : IStraumrSecretService
 {
-    public async Task<StraumrSecret> GetAsync(string identifier)
+    public async Task<IReadOnlyList<StraumrSecret>> ListAsync(CancellationToken cancellationToken = default)
     {
-        SecretLookup lookup = await RequireSecretAsync(identifier,
-            $"No secret found with the identifier: {identifier}");
-
-        return await ResolveSecretAsync(lookup);
-    }
-
-    public async Task<StraumrSecret> PeekByIdAsync(Guid id)
-    {
-        StraumrSecretEntry entry = GetSecretEntry(id);
-        return await PeekByPathAsync(entry.Path);
-    }
-
-    public async Task CreateAsync(StraumrSecret secret)
-    {
-        string fullPath = SecretPath(secret.Id);
-        await EnsureNoConflictAsync(secret.Name, fullPath, secret.Id);
-
-        if (File.Exists(fullPath))
+        List<StraumrSecret> secrets = new List<StraumrSecret>();
+        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets)
         {
-            throw new StraumrException("Secret already exists", StraumrError.EntryConflict);
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                secrets.Add(await ReadByPathAsync(
+                    entry.Path, updateLastAccessed: false, cancellationToken));
+            }
+            catch (StraumrException exception) when (
+                exception.Reason is StraumrError.EntryNotFound or StraumrError.CorruptEntry)
+            {
+            }
         }
 
-        await fileService.WriteStraumrModelAsync(fullPath, secret, StraumrJsonContext.Default.StraumrSecret);
+        return secrets;
+    }
+
+    public async Task<StraumrSecret> GetAsync(
+        Guid id,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        StraumrSecretEntry entry = GetSecretEntry(id);
+        return await ReadByPathAsync(entry.Path, updateLastAccessed, cancellationToken);
+    }
+
+    public async Task<StraumrSecret> GetAsync(
+        string name,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        SecretLookup lookup = await RequireSecretAsync(
+            name, $"No secret found with the name: {name}", cancellationToken);
+        return await ResolveSecretAsync(lookup, updateLastAccessed, cancellationToken);
+    }
+
+    public async Task<StraumrSecret> CreateAsync(
+        StraumrSecret secret,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string fullPath = SecretPath(secret.Id);
+        await EnsureNoConflictAsync(secret.Name, fullPath, cancellationToken: cancellationToken);
+
+        await fileService.WriteStraumrModelAsync(
+            fullPath, secret, StraumrJsonContext.Default.StraumrSecret, cancellationToken);
         optionsService.Options.Secrets.Add(new StraumrSecretEntry
         {
             Id = secret.Id,
             Path = fullPath
         });
-        await optionsService.SaveAsync();
+        await optionsService.SaveAsync(cancellationToken);
+        return secret;
     }
 
-    public async Task UpdateAsync(StraumrSecret secret)
+    public async Task<StraumrSecret> SaveAsync(
+        StraumrSecret secret,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         StraumrSecretEntry entry = GetSecretEntry(secret.Id);
         string fullPath = entry.Path;
 
@@ -54,64 +84,25 @@ public class StraumrSecretService(
             throw new StraumrException("Secret not found", StraumrError.EntryNotFound);
         }
 
-        await EnsureNoConflictAsync(secret.Name, fullPath, secret.Id);
+        await EnsureNoConflictAsync(secret.Name, fullPath, secret.Id, cancellationToken);
 
-        await fileService.WriteStraumrModelAsync(fullPath, secret, StraumrJsonContext.Default.StraumrSecret);
+        await fileService.WriteStraumrModelAsync(
+            fullPath, secret, StraumrJsonContext.Default.StraumrSecret, cancellationToken);
+        return secret;
     }
 
-    public async Task<StraumrSecret> CopyAsync(string identifier, string newName)
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        SecretLookup lookup = await RequireSecretAsync(identifier, "No secret found");
-        StraumrSecret source = await GetByIdAsync(lookup.Id);
-
-        StraumrSecret copy = new StraumrSecret
-        {
-            Name = newName,
-            Value = source.Value
-        };
-
-        await CreateAsync(copy);
-        return copy;
-    }
-
-    public async Task DeleteAsync(string identifier)
-    {
-        Guid secretId = await ResolveSecretIdAsync(identifier, "No secret found");
-        StraumrSecretEntry entry = GetSecretEntry(secretId);
+        cancellationToken.ThrowIfCancellationRequested();
+        StraumrSecretEntry entry = GetSecretEntry(id);
         RemoveSecretFile(entry.Path);
         optionsService.Options.Secrets.Remove(entry);
-        await optionsService.SaveAsync();
-    }
-
-    public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier)
-    {
-        SecretLookup lookup = await RequireSecretAsync(identifier, "No secret found");
-        StraumrSecretEntry entry = GetSecretEntry(lookup.Id);
-        string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-        File.Copy(entry.Path, tempPath, true);
-        return (lookup.Id, tempPath);
-    }
-
-    public void ApplyEdit(Guid secretId, string tempPath)
-    {
-        StraumrSecretEntry entry = GetSecretEntry(secretId);
-        File.Copy(tempPath, entry.Path, true);
+        await optionsService.SaveAsync(cancellationToken);
     }
 
     private string SecretPath(Guid id)
     {
         return Path.Combine(optionsService.Options.DefaultSecretPath, id.ToString(), $"{id}.secret.json");
-    }
-
-    private async Task<Guid> ResolveSecretIdAsync(string identifier, string errorMessage)
-    {
-        if (Guid.TryParse(identifier, out Guid secretId) && optionsService.Options.Secrets.Any(x => x.Id == secretId))
-        {
-            return secretId;
-        }
-
-        SecretLookup lookup = await RequireSecretAsync(identifier, errorMessage);
-        return lookup.Id;
     }
 
     private void RemoveSecretFile(string path)
@@ -122,20 +113,10 @@ public class StraumrSecretService(
         }
     }
 
-    private async Task<StraumrSecret> GetByIdAsync(Guid id)
-    {
-        try
-        {
-            StraumrSecretEntry entry = GetSecretEntry(id);
-            return await fileService.ReadStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrSecret);
-        }
-        catch (JsonException jex)
-        {
-            throw new StraumrException("Invalid secret", StraumrError.CorruptEntry, jex);
-        }
-    }
-
-    private async Task<StraumrSecret> PeekByPathAsync(string path)
+    private async Task<StraumrSecret> ReadByPathAsync(
+        string path,
+        bool updateLastAccessed,
+        CancellationToken cancellationToken = default)
     {
         if (!File.Exists(path))
         {
@@ -144,7 +125,11 @@ public class StraumrSecretService(
 
         try
         {
-            return await fileService.PeekStraumrModelAsync(path, StraumrJsonContext.Default.StraumrSecret);
+            return updateLastAccessed
+                ? await fileService.ReadStraumrModelAsync(
+                    path, StraumrJsonContext.Default.StraumrSecret, cancellationToken)
+                : await fileService.PeekStraumrModelAsync(
+                    path, StraumrJsonContext.Default.StraumrSecret, cancellationToken);
         }
         catch (JsonException jex)
         {
@@ -159,7 +144,11 @@ public class StraumrSecretService(
             $"No secret found with the identifier: {id}", StraumrError.EntryNotFound);
     }
 
-    private async Task EnsureNoConflictAsync(string name, string fullPath, Guid excludeId = default)
+    private async Task EnsureNoConflictAsync(
+        string name,
+        string fullPath,
+        Guid excludeId = default,
+        CancellationToken cancellationToken = default)
     {
         foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
         {
@@ -170,7 +159,8 @@ public class StraumrSecretService(
 
             try
             {
-                StraumrSecret secret = await PeekByPathAsync(entry.Path);
+                StraumrSecret secret = await ReadByPathAsync(
+                    entry.Path, updateLastAccessed: false, cancellationToken);
                 if (string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new StraumrException("A secret with this name already exists", StraumrError.EntryConflict);
@@ -181,25 +171,23 @@ public class StraumrSecretService(
             }
         }
 
-        if (File.Exists(fullPath))
+        if (excludeId == default && File.Exists(fullPath))
         {
             throw new StraumrException("A secret already exists at this location", StraumrError.EntryConflict);
         }
     }
 
-    private async Task<SecretLookup?> LookupSecretAsync(string identifier)
+    private async Task<SecretLookup?> LookupSecretAsync(
+        string name,
+        CancellationToken cancellationToken)
     {
-        if (Guid.TryParse(identifier, out Guid secretId) && optionsService.Options.Secrets.Any(x => x.Id == secretId))
-        {
-            return new SecretLookup(secretId, null);
-        }
-
         foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
         {
             try
             {
-                StraumrSecret secret = await PeekByPathAsync(entry.Path);
-                if (string.Equals(secret.Name, identifier, StringComparison.OrdinalIgnoreCase))
+                StraumrSecret secret = await ReadByPathAsync(
+                    entry.Path, updateLastAccessed: false, cancellationToken);
+                if (string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     return new SecretLookup(entry.Id, secret);
                 }
@@ -211,9 +199,9 @@ public class StraumrSecretService(
     }
 
     private async Task<SecretLookup> RequireSecretAsync(
-        string identifier, string errorMessage)
+        string name, string errorMessage, CancellationToken cancellationToken)
     {
-        SecretLookup? lookup = await LookupSecretAsync(identifier);
+        SecretLookup? lookup = await LookupSecretAsync(name, cancellationToken);
         if (lookup.HasValue)
         {
             return lookup.Value;
@@ -222,10 +210,20 @@ public class StraumrSecretService(
         throw new StraumrException(errorMessage, StraumrError.EntryNotFound);
     }
 
-    private async Task<StraumrSecret> ResolveSecretAsync(SecretLookup lookup)
+    private async Task<StraumrSecret> ResolveSecretAsync(
+        SecretLookup lookup,
+        bool updateLastAccessed,
+        CancellationToken cancellationToken)
     {
-        return lookup.Secret ?? await GetByIdAsync(lookup.Id);
+        if (updateLastAccessed)
+        {
+            StraumrSecretEntry entry = GetSecretEntry(lookup.Id);
+            await fileService.StampAccessAsync(
+                entry.Path, lookup.Secret, StraumrJsonContext.Default.StraumrSecret, cancellationToken);
+        }
+
+        return lookup.Secret;
     }
 
-    private readonly record struct SecretLookup(Guid Id, StraumrSecret? Secret);
+    private readonly record struct SecretLookup(Guid Id, StraumrSecret Secret);
 }

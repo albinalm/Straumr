@@ -31,7 +31,7 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
             {
                 try
                 {
-                    StraumrWorkspace w = await workspaceService.PeekWorkspaceAsync(candidate.Path);
+                    StraumrWorkspace w = await workspaceService.GetAsync(candidate.Id);
                     if (!string.Equals(w.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -55,7 +55,8 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
         {
             try
             {
-                StraumrWorkspace jsonWorkspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
+                StraumrWorkspace jsonWorkspace = await workspaceService.GetAsync(
+                    entry.Id, cancellationToken: cancellation);
                 System.Console.WriteLine(JsonSerializer.Serialize(jsonWorkspace, StraumrJsonContext.Default.StraumrWorkspace));
                 return 0;
             }
@@ -70,7 +71,7 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
         string status;
         try
         {
-            workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
+            workspace = await workspaceService.GetAsync(entry.Id, cancellationToken: cancellation);
             bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == workspace.Id;
             status = isCurrent ? "[blue]Current[/]" : "[green]Valid[/]";
         }

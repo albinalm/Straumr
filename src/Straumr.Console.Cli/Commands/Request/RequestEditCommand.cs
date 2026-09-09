@@ -43,7 +43,7 @@ public class RequestEditCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -74,13 +74,14 @@ public class RequestEditCommand(
 
         if (hasInlineFlags)
         {
-            return await ExecuteInlineAsync(settings, workspaceEntry!);
+            return await ExecuteInlineAsync(settings, workspaceEntry!, cancellation);
         }
 
         StraumrRequest request;
         try
         {
-            request = await requestService.GetAsync(settings.Identifier, workspaceEntry);
+            request = await GetRequestAsync(
+                requestService, workspaceEntry!, settings.Identifier, cancellationToken: cancellation);
         }
         catch (StraumrException ex)
         {
@@ -96,12 +97,16 @@ public class RequestEditCommand(
         return await ExecutePromptMenuAsync(request, workspaceEntry!, cancellation);
     }
 
-    private async Task<int> ExecuteInlineAsync(Settings settings, StraumrWorkspaceEntry workspaceEntry)
+    private async Task<int> ExecuteInlineAsync(
+        Settings settings,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellation)
     {
         StraumrRequest request;
         try
         {
-            request = await requestService.GetAsync(settings.Identifier, workspaceEntry);
+            request = await GetRequestAsync(
+                requestService, workspaceEntry, settings.Identifier, cancellationToken: cancellation);
         }
         catch (StraumrException ex)
         {
@@ -210,7 +215,8 @@ public class RequestEditCommand(
             {
                 try
                 {
-                    StraumrAuth auth = await authService.GetAsync(settings.Auth, workspaceEntry);
+                    StraumrAuth auth = await GetAuthAsync(
+                        authService, workspaceEntry, settings.Auth, cancellationToken: cancellation);
                     request.AuthId = auth.Id;
                 }
                 catch (StraumrException ex)
@@ -223,7 +229,7 @@ public class RequestEditCommand(
 
         try
         {
-            await requestService.UpdateAsync(request, workspaceEntry);
+            await requestService.SaveAsync(workspaceEntry, request, cancellation);
             if (settings.Json)
             {
                 RequestCreateResult result = new RequestCreateResult(request.Id.ToString(), request.Name, request.Method.Method, request.Uri);
@@ -317,7 +323,7 @@ public class RequestEditCommand(
         StraumrWorkspaceEntry workspaceEntry)
     {
         state.ApplyTo(request);
-        try { requestService.UpdateAsync(request, workspaceEntry).GetAwaiter().GetResult(); }
+        try { requestService.SaveAsync(workspaceEntry, request).GetAwaiter().GetResult(); }
         catch { /* best-effort cleanup */ }
     }
 
@@ -330,7 +336,7 @@ public class RequestEditCommand(
 
         try
         {
-            await requestService.UpdateAsync(request, workspaceEntry);
+            await requestService.SaveAsync(workspaceEntry, request);
             AnsiConsole.MarkupLine($"[green]Updated request[/] [bold]{request.Name}[/] ({request.Id})");
             return true;
         }
@@ -420,11 +426,14 @@ public class RequestEditCommand(
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
-        Guid requestId;
+        StraumrRequest request;
         string tempPath;
         try
         {
-            (requestId, tempPath) = await requestService.PrepareEditAsync(identifier, workspaceEntry);
+            request = await GetRequestAsync(
+                requestService, workspaceEntry, identifier, cancellationToken: cancellation);
+            tempPath = await CreateEditorFileAsync(
+                request, StraumrJsonContext.Default.StraumrRequest, cancellation);
         }
         catch (StraumrException ex)
         {
@@ -464,7 +473,7 @@ public class RequestEditCommand(
                 return 1;
             }
 
-            if (deserializedJson.Id != requestId)
+            if (deserializedJson.Id != request.Id)
             {
                 WriteError("Request ID cannot be changed.", json);
                 return 1;
@@ -472,7 +481,7 @@ public class RequestEditCommand(
 
             try
             {
-                requestService.ApplyEdit(requestId, tempPath, workspaceEntry);
+                await requestService.SaveAsync(workspaceEntry, deserializedJson, cancellation);
                 if (json)
                 {
                     RequestCreateResult result = new RequestCreateResult(deserializedJson.Id.ToString(), deserializedJson.Name, deserializedJson.Method.Method, deserializedJson.Uri);

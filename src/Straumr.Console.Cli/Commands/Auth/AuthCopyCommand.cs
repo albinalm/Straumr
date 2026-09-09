@@ -29,7 +29,7 @@ public class AuthCopyCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -47,7 +47,11 @@ public class AuthCopyCommand(
 
         try
         {
-            StraumrAuth copy = await authService.CopyAsync(settings.Identifier, settings.NewName, workspaceEntry);
+            StraumrAuth source =
+                await GetAuthAsync(authService, workspaceEntry, settings.Identifier,
+                    cancellationToken: cancellation);
+            StraumrAuth copy = source.CopyAs(settings.NewName);
+            await authService.CreateAsync(workspaceEntry, copy, cancellation);
 
             if (settings.Json)
             {

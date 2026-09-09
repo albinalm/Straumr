@@ -776,7 +776,10 @@ internal static class AuthCommandHelpers
     }
 
     internal static async Task FetchAuthValueAsync(
-        IInteractiveConsole console, IStraumrAuthService authService, StraumrAuthConfig? auth)
+        IInteractiveConsole console,
+        IStraumrAuthService authService,
+        StraumrAuthConfig? auth,
+        CancellationToken cancellationToken)
     {
         if (auth is not (OAuth2Config or CustomAuthConfig))
         {
@@ -789,7 +792,7 @@ internal static class AuthCommandHelpers
             {
                 case OAuth2Config oauth2:
                 {
-                    OAuth2Token token = await authService.FetchTokenAsync(oauth2);
+                    OAuth2Token token = await authService.FetchTokenAsync(oauth2, cancellationToken);
                     oauth2.Token = token;
                     string expiresDisplay = token.ExpiresAt.HasValue
                         ? token.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")
@@ -802,7 +805,7 @@ internal static class AuthCommandHelpers
                 }
                 case CustomAuthConfig customAuth:
                 {
-                    string value = await authService.ExecuteCustomAuthAsync(customAuth);
+                    string value = await authService.ExecuteCustomAuthAsync(customAuth, cancellationToken);
                     string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", value);
                     console.ShowMessage(
                         $"[green]Value fetched successfully![/]\n" +
@@ -811,6 +814,10 @@ internal static class AuthCommandHelpers
                     break;
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

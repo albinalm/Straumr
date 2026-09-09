@@ -28,7 +28,7 @@ public class RequestCopyCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -46,7 +46,11 @@ public class RequestCopyCommand(
 
         try
         {
-            StraumrRequest copy = await requestService.CopyAsync(settings.Identifier, settings.NewName, workspaceEntry);
+            StraumrRequest source =
+                await GetRequestAsync(requestService, workspaceEntry, settings.Identifier,
+                    cancellationToken: cancellation);
+            StraumrRequest copy = source.CopyAs(settings.NewName);
+            await requestService.CreateAsync(workspaceEntry, copy, cancellation);
 
             if (settings.Json)
             {

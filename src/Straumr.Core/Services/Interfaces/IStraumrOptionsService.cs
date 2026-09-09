@@ -5,6 +5,6 @@ namespace Straumr.Core.Services.Interfaces;
 public interface IStraumrOptionsService
 {
     StraumrOptions Options { get; }
-    Task LoadAsync();
-    Task SaveAsync();
+    Task LoadAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(CancellationToken cancellationToken = default);
 }

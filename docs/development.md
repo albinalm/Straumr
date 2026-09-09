@@ -88,17 +88,20 @@ Editor-backed commands follow a consistent pattern:
 1. copy or serialize the current object to a temp file
 2. launch `$EDITOR`
 3. validate JSON on return
-4. reject ID changes for request/auth/secret edits
-5. copy the temp file back into place
+4. reject ID changes
+5. deserialize the edited model and persist it through `SaveAsync`
+
+Temp-file and process orchestration belongs to the CLI. Core services only load and save models.
 
 ### Timestamp Mutation
 
 Be careful about read paths:
 
-- `ReadStraumrModel` mutates `LastAccessed`
-- `PeekStraumrModel` does not
+- `ReadStraumrModelAsync` mutates `LastAccessed`
+- `PeekStraumrModelAsync` does not
 
-Most list/get flows use `Peek*` intentionally to avoid changing timestamps during inspection.
+Entity services expose `GetAsync` overloads for IDs and names. The optional
+`updateLastAccessed` boolean defaults to `false`, so callers opt into access tracking explicitly.
 
 ## Release Workflow
 

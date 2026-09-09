@@ -28,7 +28,7 @@ public class RequestListCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -44,7 +44,8 @@ public class RequestListCommand(
             return 1;
         }
 
-        StraumrWorkspace workspace = await workspaceService.GetWorkspaceAsync(workspaceEntry.Path);
+        StraumrWorkspace workspace = await workspaceService.GetAsync(
+            workspaceEntry.Id, updateLastAccessed: true, cancellationToken: cancellation);
 
         List<RequestListEntry> entries = new List<RequestListEntry>();
         foreach (Guid requestGuid in workspace.Requests)
@@ -107,7 +108,7 @@ public class RequestListCommand(
         StraumrRequest? request = null;
         try
         {
-            request = await requestService.PeekByIdAsync(requestId, workspaceEntry);
+            request = await requestService.GetAsync(workspaceEntry, requestId);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

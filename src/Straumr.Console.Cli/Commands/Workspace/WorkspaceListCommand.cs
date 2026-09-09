@@ -87,7 +87,7 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
         StraumrWorkspace? workspace = null;
         try
         {
-            workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
+            workspace = await workspaceService.GetAsync(entry.Id);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

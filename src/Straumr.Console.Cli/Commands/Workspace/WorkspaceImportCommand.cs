@@ -16,11 +16,12 @@ public class WorkspaceImportCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry entry = await workspaceService.ImportAsync(settings.Path);
+        StraumrWorkspaceEntry entry = await workspaceService.ImportAsync(settings.Path, cancellation);
 
         if (settings.Json)
         {
-            StraumrWorkspace workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
+            StraumrWorkspace workspace = await workspaceService.GetAsync(
+                entry.Id, cancellationToken: cancellation);
             WorkspaceCreateResult result = new WorkspaceCreateResult(entry.Id.ToString(), workspace.Name, entry.Path);
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
         }

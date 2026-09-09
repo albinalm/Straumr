@@ -26,11 +26,14 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
-        Guid secretId;
+        StraumrSecret secret;
         string tempPath;
         try
         {
-            (secretId, tempPath) = await secretService.PrepareEditAsync(settings.Identifier);
+            secret = await GetSecretAsync(
+                secretService, settings.Identifier, cancellationToken: cancellation);
+            tempPath = await CreateEditorFileAsync(
+                secret, StraumrJsonContext.Default.StraumrSecret, cancellation);
         }
         catch (StraumrException ex)
         {
@@ -70,7 +73,7 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
                 return 1;
             }
 
-            if (deserialized.Id != secretId)
+            if (deserialized.Id != secret.Id)
             {
                 WriteError("Secret ID cannot be changed.", settings.Json);
                 return 1;
@@ -78,7 +81,7 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
 
             try
             {
-                secretService.ApplyEdit(secretId, tempPath);
+                await secretService.SaveAsync(deserialized, cancellation);
                 if (settings.Json)
                 {
                     SecretListItem result = new SecretListItem(deserialized.Id.ToString(), deserialized.Name, "Valid");

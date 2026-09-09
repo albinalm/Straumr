@@ -30,7 +30,7 @@ public class AuthListCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);

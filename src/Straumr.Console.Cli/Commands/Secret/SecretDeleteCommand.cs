@@ -4,6 +4,7 @@ using Spectre.Console.Cli;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Services.Interfaces;
+using Straumr.Core.Models;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Console.Cli.Commands.Secret;
@@ -15,9 +16,22 @@ public class SecretDeleteCommand(IStraumrSecretService secretService) : AsyncCom
     {
         try
         {
-            await secretService.DeleteAsync(settings.Identifier);
-            AnsiConsole.MarkupLine($"[green]Deleted secret[/] [bold]{settings.Identifier}[/]");
-            return 0;
+            if (Guid.TryParse(settings.Identifier, out Guid id))
+            {
+                try
+                {
+                    await secretService.DeleteAsync(id, cancellation);
+                    return Success(settings.Identifier);
+                }
+                catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
+                {
+                }
+            }
+
+            StraumrSecret secret = await secretService.GetAsync(
+                settings.Identifier, cancellationToken: cancellation);
+            await secretService.DeleteAsync(secret.Id, cancellation);
+            return Success(settings.Identifier);
         }
         catch (StraumrException ex)
         {
@@ -29,6 +43,12 @@ public class SecretDeleteCommand(IStraumrSecretService secretService) : AsyncCom
             AnsiConsole.MarkupLine($"[red]{Markup.Escape(ex.Message)}[/]");
             return -1;
         }
+    }
+
+    private static int Success(string identifier)
+    {
+        AnsiConsole.MarkupLine($"[green]Deleted secret[/] [bold]{identifier}[/]");
+        return 0;
     }
 
     public sealed class Settings : CommandSettings

@@ -4,12 +4,21 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrSecretService
 {
-    Task<StraumrSecret> GetAsync(string identifier);
-    Task<StraumrSecret> PeekByIdAsync(Guid id);
-    Task CreateAsync(StraumrSecret secret);
-    Task UpdateAsync(StraumrSecret secret);
-    Task<StraumrSecret> CopyAsync(string identifier, string newName);
-    Task DeleteAsync(string identifier);
-    Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier);
-    void ApplyEdit(Guid secretId, string tempPath);
+    Task<IReadOnlyList<StraumrSecret>> ListAsync(CancellationToken cancellationToken = default);
+
+    Task<StraumrSecret> GetAsync(
+        Guid id,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default);
+    Task<StraumrSecret> GetAsync(
+        string name,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default);
+    Task<StraumrSecret> CreateAsync(
+        StraumrSecret secret,
+        CancellationToken cancellationToken = default);
+    Task<StraumrSecret> SaveAsync(
+        StraumrSecret secret,
+        CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

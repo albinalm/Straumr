@@ -20,7 +20,7 @@ public class WorkspaceCreateCommand(IStraumrWorkspaceService workspaceService)
         await workspaceService.CreateAsync(workspace, settings.Output);
 
         string workspacePath = Path.GetDirectoryName(
-            workspaceService.GetWorkspaceEntryOnDisk(workspace.Id).Path) ?? settings.Output ?? string.Empty;
+            workspaceService.GetEntry(workspace.Id).Path) ?? settings.Output ?? string.Empty;
 
         if (settings.Json)
         {

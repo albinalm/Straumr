@@ -33,7 +33,8 @@ public class SecretGetCommand(
             {
                 try
                 {
-                    StraumrSecret candidate = await secretService.PeekByIdAsync(entry.Id);
+                    StraumrSecret candidate = await secretService.GetAsync(entry.Id,
+                        cancellationToken: cancellation);
                     if (!string.Equals(candidate.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -57,7 +58,8 @@ public class SecretGetCommand(
         {
             try
             {
-                StraumrSecret jsonSecret = await secretService.PeekByIdAsync(foundId.Value);
+                StraumrSecret jsonSecret = await secretService.GetAsync(foundId.Value,
+                    cancellationToken: cancellation);
                 System.Console.WriteLine(JsonSerializer.Serialize(jsonSecret, StraumrJsonContext.Default.StraumrSecret));
                 return 0;
             }
@@ -72,7 +74,7 @@ public class SecretGetCommand(
         string status;
         try
         {
-            secret = await secretService.PeekByIdAsync(foundId.Value);
+            secret = await secretService.GetAsync(foundId.Value, cancellationToken: cancellation);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

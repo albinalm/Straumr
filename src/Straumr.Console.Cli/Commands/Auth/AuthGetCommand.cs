@@ -28,7 +28,7 @@ public class AuthGetCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -47,7 +47,7 @@ public class AuthGetCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
+            workspace = await workspaceService.GetAsync(workspaceEntry.Id, cancellationToken: cancellation);
         }
         catch (StraumrException ex)
         {
@@ -68,7 +68,8 @@ public class AuthGetCommand(
             {
                 try
                 {
-                    StraumrAuth a = await authService.PeekByIdAsync(id, workspaceEntry);
+                    StraumrAuth a = await authService.GetAsync(workspaceEntry, id,
+                        cancellationToken: cancellation);
                     if (!string.Equals(a.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -91,7 +92,8 @@ public class AuthGetCommand(
         {
             try
             {
-                StraumrAuth jsonAuth = await authService.PeekByIdAsync(foundId.Value, workspaceEntry);
+                StraumrAuth jsonAuth = await authService.GetAsync(workspaceEntry, foundId.Value,
+                    cancellationToken: cancellation);
                 System.Console.WriteLine(JsonSerializer.Serialize(jsonAuth,
                     StraumrJsonContext.Default.StraumrAuth));
                 return 0;
@@ -107,7 +109,8 @@ public class AuthGetCommand(
         string status;
         try
         {
-            auth = await authService.PeekByIdAsync(foundId.Value, workspaceEntry);
+            auth = await authService.GetAsync(workspaceEntry, foundId.Value,
+                cancellationToken: cancellation);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

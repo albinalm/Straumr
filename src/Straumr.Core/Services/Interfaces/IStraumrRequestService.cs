@@ -4,14 +4,44 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrRequestService
 {
-    Task<StraumrRequest> GetAsync(string identifier, StraumrWorkspaceEntry? workspace = null);
-    Task<StraumrRequest> PeekByIdAsync(Guid id, StraumrWorkspaceEntry? workspace = null);
-    Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(StraumrRequest request);
-    Task CreateAsync(StraumrRequest request, StraumrWorkspaceEntry? workspace = null);
-    Task UpdateAsync(StraumrRequest request, StraumrWorkspaceEntry? workspace = null);
-    Task<StraumrResponse> SendAsync(StraumrRequest request, SendOptions? options = null, StraumrWorkspaceEntry? workspace = null);
-    Task<StraumrRequest> CopyAsync(string identifier, string newName, StraumrWorkspaceEntry? workspace = null);
-    Task DeleteAsync(string identifier, StraumrWorkspaceEntry? workspace = null);
-    Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier, StraumrWorkspaceEntry? workspace = null);
-    void ApplyEdit(Guid requestId, string tempPath, StraumrWorkspaceEntry? workspace = null);
+    Task<IReadOnlyList<StraumrRequest>> ListAsync(
+        StraumrWorkspaceEntry workspace,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrRequest> GetAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrRequest> GetAsync(
+        StraumrWorkspaceEntry workspace,
+        string name,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrRequest> CreateAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrRequest> SaveAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(
+        StraumrRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrResponse> SendAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrRequest request,
+        SendOptions? options = null,
+        CancellationToken cancellationToken = default);
 }

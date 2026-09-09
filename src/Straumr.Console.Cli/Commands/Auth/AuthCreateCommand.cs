@@ -37,7 +37,7 @@ public class AuthCreateCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -80,7 +80,7 @@ public class AuthCreateCommand(
                 continue;
             }
 
-            await HandleCreateActionAsync(state, action);
+            await HandleCreateActionAsync(state, action, cancellation);
         }
     }
 
@@ -107,7 +107,7 @@ public class AuthCreateCommand(
 
         try
         {
-            await authService.CreateAsync(auth, workspaceEntry);
+            await authService.CreateAsync(workspaceEntry, auth);
 
             if (settings.Json)
             {
@@ -355,7 +355,7 @@ public class AuthCreateCommand(
         StraumrAuth auth = state.ToAuth();
         try
         {
-            await authService.CreateAsync(auth, workspaceEntry);
+            await authService.CreateAsync(workspaceEntry, auth);
             AnsiConsole.MarkupLine($"[green]Created auth[/] [bold]{auth.Name}[/] ({auth.Id})");
             return true;
         }
@@ -366,7 +366,10 @@ public class AuthCreateCommand(
         }
     }
 
-    private async Task HandleCreateActionAsync(CreateAuthState state, string action)
+    private async Task HandleCreateActionAsync(
+        CreateAuthState state,
+        string action,
+        CancellationToken cancellationToken)
     {
         switch (action)
         {
@@ -389,7 +392,7 @@ public class AuthCreateCommand(
                 state.AutoRenewAuth = !state.AutoRenewAuth;
                 break;
             case ActionFetch:
-                await FetchAuthValueAsync(interactiveConsole, authService, state.Auth);
+                await FetchAuthValueAsync(interactiveConsole, authService, state.Auth, cancellationToken);
                 break;
         }
     }

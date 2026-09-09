@@ -4,15 +4,39 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrWorkspaceService
 {
-    Task Activate(string identifier);
-    Task CreateAsync(StraumrWorkspace workspace, string? outputDir = null);
-    Task<StraumrWorkspaceEntry> CopyAsync(string identifier, string newName, string? outputDir = null);
-    Task<StraumrWorkspaceEntry> ImportAsync(string path);
-    Task DeleteAsync(string identifier);
-    Task<string> ExportAsync(string workspaceIdentifier, string outputDir);
-    Task<string> PrepareEditAsync(string identifier);
-    Task ApplyEditAsync(string identifier, string tempPath);
-    Task<StraumrWorkspace> GetWorkspaceAsync(string path);
-    Task<StraumrWorkspace> PeekWorkspaceAsync(string path);
-    StraumrWorkspaceEntry GetWorkspaceEntryOnDisk(Guid id);
+    Task<IReadOnlyList<StraumrWorkspace>> ListAsync(CancellationToken cancellationToken = default);
+
+    Task<StraumrWorkspace> GetAsync(
+        Guid id,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default);
+    Task<StraumrWorkspace> GetAsync(
+        string name,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrWorkspace> CreateAsync(
+        StraumrWorkspace workspace,
+        string? outputDir = null,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrWorkspace> SaveAsync(
+        StraumrWorkspace workspace,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task ActivateAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<StraumrWorkspaceEntry> CopyAsync(
+        Guid id,
+        string newName,
+        string? outputDir = null,
+        CancellationToken cancellationToken = default);
+
+    Task<StraumrWorkspaceEntry> ImportAsync(string path, CancellationToken cancellationToken = default);
+
+    Task<string> ExportAsync(Guid id, string outputDir, CancellationToken cancellationToken = default);
+
+    StraumrWorkspaceEntry GetEntry(Guid id);
 }

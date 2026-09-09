@@ -43,7 +43,7 @@ public class RequestCreateCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -161,7 +161,7 @@ public class RequestCreateCommand(
 
             try
             {
-                await requestService.CreateAsync(deserializedJson, workspaceEntry);
+                await requestService.CreateAsync(workspaceEntry, deserializedJson, cancellation);
                 AnsiConsole.MarkupLine(
                     $"[green]Created request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");
                 return 0;
@@ -233,7 +233,7 @@ public class RequestCreateCommand(
         StraumrRequest request = state.ToRequest();
         try
         {
-            await requestService.CreateAsync(request, workspaceEntry);
+            await requestService.CreateAsync(workspaceEntry, request);
             AnsiConsole.MarkupLine($"[green]Created request[/] [bold]{request.Name}[/] ({request.Id})");
             return true;
         }
@@ -368,7 +368,7 @@ public class RequestCreateCommand(
         {
             try
             {
-                StraumrAuth auth = await authService.GetAsync(settings.Auth, workspaceEntry);
+                StraumrAuth auth = await GetAuthAsync(authService, workspaceEntry, settings.Auth);
                 request.AuthId = auth.Id;
             }
             catch (StraumrException ex)
@@ -380,7 +380,7 @@ public class RequestCreateCommand(
 
         try
         {
-            await requestService.CreateAsync(request, workspaceEntry);
+            await requestService.CreateAsync(workspaceEntry, request);
 
             if (settings.Json)
             {

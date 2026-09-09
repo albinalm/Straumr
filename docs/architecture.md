@@ -142,9 +142,9 @@ Owns the workspace registry and workspace package operations.
 Responsibilities:
 
 - create, activate, copy, delete workspaces
-- resolve workspaces by ID or name
+- load workspaces through typed ID and name overloads
+- save caller-modified workspace models
 - import/export `.straumrpak`
-- prepare/apply editor-based workspace edits
 
 Notable implementation detail:
 
@@ -156,10 +156,10 @@ Owns request CRUD and request sending.
 
 Responsibilities:
 
-- create, update, delete, and load requests in the current workspace
+- list, create, save, delete, and load requests in an explicit workspace
 - resolve secret placeholders in request and auth fields
 - build and send `HttpRequestMessage`
-- manage custom `HttpClientHandler` options for insecure TLS and redirect following
+- select pooled HTTP clients for insecure TLS and redirect-following combinations
 - stamp `LastAccessed` values for touched entities
 
 This is the main orchestration service at send time.
@@ -170,7 +170,7 @@ Owns auth CRUD and runtime auth material generation.
 
 Responsibilities:
 
-- create, update, delete, and list workspace auth definitions
+- list, create, save, delete, and load auth definitions in an explicit workspace
 - fetch OAuth tokens for supported grant types
 - refresh expired OAuth tokens
 - execute custom auth bootstrap requests
@@ -185,9 +185,14 @@ Owns global secret CRUD and lookup.
 Responsibilities:
 
 - store secrets under the global secret root
-- resolve by ID or name
+- load secrets through typed ID and name overloads
+- save caller-modified secret models
 - enforce global secret-name uniqueness
-- support temp-file editing
+
+The entity services share the same persistence vocabulary: `ListAsync`, typed `GetAsync`
+overloads, `CreateAsync`, `SaveAsync`, and ID-based `DeleteAsync`. Copying a request, auth,
+or secret is modeled as `source.CopyAs(name)` followed by `CreateAsync`; workspace copying
+stays in the workspace service because it also copies files.
 
 ## Command-Layer Pattern
 

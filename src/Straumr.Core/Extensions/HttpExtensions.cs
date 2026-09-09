@@ -6,25 +6,27 @@ namespace Straumr.Core.Extensions;
 
 public static class HttpExtensions
 {
-    public static async Task<StraumrResponse> WithMetrics(this Task<HttpResponseMessage> requestTask)
+    public static async Task<StraumrResponse> WithMetrics(
+        this Task<HttpResponseMessage> requestTask,
+        CancellationToken cancellationToken = default)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         try
         {
-            HttpResponseMessage response = await requestTask;
+            using HttpResponseMessage response = await requestTask;
+            byte[] raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             stopwatch.Stop();
-            byte[] raw = await response.Content.ReadAsByteArrayAsync();
             string body = DecodeBody(raw, response.Content.Headers.ContentType?.CharSet);
 
             Dictionary<string, IEnumerable<string>> headers = new Dictionary<string, IEnumerable<string>>();
             foreach (KeyValuePair<string, IEnumerable<string>> h in response.Headers)
             {
-                headers[h.Key] = h.Value;
+                headers[h.Key] = h.Value.ToArray();
             }
 
             foreach (KeyValuePair<string, IEnumerable<string>> h in response.Content.Headers)
             {
-                headers[h.Key] = h.Value;
+                headers[h.Key] = h.Value.ToArray();
             }
 
             return new StraumrResponse
@@ -38,6 +40,10 @@ public static class HttpExtensions
                 ReasonPhrase = response.ReasonPhrase,
                 HttpVersion = response.Version
             };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

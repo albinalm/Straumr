@@ -33,7 +33,7 @@ public class RequestSendCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -51,12 +51,14 @@ public class RequestSendCommand(
 
         try
         {
-            StraumrRequest request = await requestService.GetAsync(settings.Identifier, workspaceEntry);
+            StraumrRequest request = await GetRequestAsync(
+                requestService, workspaceEntry, settings.Identifier, cancellationToken: cancellation);
 
             ApplyOverrides(request, settings.SendHeaders, settings.SendParams);
 
             StraumrAuth? auth = request.AuthId.HasValue
-                ? await authService.PeekByIdAsync(request.AuthId.Value, workspaceEntry)
+                ? await authService.GetAsync(workspaceEntry, request.AuthId.Value,
+                    cancellationToken: cancellation)
                 : null;
 
             if (settings.DryRun)
@@ -70,7 +72,8 @@ public class RequestSendCommand(
                 FollowRedirects = settings.FollowRedirects
             };
 
-            StraumrResponse response = await requestService.SendAsync(request, options, workspaceEntry);
+            StraumrResponse response = await requestService.SendAsync(
+                workspaceEntry, request, options, cancellation);
 
             if (settings.Json)
             {

@@ -4,6 +4,7 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -14,7 +15,7 @@ using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Console.Cli.Commands.Workspace;
 
-public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraumrWorkspaceService workspaceService)
+public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
     : AsyncCommand<WorkspaceEditCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -26,10 +27,14 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
             throw new StraumrException("No default editor is configured.", StraumrError.MissingEntry);
         }
 
+        StraumrWorkspace original;
         string tempPath;
         try
         {
-            tempPath = await workspaceService.PrepareEditAsync(settings.Identifier);
+            original = await GetWorkspaceAsync(
+                workspaceService, settings.Identifier, cancellationToken: cancellation);
+            tempPath = await CreateEditorFileAsync(
+                original, StraumrJsonContext.Default.StraumrWorkspace, cancellation);
         }
         catch (StraumrException ex)
         {
@@ -52,18 +57,30 @@ public class WorkspaceEditCommand(IStraumrOptionsService optionsService, IStraum
 
             try
             {
-                await workspaceService.ApplyEditAsync(settings.Identifier, tempPath);
+                string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
+                StraumrWorkspace? workspace = JsonSerializer.Deserialize(
+                    editedJson, StraumrJsonContext.Default.StraumrWorkspace);
+                if (workspace is null)
+                {
+                    WriteError("Invalid workspace JSON.", settings.Json);
+                    return 1;
+                }
+
+                if (workspace.Id != original.Id)
+                {
+                    WriteError("Workspace ID cannot be changed.", settings.Json);
+                    return 1;
+                }
+
+                await workspaceService.SaveAsync(workspace, cancellation);
 
                 if (settings.Json)
                 {
-                    StraumrWorkspaceEntry? entry =
-                        await ResolveWorkspaceEntryAsync(settings.Identifier, optionsService, workspaceService);
-                    if (entry is not null)
-                    {
-                        StraumrWorkspace workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
-                        WorkspaceCreateResult result = new WorkspaceCreateResult(workspace.Id.ToString(), workspace.Name, entry.Path);
-                        System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.WorkspaceCreateResult));
-                    }
+                    StraumrWorkspaceEntry entry = workspaceService.GetEntry(workspace.Id);
+                    WorkspaceCreateResult result = new WorkspaceCreateResult(
+                        workspace.Id.ToString(), workspace.Name, entry.Path);
+                    System.Console.WriteLine(JsonSerializer.Serialize(
+                        result, CliJsonContext.Relaxed.WorkspaceCreateResult));
                 }
                 else
                 {

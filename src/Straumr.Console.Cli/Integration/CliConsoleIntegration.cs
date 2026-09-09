@@ -13,7 +13,7 @@ using Straumr.Console.Cli.Commands.Secret;
 using Straumr.Console.Cli.Commands.Workspace;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Shared.Integrations;
-using Straumr.Core.Services;
+using Straumr.Core.Extensions;
 using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Cli.Integration;
@@ -60,13 +60,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         Justification = "Spectre.Console.Cli requires dynamic code; CLI assembly is fully preserved via CliRoots.xml.")]
     public void ConfigureServices(IServiceCollection services)
     {
-        services.TryAddSingleton<IStraumrFileService, StraumrFileService>();
-        services.TryAddSingleton<IStraumrOptionsService, StraumrOptionsService>();
-        services.AddHttpClient();
-        services.TryAddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
-        services.TryAddSingleton<IStraumrAuthService, StraumrAuthService>();
-        services.TryAddSingleton<IStraumrRequestService, StraumrRequestService>();
-        services.TryAddSingleton<IStraumrSecretService, StraumrSecretService>();
+        services.AddStraumrCore();
         services.TryAddSingleton<EmptyCommandSettings>();
 
         if (_commandApp is null)

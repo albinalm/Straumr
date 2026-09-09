@@ -31,7 +31,7 @@ public class RequestGetCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -50,7 +50,7 @@ public class RequestGetCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
+            workspace = await workspaceService.GetAsync(workspaceEntry.Id, cancellationToken: cancellation);
         }
         catch (StraumrException ex)
         {
@@ -71,7 +71,8 @@ public class RequestGetCommand(
             {
                 try
                 {
-                    StraumrRequest r = await requestService.PeekByIdAsync(id, workspaceEntry);
+                    StraumrRequest r = await requestService.GetAsync(workspaceEntry, id,
+                        cancellationToken: cancellation);
                     if (!string.Equals(r.Name, settings.Identifier, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -95,7 +96,8 @@ public class RequestGetCommand(
             StraumrRequest req;
             try
             {
-                req = await requestService.PeekByIdAsync(foundId.Value, workspaceEntry);
+                req = await requestService.GetAsync(workspaceEntry, foundId.Value,
+                    cancellationToken: cancellation);
             }
             catch (StraumrException ex)
             {
@@ -127,8 +129,9 @@ public class RequestGetCommand(
         string status;
         try
         {
-            request = await requestService.PeekByIdAsync(foundId.Value, workspaceEntry);
-            (resolvedUrl, warnings) = await requestService.ResolveUrlAsync(request);
+            request = await requestService.GetAsync(workspaceEntry, foundId.Value,
+                cancellationToken: cancellation);
+            (resolvedUrl, warnings) = await requestService.ResolveUrlAsync(request, cancellation);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
@@ -145,7 +148,7 @@ public class RequestGetCommand(
         {
             try
             {
-                auths = await authService.ListAsync(workspaceEntry);
+                auths = await authService.ListAsync(workspaceEntry, cancellation);
             }
             catch (StraumrException) { }
         }

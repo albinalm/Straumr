@@ -37,7 +37,7 @@ public class AuthEditCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -63,7 +63,8 @@ public class AuthEditCommand(
         StraumrAuth auth;
         try
         {
-            auth = await authService.GetAsync(settings.Identifier, workspaceEntry);
+            auth = await GetAuthAsync(
+                authService, workspaceEntry!, settings.Identifier, cancellationToken: cancellation);
         }
         catch (StraumrException ex)
         {
@@ -76,10 +77,13 @@ public class AuthEditCommand(
             return -1;
         }
 
-        return await ExecutePromptMenuAsync(auth, workspaceEntry!);
+        return await ExecutePromptMenuAsync(auth, workspaceEntry!, cancellation);
     }
 
-    private async Task<int> ExecutePromptMenuAsync(StraumrAuth auth, StraumrWorkspaceEntry workspaceEntry)
+    private async Task<int> ExecutePromptMenuAsync(
+        StraumrAuth auth,
+        StraumrWorkspaceEntry workspaceEntry,
+        CancellationToken cancellationToken)
     {
         EditableAuthState state = EditableAuthState.FromAuth(auth);
 
@@ -101,7 +105,7 @@ public class AuthEditCommand(
                 continue;
             }
 
-            await HandleEditActionAsync(state, action);
+            await HandleEditActionAsync(state, action, cancellationToken);
         }
     }
 
@@ -117,11 +121,14 @@ public class AuthEditCommand(
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
-        Guid authId;
+        StraumrAuth auth;
         string tempPath;
         try
         {
-            (authId, tempPath) = await authService.PrepareEditAsync(identifier, workspaceEntry);
+            auth = await GetAuthAsync(
+                authService, workspaceEntry, identifier, cancellationToken: cancellation);
+            tempPath = await CreateEditorFileAsync(
+                auth, StraumrJsonContext.Default.StraumrAuth, cancellation);
         }
         catch (StraumrException ex)
         {
@@ -161,7 +168,7 @@ public class AuthEditCommand(
                 return 1;
             }
 
-            if (deserialized.Id != authId)
+            if (deserialized.Id != auth.Id)
             {
                 WriteError("Auth ID cannot be changed.", json);
                 return 1;
@@ -169,7 +176,7 @@ public class AuthEditCommand(
 
             try
             {
-                authService.ApplyEdit(authId, tempPath, workspaceEntry);
+                await authService.SaveAsync(workspaceEntry, deserialized, cancellation);
                 if (json)
                 {
                     AuthListItem result = new AuthListItem(deserialized.Id.ToString(), deserialized.Name, AuthTypeName(deserialized.Config));
@@ -239,7 +246,7 @@ public class AuthEditCommand(
 
         try
         {
-            await authService.UpdateAsync(auth, workspaceEntry);
+            await authService.SaveAsync(workspaceEntry, auth);
             AnsiConsole.MarkupLine($"[green]Updated auth[/] [bold]{auth.Name}[/] ({auth.Id})");
             return true;
         }
@@ -255,7 +262,10 @@ public class AuthEditCommand(
         return false;
     }
 
-    private async Task HandleEditActionAsync(EditableAuthState state, string action)
+    private async Task HandleEditActionAsync(
+        EditableAuthState state,
+        string action,
+        CancellationToken cancellationToken)
     {
         switch (action)
         {
@@ -278,7 +288,7 @@ public class AuthEditCommand(
                 state.AutoRenewAuth = !state.AutoRenewAuth;
                 break;
             case ActionFetch:
-                await FetchAuthValueAsync(interactiveConsole, authService, state.Auth);
+                await FetchAuthValueAsync(interactiveConsole, authService, state.Auth, cancellationToken);
                 break;
         }
     }

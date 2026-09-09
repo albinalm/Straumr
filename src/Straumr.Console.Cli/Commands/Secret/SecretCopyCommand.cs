@@ -9,6 +9,7 @@ using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
+using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Console.Cli.Commands.Secret;
@@ -21,7 +22,11 @@ public sealed class SecretCopyCommand(IStraumrSecretService secretService)
     {
         try
         {
-            StraumrSecret copy = await secretService.CopyAsync(settings.Identifier, settings.NewName);
+            StraumrSecret source =
+                await GetSecretAsync(secretService, settings.Identifier, updateLastAccessed: true,
+                    cancellationToken: cancellation);
+            StraumrSecret copy = source.CopyAs(settings.NewName);
+            await secretService.CreateAsync(copy, cancellation);
 
             if (settings.Json)
             {

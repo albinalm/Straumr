@@ -143,7 +143,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrWorkspace workspace = await workspaceService.PeekWorkspaceAsync(entry.Path);
+                StraumrWorkspace workspace = await workspaceService.GetAsync(entry.Id);
                 if (workspace.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(workspace.Name);
@@ -160,7 +160,7 @@ public class AutocompleteQueryCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
+            workspace = await workspaceService.GetAsync(workspaceEntry.Id);
         }
         catch (StraumrException)
         {
@@ -176,7 +176,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrRequest request = await requestService.PeekByIdAsync(id);
+                StraumrRequest request = await requestService.GetAsync(workspaceEntry, id);
                 if (request.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(request.Name);
@@ -193,7 +193,7 @@ public class AutocompleteQueryCommand(
         StraumrWorkspace workspace;
         try
         {
-            workspace = await workspaceService.PeekWorkspaceAsync(workspaceEntry.Path);
+            workspace = await workspaceService.GetAsync(workspaceEntry.Id);
         }
         catch (StraumrException)
         {
@@ -209,7 +209,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrAuth auth = await authService.PeekByIdAsync(id);
+                StraumrAuth auth = await authService.GetAsync(workspaceEntry, id);
                 if (auth.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(auth.Name);
@@ -230,7 +230,7 @@ public class AutocompleteQueryCommand(
 
             try
             {
-                StraumrSecret secret = await secretService.PeekByIdAsync(entry.Id);
+                StraumrSecret secret = await secretService.GetAsync(entry.Id);
                 if (secret.Name.StartsWith(partial, StringComparison.OrdinalIgnoreCase))
                 {
                     completions.Add(secret.Name);

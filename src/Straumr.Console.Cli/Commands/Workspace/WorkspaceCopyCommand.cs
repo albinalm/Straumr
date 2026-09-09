@@ -6,6 +6,7 @@ using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace Straumr.Console.Cli.Commands.Workspace;
@@ -16,7 +17,10 @@ public class WorkspaceCopyCommand(IStraumrWorkspaceService workspaceService)
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry newEntry = await workspaceService.CopyAsync(settings.Identifier, settings.NewName, settings.Output);
+        StraumrWorkspace workspace =
+            await GetWorkspaceAsync(workspaceService, settings.Identifier, cancellationToken: cancellation);
+        StraumrWorkspaceEntry newEntry =
+            await workspaceService.CopyAsync(workspace.Id, settings.NewName, settings.Output, cancellation);
 
         if (settings.Json)
         {

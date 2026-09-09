@@ -11,4 +11,16 @@ public class StraumrRequest : StraumrModelBase
     public BodyType BodyType { get; set; } = BodyType.None;
     public Dictionary<BodyType, string> Bodies { get; set; } = new();
     public Guid? AuthId { get; set; }
+
+    public StraumrRequest CopyAs(string name) => new()
+    {
+        Name = name,
+        Uri = Uri,
+        Method = Method,
+        Params = new Dictionary<string, string>(Params, Params.Comparer),
+        Headers = new Dictionary<string, string>(Headers, Headers.Comparer),
+        BodyType = BodyType,
+        Bodies = new Dictionary<BodyType, string>(Bodies),
+        AuthId = AuthId
+    };
 }

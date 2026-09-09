@@ -25,7 +25,7 @@ public class RequestDeleteCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -43,13 +43,22 @@ public class RequestDeleteCommand(
 
         try
         {
-            await requestService.DeleteAsync(settings.Identifier, workspaceEntry);
-            if (!settings.Json)
+            if (Guid.TryParse(settings.Identifier, out Guid id))
             {
-                AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");
+                try
+                {
+                    await requestService.DeleteAsync(workspaceEntry, id, cancellation);
+                    return Success(settings);
+                }
+                catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
+                {
+                }
             }
 
-            return 0;
+            StraumrRequest request = await requestService.GetAsync(
+                workspaceEntry, settings.Identifier, cancellationToken: cancellation);
+            await requestService.DeleteAsync(workspaceEntry, request.Id, cancellation);
+            return Success(settings);
         }
         catch (StraumrException ex)
         {
@@ -61,6 +70,16 @@ public class RequestDeleteCommand(
             WriteError(ex.Message, settings.Json);
             return -1;
         }
+    }
+
+    private static int Success(Settings settings)
+    {
+        if (!settings.Json)
+        {
+            AnsiConsole.MarkupLine($"[green]Deleted request[/] [bold]{settings.Identifier}[/]");
+        }
+
+        return 0;
     }
 
     public sealed class Settings : CommandSettings

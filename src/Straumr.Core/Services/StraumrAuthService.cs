@@ -15,148 +15,136 @@ namespace Straumr.Core.Services;
 
 public class StraumrAuthService(
     IStraumrFileService fileService,
-    IStraumrOptionsService optionsService,
     IHttpClientFactory httpClientFactory) : IStraumrAuthService
 {
     private readonly HttpClient _client = httpClientFactory.CreateClient();
 
-    public async Task<IReadOnlyList<StraumrAuth>> ListAsync(StraumrWorkspaceEntry? workspace = null)
+    public async Task<IReadOnlyList<StraumrAuth>> ListAsync(
+        StraumrWorkspaceEntry workspace,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
+        StraumrWorkspace workspaceModel = await LoadWorkspaceAsync(workspace, cancellationToken);
         List<StraumrAuth> auths = new List<StraumrAuth>();
         foreach (Guid id in workspaceModel.Auths)
         {
-            auths.Add(await PeekByIdAsync(id, entry));
+            cancellationToken.ThrowIfCancellationRequested();
+            auths.Add(await ReadByIdAsync(workspace, id, updateLastAccessed: false, cancellationToken));
         }
 
         return auths;
     }
 
-    public async Task<StraumrAuth> GetAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
+    public async Task<StraumrAuth> GetAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
-        AuthLookup lookup = await RequireAuthAsync(workspaceModel, identifier,
-            $"No auth found with the identifier: {identifier}", entry);
-
-        return await ResolveAuthAsync(lookup, entry);
-    }
-
-    public async Task<StraumrAuth> PeekByIdAsync(Guid id, StraumrWorkspaceEntry? workspace = null)
-    {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        string fullPath = AuthPath(id, entry);
-
-        if (!File.Exists(fullPath))
+        cancellationToken.ThrowIfCancellationRequested();
+        StraumrWorkspace workspaceModel = await LoadWorkspaceAsync(workspace, cancellationToken);
+        if (!workspaceModel.Auths.Contains(id))
         {
             throw new StraumrException("Auth not found", StraumrError.EntryNotFound);
         }
 
-        try
-        {
-            return await fileService.PeekStraumrModelAsync(fullPath, StraumrJsonContext.Default.StraumrAuth);
-        }
-        catch (JsonException jex)
-        {
-            throw new StraumrException("Invalid auth", StraumrError.CorruptEntry, jex);
-        }
+        return await ReadByIdAsync(workspace, id, updateLastAccessed, cancellationToken);
     }
 
-    public async Task CreateAsync(StraumrAuth auth, StraumrWorkspaceEntry? workspace = null)
+    public async Task<StraumrAuth> GetAsync(
+        StraumrWorkspaceEntry workspace,
+        string name,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        string fullPath = AuthPath(auth.Id, entry);
+        cancellationToken.ThrowIfCancellationRequested();
+        StraumrWorkspace workspaceModel = await LoadWorkspaceAsync(workspace, cancellationToken);
+        AuthLookup lookup = await RequireAuthAsync(
+            workspaceModel, name, $"No auth found with the name: {name}", workspace, cancellationToken);
+        return await ResolveAuthAsync(lookup, workspace, updateLastAccessed, cancellationToken);
+    }
+
+    public async Task<StraumrAuth> CreateAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrAuth auth,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string fullPath = AuthPath(auth.Id, workspace);
 
         if (File.Exists(fullPath))
         {
             throw new StraumrException("Auth already exists", StraumrError.EntryConflict);
         }
 
-        await EnsureNoNameConflictAsync(auth.Name, entry);
+        StraumrWorkspace workspaceModel = await LoadWorkspaceAsync(workspace, cancellationToken);
+        await EnsureNoNameConflictAsync(auth.Name, workspace, workspaceModel: workspaceModel,
+            cancellationToken: cancellationToken);
 
-        await fileService.WriteStraumrModelAsync(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
-        await AddAuthToWorkspace(entry, auth.Id);
+        await fileService.WriteStraumrModelAsync(
+            fullPath, auth, StraumrJsonContext.Default.StraumrAuth, cancellationToken);
+        workspaceModel.Auths.Add(auth.Id);
+        await PersistWorkspaceAsync(workspace, workspaceModel, cancellationToken);
+        return auth;
     }
 
-    public async Task UpdateAsync(StraumrAuth auth, StraumrWorkspaceEntry? workspace = null)
+    public async Task<StraumrAuth> SaveAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrAuth auth,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        string fullPath = AuthPath(auth.Id, entry);
+        cancellationToken.ThrowIfCancellationRequested();
+        string fullPath = AuthPath(auth.Id, workspace);
 
         if (!File.Exists(fullPath))
         {
             throw new StraumrException("Auth not found", StraumrError.EntryNotFound);
         }
 
-        await EnsureNoNameConflictAsync(auth.Name, entry, auth.Id);
+        await EnsureNoNameConflictAsync(
+            auth.Name, workspace, auth.Id, cancellationToken: cancellationToken);
 
-        await fileService.WriteStraumrModelAsync(fullPath, auth, StraumrJsonContext.Default.StraumrAuth);
+        await fileService.WriteStraumrModelAsync(
+            fullPath, auth, StraumrJsonContext.Default.StraumrAuth, cancellationToken);
+        return auth;
     }
 
-    public async Task StampAccessAsync(Guid id, StraumrWorkspaceEntry? workspace = null)
+    public async Task DeleteAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        string fullPath = AuthPath(id, entry);
-        await fileService.StampAccessAsync(fullPath, StraumrJsonContext.Default.StraumrAuth);
-    }
+        cancellationToken.ThrowIfCancellationRequested();
+        StraumrWorkspace workspaceModel = await LoadWorkspaceAsync(workspace, cancellationToken);
+        if (!workspaceModel.Auths.Contains(id))
+        {
+            throw new StraumrException("Auth not found", StraumrError.EntryNotFound);
+        }
 
-    public async Task DeleteAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
-    {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
-        Guid authId = await ResolveAuthIdAsync(workspaceModel, identifier, entry);
-        string authPath = AuthPath(authId, entry);
+        string authPath = AuthPath(id, workspace);
         if (File.Exists(authPath))
         {
             File.Delete(authPath);
         }
-        workspaceModel.Auths.Remove(authId);
-        await PersistWorkspaceAsync(entry, workspaceModel);
+        workspaceModel.Auths.Remove(id);
+        await PersistWorkspaceAsync(workspace, workspaceModel, cancellationToken);
     }
 
-    public async Task<StraumrAuth> CopyAsync(string identifier, string newName, StraumrWorkspaceEntry? workspace = null)
-    {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        StraumrAuth source = await GetAsync(identifier, entry);
-        StraumrAuth copy = new StraumrAuth
-        {
-            Name = newName,
-            Config = source.Config,
-            AutoRenewAuth = source.AutoRenewAuth
-        };
-        await CreateAsync(copy, entry);
-        return copy;
-    }
-
-    public async Task<(Guid id, string tempPath)> PrepareEditAsync(string identifier, StraumrWorkspaceEntry? workspace = null)
-    {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        (_, StraumrWorkspace workspaceModel) = await LoadWorkspaceAsync(entry);
-        AuthLookup lookup = await RequireAuthAsync(workspaceModel, identifier, "No auth found", entry);
-        string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-        File.Copy(AuthPath(lookup.Id, entry), tempPath, true);
-        return (lookup.Id, tempPath);
-    }
-
-    public void ApplyEdit(Guid authId, string tempPath, StraumrWorkspaceEntry? workspace = null)
-    {
-        StraumrWorkspaceEntry entry = ResolveWorkspaceEntry(workspace);
-        File.Copy(tempPath, AuthPath(authId, entry), true);
-    }
-
-    public async Task<OAuth2Token> FetchTokenAsync(OAuth2Config config)
+    public async Task<OAuth2Token> FetchTokenAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken = default)
     {
         return config.GrantType switch
         {
-            OAuth2GrantType.ClientCredentials => await FetchClientCredentialsAsync(config),
-            OAuth2GrantType.AuthorizationCode => await FetchAuthorizationCodeAsync(config),
-            OAuth2GrantType.ResourceOwnerPassword => await FetchResourceOwnerPasswordAsync(config),
+            OAuth2GrantType.ClientCredentials => await FetchClientCredentialsAsync(config, cancellationToken),
+            OAuth2GrantType.AuthorizationCode => await FetchAuthorizationCodeAsync(config, cancellationToken),
+            OAuth2GrantType.ResourceOwnerPassword => await FetchResourceOwnerPasswordAsync(config, cancellationToken),
             _ => throw new InvalidOperationException($"Unsupported grant type: {config.GrantType}")
         };
     }
 
-    public async Task<OAuth2Token> EnsureTokenAsync(OAuth2Config config)
+    public async Task<OAuth2Token> EnsureTokenAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken = default)
     {
         if (config.Token is not null && !config.Token.IsExpired)
         {
@@ -165,13 +153,15 @@ public class StraumrAuthService(
 
         if (config.Token?.RefreshToken is not null)
         {
-            return await RefreshTokenAsync(config);
+            return await RefreshTokenAsync(config, cancellationToken);
         }
 
-        return await FetchTokenAsync(config);
+        return await FetchTokenAsync(config, cancellationToken);
     }
 
-    public async Task<string> ExecuteCustomAuthAsync(CustomAuthConfig config)
+    public async Task<string> ExecuteCustomAuthAsync(
+        CustomAuthConfig config,
+        CancellationToken cancellationToken = default)
     {
         StraumrRequest authRequest = new StraumrRequest
         {
@@ -184,17 +174,18 @@ public class StraumrAuthService(
             Bodies = new Dictionary<BodyType, string>(config.Bodies)
         };
 
-        HttpRequestMessage httpMessage = authRequest.ToHttpRequestMessage(null);
-        HttpResponseMessage response = await _client.SendAsync(httpMessage);
+        using HttpRequestMessage httpMessage = authRequest.ToHttpRequestMessage(null);
+        using HttpResponseMessage response = await _client.SendAsync(
+            httpMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            string errorBody = await response.Content.ReadAsStringAsync();
+            string errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new InvalidOperationException(
                 $"Custom auth request failed ({(int)response.StatusCode} {response.StatusCode}): {errorBody}");
         }
 
-        string body = await response.Content.ReadAsStringAsync();
+        string body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         string extracted = config.Source switch
         {
@@ -208,11 +199,13 @@ public class StraumrAuthService(
         return extracted;
     }
 
-    private async Task<OAuth2Token> RefreshTokenAsync(OAuth2Config config)
+    private async Task<OAuth2Token> RefreshTokenAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken)
     {
         if (config.Token?.RefreshToken is null)
         {
-            return await FetchTokenAsync(config);
+            return await FetchTokenAsync(config, cancellationToken);
         }
 
         Dictionary<string, string> parameters = new Dictionary<string, string>
@@ -227,7 +220,7 @@ public class StraumrAuthService(
             parameters["client_secret"] = config.ClientSecret;
         }
 
-        return await RequestTokenAsync(config.TokenUrl, parameters);
+        return await RequestTokenAsync(config.TokenUrl, parameters, cancellationToken);
     }
 
     private static string ExtractFromJson(string json, string path)
@@ -289,7 +282,9 @@ public class StraumrAuthService(
             : match.Value;
     }
 
-    private async Task<OAuth2Token> FetchClientCredentialsAsync(OAuth2Config config)
+    private async Task<OAuth2Token> FetchClientCredentialsAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken)
     {
         Dictionary<string, string> parameters = new Dictionary<string, string>
         {
@@ -303,10 +298,12 @@ public class StraumrAuthService(
             parameters["scope"] = config.Scope;
         }
 
-        return await RequestTokenAsync(config.TokenUrl, parameters);
+        return await RequestTokenAsync(config.TokenUrl, parameters, cancellationToken);
     }
 
-    private async Task<OAuth2Token> FetchAuthorizationCodeAsync(OAuth2Config config)
+    private async Task<OAuth2Token> FetchAuthorizationCodeAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken)
     {
         string? codeVerifier = null;
 
@@ -334,7 +331,8 @@ public class StraumrAuthService(
         }
 
         string authUrl = BuildUrlWithParams(config.AuthorizationUrl, authParams);
-        string code = await ListenForAuthorizationCodeAsync(config.RedirectUri, authUrl, state);
+        string code = await ListenForAuthorizationCodeAsync(
+            config.RedirectUri, authUrl, state, cancellationToken);
 
         Dictionary<string, string> tokenParams = new Dictionary<string, string>
         {
@@ -354,10 +352,12 @@ public class StraumrAuthService(
             tokenParams["code_verifier"] = codeVerifier;
         }
 
-        return await RequestTokenAsync(config.TokenUrl, tokenParams);
+        return await RequestTokenAsync(config.TokenUrl, tokenParams, cancellationToken);
     }
 
-    private async Task<OAuth2Token> FetchResourceOwnerPasswordAsync(OAuth2Config config)
+    private async Task<OAuth2Token> FetchResourceOwnerPasswordAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken)
     {
         Dictionary<string, string> parameters = new Dictionary<string, string>
         {
@@ -377,14 +377,17 @@ public class StraumrAuthService(
             parameters["scope"] = config.Scope;
         }
 
-        return await RequestTokenAsync(config.TokenUrl, parameters);
+        return await RequestTokenAsync(config.TokenUrl, parameters, cancellationToken);
     }
 
-    private async Task<OAuth2Token> RequestTokenAsync(string tokenUrl, Dictionary<string, string> parameters)
+    private async Task<OAuth2Token> RequestTokenAsync(
+        string tokenUrl,
+        Dictionary<string, string> parameters,
+        CancellationToken cancellationToken)
     {
         using FormUrlEncodedContent content = new FormUrlEncodedContent(parameters);
-        HttpResponseMessage response = await _client.PostAsync(tokenUrl, content);
-        string json = await response.Content.ReadAsStringAsync();
+        using HttpResponseMessage response = await _client.PostAsync(tokenUrl, content, cancellationToken);
+        string json = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -422,7 +425,10 @@ public class StraumrAuthService(
     }
 
     private static async Task<string> ListenForAuthorizationCodeAsync(
-        string redirectUri, string authUrl, string expectedState)
+        string redirectUri,
+        string authUrl,
+        string expectedState,
+        CancellationToken cancellationToken)
     {
         Uri uri = new Uri(redirectUri);
         string listenerPrefix = $"{uri.Scheme}://{uri.Host}:{uri.Port}/";
@@ -435,7 +441,7 @@ public class StraumrAuthService(
         {
             Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
 
-            HttpListenerContext context = await listener.GetContextAsync();
+            HttpListenerContext context = await listener.GetContextAsync().WaitAsync(cancellationToken);
             string? code = context.Request.QueryString["code"];
             string? state = context.Request.QueryString["state"];
             string? error = context.Request.QueryString["error"];
@@ -448,7 +454,7 @@ public class StraumrAuthService(
                 byte[] errorBuffer = Encoding.UTF8.GetBytes(responseHtml);
                 context.Response.ContentType = "text/html";
                 context.Response.ContentLength64 = errorBuffer.Length;
-                await context.Response.OutputStream.WriteAsync(errorBuffer);
+                await context.Response.OutputStream.WriteAsync(errorBuffer, cancellationToken);
                 context.Response.Close();
                 throw new InvalidOperationException($"Authorization failed: {error}");
             }
@@ -468,7 +474,7 @@ public class StraumrAuthService(
             byte[] buffer = Encoding.UTF8.GetBytes(responseHtml);
             context.Response.ContentType = "text/html";
             context.Response.ContentLength64 = buffer.Length;
-            await context.Response.OutputStream.WriteAsync(buffer);
+            await context.Response.OutputStream.WriteAsync(buffer, cancellationToken);
             context.Response.Close();
 
             return code;
@@ -527,36 +533,31 @@ public class StraumrAuthService(
         return builder.Uri.ToString();
     }
 
-    private async Task<(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)> LoadWorkspaceAsync(StraumrWorkspaceEntry entry)
+    private async Task<StraumrWorkspace> LoadWorkspaceAsync(
+        StraumrWorkspaceEntry entry,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspace workspace =
-            await fileService.PeekStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
-        return (entry, workspace);
+        return await fileService.PeekStraumrModelAsync(
+            entry.Path, StraumrJsonContext.Default.StraumrWorkspace, cancellationToken);
     }
 
-    private StraumrWorkspaceEntry ResolveWorkspaceEntry(StraumrWorkspaceEntry? workspace)
+    private async Task PersistWorkspaceAsync(
+        StraumrWorkspaceEntry entry,
+        StraumrWorkspace workspace,
+        CancellationToken cancellationToken = default)
     {
-        return workspace
-               ?? optionsService.Options.CurrentWorkspace
-               ?? throw new StraumrException("No workspace loaded", StraumrError.MissingEntry);
+        await fileService.WriteStraumrModelAsync(
+            entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace, cancellationToken);
     }
 
-    private async Task AddAuthToWorkspace(StraumrWorkspaceEntry entry, Guid id)
+    private async Task EnsureNoNameConflictAsync(
+        string name,
+        StraumrWorkspaceEntry entry,
+        Guid excludeId = default,
+        StraumrWorkspace? workspaceModel = null,
+        CancellationToken cancellationToken = default)
     {
-        StraumrWorkspace workspace =
-            await fileService.PeekStraumrModelAsync(entry.Path, StraumrJsonContext.Default.StraumrWorkspace);
-        workspace.Auths.Add(id);
-        await PersistWorkspaceAsync(entry, workspace);
-    }
-
-    private async Task PersistWorkspaceAsync(StraumrWorkspaceEntry entry, StraumrWorkspace workspace)
-    {
-        await fileService.WriteStraumrModelAsync(entry.Path, workspace, StraumrJsonContext.Default.StraumrWorkspace);
-    }
-
-    private async Task EnsureNoNameConflictAsync(string name, StraumrWorkspaceEntry entry, Guid excludeId = default)
-    {
-        (_, StraumrWorkspace workspace) = await LoadWorkspaceAsync(entry);
+        StraumrWorkspace workspace = workspaceModel ?? await LoadWorkspaceAsync(entry, cancellationToken);
         foreach (Guid id in workspace.Auths)
         {
             if (id == excludeId)
@@ -566,7 +567,8 @@ public class StraumrAuthService(
 
             try
             {
-                StraumrAuth auth = await PeekByIdAsync(id, entry);
+                StraumrAuth auth = await ReadByIdAsync(
+                    entry, id, updateLastAccessed: false, cancellationToken);
                 if (string.Equals(auth.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new StraumrException("An auth with this name already exists", StraumrError.EntryConflict);
@@ -582,25 +584,25 @@ public class StraumrAuthService(
         return Path.Combine(directory!, $"{id}.json");
     }
 
-    private async Task<Guid> ResolveAuthIdAsync(
-        StraumrWorkspace workspace, string identifier, StraumrWorkspaceEntry entry)
+    private async Task<StraumrAuth> ReadByIdAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        bool updateLastAccessed,
+        CancellationToken cancellationToken = default)
     {
-        if (Guid.TryParse(identifier, out Guid authId) && workspace.Auths.Contains(authId))
+        string fullPath = AuthPath(id, workspace);
+        if (!File.Exists(fullPath))
         {
-            return authId;
+            throw new StraumrException("Auth not found", StraumrError.EntryNotFound);
         }
-
-        AuthLookup lookup = await RequireAuthAsync(workspace, identifier, "No auth found", entry);
-        return lookup.Id;
-    }
-
-    private async Task<StraumrAuth> GetByIdAsync(Guid id, StraumrWorkspaceEntry entry)
-    {
-        string fullPath = AuthPath(id, entry);
 
         try
         {
-            return await fileService.PeekStraumrModelAsync(fullPath, StraumrJsonContext.Default.StraumrAuth);
+            return updateLastAccessed
+                ? await fileService.ReadStraumrModelAsync(
+                    fullPath, StraumrJsonContext.Default.StraumrAuth, cancellationToken)
+                : await fileService.PeekStraumrModelAsync(
+                    fullPath, StraumrJsonContext.Default.StraumrAuth, cancellationToken);
         }
         catch (JsonException jex)
         {
@@ -608,19 +610,19 @@ public class StraumrAuthService(
         }
     }
 
-    private async Task<AuthLookup?> LookupAuthAsync(StraumrWorkspace workspace, string identifier, StraumrWorkspaceEntry entry)
+    private async Task<AuthLookup?> LookupAuthAsync(
+        StraumrWorkspace workspace,
+        string name,
+        StraumrWorkspaceEntry entry,
+        CancellationToken cancellationToken)
     {
-        if (Guid.TryParse(identifier, out Guid authId) && workspace.Auths.Contains(authId))
-        {
-            return new AuthLookup(authId, null);
-        }
-
         foreach (Guid id in workspace.Auths)
         {
             try
             {
-                StraumrAuth auth = await PeekByIdAsync(id, entry);
-                if (auth.Name == identifier)
+                StraumrAuth auth = await ReadByIdAsync(
+                    entry, id, updateLastAccessed: false, cancellationToken);
+                if (string.Equals(auth.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     return new AuthLookup(id, auth);
                 }
@@ -632,9 +634,10 @@ public class StraumrAuthService(
     }
 
     private async Task<AuthLookup> RequireAuthAsync(
-        StraumrWorkspace workspace, string identifier, string errorMessage, StraumrWorkspaceEntry entry)
+        StraumrWorkspace workspace, string name, string errorMessage, StraumrWorkspaceEntry entry,
+        CancellationToken cancellationToken)
     {
-        AuthLookup? lookup = await LookupAuthAsync(workspace, identifier, entry);
+        AuthLookup? lookup = await LookupAuthAsync(workspace, name, entry, cancellationToken);
         if (lookup.HasValue)
         {
             return lookup.Value;
@@ -643,10 +646,21 @@ public class StraumrAuthService(
         throw new StraumrException(errorMessage, StraumrError.EntryNotFound);
     }
 
-    private async Task<StraumrAuth> ResolveAuthAsync(AuthLookup lookup, StraumrWorkspaceEntry entry)
+    private async Task<StraumrAuth> ResolveAuthAsync(
+        AuthLookup lookup,
+        StraumrWorkspaceEntry workspace,
+        bool updateLastAccessed,
+        CancellationToken cancellationToken)
     {
-        return lookup.Auth ?? await GetByIdAsync(lookup.Id, entry);
+        if (updateLastAccessed)
+        {
+            await fileService.StampAccessAsync(
+                AuthPath(lookup.Id, workspace), lookup.Auth,
+                StraumrJsonContext.Default.StraumrAuth, cancellationToken);
+        }
+
+        return lookup.Auth;
     }
 
-    private readonly record struct AuthLookup(Guid Id, StraumrAuth? Auth);
+    private readonly record struct AuthLookup(Guid Id, StraumrAuth Auth);
 }

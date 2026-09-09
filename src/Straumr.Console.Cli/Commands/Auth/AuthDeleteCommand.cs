@@ -25,7 +25,7 @@ public class AuthDeleteCommand(
         if (settings.Workspace is not null)
         {
             StraumrWorkspaceEntry? resolved =
-                await ResolveWorkspaceEntryAsync(settings.Workspace, optionsService, workspaceService);
+                await ResolveWorkspaceEntryAsync(settings.Workspace, workspaceService);
             if (resolved is null)
             {
                 WriteError($"Workspace not found: {settings.Workspace}", settings.Json);
@@ -43,13 +43,22 @@ public class AuthDeleteCommand(
 
         try
         {
-            await authService.DeleteAsync(settings.Identifier, workspaceEntry);
-            if (!settings.Json)
+            if (Guid.TryParse(settings.Identifier, out Guid id))
             {
-                AnsiConsole.MarkupLine($"[green]Deleted auth[/] [bold]{settings.Identifier}[/]");
+                try
+                {
+                    await authService.DeleteAsync(workspaceEntry, id, cancellation);
+                    return Success(settings);
+                }
+                catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
+                {
+                }
             }
 
-            return 0;
+            StraumrAuth auth = await authService.GetAsync(
+                workspaceEntry, settings.Identifier, cancellationToken: cancellation);
+            await authService.DeleteAsync(workspaceEntry, auth.Id, cancellation);
+            return Success(settings);
         }
         catch (StraumrException ex)
         {
@@ -61,6 +70,16 @@ public class AuthDeleteCommand(
             WriteError(ex.Message, settings.Json);
             return -1;
         }
+    }
+
+    private static int Success(Settings settings)
+    {
+        if (!settings.Json)
+        {
+            AnsiConsole.MarkupLine($"[green]Deleted auth[/] [bold]{settings.Identifier}[/]");
+        }
+
+        return 0;
     }
 
     public sealed class Settings : CommandSettings

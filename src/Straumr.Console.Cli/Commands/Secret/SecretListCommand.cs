@@ -94,7 +94,7 @@ public class SecretListCommand(
         StraumrSecret? secret = null;
         try
         {
-            secret = await secretService.PeekByIdAsync(secretId);
+            secret = await secretService.GetAsync(secretId);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)
