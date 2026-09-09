@@ -12,8 +12,8 @@ namespace Straumr.Console.Cli.Commands.Autocomplete;
 
 public class AutocompleteInstallCommand : AsyncCommand<AutocompleteInstallCommand.Settings>
 {
-    private const string BeginMarker = "# Straumr autocomplete - DO NOT REMOVE (used to detect existing installation)";
-    private const string EndMarker = "# End of Straumr autocomplete - DO NOT REMOVE";
+    private const string BeginMarker = "# Straumr autocomplete - DO NOT REMOVE OR ALTER COMMENT (used to detect existing installation)";
+    private const string EndMarker = "# End of Straumr autocomplete - DO NOT REMOVE OR ALTER COMMENT";
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellationToken)

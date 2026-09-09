@@ -31,8 +31,8 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     private CommandApp? _commandApp;
     private StraumrTypeRegistrar? _typeRegistrar;
 
-    public string Name => "cli";
-    public IReadOnlyCollection<string> Aliases { get; } = ["console"];
+    public string Name => CompletionCatalog.Cli;
+    public IReadOnlyCollection<string> Aliases { get; } = [CompletionCatalog.Console];
     public IReadOnlyCollection<string> Commands => EnsureRegistry();
     public bool IsDefault => false;
     public bool OnlyRunOnEntrypoint => false;
@@ -126,132 +126,132 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
         return await _commandApp.RunAsync(args, cancellationToken);
     }
-    
+
     private void ConfigureCommands(IConfigurator config)
     {
         config.SetApplicationName("Straumr");
 
-        config.AddStraumrBranch(_registry, "list", list =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.List, list =>
         {
-            list.AddCommand<WorkspaceListCommand>("workspace");
-            list.AddCommand<WorkspaceListCommand>("ws");
+            list.AddCommand<WorkspaceListCommand>(CompletionCatalog.Workspace);
+            list.AddCommand<WorkspaceListCommand>(CompletionCatalog.WorkspaceAlias);
 
-            list.AddCommand<RequestListCommand>("request");
-            list.AddCommand<RequestListCommand>("rq");
+            list.AddCommand<RequestListCommand>(CompletionCatalog.Request);
+            list.AddCommand<RequestListCommand>(CompletionCatalog.RequestAlias);
 
-            list.AddCommand<AuthListCommand>("auth");
-            list.AddCommand<AuthListCommand>("au");
+            list.AddCommand<AuthListCommand>(CompletionCatalog.Auth);
+            list.AddCommand<AuthListCommand>(CompletionCatalog.AuthAlias);
 
-            list.AddCommand<SecretListCommand>("secret");
-            list.AddCommand<SecretListCommand>("sc");
+            list.AddCommand<SecretListCommand>(CompletionCatalog.Secret);
+            list.AddCommand<SecretListCommand>(CompletionCatalog.SecretAlias);
         });
 
-        config.AddStraumrBranch(_registry, "create", create =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Create, create =>
         {
-            create.AddCommand<WorkspaceCreateCommand>("workspace");
-            create.AddCommand<WorkspaceCreateCommand>("ws");
+            create.AddCommand<WorkspaceCreateCommand>(CompletionCatalog.Workspace);
+            create.AddCommand<WorkspaceCreateCommand>(CompletionCatalog.WorkspaceAlias);
 
-            create.AddCommand<RequestCreateCommand>("request");
-            create.AddCommand<RequestCreateCommand>("rq");
+            create.AddCommand<RequestCreateCommand>(CompletionCatalog.Request);
+            create.AddCommand<RequestCreateCommand>(CompletionCatalog.RequestAlias);
 
-            create.AddCommand<AuthCreateCommand>("auth");
-            create.AddCommand<AuthCreateCommand>("au");
+            create.AddCommand<AuthCreateCommand>(CompletionCatalog.Auth);
+            create.AddCommand<AuthCreateCommand>(CompletionCatalog.AuthAlias);
 
-            create.AddCommand<SecretCreateCommand>("secret");
-            create.AddCommand<SecretCreateCommand>("sc");
+            create.AddCommand<SecretCreateCommand>(CompletionCatalog.Secret);
+            create.AddCommand<SecretCreateCommand>(CompletionCatalog.SecretAlias);
         });
 
-        config.AddStraumrBranch(_registry, "delete", delete =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Delete, delete =>
         {
-            delete.AddCommand<WorkspaceDeleteCommand>("workspace");
-            delete.AddCommand<WorkspaceDeleteCommand>("ws");
+            delete.AddCommand<WorkspaceDeleteCommand>(CompletionCatalog.Workspace);
+            delete.AddCommand<WorkspaceDeleteCommand>(CompletionCatalog.WorkspaceAlias);
 
-            delete.AddCommand<RequestDeleteCommand>("request");
-            delete.AddCommand<RequestDeleteCommand>("rq");
+            delete.AddCommand<RequestDeleteCommand>(CompletionCatalog.Request);
+            delete.AddCommand<RequestDeleteCommand>(CompletionCatalog.RequestAlias);
 
-            delete.AddCommand<AuthDeleteCommand>("auth");
-            delete.AddCommand<AuthDeleteCommand>("au");
+            delete.AddCommand<AuthDeleteCommand>(CompletionCatalog.Auth);
+            delete.AddCommand<AuthDeleteCommand>(CompletionCatalog.AuthAlias);
 
-            delete.AddCommand<SecretDeleteCommand>("secret");
-            delete.AddCommand<SecretDeleteCommand>("sc");
+            delete.AddCommand<SecretDeleteCommand>(CompletionCatalog.Secret);
+            delete.AddCommand<SecretDeleteCommand>(CompletionCatalog.SecretAlias);
         });
 
-        config.AddStraumrBranch(_registry, "edit", edit =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Edit, edit =>
         {
-            edit.AddCommand<WorkspaceEditCommand>("workspace");
-            edit.AddCommand<WorkspaceEditCommand>("ws");
+            edit.AddCommand<WorkspaceEditCommand>(CompletionCatalog.Workspace);
+            edit.AddCommand<WorkspaceEditCommand>(CompletionCatalog.WorkspaceAlias);
 
-            edit.AddCommand<RequestEditCommand>("request");
-            edit.AddCommand<RequestEditCommand>("rq");
+            edit.AddCommand<RequestEditCommand>(CompletionCatalog.Request);
+            edit.AddCommand<RequestEditCommand>(CompletionCatalog.RequestAlias);
 
-            edit.AddCommand<AuthEditCommand>("auth");
-            edit.AddCommand<AuthEditCommand>("au");
+            edit.AddCommand<AuthEditCommand>(CompletionCatalog.Auth);
+            edit.AddCommand<AuthEditCommand>(CompletionCatalog.AuthAlias);
 
-            edit.AddCommand<SecretEditCommand>("secret");
-            edit.AddCommand<SecretEditCommand>("sc");
+            edit.AddCommand<SecretEditCommand>(CompletionCatalog.Secret);
+            edit.AddCommand<SecretEditCommand>(CompletionCatalog.SecretAlias);
         });
 
-        config.AddStraumrBranch(_registry, "get", get =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Get, get =>
         {
-            get.AddCommand<WorkspaceGetCommand>("workspace");
-            get.AddCommand<WorkspaceGetCommand>("ws");
+            get.AddCommand<WorkspaceGetCommand>(CompletionCatalog.Workspace);
+            get.AddCommand<WorkspaceGetCommand>(CompletionCatalog.WorkspaceAlias);
 
-            get.AddCommand<RequestGetCommand>("request");
-            get.AddCommand<RequestGetCommand>("rq");
+            get.AddCommand<RequestGetCommand>(CompletionCatalog.Request);
+            get.AddCommand<RequestGetCommand>(CompletionCatalog.RequestAlias);
 
-            get.AddCommand<AuthGetCommand>("auth");
-            get.AddCommand<AuthGetCommand>("au");
+            get.AddCommand<AuthGetCommand>(CompletionCatalog.Auth);
+            get.AddCommand<AuthGetCommand>(CompletionCatalog.AuthAlias);
 
-            get.AddCommand<SecretGetCommand>("secret");
-            get.AddCommand<SecretGetCommand>("sc");
+            get.AddCommand<SecretGetCommand>(CompletionCatalog.Secret);
+            get.AddCommand<SecretGetCommand>(CompletionCatalog.SecretAlias);
         });
 
-        config.AddStraumrBranch(_registry, "use", use =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Use, use =>
         {
-            use.AddCommand<WorkspaceActivateCommand>("workspace");
-            use.AddCommand<WorkspaceActivateCommand>("ws");
+            use.AddCommand<WorkspaceActivateCommand>(CompletionCatalog.Workspace);
+            use.AddCommand<WorkspaceActivateCommand>(CompletionCatalog.WorkspaceAlias);
         });
 
-        config.AddStraumrBranch(_registry, "copy", copy =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Copy, copy =>
         {
-            copy.AddCommand<WorkspaceCopyCommand>("workspace");
-            copy.AddCommand<WorkspaceCopyCommand>("ws");
+            copy.AddCommand<WorkspaceCopyCommand>(CompletionCatalog.Workspace);
+            copy.AddCommand<WorkspaceCopyCommand>(CompletionCatalog.WorkspaceAlias);
 
-            copy.AddCommand<RequestCopyCommand>("request");
-            copy.AddCommand<RequestCopyCommand>("rq");
+            copy.AddCommand<RequestCopyCommand>(CompletionCatalog.Request);
+            copy.AddCommand<RequestCopyCommand>(CompletionCatalog.RequestAlias);
 
-            copy.AddCommand<AuthCopyCommand>("auth");
-            copy.AddCommand<AuthCopyCommand>("au");
+            copy.AddCommand<AuthCopyCommand>(CompletionCatalog.Auth);
+            copy.AddCommand<AuthCopyCommand>(CompletionCatalog.AuthAlias);
 
-            copy.AddCommand<SecretCopyCommand>("secret");
-            copy.AddCommand<SecretCopyCommand>("sc");
+            copy.AddCommand<SecretCopyCommand>(CompletionCatalog.Secret);
+            copy.AddCommand<SecretCopyCommand>(CompletionCatalog.SecretAlias);
         });
 
-        config.AddStraumrBranch(_registry, "import", import =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Import, import =>
         {
-            import.AddCommand<WorkspaceImportCommand>("workspace");
-            import.AddCommand<WorkspaceImportCommand>("ws");
+            import.AddCommand<WorkspaceImportCommand>(CompletionCatalog.Workspace);
+            import.AddCommand<WorkspaceImportCommand>(CompletionCatalog.WorkspaceAlias);
         });
 
-        config.AddStraumrBranch(_registry, "export", export =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Export, export =>
         {
-            export.AddCommand<WorkspaceExportCommand>("workspace");
-            export.AddCommand<WorkspaceExportCommand>("ws");
+            export.AddCommand<WorkspaceExportCommand>(CompletionCatalog.Workspace);
+            export.AddCommand<WorkspaceExportCommand>(CompletionCatalog.WorkspaceAlias);
         });
 
-        config.AddStraumrBranch(_registry, "config", cfg =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Config, cfg =>
         {
-            cfg.AddCommand<ConfigWorkspacePathCommand>("workspace-path");
+            cfg.AddCommand<ConfigWorkspacePathCommand>(CompletionCatalog.WorkspacePath);
         });
 
-        config.AddStraumrBranch(_registry, "autocomplete", autocomplete =>
+        config.AddStraumrBranch(_registry, CompletionCatalog.Autocomplete, autocomplete =>
         {
-            autocomplete.AddCommand<AutocompleteInstallCommand>("install");
-            autocomplete.AddCommand<AutocompleteQueryCommand>("query").IsHidden();
+            autocomplete.AddCommand<AutocompleteInstallCommand>(CompletionCatalog.Install);
+            autocomplete.AddCommand<AutocompleteQueryCommand>(CompletionCatalog.Query).IsHidden();
         });
 
-        config.AddStraumrCommand<RequestSendCommand>(_registry, "send");
-        config.AddStraumrCommand<AboutCommand>(_registry, "about");
+        config.AddStraumrCommand<RequestSendCommand>(_registry, CompletionCatalog.Send);
+        config.AddStraumrCommand<AboutCommand>(_registry, CompletionCatalog.About);
     }
 }
 

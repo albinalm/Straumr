@@ -243,12 +243,13 @@ Import validation rules:
 
 ## Autocomplete Data Sources
 
-The hidden autocomplete query command derives suggestions from live stored state:
+The hidden autocomplete query command derives suggestions from command metadata and live stored state:
 
-- top-level verbs from static lists
-- nouns from static verb-to-noun maps
+- top-level verbs and nouns from the same catalog used to register CLI commands
 - workspace names and IDs from the options registry
 - request/auth names and IDs from the current workspace
 - secret names and IDs from the global secrets registry
 
-Completion only works for request and auth identifiers when a current workspace is set.
+Static suggestions bypass normal CLI startup and do not access storage. Dynamic suggestions use each
+service's bulk list operation, so the workspace index is read once rather than once per candidate.
+Results are deduplicated and sorted. Request and auth identifiers require a current workspace.

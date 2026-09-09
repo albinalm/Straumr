@@ -4,6 +4,7 @@ $_straumrCompleter = {
     $query = ($commandAst.ToString() -replace "^$([regex]::Escape($cmdName))\s*", '')
     if ($commandAst.ToString().EndsWith(' ')) { $query = "$query " }
     straumr autocomplete query $query 2>$null | ForEach-Object {
-        [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        $completionText = if ($_ -match '\s') { "'$($_ -replace "'", "''")'" } else { $_ }
+        [System.Management.Automation.CompletionResult]::new($completionText, $_, 'ParameterValue', $_)
     }
 }

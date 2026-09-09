@@ -464,3 +464,4 @@ Notes:
 - reinstall updates the existing Straumr block in place
 - hidden command `autocomplete query` powers the completion scripts
 - completion prefers full command nouns; aliases are recognized for command execution, but completion data is centered on the canonical verbs and nouns
+- names containing spaces are quoted or escaped by the shell integration

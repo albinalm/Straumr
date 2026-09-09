@@ -28,7 +28,15 @@ public class StraumrAuthService(
         foreach (Guid id in workspaceModel.Auths)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            auths.Add(await ReadByIdAsync(workspace, id, updateLastAccessed: false, cancellationToken));
+            try
+            {
+                auths.Add(await ReadByIdAsync(
+                    workspace, id, updateLastAccessed: false, cancellationToken));
+            }
+            catch (StraumrException exception) when (
+                exception.Reason is StraumrError.EntryNotFound or StraumrError.CorruptEntry)
+            {
+            }
         }
 
         return auths;
