@@ -39,6 +39,7 @@ public sealed partial class WorkspaceList : Visual, IScrollable
         _items = _workspaces.Select(BuildItem).ToArray();
         _scroll = new ScrollModel(this);
         SelectedIndex = _workspaces.Count == 0 ? -1 : 0;
+        HoveredIndex = -1;
 
         foreach (Visual item in _items)
             AttachChild(item);
@@ -52,6 +53,10 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     [Bindable]
     public partial int SelectedIndex { get; set; }
+
+    /// <summary>Index of the item under the pointer, or -1 when the pointer is elsewhere.</summary>
+    [Bindable]
+    public partial int HoveredIndex { get; set; }
 
     protected override int ChildrenCount => _items.Count;
 
@@ -110,21 +115,34 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     protected override void RenderOverride(CellBuffer buffer)
     {
+        if (HoveredIndex >= 0 && HoveredIndex != SelectedIndex)
+            PaintBand(buffer, HoveredIndex, StraumrStyles.HoveredItem, null);
+
         if (SelectedIndex < 0)
             return;
 
+        PaintBand(
+            buffer,
+            SelectedIndex,
+            HasFocus ? StraumrStyles.SelectedItem : StraumrStyles.SelectedItemInactive,
+            HasFocus ? StraumrStyles.SelectionMarker : StraumrStyles.SelectionMarkerInactive);
+    }
+
+    private void PaintBand(CellBuffer buffer, int index, Style band, Style? marker)
+    {
         Rectangle bounds = Bounds;
         int bandLeft = bounds.X + PanelInset;
         int bandRight = Math.Max(bandLeft, bounds.Right - PanelInset);
-        int top = bounds.Y + SelectedIndex * ItemStride - _scroll.OffsetY;
+        int top = bounds.Y + index * ItemStride - _scroll.OffsetY;
         int bottom = top + ItemHeight;
 
         for (int y = Math.Max(top, bounds.Y); y < Math.Min(bottom, bounds.Bottom); y++)
         {
             for (int x = bandLeft; x < bandRight; x++)
-                buffer.SetCell(x, y, Blank, StraumrStyles.SelectedItem);
+                buffer.SetCell(x, y, Blank, band);
 
-            buffer.SetCell(bandLeft, y, SelectionBar, StraumrStyles.SelectionMarker);
+            if (marker is not null)
+                buffer.SetCell(bandLeft, y, SelectionBar, marker.Value);
         }
     }
 
@@ -157,14 +175,33 @@ public sealed partial class WorkspaceList : Visual, IScrollable
         if (e.Button != TerminalMouseButton.Left)
             return;
 
-        int row = e.UiY - Bounds.Y + _scroll.OffsetY;
-        int index = row / ItemStride;
-
-        if ((uint)index >= (uint)_workspaces.Count || row % ItemStride >= ItemHeight)
+        int index = IndexAt(e.UiY);
+        if (index < 0)
             return;
 
         SelectedIndex = index;
         e.Handled = true;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e) => HoveredIndex = IndexAt(e.UiY);
+
+    protected override void OnHoveredChanged(bool isHovered)
+    {
+        if (!isHovered)
+            HoveredIndex = -1;
+    }
+
+    /// <summary>Returns the item index under a UI row, or -1 for the gap between items.</summary>
+    private int IndexAt(int uiY)
+    {
+        int row = uiY - Bounds.Y + _scroll.OffsetY;
+        if (row < 0)
+            return -1;
+
+        int index = row / ItemStride;
+        return (uint)index < (uint)_workspaces.Count && row % ItemStride < ItemHeight
+            ? index
+            : -1;
     }
 
     protected override void OnPointerWheel(PointerEventArgs e)
@@ -200,24 +237,52 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     partial void OnSelectedIndexChanged(int value) => EnsureSelectedVisible();
 
+    partial void OnHoveredIndexChanging(ref int value)
+    {
+        if (value < 0 || value >= _workspaces.Count)
+            value = -1;
+    }
+
     private int ContentHeight =>
         _items.Count == 0
             ? 0
             : _items.Count * ItemStride - ItemSpacing;
 
-    private static Visual BuildItem(WorkspaceScreenItem item) =>
-        new VStack(
-                Line(item.Workspace.Name, StraumrStyles.PrimaryText, TextTrimming.EndEllipsis),
+    /// <summary>
+    /// Row styles are resolved per frame from <see cref="SelectedIndex"/> so the selected row reads
+    /// brighter against the selection band, and so a workspace holding nothing reads as inert.
+    /// </summary>
+    private Visual BuildItem(WorkspaceScreenItem item, int index)
+    {
+        bool hasContent = item.Workspace.Requests.Count > 0 || item.Workspace.Auths.Count > 0;
+
+        return new VStack(
+                Line(
+                    item.Workspace.Name,
+                    () => index == SelectedIndex
+                        ? StraumrStyles.BrightText
+                        : StraumrStyles.PrimaryText,
+                    TextTrimming.EndEllipsis),
                 Line(
                     $"{CountLabel(item.Workspace.Requests.Count, "request")} · {CountLabel(item.Workspace.Auths.Count, "auth")}",
-                    StraumrStyles.YellowText,
+                    () => hasContent
+                        ? StraumrStyles.AmberText
+                        : index == SelectedIndex
+                            ? StraumrStyles.MutedBrightText
+                            : StraumrStyles.MutedText,
                     TextTrimming.EndEllipsis),
-                Line(item.DisplayDirectory, StraumrStyles.MutedText, TextTrimming.StartEllipsis))
+                Line(
+                    item.DisplayDirectory,
+                    () => index == SelectedIndex
+                        ? StraumrStyles.MutedBrightText
+                        : StraumrStyles.MutedText,
+                    TextTrimming.StartEllipsis))
             .HorizontalAlignment(Align.Stretch);
+    }
 
     private static TextBlock Line(
         string text,
-        XenoAtom.Terminal.UI.Styling.TextBlockStyle style,
+        Func<XenoAtom.Terminal.UI.Styling.TextBlockStyle> style,
         TextTrimming trimming) =>
         new TextBlock(text)
             .Style(style)

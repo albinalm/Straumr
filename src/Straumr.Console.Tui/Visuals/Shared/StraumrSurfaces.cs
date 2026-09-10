@@ -6,17 +6,12 @@ using XenoAtom.Terminal.UI.Geometry;
 namespace Straumr.Console.Tui.Visuals.Shared;
 
 /// <summary>
-/// Background washes and dividers used to build the rule-separated shell. The framework has no
-/// vertical rule control and no per-visual background, so both are painted through <see cref="Canvas"/>.
+/// Dividers and insets used to build the rule-separated shell. The framework has no vertical rule
+/// control, so the column divider is painted through a <see cref="Canvas"/> painter.
 /// </summary>
 internal static class StraumrSurfaces
 {
-    private static readonly Rune Space = new(' ');
     private static readonly Rune VerticalLine = new('│');
-
-    public static Visual Panel(Visual content) => Wash(StraumrStyles.Panel, content);
-
-    public static Visual PanelAlt(Visual content) => Wash(StraumrStyles.PanelAlt, content);
 
     /// <summary>
     /// A full-height column divider. <paramref name="junctions"/> replaces the line glyph on the rows
@@ -47,6 +42,14 @@ internal static class StraumrSurfaces
         return rule;
     }
 
+    /// <summary>A divider carrying a section title on the line itself.</summary>
+    public static Rule TitledDivider(string title)
+    {
+        Rule rule = HorizontalDivider();
+        rule.StartLabel = new TextBlock(title).Style(StraumrStyles.AccentText);
+        return rule;
+    }
+
     /// <summary>
     /// A single-row bar with left- and right-aligned content. <see cref="Header"/> is not used because
     /// it forces bold slots and its own surface color.
@@ -67,21 +70,4 @@ internal static class StraumrSurfaces
             .Padding(padding)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
-
-    private static Visual Wash(Color background, Visual content)
-    {
-        var fill = new Canvas(context => context.FillRect(
-            0,
-            0,
-            context.Size.Width,
-            context.Size.Height,
-            Space,
-            Style.None.WithBackground(background)));
-        fill.HorizontalAlignment = Align.Stretch;
-        fill.VerticalAlignment = Align.Stretch;
-
-        return new ZStack(fill, content)
-            .HorizontalAlignment(Align.Stretch)
-            .VerticalAlignment(Align.Stretch);
-    }
 }

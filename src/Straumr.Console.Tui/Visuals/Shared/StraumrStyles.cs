@@ -7,23 +7,34 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 internal static class StraumrStyles
 {
     /// <summary>
-    /// The mockup's surfaces sit near hue 202, which reads as teal in a terminal. The ramp below keeps
-    /// the mockup's surface relationships and contrast but rotates them to hue 222 for a deeper blue.
+    /// The mockup's surfaces sit near hue 202, which reads as teal in a terminal; this ramp rotates to
+    /// hue 222 for a deeper blue and carries higher chroma on the foregrounds so the screen reads as
+    /// live rather than flat. Every pairing below stays at or above 4.5:1 for text and 3:1 for glyphs.
     /// </summary>
-    public static readonly Color Background = Hex(0x0F1420);
+    /// <remarks>
+    /// The whole app shares one background. Regions are told apart by dividers alone, so there is no
+    /// panel tint to step against, and the dark ground is what makes the accents carry.
+    /// </remarks>
+    public static readonly Color Background = Hex(0x090D15);
 
-    public static readonly Color Panel = Hex(0x151C2C);
-    public static readonly Color PanelAlt = Hex(0x0B0F19);
-    public static readonly Color Selection = Hex(0x22315E);
-    public static readonly Color Border = Hex(0x2B3654);
-    public static readonly Color BorderStrong = Hex(0x46567D);
+    /// <summary>The only surface raised above the background, used by an identifier badge.</summary>
+    public static readonly Color Raised = Hex(0x1B2438);
+    public static readonly Color Selection = Hex(0x21418F);
+    public static readonly Color SelectionInactive = Hex(0x2C3D68);
+    public static readonly Color Hover = Hex(0x151E33);
+    public static readonly Color Border = Hex(0x364670);
+
+    /// <summary>Scroll bar chrome, kept below the dividers so it never competes with content.</summary>
+    public static readonly Color ScrollTrack = Hex(0x1E2740);
+    public static readonly Color ScrollThumb = Hex(0x43567E);
     public static readonly Color Text = Hex(0xD9E0F0);
-    public static readonly Color Muted = Hex(0x8B95AD);
-    public static readonly Color Accent = Hex(0x5C9CFF);
-    public static readonly Color Yellow = Hex(0xE8C36B);
-
-    /// <summary>The mockup renders the active-workspace label at 76% opacity over the shell background.</summary>
-    public static readonly Color GreenSubdued = Hex(0x5BA685);
+    public static readonly Color TextBright = Hex(0xEFF4FF);
+    public static readonly Color Muted = Hex(0x8FA0C4);
+    public static readonly Color MutedBright = Hex(0xB9C6E0);
+    public static readonly Color Accent = Hex(0x3B9EFF);
+    public static readonly Color AccentDim = Hex(0x6485B8);
+    public static readonly Color Amber = Hex(0xFFC857);
+    public static readonly Color Green = Hex(0x3DDC97);
 
     public static readonly TextBlockStyle PrimaryText =
         TextBlockStyle.Default with
@@ -35,14 +46,41 @@ internal static class StraumrStyles
     public static readonly TextBlockStyle MutedText =
         PrimaryText with { Foreground = Muted };
 
+    public static readonly TextBlockStyle BrightText =
+        PrimaryText with { Foreground = TextBright };
+
+    public static readonly TextBlockStyle MutedBrightText =
+        PrimaryText with { Foreground = MutedBright };
+
     public static readonly TextBlockStyle AccentText =
         PrimaryText with { Foreground = Accent };
 
     public static readonly TextBlockStyle GreenText =
-        PrimaryText with { Foreground = GreenSubdued };
+        PrimaryText with { Foreground = Green };
 
-    public static readonly TextBlockStyle YellowText =
-        PrimaryText with { Foreground = Yellow };
+    public static readonly TextBlockStyle AccentDimText =
+        PrimaryText with { Foreground = AccentDim };
+
+    /// <summary>A filled badge for a quantity.</summary>
+    public static readonly TextBlockStyle AccentChip =
+        PrimaryText with
+        {
+            Foreground = TextBright,
+            Background = Selection,
+            FillBackground = true
+        };
+
+    /// <summary>A raised badge for a technical identifier.</summary>
+    public static readonly TextBlockStyle TokenChip =
+        PrimaryText with
+        {
+            Foreground = MutedBright,
+            Background = Raised,
+            FillBackground = true
+        };
+
+    public static readonly TextBlockStyle AmberText =
+        PrimaryText with { Foreground = Amber };
 
     public static readonly CommandBarStyle CommandBar =
         CommandBarStyle.Default with
@@ -66,8 +104,8 @@ internal static class StraumrStyles
 
     public static readonly ScrollViewerStyle ListScrollViewer = ScrollViewerStyle.Default with
     {
-        TrackStyle = Style.None.WithForeground(Border).WithBackground(PanelAlt),
-        ThumbStyle = Style.None.WithForeground(BorderStrong).WithBackground(PanelAlt)
+        TrackStyle = Style.None.WithForeground(ScrollTrack).WithBackground(Background),
+        ThumbStyle = Style.None.WithForeground(ScrollThumb).WithBackground(Background)
     };
 
     public static readonly RuleStyle Divider = RuleStyle.Default with
@@ -78,12 +116,24 @@ internal static class StraumrStyles
     public static readonly Style DividerCell = Style.None.WithForeground(Border);
 
     public static readonly Style SelectedItem = Style.None
-        .WithForeground(Text)
+        .WithForeground(TextBright)
         .WithBackground(Selection);
+
+    public static readonly Style SelectedItemInactive = Style.None
+        .WithForeground(Text)
+        .WithBackground(SelectionInactive);
 
     public static readonly Style SelectionMarker = Style.None
         .WithForeground(Accent)
         .WithBackground(Selection);
+
+    public static readonly Style SelectionMarkerInactive = Style.None
+        .WithForeground(Muted)
+        .WithBackground(SelectionInactive);
+
+    public static readonly Style HoveredItem = Style.None
+        .WithForeground(Text)
+        .WithBackground(Hover);
 
     private static Color Hex(uint rgb) =>
         Color.Rgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);

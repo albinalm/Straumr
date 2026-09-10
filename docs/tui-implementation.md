@@ -57,8 +57,21 @@ theme styles that produce the same structure.
 Shared screen shell:
 
 - A single window frame encloses the whole screen. Regions inside it are
-  separated by one-cell rules and distinguished by surface tint, not by nested
-  boxes with gaps between them.
+  separated by one-cell rules, not by nested boxes with gaps between them.
+- The whole app shares one background. Regions are told apart by dividers alone.
+  Panel tints were tried twice and removed both times: a wide step made a boundary
+  read as clipped, and a narrow one was not worth the seam it still produced.
+- The background is dark enough that the accents carry it. A badge is the only
+  surface allowed to sit above it, and scroll bar chrome is kept below the
+  dividers so it never competes with content.
+- A single line of text only reads as vertically centred in an odd-height band, so
+  a bar is one row or three, never two. Choose by what closes the bar: the screen
+  header is bounded by the window frame above and a plain rule below, so one row is
+  centred and compact; the list heading and detail summary are closed by the rule
+  that carries the section labels, so they take three rows and keep a blank row on
+  each side, or their text crowds the labels on that rule.
+- Both content bars must stay the same height for their rules to meet the column
+  divider at a single crossing.
 - Header left: `{straumr} {screen}`.
 - Header right: `active workspace {name}` in a subdued success color.
 - Header content uses normal-weight text with horizontal and vertical breathing
@@ -67,10 +80,20 @@ Shared screen shell:
   right, separated by a column divider that carries the correct junction glyph
   wherever a rule meets it.
 - Detail content begins with a summary spanning both detail columns, closed by a
-  rule that aligns with the last rule of the list panel; the two sections beneath
-  it are separated by a column divider and titled in place.
+  rule that aligns with the first rule of the list panel; the two sections beneath
+  it are separated by a column divider and titled on that rule itself, one label
+  per section column. The labels appear only when a resource is selected.
 - Every value that can outgrow its region is trimmed with an ellipsis or wrapped.
   Nothing is hard-clipped mid-word.
+- Colour carries meaning rather than decoration. A populated count is amber and an
+  empty one is inert; the selected row lifts to the bright foregrounds; the active
+  workspace is the only green on screen.
+- The shell responds to focus and pointer. A list owns three row levels, distinct
+  from each other: hover is the faintest, a selected row in an unfocused list is
+  stronger and drops its accent marker to a neutral one, and a selected row in a
+  focused list is the vivid band. A panel heading dims while focus is elsewhere.
+- Quantities may use a filled accent badge and identifiers a recessed badge. These
+  are the only filled surfaces; do not spread them further.
 - Footer: context-aware shortcuts.
 - `:` opens the command prompt.
 - `Escape`, submission, or loss of focus closes and clears the command prompt.
@@ -107,6 +130,9 @@ Approved references:
   shared palette except for semantic mappings such as HTTP methods.
 - Style every framework control that paints chrome of its own. `ScrollViewer`
   defaults to a bright grey track and thumb that does not belong to the palette.
+- `Visual.Invalidate` is obsolete. Drive every visual state change through a
+  `[Bindable]` partial property so the app invalidates on its own; the framework's
+  own `TreeView.HoveredIndex` is the pattern for pointer state.
 - `Theme` is immutable and can only be built by `Theme.FromScheme` from a
   16-color `ColorScheme`, so the palette is applied per control style rather than
   through the theme. Unstyled filler cells therefore keep the framework theme's
@@ -115,9 +141,10 @@ Approved references:
   explicitly until then.
 - Introduce a custom `Visual` only after confirming that composition, templating,
   or styling cannot express the requirement.
-- Version 3.9.0 has no vertical rule control and no per-visual background, so
-  surface tints and column dividers are painted through `Canvas` painters in
-  `Visuals/Shared/StraumrSurfaces.cs` rather than through a new `Visual`.
+- Version 3.9.0 has no vertical rule control, so the column divider is painted
+  through a `Canvas` painter in `Visuals/Shared/StraumrSurfaces.cs` rather than
+  through a new `Visual`. There is no per-visual background either, which is a
+  second reason to keep one background for the whole app.
 - Do not use `Header` for the screen bars. It forces bold slot text and its own
   surface color, which the approved layouts do not use. `StraumrSurfaces.Bar`
   composes the same left/right arrangement from a `Grid`.
@@ -210,13 +237,16 @@ Header:
 
 Left pane:
 
-- title `Workspaces` and total count, closed by a rule
+- title `Workspaces` and a filled count badge, padded above and below, closed by a
+  rule that aligns with the detail summary rule
 - filter affordance row, closed by a rule
 - one multiline item per workspace
 - workspace name, trimmed with a trailing ellipsis
-- request and auth counts
+- request and auth counts, amber when the workspace holds anything and inert when
+  it holds nothing
 - workspace directory, trimmed with a leading ellipsis so the tail stays visible
-- selection band spanning the panel inset with a leading accent bar
+- selection band spanning the panel inset with a leading accent bar; the selected
+  row resolves to the bright foregrounds
 
 Detail header:
 
@@ -265,6 +295,8 @@ may persist changes through the appropriate Core service.
 
 ### Interaction
 
+- The row under the pointer shows a hover band; the selection band and its marker
+  desaturate while the list does not hold focus.
 - Arrow keys and pointer behavior come from `ListBox<T>`.
 - `j` and `k` move the workspace selection when the list owns focus.
 - `Enter` activates the selected workspace through
@@ -326,7 +358,9 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] `dotnet build src/Straumr.sln`
 - [x] launch `straumr` and inspect the Workspaces screen interactively
 - [ ] verify resize behavior at narrow and wide terminal sizes
-- [ ] verify keyboard and pointer selection
+- [ ] verify keyboard and pointer selection, including the hover band and the
+      focused/unfocused selection band (headless snapshots render the unfocused
+      state because the snapshot renderer does not apply `AutoFocus`)
 - [ ] verify focus restoration after prompt, dialog, and external editor use
 - [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
@@ -367,6 +401,18 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Verify layout with headless `VisualSnapshotRenderer` snapshots | Gives per-cell evidence of geometry, trimming, and palette before an interactive check |
 | 2026-09-10 | Rotate the surface ramp from the mockup's hue 202 to hue 222 | The mockup's literal surface hex reads as teal in a terminal and dated on review; hue 222 keeps the same surface relationships and contrast while reading as deep blue |
 | 2026-09-10 | Declare palette colors as hex literals | Keeps the ramp comparable to the mockup CSS at a glance |
+| 2026-09-10 | Raise foreground and selection chroma above the mockup | The mockup's low-chroma foregrounds read as flat next to comparable TUIs; the surfaces stay as they are |
+| 2026-09-10 | Resolve list row styles from the selection each frame | Gives the selected row its own hierarchy instead of relying on the band alone |
+| 2026-09-10 | Colour counts by whether they are populated | Adds the variation that makes a screen read as live while carrying real information |
+| 2026-09-10 | Put section titles on the divider rule instead of inside the panes | Reads as a labelled instrument rather than a caption floating in empty space, and returns two rows of pane height |
+| 2026-09-10 | Add hover and focus row states to the list | A UI that answers the pointer and the focus ring feels live in a way no static palette can |
+| 2026-09-10 | Do not brighten dividers on focus | In a rule-separated shell the rules are structure, not panel borders, so reacting to focus makes them shimmer |
+| 2026-09-10 | Limit filled badges to the count and the identifier | Filled accent surfaces stop reading as emphasis once they are everywhere |
+| 2026-09-10 | Compress the surface ramp and raise panels above the chrome | The near-black list panel against the shell read as an abrupt step, so the boundary above the list heading looked clipped instead of divided |
+| 2026-09-10 | Drop panel tints entirely for one shared background | Dividers already carry the structure; any tint step reintroduced a seam, and a flat dark ground lets the accents carry the screen. Removed the `ZStack`/`Canvas` wash helpers with it |
+| 2026-09-10 | Darken the shared background to `#090D15` | Gives the accent, amber, green and selection more room to read against |
+| 2026-09-10 | Make the screen header a single row | A two-row bar cannot centre one line of text, and three rows read as too airy; at one row the frame above and the rule below are equidistant, so it is both centred and compact |
+| 2026-09-10 | Give the list heading the same padding as the top bar and summary | A heading pressed against its rule reads as cut off; padding it also aligns the two panels' first rules |
 
 ## Change Log
 
@@ -380,6 +426,23 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Removed the premature filter affordance, replaced the interactive splitter with a weighted grid, and composed multiline workspace items inside `ScrollViewer`.
 - 2026-09-10: Replaced button-based workspace rows with a retained multiline list and applied the approved palette after populated visual testing exposed poor contrast and excessive emphasis.
 - 2026-09-10: Corrected the workspace shell to use a padded top bar, an in-panel list heading, a full-width selected-workspace summary, and two lower detail columns with headings inside their borders.
+- 2026-09-10: Tightened the screen header to a single row. Two rows was tried first
+  and rejected because one line of text cannot sit centred in an even band. Applying
+  the same tightening to the content bars was also tried and reverted: it crowded the
+  detail summary against its labelled rule and broke the panels' rule alignment.
+- 2026-09-10: Replaced all panel tints with one shared `#090D15` background,
+  deleted the surface wash helpers, and dimmed the scroll bar chrome that the
+  darker ground had made prominent.
+- 2026-09-10: Compressed the surface ramp for cohesion (chrome `#0D121C`, list
+  `#111826`, detail `#141C2C`, badge `#0A0E18`) and padded the list heading, which
+  moved the shared rule to row 3 and the filter rule to row 5.
+- 2026-09-10: Added hover and focus response to the workspace list, a filled badge
+  for the workspace count, and a recessed badge for the workspace identifier.
+- 2026-09-10: Moved the detail section titles onto the divider rule via
+  `Rule.StartLabel`, one per section column, shown only when something is selected.
+- 2026-09-10: Raised palette vibrancy on review: fully saturated accent, amber and
+  green, a vivid selection band, crisper dividers, bright foregrounds on the
+  selected row, and counts coloured by whether they are populated.
 - 2026-09-10: Reworked the palette to a deep blue ramp after visual review, and
   styled the list scrollbar, which was still painting the framework's default
   bright grey track and thumb.
