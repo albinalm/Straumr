@@ -16,16 +16,18 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 internal static class ResourceScreenLayout
 {
     private static readonly Thickness PaneInset = new(1, 1, 1, 1);
-    private static readonly Thickness BarInset = new(1, 0, 1, 0);
 
     /// <summary>
-    /// Row offset where the list heading rule and the detail head rule meet the column divider. Both
-    /// bars are three rows tall so the two rules land together.
+    /// Top padding on list content so its first row lands on the same row as the first value in a
+    /// detail pane, which takes that row from <see cref="PaneInset"/>.
     /// </summary>
-    private const int HeadingRuleRow = 3;
+    private static readonly Thickness ListContentInset = new(0, 1, 0, 0);
 
-    /// <summary>Row offset of the rule under the filter row. Only the list panel has a rule here.</summary>
-    private const int FilterRuleRow = 5;
+    /// <summary>
+    /// Row offset where the rule closing each panel's bar meets the column divider. Both bars are
+    /// three rows tall, so the two rules land together and every section title shares one line.
+    /// </summary>
+    private const int BarRuleRow = 3;
 
     /// <param name="listTitle">Heading of the list panel, for example <c>Workspaces</c>.</param>
     /// <param name="listCount">Total resource count, shown as a filled badge beside the heading.</param>
@@ -54,9 +56,7 @@ internal static class ResourceScreenLayout
             .Rows(new RowDefinition { Height = GridLength.Star() })
             .Cell(BuildListPanel(listTitle, listCount, filterHint, listContent), 0, 0)
             .Cell(
-                StraumrSurfaces.VerticalDivider(
-                    (HeadingRuleRow, new Rune('┼')),
-                    (FilterRuleRow, new Rune('┤'))),
+                StraumrSurfaces.VerticalDivider((BarRuleRow, new Rune('┼'))),
                 0,
                 1)
             .Cell(BuildDetailPanel(detailHead, detailSections), 0, 2)
@@ -129,6 +129,12 @@ internal static class ResourceScreenLayout
     /// </summary>
     public static Visual EmptySections() => StraumrSurfaces.HorizontalDivider();
 
+    /// <remarks>
+    /// The panel mirrors the detail panel: a three-row bar, the rule closing it, then content. The list
+    /// title sits on that rule beside the detail section titles, so every focusable region is titled on
+    /// one line and the focus chip only ever travels along it. The filter and the count take the bar
+    /// above, opposite each other exactly as the detail summary and its identifier badge do.
+    /// </remarks>
     private static Visual BuildListPanel(
         string listTitle,
         Func<string> listCount,
@@ -140,29 +146,23 @@ internal static class ResourceScreenLayout
             .Rows(
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() });
 
-        Visual heading = StraumrSurfaces.Bar(
-            new TextBlock(() => StraumrSurfaces.FocusLabel(listTitle, () => panel.HasFocusWithin))
-                .Style(() => panel.HasFocusWithin
-                    ? StraumrStyles.FocusChip
-                    : StraumrStyles.MutedText),
+        Visual bar = StraumrSurfaces.Bar(
+            new TextBlock(filterHint).Style(StraumrStyles.MutedText),
             new TextBlock(() => $" {listCount()} ").Style(StraumrStyles.TokenChip));
 
-        var filter = new TextBlock(filterHint)
-            .Style(StraumrStyles.MutedText)
-            .HorizontalAlignment(Align.Stretch);
-
         return panel
-            .Cell(StraumrSurfaces.Inset(heading, PaneInset), 0, 0)
-            .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
-            .Cell(StraumrSurfaces.Inset(filter, BarInset), 2, 0)
-            .Cell(StraumrSurfaces.HorizontalDivider(), 3, 0)
-            .Cell(new ComputedVisual(() => listContent())
-                .HorizontalAlignment(Align.Stretch)
-                .VerticalAlignment(Align.Stretch), 4, 0)
+            .Cell(StraumrSurfaces.Inset(bar, PaneInset), 0, 0)
+            .Cell(StraumrSurfaces.TitledDivider(listTitle, () => panel.HasFocusWithin), 1, 0)
+            .Cell(
+                StraumrSurfaces.Inset(
+                    new ComputedVisual(() => listContent())
+                        .HorizontalAlignment(Align.Stretch)
+                        .VerticalAlignment(Align.Stretch),
+                    ListContentInset),
+                2,
+                0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
     }

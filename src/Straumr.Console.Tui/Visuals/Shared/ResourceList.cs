@@ -26,12 +26,20 @@ public sealed partial class ResourceList : Visual, IScrollable
     /// <summary>The selection bar plus the gap separating it from the item text.</summary>
     private const int MarkerWidth = 2;
 
-    private const int TextInset = PanelInset + MarkerWidth;
+    /// <summary>
+    /// The current-resource dot, which sits between the selection bar and that gap. The column is
+    /// reserved only when a row claims it, so a list with no current resource keeps the width for text.
+    /// </summary>
+    private const int CurrentMarkerWidth = 1;
+
     private const int MinimumTextWidth = 8;
 
     private static readonly Rune SelectionBar = new('▌');
+    private static readonly Rune CurrentDot = new('●');
     private static readonly Rune Blank = new(' ');
 
+    private readonly ResourceRow[] _rows;
+    private readonly int _textInset;
     private readonly IReadOnlyList<Visual> _items;
     private readonly ScrollModel _scroll;
     private readonly int _itemHeight;
@@ -40,8 +48,11 @@ public sealed partial class ResourceList : Visual, IScrollable
     public ResourceList(IEnumerable<ResourceRow> rows)
     {
         ResourceRow[] source = rows.ToArray();
+        _rows = source;
         Count = source.Length;
         _itemHeight = source.Any(row => row.Detail is not null) ? 3 : 2;
+        _textInset = PanelInset + MarkerWidth +
+            (source.Any(row => row.IsCurrent) ? CurrentMarkerWidth : 0);
         _itemStride = _itemHeight + ItemSpacing;
         _items = source.Select(BuildItem).ToArray();
         _scroll = new ScrollModel(this);
@@ -122,18 +133,18 @@ public sealed partial class ResourceList : Visual, IScrollable
 
     protected override SizeHints MeasureCore(in LayoutConstraints constraints)
     {
-        int textWidth = Math.Max(MinimumTextWidth, constraints.MaxWidth - TextInset - PanelInset);
+        int textWidth = Math.Max(MinimumTextWidth, constraints.MaxWidth - _textInset - PanelInset);
         var itemConstraints = new LayoutConstraints(textWidth, textWidth, _itemHeight, _itemHeight);
 
         foreach (Visual item in _items)
             item.Measure(itemConstraints);
 
         var natural = new Size(
-            textWidth + TextInset + PanelInset,
+            textWidth + _textInset + PanelInset,
             Math.Max(1, ContentHeight));
 
         return SizeHints.Flex(
-            new Size(TextInset + MinimumTextWidth + PanelInset, 1),
+            new Size(_textInset + MinimumTextWidth + PanelInset, 1),
             natural,
             new Size(
                 LayoutConstraints.Unbounded.MaxWidth,
@@ -155,7 +166,7 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         int textWidth = Math.Max(
             MinimumTextWidth,
-            finalRect.Width - TextInset - PanelInset);
+            finalRect.Width - _textInset - PanelInset);
 
         _scroll.SetViewport(finalRect.Width, finalRect.Height);
         _scroll.SetExtent(finalRect.Width, ContentHeight);
@@ -164,7 +175,7 @@ public sealed partial class ResourceList : Visual, IScrollable
         for (int index = 0; index < _items.Count; index++)
         {
             _items[index].Arrange(new Rectangle(
-                finalRect.X + TextInset,
+                finalRect.X + _textInset,
                 finalRect.Y + index * _itemStride - _scroll.OffsetY,
                 textWidth,
                 _itemHeight));
@@ -176,14 +187,49 @@ public sealed partial class ResourceList : Visual, IScrollable
         if (HoveredIndex >= 0 && HoveredIndex != SelectedIndex)
             PaintBand(buffer, HoveredIndex, StraumrStyles.HoveredItem, null);
 
-        if (SelectedIndex < 0)
+        if (SelectedIndex >= 0)
+        {
+            PaintBand(
+                buffer,
+                SelectedIndex,
+                HasFocus ? StraumrStyles.SelectedItem : StraumrStyles.SelectedItemInactive,
+                HasFocus ? StraumrStyles.SelectionMarker : StraumrStyles.SelectionMarkerInactive);
+        }
+
+        PaintCurrentMarkers(buffer);
+    }
+
+    /// <summary>
+    /// Paints the current-resource dot on each claiming row's middle line, over whatever band the row
+    /// already carries, so the marker composes with selection and hover rather than competing.
+    /// </summary>
+    private void PaintCurrentMarkers(CellBuffer buffer)
+    {
+        if (_textInset == PanelInset + MarkerWidth)
             return;
 
-        PaintBand(
-            buffer,
-            SelectedIndex,
-            HasFocus ? StraumrStyles.SelectedItem : StraumrStyles.SelectedItemInactive,
-            HasFocus ? StraumrStyles.SelectionMarker : StraumrStyles.SelectionMarkerInactive);
+        Rectangle bounds = Bounds;
+        int x = bounds.X + PanelInset + 1;
+
+        for (int index = 0; index < _rows.Length; index++)
+        {
+            if (!_rows[index].IsCurrent)
+                continue;
+
+            int y = bounds.Y + index * _itemStride + _itemHeight / 2 - _scroll.OffsetY;
+            if (y < bounds.Y || y >= bounds.Bottom)
+                continue;
+
+            buffer.SetCell(x, y, CurrentDot, StraumrStyles.CurrentMarker(RowBackground(index)));
+        }
+    }
+
+    private Color RowBackground(int index)
+    {
+        if (index == SelectedIndex)
+            return HasFocus ? StraumrStyles.Selection : StraumrStyles.SelectionInactive;
+
+        return index == HoveredIndex ? StraumrStyles.Hover : StraumrStyles.Background;
     }
 
     private void PaintBand(CellBuffer buffer, int index, Style band, Style? marker)

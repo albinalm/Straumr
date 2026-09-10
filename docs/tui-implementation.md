@@ -68,11 +68,16 @@ Shared screen shell:
 - A single line of text only reads as vertically centred in an odd-height band, so
   a bar is one row or three, never two. Choose by what closes the bar: the screen
   header is bounded by the window frame above and a plain rule below, so one row is
-  centred and compact; the list heading and detail summary are closed by the rule
-  that carries the section labels, so they take three rows and keep a blank row on
-  each side, or their text crowds the labels on that rule.
+  centred and compact; the list panel's filter bar and the detail summary are closed
+  by the rule that carries the section labels, so they take three rows and keep a
+  blank row on each side, or their text crowds the labels on that rule.
 - Both content bars must stay the same height for their rules to meet the column
   divider at a single crossing.
+- The two panels mirror each other: a three-row bar, the rule closing it, then
+  content. Each bar reads text left, recessed badge right. Every section title is
+  notched into that one rule, and content starts on the same row on both sides. So
+  floating in a bar means context about the whole panel, and notched into the rule
+  means a titled section; the distinction carries meaning rather than history.
 - Header left: `{straumr} {screen}`.
 - Header right: `active workspace {name}` in a subdued success color.
 - Header content uses normal-weight text with horizontal and vertical breathing
@@ -92,11 +97,16 @@ Shared screen shell:
 - The shell responds to focus and pointer. A list owns three row levels, distinct
   from each other: hover is the faintest, a selected row in an unfocused list is
   stronger and drops its accent marker to a neutral one, and a selected row in a
-  focused list is the vivid band.
+  focused list is the vivid band. Which resource is current is a separate question
+  from which row is selected, so its marker is painted over whichever band the row
+  carries and composes with all three levels instead of competing with them.
 - Exactly one region owns focus, and its title says so by filling with the selection
   blue as a chip. Every other title is inert grey. A title that cannot take focus is
   always inert. So there is one filled blue title on screen, and finding it is how
   the eye answers "where am I" without having to compare two similar colours.
+- Because every title shares the one rule, the chip only ever travels along it. The
+  rule is the screen's tab strip, and focus reads as a step sideways rather than a
+  jump between levels of the hierarchy.
 - The filled accent surface belongs to focus alone. Quantities and identifiers use
   the recessed badge. Do not spread either further.
 - Footer: context-aware shortcuts.
@@ -241,7 +251,9 @@ message.
 `ResourceList` owns selection, hover, focus response, scrolling and row styling. A
 screen hands it `ResourceRow` values and binds its `SelectedIndex`; it never styles
 rows itself. A list whose rows all omit `Detail` lays out two lines high instead of
-three, which is what the Auths and Secrets mockups need. Its contextual commands
+three, which is what the Auths and Secrets mockups need. A list whose rows all omit
+`IsCurrent` reserves no gutter column for the current-resource dot, so a screen with
+no such notion keeps that column for its text. Its contextual commands
 expose `j`/`k` movement, `g`/`G` first/last jumps, and activation; arrow, Home/End,
 and Page keys remain available without crowding the footer.
 
@@ -315,10 +327,15 @@ Header:
 
 Left pane:
 
-- title `Workspaces` and a filled count badge, padded above and below, closed by a
-  rule that aligns with the detail summary rule
-- filter affordance row, closed by a rule
-- one multiline item per workspace
+- filter affordance and a recessed count badge in a three-row bar, mirroring the
+  detail summary and its identifier badge
+- title `Workspaces` on the rule closing that bar, beside the detail section titles
+- one multiline item per workspace, the first starting on the same row as the first
+  detail value
+- a green dot on the active workspace's middle line, in the gutter between the
+  selection bar and the text, so the list itself says which workspace is live. The
+  middle line is what reads as centred against a three-line row
+- the marker follows activation, so pressing `Enter` moves it without a reload
 - workspace name, trimmed with a trailing ellipsis
 - request and auth counts, amber when the workspace holds anything and inert when
   it holds nothing
@@ -332,8 +349,10 @@ Detail header:
 - last-accessed timestamp, relative for recent values
 - shortened workspace ID aligned right
 
-Workspace detail group:
+Details group:
 
+- titled `Details` rather than by the resource type, which the screen name and the
+  summary bar directly above it already carry
 - path, home-shortened and wrapped, ellipsized when the region is too short
 - request count
 - auth count
@@ -350,7 +369,7 @@ Requests group:
 
 Do not display:
 
-- workspace validity or active-status labels
+- workspace validity labels
 - a Secrets group
 - invented environment or scope values
 
@@ -490,6 +509,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Do not brighten dividers on focus | In a rule-separated shell the rules are structure, not panel borders, so reacting to focus makes them shimmer |
 | 2026-09-10 | Limit filled badges to the count and the identifier | Filled accent surfaces stop reading as emphasis once they are everywhere |
 | 2026-09-10 | Mark the focused region by filling its title with the selection blue, and demote the count badge to the recessed treatment | Swapping two accent blues on Tab was near-invisible: the eye tracks luminance and position, not hue, and the signal was subtractive, so nothing appeared where focus landed. Reserving the one filled accent surface for focus makes it additive and unique |
+| 2026-09-10 | Hold the current workspace's identity as screen state rather than as a field on the presentation item | It changes while the screen is live. Baked into `WorkspaceScreenItem` at load it went stale on activation, and nothing the list read was reactive, so the dot could not move until the next load. State read inside the list's builder is what makes the rebuild happen |
+| 2026-09-10 | Mark the active workspace in the list with a green dot, reversing the rule against active-status labels | The header answers "which workspace is live" for global awareness but is the wrong place to look while working in the list. A dot in the row gutter is scannable down the column, costs no name width beyond its one reserved column, and needs no band of its own, so it composes with selection and hover rather than fighting them |
+| 2026-09-10 | Title the first detail pane `Details` instead of the resource type, and never leave a section on the rule untitled | The screen name and the summary bar above already say which workspace this is, so `Workspace` only repeated them. Leaving the slot blank was the alternative, but an unlabelled section between two labelled ones reads as a missing label rather than a deliberate absence |
+| 2026-09-10 | Move the list title onto the rule and lift the filter and count into the bar above it | The list title was a panel title floating in a bar while the section titles were notched into a rule two rows lower, so the two Tab stops were not visual peers and the chip travelled a diagonal. The left panel's extra filter rule also started its content two rows below the detail panes. One rule for every title fixes the diagonal, the floating-versus-notched mismatch and the row offset together, and the panels become mirror images |
 | 2026-09-10 | Render an unfocusable section title as inert rather than accented | `TitledDivider` defaulted a missing focus predicate to the focused style, so the left detail title was permanently bright and bright-blue therefore did not mean "focused" |
 | 2026-09-10 | Compress the surface ramp and raise panels above the chrome | The near-black list panel against the shell read as an abrupt step, so the boundary above the list heading looked clipped instead of divided |
 | 2026-09-10 | Drop panel tints entirely for one shared background | Dividers already carry the structure; any tint step reintroduced a seam, and a flat dark ground lets the accents carry the screen. Removed the `ZStack`/`Canvas` wash helpers with it |
@@ -545,6 +568,22 @@ For each Workspaces milestone, run the smallest applicable subset:
   nothing is selected.
 - 2026-09-10: Accepted the W2 visual checkpoint and began W3 with non-stamping,
   per-workspace cached request loading for the recent Requests pane.
+- 2026-09-10: Moved the current-resource dot to the row's middle line so it reads as
+  centred, and made activation move it: the current workspace's identity became screen
+  state that the list builder reads, replacing the `IsCurrent` field that was baked
+  into `WorkspaceScreenItem` at load and went stale on `Enter`.
+- 2026-09-10: Marked the active workspace in the list with a green dot in the row
+  gutter, added `ResourceRow.IsCurrent` to carry it, and reserved its column only when
+  a row claims it. Removed the guide's own prohibition on active-status labels, which
+  the request reverses. Verified by cell dump across plain, hovered, selected-focused
+  and selected-unfocused rows, and with no current row at all.
+- 2026-09-10: Renamed the first detail pane's title from `Workspace` to `Details`.
+- 2026-09-10: Restructured both panels to mirror each other after visual review found
+  the two focus targets asymmetrical. The list title moved onto the rule beside the
+  detail section titles, the filter and the count moved into the bar above it, the
+  filter's own rule and its `┤` junction went away, and list content gained a row of
+  top inset so both panels start content on the same row. Verified by cell dump at
+  96 columns with the focus chip bound on.
 - 2026-09-10: Reworked the W4 focus cue after visual review. The focused section's
   title now fills with the selection blue as a chip and every other title is inert
   grey, the count badge dropped to the recessed treatment so the filled accent is

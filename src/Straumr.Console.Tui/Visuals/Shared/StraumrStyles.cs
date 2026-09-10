@@ -146,6 +146,14 @@ internal static class StraumrStyles
         .WithForeground(Muted)
         .WithBackground(SelectionInactive);
 
+    /// <summary>
+    /// The dot marking the current resource in a list, painted over whatever band its row already
+    /// carries so it survives selection and hover instead of competing with them. Green is reserved
+    /// for the active workspace, so this is the only place it appears outside the header.
+    /// </summary>
+    public static Style CurrentMarker(Color background) =>
+        Style.None.WithForeground(Green).WithBackground(background);
+
     public static readonly Style HoveredItem = Style.None
         .WithForeground(Text)
         .WithBackground(Hover);

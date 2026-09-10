@@ -21,6 +21,7 @@ public sealed class WorkspaceScreen
     private readonly State<string?> _errorMessage = new(null);
     private readonly State<string?> _requestErrorMessage = new(null);
     private readonly State<string?> _activationErrorMessage = new(null);
+    private readonly State<Guid?> _currentWorkspaceId = new(null);
     private readonly State<Guid?> _lastActivatedWorkspaceId = new(null);
     private readonly State<DateTimeOffset?> _lastActivationTime = new(null);
     private readonly State<IReadOnlyList<StraumrRequest>> _recentRequests = new([]);
@@ -112,23 +113,19 @@ public sealed class WorkspaceScreen
             foreach (StraumrWorkspaceEntry entry in _optionsService.Options.Workspaces)
                 entries.TryAdd(entry.Id, entry);
 
-            Guid? currentWorkspaceId = _optionsService.Options.CurrentWorkspace?.Id;
+            _currentWorkspaceId.Value = _optionsService.Options.CurrentWorkspace?.Id;
             List<WorkspaceScreenItem> items = [];
             foreach (StraumrWorkspace workspace in workspaces)
             {
                 if (entries.TryGetValue(workspace.Id, out StraumrWorkspaceEntry? entry))
-                {
-                    items.Add(new WorkspaceScreenItem(
-                        workspace,
-                        entry,
-                        workspace.Id == currentWorkspaceId));
-                }
+                    items.Add(new WorkspaceScreenItem(workspace, entry));
             }
 
             _items = items;
             _workspaceCount.Value = items.Count;
 
-            int currentIndex = items.FindIndex(item => item.IsCurrent);
+            int currentIndex = items.FindIndex(
+                item => item.Workspace.Id == _currentWorkspaceId.Value);
             _selectedIndex.Value = currentIndex >= 0
                 ? currentIndex
                 : items.Count > 0 ? 0 : -1;
@@ -173,7 +170,8 @@ public sealed class WorkspaceScreen
 
     private Visual BuildWorkspaceList()
     {
-        var list = new ResourceList(_items.Select(ToRow))
+        Guid? currentWorkspaceId = _currentWorkspaceId.Value;
+        var list = new ResourceList(_items.Select(item => ToRow(item, currentWorkspaceId)))
         {
             AutoFocus = true
         };
@@ -225,7 +223,7 @@ public sealed class WorkspaceScreen
             ("Modified", FieldList.Text(TimestampFormatting.Absolute(workspace.Modified))));
 
         return ResourceScreenLayout.TwoPaneSections(
-            "Workspace",
+            "Details",
             ResourceScreenLayout.Pane(fields),
             "Requests",
             ResourceScreenLayout.Pane(BuildRequestsPane()));
@@ -298,6 +296,7 @@ public sealed class WorkspaceScreen
 
             DateTimeOffset activatedAt = DateTimeOffset.UtcNow;
             item.Workspace.LastAccessed = activatedAt;
+            _currentWorkspaceId.Value = workspaceId;
             _lastActivatedWorkspaceId.Value = workspaceId;
             _lastActivationTime.Value = activatedAt;
             ActiveWorkspaceName = item.Workspace.Name;
@@ -322,7 +321,7 @@ public sealed class WorkspaceScreen
             : RequestPreviewLoadState.Loaded;
     }
 
-    private static ResourceRow ToRow(WorkspaceScreenItem item)
+    private static ResourceRow ToRow(WorkspaceScreenItem item, Guid? currentWorkspaceId)
     {
         int requests = item.Workspace.Requests.Count;
         int auths = item.Workspace.Auths.Count;
@@ -331,7 +330,8 @@ public sealed class WorkspaceScreen
             item.Workspace.Name,
             $"{CountFormatting.Label(requests, "request")} · {CountFormatting.Label(auths, "auth")}",
             requests > 0 || auths > 0,
-            item.DisplayDirectory);
+            item.DisplayDirectory,
+            item.Workspace.Id == currentWorkspaceId);
     }
 
     private WorkspaceScreenItem? SelectedItem =>

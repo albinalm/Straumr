@@ -13,8 +13,14 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 /// An optional third line, trimmed from the front so its tail stays readable. A list whose rows all
 /// omit it is laid out two lines high instead of three.
 /// </param>
+/// <param name="IsCurrent">
+/// Whether this is the resource the app currently acts on, such as the active workspace. The list
+/// marks it with a dot so the screen answers "which one is live" without a trip to the header. A
+/// list whose rows all omit it reserves no column for the marker.
+/// </param>
 public sealed record ResourceRow(
     string Name,
     string Meta,
     bool HasContent,
-    string? Detail = null);
+    string? Detail = null,
+    bool IsCurrent = false);

@@ -65,7 +65,7 @@ internal static class StraumrSurfaces
     /// Pads a title so the focus chip has a cell of fill on each side of the text. The unfocused
     /// title stays unpadded because it paints no background to breathe inside.
     /// </summary>
-    public static string FocusLabel(string title, Func<bool>? isFocused) =>
+    private static string FocusLabel(string title, Func<bool>? isFocused) =>
         isFocused?.Invoke() is true ? $" {title} " : title;
 
     /// <summary>
