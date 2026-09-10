@@ -1,0 +1,20 @@
+namespace Straumr.Console.Tui.Visuals.Shared;
+
+/// <summary>
+/// One row of a resource list, as the list renders it rather than as Core models it.
+/// </summary>
+/// <param name="Name">The resource name, on the first line.</param>
+/// <param name="Meta">A short summary of what the resource holds, on the second line.</param>
+/// <param name="HasContent">
+/// Whether <paramref name="Meta"/> describes something present. A populated row reads amber and an
+/// empty one reads inert, so an empty resource is recognisable without reading the text.
+/// </param>
+/// <param name="Detail">
+/// An optional third line, trimmed from the front so its tail stays readable. A list whose rows all
+/// omit it is laid out two lines high instead of three.
+/// </param>
+public sealed record ResourceRow(
+    string Name,
+    string Meta,
+    bool HasContent,
+    string? Detail = null);

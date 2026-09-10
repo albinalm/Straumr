@@ -1,5 +1,4 @@
 using System.Text;
-using Straumr.Console.Tui.Visuals.Shared;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
@@ -8,14 +7,17 @@ using XenoAtom.Terminal.UI.Input;
 using XenoAtom.Terminal.UI.Layout;
 using XenoAtom.Terminal.UI.Rendering;
 using XenoAtom.Terminal.UI.Scrolling;
+using XenoAtom.Terminal.UI.Styling;
 
-namespace Straumr.Console.Tui.Screens.Workspace;
+namespace Straumr.Console.Tui.Visuals.Shared;
 
-public sealed partial class WorkspaceList : Visual, IScrollable
+/// <summary>
+/// The multiline resource list shared by every screen. The pinned <c>ListBox&lt;T&gt;</c> fixes every
+/// item to one terminal row, so this owns its own layout, scrolling, selection and hover instead.
+/// </summary>
+public sealed partial class ResourceList : Visual, IScrollable
 {
-    private const int ItemHeight = 3;
     private const int ItemSpacing = 1;
-    private const int ItemStride = ItemHeight + ItemSpacing;
 
     /// <summary>Blank cells kept between the panel edges and the selection band.</summary>
     private const int PanelInset = 1;
@@ -29,16 +31,20 @@ public sealed partial class WorkspaceList : Visual, IScrollable
     private static readonly Rune SelectionBar = new('▌');
     private static readonly Rune Blank = new(' ');
 
-    private readonly IReadOnlyList<WorkspaceScreenItem> _workspaces;
     private readonly IReadOnlyList<Visual> _items;
     private readonly ScrollModel _scroll;
+    private readonly int _itemHeight;
+    private readonly int _itemStride;
 
-    public WorkspaceList(IEnumerable<WorkspaceScreenItem> workspaces)
+    public ResourceList(IEnumerable<ResourceRow> rows)
     {
-        _workspaces = workspaces.ToArray();
-        _items = _workspaces.Select(BuildItem).ToArray();
+        ResourceRow[] source = rows.ToArray();
+        Count = source.Length;
+        _itemHeight = source.Any(row => row.Detail is not null) ? 3 : 2;
+        _itemStride = _itemHeight + ItemSpacing;
+        _items = source.Select(BuildItem).ToArray();
         _scroll = new ScrollModel(this);
-        SelectedIndex = _workspaces.Count == 0 ? -1 : 0;
+        SelectedIndex = Count == 0 ? -1 : 0;
         HoveredIndex = -1;
 
         foreach (Visual item in _items)
@@ -51,10 +57,12 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     public ScrollModel Scroll => _scroll;
 
+    public int Count { get; }
+
     [Bindable]
     public partial int SelectedIndex { get; set; }
 
-    /// <summary>Index of the item under the pointer, or -1 when the pointer is elsewhere.</summary>
+    /// <summary>Index of the row under the pointer, or -1 when the pointer is elsewhere.</summary>
     [Bindable]
     public partial int HoveredIndex { get; set; }
 
@@ -65,7 +73,7 @@ public sealed partial class WorkspaceList : Visual, IScrollable
     protected override SizeHints MeasureCore(in LayoutConstraints constraints)
     {
         int textWidth = Math.Max(MinimumTextWidth, constraints.MaxWidth - TextInset - PanelInset);
-        var itemConstraints = new LayoutConstraints(textWidth, textWidth, ItemHeight, ItemHeight);
+        var itemConstraints = new LayoutConstraints(textWidth, textWidth, _itemHeight, _itemHeight);
 
         foreach (Visual item in _items)
             item.Measure(itemConstraints);
@@ -107,9 +115,9 @@ public sealed partial class WorkspaceList : Visual, IScrollable
         {
             _items[index].Arrange(new Rectangle(
                 finalRect.X + TextInset,
-                finalRect.Y + index * ItemStride - _scroll.OffsetY,
+                finalRect.Y + index * _itemStride - _scroll.OffsetY,
                 textWidth,
-                ItemHeight));
+                _itemHeight));
         }
     }
 
@@ -133,8 +141,8 @@ public sealed partial class WorkspaceList : Visual, IScrollable
         Rectangle bounds = Bounds;
         int bandLeft = bounds.X + PanelInset;
         int bandRight = Math.Max(bandLeft, bounds.Right - PanelInset);
-        int top = bounds.Y + index * ItemStride - _scroll.OffsetY;
-        int bottom = top + ItemHeight;
+        int top = bounds.Y + index * _itemStride - _scroll.OffsetY;
+        int bottom = top + _itemHeight;
 
         for (int y = Math.Max(top, bounds.Y); y < Math.Min(bottom, bounds.Bottom); y++)
         {
@@ -148,16 +156,16 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (_workspaces.Count == 0)
+        if (Count == 0)
             return;
 
-        int pageSize = Math.Max(1, Bounds.Height / ItemStride);
+        int pageSize = Math.Max(1, Bounds.Height / _itemStride);
         int target = e.Key switch
         {
             TerminalKey.Up => SelectedIndex - 1,
             TerminalKey.Down => SelectedIndex + 1,
             TerminalKey.Home => 0,
-            TerminalKey.End => _workspaces.Count - 1,
+            TerminalKey.End => Count - 1,
             TerminalKey.PageUp => SelectedIndex - pageSize,
             TerminalKey.PageDown => SelectedIndex + pageSize,
             _ => SelectedIndex
@@ -198,15 +206,15 @@ public sealed partial class WorkspaceList : Visual, IScrollable
         if (row < 0)
             return -1;
 
-        int index = row / ItemStride;
-        return (uint)index < (uint)_workspaces.Count && row % ItemStride < ItemHeight
+        int index = row / _itemStride;
+        return (uint)index < (uint)Count && row % _itemStride < _itemHeight
             ? index
             : -1;
     }
 
     protected override void OnPointerWheel(PointerEventArgs e)
     {
-        if (_workspaces.Count == 0 || e.WheelDelta == 0)
+        if (Count == 0 || e.WheelDelta == 0)
             return;
 
         SelectedIndex += e.WheelDelta > 0 ? -1 : 1;
@@ -218,8 +226,8 @@ public sealed partial class WorkspaceList : Visual, IScrollable
         if (SelectedIndex < 0 || _scroll.ViewportHeight <= 0)
             return;
 
-        int itemTop = SelectedIndex * ItemStride;
-        int itemBottom = itemTop + ItemHeight;
+        int itemTop = SelectedIndex * _itemStride;
+        int itemBottom = itemTop + _itemHeight;
         int viewportBottom = _scroll.OffsetY + _scroll.ViewportHeight;
 
         if (itemTop < _scroll.OffsetY)
@@ -230,67 +238,66 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     partial void OnSelectedIndexChanging(ref int value)
     {
-        value = _workspaces.Count == 0
+        value = Count == 0
             ? -1
-            : Math.Clamp(value, 0, _workspaces.Count - 1);
+            : Math.Clamp(value, 0, Count - 1);
     }
 
     partial void OnSelectedIndexChanged(int value) => EnsureSelectedVisible();
 
     partial void OnHoveredIndexChanging(ref int value)
     {
-        if (value < 0 || value >= _workspaces.Count)
+        if (value < 0 || value >= Count)
             value = -1;
     }
 
     private int ContentHeight =>
         _items.Count == 0
             ? 0
-            : _items.Count * ItemStride - ItemSpacing;
+            : _items.Count * _itemStride - ItemSpacing;
 
     /// <summary>
     /// Row styles are resolved per frame from <see cref="SelectedIndex"/> so the selected row reads
-    /// brighter against the selection band, and so a workspace holding nothing reads as inert.
+    /// brighter against the selection band, and so a resource holding nothing reads as inert.
     /// </summary>
-    private Visual BuildItem(WorkspaceScreenItem item, int index)
+    private Visual BuildItem(ResourceRow row, int index)
     {
-        bool hasContent = item.Workspace.Requests.Count > 0 || item.Workspace.Auths.Count > 0;
-
-        return new VStack(
+        var stack = new VStack(
                 Line(
-                    item.Workspace.Name,
+                    row.Name,
                     () => index == SelectedIndex
                         ? StraumrStyles.BrightText
                         : StraumrStyles.PrimaryText,
                     TextTrimming.EndEllipsis),
                 Line(
-                    $"{CountLabel(item.Workspace.Requests.Count, "request")} · {CountLabel(item.Workspace.Auths.Count, "auth")}",
-                    () => hasContent
+                    row.Meta,
+                    () => row.HasContent
                         ? StraumrStyles.AmberText
                         : index == SelectedIndex
                             ? StraumrStyles.MutedBrightText
                             : StraumrStyles.MutedText,
-                    TextTrimming.EndEllipsis),
-                Line(
-                    item.DisplayDirectory,
-                    () => index == SelectedIndex
-                        ? StraumrStyles.MutedBrightText
-                        : StraumrStyles.MutedText,
-                    TextTrimming.StartEllipsis))
+                    TextTrimming.EndEllipsis))
             .HorizontalAlignment(Align.Stretch);
+
+        if (row.Detail is not null)
+        {
+            stack.Add(Line(
+                row.Detail,
+                () => index == SelectedIndex
+                    ? StraumrStyles.MutedBrightText
+                    : StraumrStyles.MutedText,
+                TextTrimming.StartEllipsis));
+        }
+
+        return stack;
     }
 
     private static TextBlock Line(
         string text,
-        Func<XenoAtom.Terminal.UI.Styling.TextBlockStyle> style,
+        Func<TextBlockStyle> style,
         TextTrimming trimming) =>
         new TextBlock(text)
             .Style(style)
             .Trimming(trimming)
             .HorizontalAlignment(Align.Stretch);
-
-    private static string CountLabel(int count, string noun) =>
-        count == 0
-            ? $"no {noun}s"
-            : $"{count} {noun}{(count == 1 ? string.Empty : "s")}";
 }

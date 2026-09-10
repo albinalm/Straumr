@@ -9,7 +9,8 @@ framework constraint is discovered.
 - Phase: implementation
 - Active screen: Workspaces
 - Implementation: W2 in progress
-- Next checkpoint: complete and validate the read-only workspace browser before W3
+- Next checkpoint: interactive verification of the outstanding W2 items, then W3
+- Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-10
 
 ## Goals
@@ -130,6 +131,17 @@ Approved references:
   shared palette except for semantic mappings such as HTTP methods.
 - Style every framework control that paints chrome of its own. `ScrollViewer`
   defaults to a bright grey track and thumb that does not belong to the palette.
+- Verify layout and palette headlessly before asking for an interactive check.
+  `VisualSnapshotRenderer.Render(root, width, height, Theme.Default)` returns a
+  `CellBuffer`, and `CellBuffer.ToMarkupLines()` gives per-cell text with foreground
+  and background, which is enough to assert geometry, trimming, junction glyphs and
+  exact hex colours. `TerminalAppSnapshotRenderer.RenderSvg` renders the same tree
+  to SVG when the result needs to be looked at rather than asserted. Two caveats:
+  the snapshot renderer does not apply `AutoFocus`, so it renders the unfocused
+  state, and the SVG exporter draws glyphs one row above their cell backgrounds, so
+  trust the cell dump over the picture when they disagree.
+- Refactors of shared visuals should be proved by diffing snapshots before and
+  after; normalise generated ids and timestamps first.
 - `Visual.Invalidate` is obsolete. Drive every visual state change through a
   `[Bindable]` partial property so the app invalidates on its own; the framework's
   own `TreeView.HoveredIndex` is the pattern for pointer state.
@@ -171,33 +183,88 @@ screens.
 - Do not add interfaces or callback abstractions until there is more than one
   concrete consumer or a real test boundary.
 
-Target structure:
+Current structure:
 
 ```text
 Straumr.Console.Tui/
   Integration/
-    TuiConsoleIntegration.cs
+    TuiConsoleIntegration.cs      host: DI registration, Terminal.RunAsync, exit code
   Infrastructure/
-    StraumrTuiApp.cs
-    TuiScreen.cs
+    StraumrTuiApp.cs              window frame, header, screen content, command bar
+    TuiScreen.cs                  screen enum; its name renders in the header
   Screens/
     Workspace/
-      WorkspaceScreen.cs
-      WorkspaceScreenItem.cs
-      WorkspaceList.cs
+      WorkspaceScreen.cs          data loading and the parts unique to Workspaces
+      WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry
   Visuals/
     Shared/
-      StraumrHeader.cs
-      StraumrStyles.cs
-      StraumrSurfaces.cs
-      StraumrCommandPrompt.cs
+      ResourceScreenLayout.cs     the list-and-detail screen scaffold
+      ResourceList.cs             multiline list with selection, hover and scrolling
+      ResourceRow.cs              presentation model for one list row
+      FieldList.cs                label/value grid for detail panes
+      StraumrHeader.cs            the screen header bar
+      StraumrSurfaces.cs          dividers, bars, insets
+      StraumrStyles.cs            the palette and every control style
   Formatting/
-    TimestampFormatting.cs
-    HttpMethodFormatting.cs
+    TimestampFormatting.cs        relative and absolute timestamps
+    CountFormatting.cs            pluralised counts
 ```
 
-This is a starting boundary, not a requirement to create empty abstractions.
 Add a file only when it owns meaningful behavior.
+
+## Shared Building Blocks
+
+The Workspaces, Auths and Secrets mockups are structurally identical: a titled list
+panel with a filter row on the left, and a selected-resource detail panel on the
+right with a summary bar over two titled panes. That layout lives in
+`ResourceScreenLayout` and a screen supplies only its own content.
+
+`ResourceScreenLayout.Create` takes the list title, a count for the badge, the
+filter placeholder, and three factories:
+
+- `listContent` — the list, or a loading, empty or error visual.
+- `detailHead` — the summary bar, or a message when nothing is selected. It must
+  always return content, because its three rows are what align the two panels'
+  rules against the column divider.
+- `detailSections` — the rule closing the head plus everything below it, from
+  `TwoPaneSections` or `EmptySections`.
+
+Supporting helpers on the same class: `Pane` for pane padding, `Scrollable` to wrap
+a `ResourceList` in the styled scroll viewer, and `Message` to centre a state
+message.
+
+`ResourceList` owns selection, hover, focus response, scrolling and row styling. A
+screen hands it `ResourceRow` values and binds its `SelectedIndex`; it never styles
+rows itself. A list whose rows all omit `Detail` lays out two lines high instead of
+three, which is what the Auths and Secrets mockups need.
+
+`FieldList.Create` builds a detail pane's label/value grid. Use `FieldList.Count`
+for quantities so they inherit the amber-when-populated rule, `Wrapped` for values
+long enough to wrap such as paths, and `Text` otherwise.
+
+### Adding a screen
+
+1. Add the screen to `TuiScreen`; the header renders its lowercased name.
+2. Add `Screens/<Name>/<Name>Screen.cs` and, when a Core model does not directly
+   represent what is shown, `<Name>ScreenItem.cs` beside it.
+3. Load through Core services in a `LoadAsync`, into `State<T>` fields.
+4. Map each item to a `ResourceRow` and call `ResourceScreenLayout.Create`.
+5. Register the screen in `TuiConsoleIntegration.ConfigureServices` and navigate to
+   it from `StraumrTuiApp`.
+
+Nothing in steps 1-5 touches layout, palette, dividers or row styling. If a screen
+needs to, that is a signal to extend the shared piece rather than to hand-roll a
+variant.
+
+### Where the Requests screen differs
+
+The Requests mockup is the one exception. Its detail panel has three regions rather
+than two panes: a request head, an overview row of two panels, and a response
+preview below. Its sidebar rows are also a single line led by an HTTP method token
+in a semantic colour. So Requests reuses `Create`, the palette, the surfaces and the
+formatting helpers, but supplies its own `detailSections`, and `ResourceRow` will
+need a leading-token field for the method. Both are known extension points, not
+redesigns.
 
 ## Runtime Boundaries
 
@@ -323,7 +390,7 @@ may persist changes through the appropriate Core service.
 | --- | --- | --- | --- |
 | P0 | Create implementation guide and tracker | Complete | This document |
 | W1 | Replace prototype root with the shared application shell | Complete | Reactive header/content and framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified. W2 later replaced the `DockLayout` root with a rule-separated `Grid` inside one window frame |
-| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Rebuilt as a rule-separated shell after the boxed version was rejected on review; verified with headless snapshots at 60x20, 70x20, 80x24, 100x22, and 120x34 for populated and empty registries; solution and `-p:IncludeTui=false` builds pass; `straumr --help` still opens CLI help; awaiting interactive confirmation of the new layout |
+| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Screen complete and reviewed interactively over several passes (layout, palette, vibrancy, cohesion, header). Extracted into `ResourceScreenLayout`/`ResourceList`/`FieldList`; refactor proved render-identical by snapshot diff at 120x28, 70x20 and 90x16, populated and empty. A throwaway Secrets screen was built on the scaffold to confirm reuse. Solution and `-p:IncludeTui=false` builds pass; `straumr --help` still opens CLI help. Outstanding: keyboard/pointer selection, hover and unfocused selection band, resize in a real terminal, cancellation, corrupt-workspace behaviour |
 | W3 | Add selected workspace's recently used Requests pane | Not started | |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
@@ -380,6 +447,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 - The TUI, CLI help path, CLI-only build, and full build remain functional.
 - Loading, empty, error, cancellation, and resize behavior have been exercised.
 - This tracker records completed milestones and any accepted deviations.
+- Everything not specific to workspaces lives in `Visuals/Shared` or `Formatting`,
+  and a second screen can be built without touching layout or palette code.
 
 ## Decision Log
 
@@ -412,6 +481,9 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Drop panel tints entirely for one shared background | Dividers already carry the structure; any tint step reintroduced a seam, and a flat dark ground lets the accents carry the screen. Removed the `ZStack`/`Canvas` wash helpers with it |
 | 2026-09-10 | Darken the shared background to `#090D15` | Gives the accent, amber, green and selection more room to read against |
 | 2026-09-10 | Make the screen header a single row | A two-row bar cannot centre one line of text, and three rows read as too airy; at one row the frame above and the rule below are equidistant, so it is both centred and compact |
+| 2026-09-10 | Extract the list-and-detail scaffold into `ResourceScreenLayout` | The Auths and Secrets mockups are structurally identical to Workspaces, so there are three consumers rather than a speculative one |
+| 2026-09-10 | Let `ResourceList` own row styling from `ResourceRow` data | Keeps the selection, hover and populated/inert rules in one place instead of re-deriving them per screen |
+| 2026-09-10 | Prove the extraction with snapshot diffs and a throwaway second screen | Behaviour-preserving refactors of shared visuals are otherwise unverifiable without a terminal |
 | 2026-09-10 | Give the list heading the same padding as the top bar and summary | A heading pressed against its rule reads as cut off; padding it also aligns the two panels' first rules |
 
 ## Change Log
@@ -426,6 +498,9 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Removed the premature filter affordance, replaced the interactive splitter with a weighted grid, and composed multiline workspace items inside `ScrollViewer`.
 - 2026-09-10: Replaced button-based workspace rows with a retained multiline list and applied the approved palette after populated visual testing exposed poor contrast and excessive emphasis.
 - 2026-09-10: Corrected the workspace shell to use a padded top bar, an in-panel list heading, a full-width selected-workspace summary, and two lower detail columns with headings inside their borders.
+- 2026-09-10: Extracted the shared screen scaffold, resource list, row model, field
+  grid and count formatting so Auths and Secrets can be built without new layout
+  code; verified render-identical and exercised with a throwaway Secrets screen.
 - 2026-09-10: Tightened the screen header to a single row. Two rows was tried first
   and rejected because one line of text cannot sit centred in an even band. Applying
   the same tightening to the content bars was also tried and reverted: it crowded the
