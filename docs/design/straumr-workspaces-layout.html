@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Straumr Layout</title>
+<title>Straumr Workspaces Layout</title>
 <style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
 </head>
 <body>
-<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Straumr Layout" srcdoc="&lt;!doctype html&gt;
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Straumr Workspaces Layout" srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
 &lt;head&gt;
 &lt;meta charset=&quot;utf-8&quot;&gt;
 &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
 &lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
 &lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
-&lt;title&gt;Straumr Layout&lt;/title&gt;
+&lt;title&gt;Straumr Workspaces Layout&lt;/title&gt;
 &lt;style&gt;:root {
   color-scheme: light dark;
   background-color: var(
@@ -1035,9 +1035,9 @@ svg.lucide {
 html&gt;body{padding:0}&lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-&lt;div id=&quot;straumr-layout&quot; aria-label=&quot;Straumr terminal interface mockup&quot;&gt;
+&lt;div id=&quot;straumr-workspaces-layout&quot; aria-label=&quot;Straumr Workspaces screen mockup&quot;&gt;
   &lt;style&gt;
-    #straumr-layout {
+    #straumr-workspaces-layout {
       --str-bg: light-dark(#f5f7f9, #0d1c25);
       --str-panel: light-dark(#ffffff, #10232e);
       --str-panel-alt: light-dark(#eef3f6, #0b1922);
@@ -1045,7 +1045,6 @@ html&gt;body{padding:0}&lt;/style&gt;
       --str-muted: light-dark(#61717d, #89a1af);
       --str-border: light-dark(#b8c5cc, #36505e);
       --str-accent: light-dark(#1269ba, #52a8ff);
-      --str-accent-soft: light-dark(#dceeff, #173955);
       --str-green: light-dark(#0a7652, #75d4a5);
       --str-yellow: light-dark(#8a5a00, #e8c36b);
       --str-red: light-dark(#af3030, #ff8585);
@@ -1055,66 +1054,66 @@ html&gt;body{padding:0}&lt;/style&gt;
       color-scheme: light dark;
       color: var(--str-text);
       font-family: ui-monospace, SFMono-Regular, Consolas, &quot;Liberation Mono&quot;, monospace;
+      display: grid;
+      gap: 28px;
       width: 100%;
     }
 
-    #straumr-layout * { box-sizing: border-box; }
+    #straumr-workspaces-layout * { box-sizing: border-box; }
 
-    #straumr-layout .str-window {
+    #straumr-workspaces-layout .str-window {
       background: var(--str-bg);
       border: 1px solid var(--str-border);
-      min-height: 650px;
+      min-height: 560px;
       overflow: hidden;
     }
 
-    #straumr-layout .str-topbar,
-    #straumr-layout .str-footer,
-    #straumr-layout .str-section-title,
-    #straumr-layout .str-request-head,
-    #straumr-layout .str-response-head,
-    #straumr-layout .str-command {
+    #straumr-workspaces-layout .str-topbar,
+    #straumr-workspaces-layout .str-footer,
+    #straumr-workspaces-layout .str-list-title,
+    #straumr-workspaces-layout .str-detail-head,
+    #straumr-workspaces-layout .str-line,
+    #straumr-workspaces-layout .str-status-line {
       display: flex;
       align-items: center;
     }
 
-    #straumr-layout .str-topbar {
+    #straumr-workspaces-layout .str-topbar {
       min-height: 52px;
       padding: 8px 14px;
       border-bottom: 1px solid var(--str-border);
       gap: 18px;
     }
 
-    #straumr-layout .str-brand {
+    #straumr-workspaces-layout .str-brand {
       color: var(--str-accent);
       font-weight: 500;
       letter-spacing: .08em;
-      white-space: pre;
+      white-space: nowrap;
     }
 
-    #straumr-layout .str-context { color: var(--str-muted); }
-    #straumr-layout .str-context strong { color: var(--str-text); font-weight: 500; }
-    #straumr-layout .str-active-workspace {
+    #straumr-workspaces-layout .str-context { color: var(--str-muted); }
+    #straumr-workspaces-layout .str-context strong { color: var(--str-text); font-weight: 500; }
+    #straumr-workspaces-layout .str-active-workspace {
       margin-left: auto;
       color: var(--str-green);
       opacity: 0.76;
       white-space: nowrap;
     }
 
-    #straumr-layout .str-workspace {
+    #straumr-workspaces-layout .str-main {
       display: grid;
-      grid-template-columns: minmax(230px, 31%) minmax(0, 1fr);
-      min-height: 548px;
+      grid-template-columns: minmax(240px, 31%) minmax(0, 1fr);
+      min-height: 458px;
     }
 
-    #straumr-layout .str-sidebar {
+    #straumr-workspaces-layout .str-list-panel {
+      min-width: 0;
       border-right: 1px solid var(--str-border);
       background: var(--str-panel-alt);
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
     }
 
-    #straumr-layout .str-section-title {
+    #straumr-workspaces-layout .str-list-title {
       min-height: 40px;
       padding: 8px 12px;
       gap: 10px;
@@ -1123,412 +1122,202 @@ html&gt;body{padding:0}&lt;/style&gt;
       font-weight: 500;
     }
 
-    #straumr-layout .str-count {
-      margin-left: auto;
-      color: var(--str-muted);
-      font-weight: 400;
-    }
+    #straumr-workspaces-layout .str-count { margin-left: auto; color: var(--str-muted); font-weight: 400; }
+    #straumr-workspaces-layout .str-filter { padding: 7px 12px; color: var(--str-muted); border-bottom: 1px solid var(--str-border); }
+    #straumr-workspaces-layout .str-list { display: flex; flex-direction: column; gap: 5px; padding: 8px; }
 
-    #straumr-layout .str-filter {
-      padding: 7px 12px;
-      color: var(--str-muted);
-      border-bottom: 1px solid var(--str-border);
-    }
-
-    #straumr-layout .str-request-list {
-      display: flex;
-      flex-direction: column;
-      padding: 8px;
-      gap: 5px;
-    }
-
-    #straumr-layout .str-request-item {
-      appearance: none;
-      border: 0;
+    #straumr-workspaces-layout .str-item {
       border-left: 2px solid transparent;
-      background: transparent;
-      color: var(--str-text);
-      font: inherit;
-      text-align: left;
       padding: 9px 10px;
-      cursor: pointer;
     }
 
-    #straumr-layout .str-request-item[aria-selected=&quot;true&quot;] {
+    #straumr-workspaces-layout .str-item.str-selected {
       background: var(--str-selection);
       border-left-color: var(--str-accent);
     }
 
-    #straumr-layout .str-item-line { display: flex; gap: 8px; align-items: baseline; }
-    #straumr-layout .str-method { font-weight: 500; }
-    #straumr-layout .str-method-get,
-    #straumr-layout .str-method-head { color: var(--str-green); }
-    #straumr-layout .str-method-post { color: var(--str-accent); }
-    #straumr-layout .str-method-put { color: var(--str-orange); }
-    #straumr-layout .str-method-patch,
-    #straumr-layout .str-method-options { color: var(--str-purple); }
-    #straumr-layout .str-method-delete { color: var(--str-red); }
-    #straumr-layout .str-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #straumr-layout .str-item-url,
-    #straumr-layout .str-item-meta { color: var(--str-muted); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #straumr-layout .str-item-meta { color: var(--str-yellow); }
+    #straumr-workspaces-layout .str-line { gap: 8px; }
+    #straumr-workspaces-layout .str-item-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-workspaces-layout .str-item-meta { color: var(--str-yellow); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-workspaces-layout .str-item-path { color: var(--str-muted); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-workspaces-layout .str-marker { color: var(--str-accent); }
 
-    #straumr-layout .str-detail {
+    #straumr-workspaces-layout .str-detail {
       min-width: 0;
       display: grid;
-      grid-template-rows: auto minmax(255px, 47%) minmax(190px, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
       background: var(--str-panel);
     }
 
-    #straumr-layout .str-request-head {
+    #straumr-workspaces-layout .str-detail-head {
       min-height: 64px;
       padding: 10px 14px;
+      gap: 12px;
       border-bottom: 1px solid var(--str-border);
-      gap: 10px;
-      flex-wrap: wrap;
     }
 
-    #straumr-layout .str-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #straumr-layout .str-id { margin-left: auto; color: var(--str-muted); }
+    #straumr-workspaces-layout .str-detail-name { font-weight: 500; }
+    #straumr-workspaces-layout .str-detail-kind { color: var(--str-accent); }
+    #straumr-workspaces-layout .str-detail-meta { color: var(--str-muted); }
+    #straumr-workspaces-layout .str-detail-id { margin-left: auto; color: var(--str-muted); }
 
-    #straumr-layout .str-overview {
+    #straumr-workspaces-layout .str-detail-body {
       display: grid;
-      grid-template-columns: minmax(280px, 47%) minmax(0, 1fr);
+      grid-template-columns: minmax(260px, 48%) minmax(0, 1fr);
       min-height: 0;
     }
 
-    #straumr-layout .str-meta-panel,
-    #straumr-layout .str-body-panel,
-    #straumr-layout .str-response { min-width: 0; }
+    #straumr-workspaces-layout .str-pane { min-width: 0; padding: 14px; }
+    #straumr-workspaces-layout .str-pane + .str-pane { border-left: 1px solid var(--str-border); }
+    #straumr-workspaces-layout .str-pane-title { color: var(--str-accent); font-weight: 500; margin-bottom: 12px; }
 
-    #straumr-layout .str-meta-panel {
-      border-right: 1px solid var(--str-border);
-      padding: 12px 14px;
-    }
-
-    #straumr-layout .str-body-panel { padding: 12px 14px; }
-
-    #straumr-layout .str-label {
-      color: var(--str-accent);
-      font-weight: 500;
-      margin-bottom: 9px;
-    }
-
-    #straumr-layout .str-kv {
+    #straumr-workspaces-layout .str-kv {
       display: grid;
       grid-template-columns: max-content minmax(0, 1fr);
-      gap: 7px 12px;
+      gap: 8px 14px;
+      margin: 0;
     }
 
-    #straumr-layout .str-kv dt { color: var(--str-muted); }
-    #straumr-layout .str-kv dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-workspaces-layout .str-kv dt { color: var(--str-muted); }
+    #straumr-workspaces-layout .str-kv dd { margin: 0; overflow-wrap: anywhere; }
+    #straumr-workspaces-layout .str-good { color: var(--str-green); }
+    #straumr-workspaces-layout .str-hidden { color: var(--str-yellow); letter-spacing: .12em; }
 
-    #straumr-layout .str-subsection {
-      margin-top: 12px;
-      padding-top: 10px;
+    #straumr-workspaces-layout .str-subsection {
+      margin-top: 16px;
+      padding-top: 12px;
       border-top: 1px solid var(--str-border);
     }
 
-    #straumr-layout .str-subsection .str-label { margin-bottom: 6px; }
-    #straumr-layout .str-secret-list { color: var(--str-green); overflow-wrap: anywhere; }
-    #straumr-layout .str-sensitive { color: var(--str-yellow); }
-    #straumr-layout .str-meta-panel.str-no-template .str-auth-panel { display: none; }
-    #straumr-layout .str-meta-panel.str-no-template .str-subsection {
-      margin-top: 0;
-      padding-top: 0;
-      border-top: 0;
-    }
+    #straumr-workspaces-layout .str-subsection-title { color: var(--str-accent); font-weight: 500; margin-bottom: 9px; }
+    #straumr-workspaces-layout .str-reference { padding: 6px 0; }
+    #straumr-workspaces-layout .str-reference + .str-reference { border-top: 1px solid var(--str-border); }
+    #straumr-workspaces-layout .str-reference-name { color: var(--str-text); }
+    #straumr-workspaces-layout .str-reference-meta { color: var(--str-muted); margin-top: 3px; }
 
-    #straumr-layout .str-body-head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    #straumr-layout .str-body-head .str-label { margin: 0; }
-
-    #straumr-layout pre {
-      margin: 0;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      color: var(--str-text);
-      font: inherit;
-    }
-
-    #straumr-layout .str-code {
+    #straumr-workspaces-layout .str-code {
       background: var(--str-panel-alt);
       border-left: 2px solid var(--str-border);
       padding: 10px 12px;
-      min-height: 135px;
+      margin: 10px 0 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: inherit;
     }
 
-    #straumr-layout .str-dim { color: var(--str-muted); }
-    #straumr-layout .str-value { color: var(--str-yellow); }
+    #straumr-workspaces-layout .str-status-line { gap: 10px; padding: 6px 0; }
+    #straumr-workspaces-layout .str-status-line + .str-status-line { border-top: 1px solid var(--str-border); }
+    #straumr-workspaces-layout .str-status-key { color: var(--str-muted); min-width: 110px; }
 
-    #straumr-layout .str-response {
-      border-top: 1px solid var(--str-border);
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
+    #straumr-workspaces-layout .str-method { font-weight: 500; }
+    #straumr-workspaces-layout .str-method-get { color: var(--str-green); }
+    #straumr-workspaces-layout .str-method-post { color: var(--str-accent); }
+    #straumr-workspaces-layout .str-method-delete { color: var(--str-red); }
 
-    #straumr-layout .str-response-head {
-      min-height: 39px;
-      padding: 7px 14px;
-      gap: 14px;
-      border-bottom: 1px solid var(--str-border);
-    }
-
-    #straumr-layout .str-response-body { padding: 12px 14px; overflow: hidden; }
-    #straumr-layout .str-ok { color: var(--str-green); font-weight: 500; }
-    #straumr-layout .str-response-meta { color: var(--str-muted); }
-    #straumr-layout .str-response-tabs { margin-left: auto; display: flex; gap: 14px; color: var(--str-muted); }
-    #straumr-layout .str-response-tabs .str-active { color: var(--str-accent); }
-
-    #straumr-layout .str-command {
-      min-height: 38px;
-      padding: 7px 12px;
-      border-top: 1px solid var(--str-accent);
-      background: var(--str-panel-alt);
-      color: var(--str-accent);
-    }
-
-    #straumr-layout .str-command[hidden] { display: none; }
-    #straumr-layout .str-command-input { color: var(--str-text); margin-left: 6px; }
-    #straumr-layout .str-cursor { background: var(--str-accent); color: var(--str-panel); }
-
-    #straumr-layout .str-footer {
+    #straumr-workspaces-layout .str-footer {
       min-height: 49px;
-      border-top: 1px solid var(--str-border);
       padding: 7px 12px;
+      border-top: 1px solid var(--str-border);
       gap: 15px;
       flex-wrap: wrap;
       color: var(--str-muted);
     }
 
-    #straumr-layout kbd {
+    #straumr-workspaces-layout kbd {
       color: var(--str-accent);
       background: transparent;
       border: 0;
+      padding: 0;
       font: inherit;
       font-weight: 500;
-      padding: 0;
     }
 
     @media (max-width: 700px) {
-      #straumr-layout .str-window { min-height: 0; }
-      #straumr-layout .str-topbar { align-items: flex-start; flex-wrap: wrap; }
-      #straumr-layout .str-workspace { grid-template-columns: 1fr; }
-      #straumr-layout .str-sidebar { border-right: 0; border-bottom: 1px solid var(--str-border); }
-      #straumr-layout .str-request-list { max-height: 250px; overflow: hidden; }
-      #straumr-layout .str-detail { grid-template-rows: auto auto auto; }
-      #straumr-layout .str-overview { grid-template-columns: 1fr; }
-      #straumr-layout .str-meta-panel { border-right: 0; border-bottom: 1px solid var(--str-border); }
-      #straumr-layout .str-id { margin-left: 0; width: 100%; }
+      #straumr-workspaces-layout .str-window { min-height: 0; }
+      #straumr-workspaces-layout .str-topbar { flex-wrap: wrap; }
+      #straumr-workspaces-layout .str-main { grid-template-columns: 1fr; }
+      #straumr-workspaces-layout .str-list-panel { border-right: 0; border-bottom: 1px solid var(--str-border); }
+      #straumr-workspaces-layout .str-list { max-height: 260px; overflow: hidden; }
+      #straumr-workspaces-layout .str-detail-body { grid-template-columns: 1fr; }
+      #straumr-workspaces-layout .str-pane + .str-pane { border-left: 0; border-top: 1px solid var(--str-border); }
+      #straumr-workspaces-layout .str-detail-id { margin-left: 0; }
     }
   &lt;/style&gt;
 
-  &lt;section class=&quot;str-window&quot; aria-label=&quot;Straumr request screen&quot;&gt;
+  &lt;section class=&quot;str-window&quot; aria-label=&quot;Workspaces screen&quot;&gt;
     &lt;header class=&quot;str-topbar&quot;&gt;
       &lt;div class=&quot;str-brand&quot;&gt;{straumr}&lt;/div&gt;
-      &lt;div class=&quot;str-context&quot;&gt;&lt;strong&gt;requests&lt;/strong&gt;&lt;/div&gt;
+      &lt;div class=&quot;str-context&quot;&gt;&lt;strong&gt;workspaces&lt;/strong&gt;&lt;/div&gt;
       &lt;div class=&quot;str-active-workspace&quot;&gt;active workspace &lt;strong&gt;demo&lt;/strong&gt;&lt;/div&gt;
     &lt;/header&gt;
 
-    &lt;main class=&quot;str-workspace&quot;&gt;
-      &lt;aside class=&quot;str-sidebar&quot; aria-label=&quot;Requests&quot;&gt;
-        &lt;div class=&quot;str-section-title&quot;&gt;Requests &lt;span class=&quot;str-count&quot;&gt;3&lt;/span&gt;&lt;/div&gt;
-        &lt;div class=&quot;str-filter&quot;&gt;/ filter requests&lt;/div&gt;
-        &lt;div class=&quot;str-request-list&quot; role=&quot;listbox&quot; aria-label=&quot;Request list&quot;&gt;
-          &lt;button class=&quot;str-request-item&quot; data-request=&quot;oauth&quot; type=&quot;button&quot; role=&quot;option&quot; aria-selected=&quot;true&quot;&gt;
-            &lt;span class=&quot;str-item-line&quot;&gt;&lt;span class=&quot;str-method str-method-get&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;str-name&quot;&gt;Get user&lt;/span&gt;&lt;/span&gt;
-            &lt;span class=&quot;str-item-url&quot;&gt;api.example.com/users/42&lt;/span&gt;
-            &lt;span class=&quot;str-item-meta&quot;&gt;JSON · 2 secrets&lt;/span&gt;
-          &lt;/button&gt;
-          &lt;button class=&quot;str-request-item&quot; data-request=&quot;custom&quot; type=&quot;button&quot; role=&quot;option&quot; aria-selected=&quot;false&quot;&gt;
-            &lt;span class=&quot;str-item-line&quot;&gt;&lt;span class=&quot;str-method str-method-post&quot;&gt;POST&lt;/span&gt;&lt;span class=&quot;str-name&quot;&gt;Create user&lt;/span&gt;&lt;/span&gt;
-            &lt;span class=&quot;str-item-url&quot;&gt;api.example.com/users&lt;/span&gt;
-            &lt;span class=&quot;str-item-meta&quot;&gt;JSON · 2 secrets&lt;/span&gt;
-          &lt;/button&gt;
-          &lt;button class=&quot;str-request-item&quot; data-request=&quot;direct&quot; type=&quot;button&quot; role=&quot;option&quot; aria-selected=&quot;false&quot;&gt;
-            &lt;span class=&quot;str-item-line&quot;&gt;&lt;span class=&quot;str-method str-method-delete&quot;&gt;DELETE&lt;/span&gt;&lt;span class=&quot;str-name&quot;&gt;Delete user&lt;/span&gt;&lt;/span&gt;
-            &lt;span class=&quot;str-item-url&quot;&gt;api.example.com/users/42&lt;/span&gt;
-            &lt;span class=&quot;str-item-meta&quot;&gt;No body&lt;/span&gt;
-          &lt;/button&gt;
+    &lt;main class=&quot;str-main&quot;&gt;
+      &lt;aside class=&quot;str-list-panel&quot; aria-label=&quot;Workspaces&quot;&gt;
+        &lt;div class=&quot;str-list-title&quot;&gt;Workspaces &lt;span class=&quot;str-count&quot;&gt;3&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;str-filter&quot;&gt;/ filter workspaces&lt;/div&gt;
+        &lt;div class=&quot;str-list&quot;&gt;
+          &lt;div class=&quot;str-item str-selected&quot;&gt;
+            &lt;div class=&quot;str-line&quot;&gt;&lt;span class=&quot;str-item-name&quot;&gt;demo&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;str-item-meta&quot;&gt;3 requests · 4 auths&lt;/div&gt;
+            &lt;div class=&quot;str-item-path&quot;&gt;~/.straumr/workspaces/demo&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;str-item&quot;&gt;
+            &lt;div class=&quot;str-line&quot;&gt;&lt;span class=&quot;str-item-name&quot;&gt;staging&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;str-item-meta&quot;&gt;8 requests · 2 auths&lt;/div&gt;
+            &lt;div class=&quot;str-item-path&quot;&gt;~/.straumr/workspaces/staging&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;str-item&quot;&gt;
+            &lt;div class=&quot;str-line&quot;&gt;&lt;span class=&quot;str-item-name&quot;&gt;personal&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;str-item-meta&quot;&gt;2 requests · no auths&lt;/div&gt;
+            &lt;div class=&quot;str-item-path&quot;&gt;D:/api/personal&lt;/div&gt;
+          &lt;/div&gt;
         &lt;/div&gt;
       &lt;/aside&gt;
 
-      &lt;section class=&quot;str-detail&quot; aria-label=&quot;Selected request&quot;&gt;
-        &lt;header class=&quot;str-request-head&quot;&gt;
-          &lt;span class=&quot;str-method str-method-get&quot; id=&quot;str-selected-method&quot;&gt;GET&lt;/span&gt;
-          &lt;span class=&quot;str-url&quot; id=&quot;str-selected-url&quot;&gt;https://api.example.com/users/42&lt;/span&gt;
-          &lt;span class=&quot;str-id&quot; id=&quot;str-selected-id&quot;&gt;get-user&lt;/span&gt;
+      &lt;section class=&quot;str-detail&quot; aria-label=&quot;Selected workspace&quot;&gt;
+        &lt;header class=&quot;str-detail-head&quot;&gt;
+          &lt;span class=&quot;str-detail-name&quot;&gt;demo&lt;/span&gt;
+          &lt;span class=&quot;str-detail-meta&quot;&gt;last accessed today 09:14&lt;/span&gt;
+          &lt;span class=&quot;str-detail-id&quot;&gt;d70d785a&lt;/span&gt;
         &lt;/header&gt;
-
-        &lt;div class=&quot;str-overview&quot;&gt;
-          &lt;section class=&quot;str-meta-panel&quot; aria-label=&quot;Authentication and secrets&quot;&gt;
-            &lt;div class=&quot;str-auth-panel&quot;&gt;
-              &lt;div class=&quot;str-label&quot;&gt;Authentication&lt;/div&gt;
-              &lt;dl class=&quot;str-kv&quot;&gt;
-                &lt;dt&gt;Source&lt;/dt&gt;&lt;dd id=&quot;str-auth-source&quot;&gt;Template · production-oauth&lt;/dd&gt;
-                &lt;dt&gt;Type&lt;/dt&gt;&lt;dd id=&quot;str-auth-type&quot;&gt;OAuth2 · Client Credentials&lt;/dd&gt;
-                &lt;dt&gt;Injects&lt;/dt&gt;&lt;dd id=&quot;str-auth-injects&quot;&gt;Authorization&lt;/dd&gt;
-                &lt;dt&gt;Material&lt;/dt&gt;&lt;dd class=&quot;str-sensitive&quot; id=&quot;str-auth-material&quot;&gt;token hidden&lt;/dd&gt;
-                &lt;dt&gt;Status&lt;/dt&gt;&lt;dd id=&quot;str-auth-status&quot;&gt;valid until 15:45&lt;/dd&gt;
-              &lt;/dl&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;str-subsection&quot;&gt;
-              &lt;div class=&quot;str-label&quot;&gt;Secret references&lt;/div&gt;
-              &lt;div class=&quot;str-secret-list&quot; id=&quot;str-secret-list&quot;&gt;oauth-client ✓ · oauth-secret ✓&lt;/div&gt;
-            &lt;/div&gt;
+        &lt;div class=&quot;str-detail-body&quot;&gt;
+          &lt;section class=&quot;str-pane&quot; aria-label=&quot;Workspace details&quot;&gt;
+            &lt;div class=&quot;str-pane-title&quot;&gt;Workspace&lt;/div&gt;
+            &lt;dl class=&quot;str-kv&quot;&gt;
+              &lt;dt&gt;Path&lt;/dt&gt;&lt;dd&gt;~/.straumr/workspaces/demo/d70d785a.straumr&lt;/dd&gt;
+              &lt;dt&gt;Requests&lt;/dt&gt;&lt;dd&gt;3&lt;/dd&gt;
+              &lt;dt&gt;Auths&lt;/dt&gt;&lt;dd&gt;4&lt;/dd&gt;
+              &lt;dt&gt;Modified&lt;/dt&gt;&lt;dd&gt;2026-09-09 16:02&lt;/dd&gt;
+            &lt;/dl&gt;
           &lt;/section&gt;
 
-          &lt;section class=&quot;str-body-panel&quot; aria-label=&quot;Request content preview&quot;&gt;
-            &lt;div class=&quot;str-body-head&quot;&gt;
-              &lt;div class=&quot;str-label&quot; id=&quot;str-preview-title&quot;&gt;Body preview&lt;/div&gt;
+          &lt;section class=&quot;str-pane&quot; aria-label=&quot;Recently used requests&quot;&gt;
+            &lt;div class=&quot;str-pane-title&quot;&gt;Requests&lt;/div&gt;
+            &lt;div class=&quot;str-reference&quot;&gt;
+              &lt;div class=&quot;str-reference-name&quot;&gt;&lt;span class=&quot;str-method str-method-get&quot;&gt;GET&lt;/span&gt; Get user&lt;/div&gt;
+              &lt;div class=&quot;str-reference-meta&quot;&gt;request · last used 2 min ago&lt;/div&gt;
             &lt;/div&gt;
-            &lt;pre class=&quot;str-code&quot; id=&quot;str-preview-content&quot;&gt;{
-  &quot;include&quot;: [&quot;profile&quot;, &quot;permissions&quot;],
-  &quot;expand&quot;: true
-}&lt;/pre&gt;
+            &lt;div class=&quot;str-reference&quot;&gt;
+              &lt;div class=&quot;str-reference-name&quot;&gt;&lt;span class=&quot;str-method str-method-post&quot;&gt;POST&lt;/span&gt; Create user&lt;/div&gt;
+              &lt;div class=&quot;str-reference-meta&quot;&gt;request · last used yesterday&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;str-reference&quot;&gt;
+              &lt;div class=&quot;str-reference-name&quot;&gt;&lt;span class=&quot;str-method str-method-delete&quot;&gt;DELETE&lt;/span&gt; Delete user&lt;/div&gt;
+              &lt;div class=&quot;str-reference-meta&quot;&gt;request · last used 4 days ago&lt;/div&gt;
+            &lt;/div&gt;
           &lt;/section&gt;
         &lt;/div&gt;
-
-        &lt;section class=&quot;str-response&quot; aria-label=&quot;Response preview&quot;&gt;
-          &lt;header class=&quot;str-response-head&quot;&gt;
-            &lt;span class=&quot;str-ok&quot;&gt;200 OK&lt;/span&gt;
-            &lt;span class=&quot;str-response-meta&quot;&gt;184 ms · 1.4 KB&lt;/span&gt;
-            &lt;span class=&quot;str-response-tabs&quot;&gt;&lt;span class=&quot;str-active&quot;&gt;Body&lt;/span&gt;&lt;span&gt;Headers&lt;/span&gt;&lt;span&gt;Trace&lt;/span&gt;&lt;/span&gt;
-          &lt;/header&gt;
-          &lt;div class=&quot;str-response-body&quot;&gt;
-            &lt;pre&gt;{
-  &lt;span class=&quot;str-value&quot;&gt;&quot;id&quot;&lt;/span&gt;: 42,
-  &lt;span class=&quot;str-value&quot;&gt;&quot;name&quot;&lt;/span&gt;: &lt;span class=&quot;str-value&quot;&gt;&quot;Ada Lovelace&quot;&lt;/span&gt;,
-  &lt;span class=&quot;str-value&quot;&gt;&quot;role&quot;&lt;/span&gt;: &lt;span class=&quot;str-value&quot;&gt;&quot;admin&quot;&lt;/span&gt;,
-  &lt;span class=&quot;str-value&quot;&gt;&quot;active&quot;&lt;/span&gt;: &lt;span class=&quot;str-value&quot;&gt;true&lt;/span&gt;
-}&lt;/pre&gt;
-          &lt;/div&gt;
-        &lt;/section&gt;
       &lt;/section&gt;
     &lt;/main&gt;
 
-    &lt;div class=&quot;str-command&quot; hidden aria-live=&quot;polite&quot;&gt;&lt;span&gt;:&lt;/span&gt;&lt;span class=&quot;str-command-input&quot;&gt;rq get-user&lt;/span&gt;&lt;span class=&quot;str-cursor&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;
-
     &lt;footer class=&quot;str-footer&quot;&gt;
-      &lt;span&gt;&lt;kbd&gt;j/k&lt;/kbd&gt; navigate&lt;/span&gt;
-      &lt;span&gt;&lt;kbd&gt;enter&lt;/kbd&gt; inspect&lt;/span&gt;
-      &lt;span&gt;&lt;kbd&gt;e&lt;/kbd&gt; edit in $EDITOR&lt;/span&gt;
-      &lt;span&gt;&lt;kbd&gt;s&lt;/kbd&gt; send&lt;/span&gt;
-      &lt;span&gt;&lt;kbd&gt;/&lt;/kbd&gt; filter&lt;/span&gt;
-      &lt;span&gt;&lt;kbd&gt;:&lt;/kbd&gt; command&lt;/span&gt;
-      &lt;span&gt;&lt;kbd&gt;?&lt;/kbd&gt; help&lt;/span&gt;
+      &lt;span&gt;&lt;kbd&gt;j/k&lt;/kbd&gt; navigate&lt;/span&gt;&lt;span&gt;&lt;kbd&gt;enter&lt;/kbd&gt; activate&lt;/span&gt;&lt;span&gt;&lt;kbd&gt;c&lt;/kbd&gt; create&lt;/span&gt;
+      &lt;span&gt;&lt;kbd&gt;e&lt;/kbd&gt; edit&lt;/span&gt;&lt;span&gt;&lt;kbd&gt;y&lt;/kbd&gt; copy&lt;/span&gt;&lt;span&gt;&lt;kbd&gt;x&lt;/kbd&gt; export&lt;/span&gt;
+      &lt;span&gt;&lt;kbd&gt;i&lt;/kbd&gt; import&lt;/span&gt;&lt;span&gt;&lt;kbd&gt;d&lt;/kbd&gt; delete&lt;/span&gt;&lt;span&gt;&lt;kbd&gt;:&lt;/kbd&gt; command&lt;/span&gt;
     &lt;/footer&gt;
   &lt;/section&gt;
-
-  &lt;script&gt;
-    (() =&gt; {
-      const root = document.getElementById(&#x27;straumr-layout&#x27;);
-      const workspace = root.querySelector(&#x27;.str-workspace&#x27;);
-      const detail = root.querySelector(&#x27;.str-detail&#x27;);
-      const metaPanel = root.querySelector(&#x27;.str-meta-panel&#x27;);
-      const command = root.querySelector(&#x27;.str-command&#x27;);
-      const state = { layout: &#x27;Balanced&#x27;, commandOpen: false, compactHeader: true };
-
-      const requests = {
-        oauth: {
-          authTemplate: true,
-          method: &#x27;GET&#x27;,
-          url: &#x27;https://api.example.com/users/42&#x27;,
-          id: &#x27;get-user&#x27;,
-          source: &#x27;Template · production-oauth&#x27;,
-          type: &#x27;OAuth2 · Client Credentials&#x27;,
-          injects: &#x27;Authorization&#x27;,
-          material: &#x27;token hidden&#x27;,
-          status: &#x27;valid until 15:45&#x27;,
-          secrets: &#x27;oauth-client ✓ · oauth-secret ✓&#x27;,
-          previewTitle: &#x27;Body preview&#x27;,
-          preview: &#x27;{\n  &quot;include&quot;: [&quot;profile&quot;, &quot;permissions&quot;],\n  &quot;expand&quot;: true\n}&#x27;
-        },
-        custom: {
-          authTemplate: true,
-          method: &#x27;POST&#x27;,
-          url: &#x27;https://api.example.com/users&#x27;,
-          id: &#x27;create-user&#x27;,
-          source: &#x27;Template · internal-sso&#x27;,
-          type: &#x27;Custom · JSON extraction&#x27;,
-          injects: &#x27;X-Session-Token&#x27;,
-          material: &#x27;cached value hidden&#x27;,
-          status: &#x27;cached&#x27;,
-          secrets: &#x27;auth-user ✓ · auth-password ✓&#x27;,
-          previewTitle: &#x27;Body preview&#x27;,
-          preview: &#x27;{\n  &quot;name&quot;: &quot;Ada Lovelace&quot;,\n  &quot;role&quot;: &quot;admin&quot;\n}&#x27;
-        },
-        direct: {
-          authTemplate: false,
-          method: &#x27;DELETE&#x27;,
-          url: &#x27;https://api.example.com/users/42&#x27;,
-          id: &#x27;delete-user&#x27;,
-          source: &#x27;Direct request header&#x27;,
-          type: &#x27;Bearer&#x27;,
-          injects: &#x27;Authorization&#x27;,
-          material: &#x27;Bearer ••••••••••••&#x27;,
-          status: &#x27;stored on request · no renewal&#x27;,
-          secrets: &#x27;none&#x27;,
-          previewTitle: &#x27;Body preview&#x27;,
-          preview: &#x27;No body&#x27;
-        }
-      };
-
-      function showRequest(key) {
-        const request = requests[key];
-        metaPanel.classList.toggle(&#x27;str-no-template&#x27;, !request.authTemplate);
-        const selectedMethod = root.querySelector(&#x27;#str-selected-method&#x27;);
-        selectedMethod.textContent = request.method;
-        selectedMethod.className = `str-method str-method-${request.method.toLowerCase()}`;
-        root.querySelector(&#x27;#str-selected-url&#x27;).textContent = request.url;
-        root.querySelector(&#x27;#str-selected-id&#x27;).textContent = request.id;
-        root.querySelector(&#x27;#str-auth-source&#x27;).textContent = request.source;
-        root.querySelector(&#x27;#str-auth-type&#x27;).textContent = request.type;
-        root.querySelector(&#x27;#str-auth-injects&#x27;).textContent = request.injects;
-        root.querySelector(&#x27;#str-auth-material&#x27;).textContent = request.material;
-        root.querySelector(&#x27;#str-auth-status&#x27;).textContent = request.status;
-        root.querySelector(&#x27;#str-secret-list&#x27;).textContent = request.secrets;
-        root.querySelector(&#x27;#str-preview-title&#x27;).textContent = request.previewTitle;
-        root.querySelector(&#x27;#str-preview-content&#x27;).textContent = request.preview;
-      }
-
-      function render() {
-        const columns = state.layout === &#x27;List focus&#x27;
-          ? &#x27;minmax(270px, 42%) minmax(0, 1fr)&#x27;
-          : state.layout === &#x27;Response focus&#x27;
-            ? &#x27;minmax(210px, 24%) minmax(0, 1fr)&#x27;
-            : &#x27;minmax(230px, 31%) minmax(0, 1fr)&#x27;;
-        workspace.style.gridTemplateColumns = columns;
-        detail.style.gridTemplateRows = &#x27;auto minmax(255px, 47%) minmax(190px, 1fr)&#x27;;
-        command.hidden = !state.commandOpen;
-        root.querySelector(&#x27;.str-context&#x27;).style.display = state.compactHeader ? &#x27;&#x27; : &#x27;none&#x27;;
-      }
-
-      root.querySelectorAll(&#x27;.str-request-item&#x27;).forEach((item) =&gt; {
-        item.addEventListener(&#x27;click&#x27;, () =&gt; {
-          root.querySelectorAll(&#x27;.str-request-item&#x27;).forEach((peer) =&gt; peer.setAttribute(&#x27;aria-selected&#x27;, &#x27;false&#x27;));
-          item.setAttribute(&#x27;aria-selected&#x27;, &#x27;true&#x27;);
-          showRequest(item.dataset.request);
-        });
-      });
-
-      showRequest(&#x27;oauth&#x27;);
-      render();
-      if (globalThis.Tweak) {
-        const tweak = new Tweak({ container: root, onChange: render });
-        tweak.addSelect(state, &#x27;layout&#x27;, { label: &#x27;Panel balance&#x27;, options: [&#x27;Balanced&#x27;, &#x27;Response focus&#x27;, &#x27;List focus&#x27;], reference: &#x27;straumr.layout&#x27; });
-        tweak.addToggle(state, &#x27;commandOpen&#x27;, { label: &#x27;Show command mode&#x27;, reference: &#x27;straumr.command&#x27; });
-        tweak.addToggle(state, &#x27;compactHeader&#x27;, { label: &#x27;Show workspace context&#x27;, reference: &#x27;straumr.header&#x27; });
-      }
-    })();
-  &lt;/script&gt;
 &lt;/div&gt;
+
 
 &lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
 &lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;

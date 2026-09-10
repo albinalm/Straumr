@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Straumr Layout</title>
+<title>Straumr Requests Layout</title>
 <style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
 </head>
 <body>
-<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Straumr Layout" srcdoc="&lt;!doctype html&gt;
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Straumr Requests Layout" srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
 &lt;head&gt;
 &lt;meta charset=&quot;utf-8&quot;&gt;
 &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
 &lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
 &lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
-&lt;title&gt;Straumr Layout&lt;/title&gt;
+&lt;title&gt;Straumr Requests Layout&lt;/title&gt;
 &lt;style&gt;:root {
   color-scheme: light dark;
   background-color: var(
@@ -1035,9 +1035,9 @@ svg.lucide {
 html&gt;body{padding:0}&lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-&lt;div id=&quot;straumr-layout&quot; aria-label=&quot;Straumr terminal interface mockup&quot;&gt;
+&lt;div id=&quot;straumr-requests-layout&quot; aria-label=&quot;Straumr terminal interface mockup&quot;&gt;
   &lt;style&gt;
-    #straumr-layout {
+    #straumr-requests-layout {
       --str-bg: light-dark(#f5f7f9, #0d1c25);
       --str-panel: light-dark(#ffffff, #10232e);
       --str-panel-alt: light-dark(#eef3f6, #0b1922);
@@ -1058,55 +1058,55 @@ html&gt;body{padding:0}&lt;/style&gt;
       width: 100%;
     }
 
-    #straumr-layout * { box-sizing: border-box; }
+    #straumr-requests-layout * { box-sizing: border-box; }
 
-    #straumr-layout .str-window {
+    #straumr-requests-layout .str-window {
       background: var(--str-bg);
       border: 1px solid var(--str-border);
       min-height: 650px;
       overflow: hidden;
     }
 
-    #straumr-layout .str-topbar,
-    #straumr-layout .str-footer,
-    #straumr-layout .str-section-title,
-    #straumr-layout .str-request-head,
-    #straumr-layout .str-response-head,
-    #straumr-layout .str-command {
+    #straumr-requests-layout .str-topbar,
+    #straumr-requests-layout .str-footer,
+    #straumr-requests-layout .str-section-title,
+    #straumr-requests-layout .str-request-head,
+    #straumr-requests-layout .str-response-head,
+    #straumr-requests-layout .str-command {
       display: flex;
       align-items: center;
     }
 
-    #straumr-layout .str-topbar {
+    #straumr-requests-layout .str-topbar {
       min-height: 52px;
       padding: 8px 14px;
       border-bottom: 1px solid var(--str-border);
       gap: 18px;
     }
 
-    #straumr-layout .str-brand {
+    #straumr-requests-layout .str-brand {
       color: var(--str-accent);
       font-weight: 500;
       letter-spacing: .08em;
       white-space: pre;
     }
 
-    #straumr-layout .str-context { color: var(--str-muted); }
-    #straumr-layout .str-context strong { color: var(--str-text); font-weight: 500; }
-    #straumr-layout .str-active-workspace {
+    #straumr-requests-layout .str-context { color: var(--str-muted); }
+    #straumr-requests-layout .str-context strong { color: var(--str-text); font-weight: 500; }
+    #straumr-requests-layout .str-active-workspace {
       margin-left: auto;
       color: var(--str-green);
       opacity: 0.76;
       white-space: nowrap;
     }
 
-    #straumr-layout .str-workspace {
+    #straumr-requests-layout .str-workspace {
       display: grid;
       grid-template-columns: minmax(230px, 31%) minmax(0, 1fr);
       min-height: 548px;
     }
 
-    #straumr-layout .str-sidebar {
+    #straumr-requests-layout .str-sidebar {
       border-right: 1px solid var(--str-border);
       background: var(--str-panel-alt);
       min-width: 0;
@@ -1114,7 +1114,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       flex-direction: column;
     }
 
-    #straumr-layout .str-section-title {
+    #straumr-requests-layout .str-section-title {
       min-height: 40px;
       padding: 8px 12px;
       gap: 10px;
@@ -1123,26 +1123,26 @@ html&gt;body{padding:0}&lt;/style&gt;
       font-weight: 500;
     }
 
-    #straumr-layout .str-count {
+    #straumr-requests-layout .str-count {
       margin-left: auto;
       color: var(--str-muted);
       font-weight: 400;
     }
 
-    #straumr-layout .str-filter {
+    #straumr-requests-layout .str-filter {
       padding: 7px 12px;
       color: var(--str-muted);
       border-bottom: 1px solid var(--str-border);
     }
 
-    #straumr-layout .str-request-list {
+    #straumr-requests-layout .str-request-list {
       display: flex;
       flex-direction: column;
       padding: 8px;
       gap: 5px;
     }
 
-    #straumr-layout .str-request-item {
+    #straumr-requests-layout .str-request-item {
       appearance: none;
       border: 0;
       border-left: 2px solid transparent;
@@ -1154,33 +1154,33 @@ html&gt;body{padding:0}&lt;/style&gt;
       cursor: pointer;
     }
 
-    #straumr-layout .str-request-item[aria-selected=&quot;true&quot;] {
+    #straumr-requests-layout .str-request-item[aria-selected=&quot;true&quot;] {
       background: var(--str-selection);
       border-left-color: var(--str-accent);
     }
 
-    #straumr-layout .str-item-line { display: flex; gap: 8px; align-items: baseline; }
-    #straumr-layout .str-method { font-weight: 500; }
-    #straumr-layout .str-method-get,
-    #straumr-layout .str-method-head { color: var(--str-green); }
-    #straumr-layout .str-method-post { color: var(--str-accent); }
-    #straumr-layout .str-method-put { color: var(--str-orange); }
-    #straumr-layout .str-method-patch,
-    #straumr-layout .str-method-options { color: var(--str-purple); }
-    #straumr-layout .str-method-delete { color: var(--str-red); }
-    #straumr-layout .str-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #straumr-layout .str-item-url,
-    #straumr-layout .str-item-meta { color: var(--str-muted); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #straumr-layout .str-item-meta { color: var(--str-yellow); }
+    #straumr-requests-layout .str-item-line { display: flex; gap: 8px; align-items: baseline; }
+    #straumr-requests-layout .str-method { font-weight: 500; }
+    #straumr-requests-layout .str-method-get,
+    #straumr-requests-layout .str-method-head { color: var(--str-green); }
+    #straumr-requests-layout .str-method-post { color: var(--str-accent); }
+    #straumr-requests-layout .str-method-put { color: var(--str-orange); }
+    #straumr-requests-layout .str-method-patch,
+    #straumr-requests-layout .str-method-options { color: var(--str-purple); }
+    #straumr-requests-layout .str-method-delete { color: var(--str-red); }
+    #straumr-requests-layout .str-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-requests-layout .str-item-url,
+    #straumr-requests-layout .str-item-meta { color: var(--str-muted); margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-requests-layout .str-item-meta { color: var(--str-yellow); }
 
-    #straumr-layout .str-detail {
+    #straumr-requests-layout .str-detail {
       min-width: 0;
       display: grid;
       grid-template-rows: auto minmax(255px, 47%) minmax(190px, 1fr);
       background: var(--str-panel);
     }
 
-    #straumr-layout .str-request-head {
+    #straumr-requests-layout .str-request-head {
       min-height: 64px;
       padding: 10px 14px;
       border-bottom: 1px solid var(--str-border);
@@ -1188,67 +1188,67 @@ html&gt;body{padding:0}&lt;/style&gt;
       flex-wrap: wrap;
     }
 
-    #straumr-layout .str-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #straumr-layout .str-id { margin-left: auto; color: var(--str-muted); }
+    #straumr-requests-layout .str-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-requests-layout .str-id { margin-left: auto; color: var(--str-muted); }
 
-    #straumr-layout .str-overview {
+    #straumr-requests-layout .str-overview {
       display: grid;
       grid-template-columns: minmax(280px, 47%) minmax(0, 1fr);
       min-height: 0;
     }
 
-    #straumr-layout .str-meta-panel,
-    #straumr-layout .str-body-panel,
-    #straumr-layout .str-response { min-width: 0; }
+    #straumr-requests-layout .str-meta-panel,
+    #straumr-requests-layout .str-body-panel,
+    #straumr-requests-layout .str-response { min-width: 0; }
 
-    #straumr-layout .str-meta-panel {
+    #straumr-requests-layout .str-meta-panel {
       border-right: 1px solid var(--str-border);
       padding: 12px 14px;
     }
 
-    #straumr-layout .str-body-panel { padding: 12px 14px; }
+    #straumr-requests-layout .str-body-panel { padding: 12px 14px; }
 
-    #straumr-layout .str-label {
+    #straumr-requests-layout .str-label {
       color: var(--str-accent);
       font-weight: 500;
       margin-bottom: 9px;
     }
 
-    #straumr-layout .str-kv {
+    #straumr-requests-layout .str-kv {
       display: grid;
       grid-template-columns: max-content minmax(0, 1fr);
       gap: 7px 12px;
     }
 
-    #straumr-layout .str-kv dt { color: var(--str-muted); }
-    #straumr-layout .str-kv dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #straumr-requests-layout .str-kv dt { color: var(--str-muted); }
+    #straumr-requests-layout .str-kv dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    #straumr-layout .str-subsection {
+    #straumr-requests-layout .str-subsection {
       margin-top: 12px;
       padding-top: 10px;
       border-top: 1px solid var(--str-border);
     }
 
-    #straumr-layout .str-subsection .str-label { margin-bottom: 6px; }
-    #straumr-layout .str-secret-list { color: var(--str-green); overflow-wrap: anywhere; }
-    #straumr-layout .str-sensitive { color: var(--str-yellow); }
-    #straumr-layout .str-meta-panel.str-no-template .str-auth-panel { display: none; }
-    #straumr-layout .str-meta-panel.str-no-template .str-subsection {
+    #straumr-requests-layout .str-subsection .str-label { margin-bottom: 6px; }
+    #straumr-requests-layout .str-secret-list { color: var(--str-green); overflow-wrap: anywhere; }
+    #straumr-requests-layout .str-sensitive { color: var(--str-yellow); }
+    #straumr-requests-layout .str-meta-panel.str-no-template .str-auth-panel { display: none; }
+    #straumr-requests-layout .str-meta-panel.str-no-template .str-subsection {
       margin-top: 0;
       padding-top: 0;
       border-top: 0;
     }
 
-    #straumr-layout .str-body-head {
+    #straumr-requests-layout .str-body-head {
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 8px;
     }
 
-    #straumr-layout .str-body-head .str-label { margin: 0; }
+    #straumr-requests-layout .str-body-head .str-label { margin: 0; }
 
-    #straumr-layout pre {
+    #straumr-requests-layout pre {
       margin: 0;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
@@ -1256,37 +1256,37 @@ html&gt;body{padding:0}&lt;/style&gt;
       font: inherit;
     }
 
-    #straumr-layout .str-code {
+    #straumr-requests-layout .str-code {
       background: var(--str-panel-alt);
       border-left: 2px solid var(--str-border);
       padding: 10px 12px;
       min-height: 135px;
     }
 
-    #straumr-layout .str-dim { color: var(--str-muted); }
-    #straumr-layout .str-value { color: var(--str-yellow); }
+    #straumr-requests-layout .str-dim { color: var(--str-muted); }
+    #straumr-requests-layout .str-value { color: var(--str-yellow); }
 
-    #straumr-layout .str-response {
+    #straumr-requests-layout .str-response {
       border-top: 1px solid var(--str-border);
       display: flex;
       flex-direction: column;
       min-height: 0;
     }
 
-    #straumr-layout .str-response-head {
+    #straumr-requests-layout .str-response-head {
       min-height: 39px;
       padding: 7px 14px;
       gap: 14px;
       border-bottom: 1px solid var(--str-border);
     }
 
-    #straumr-layout .str-response-body { padding: 12px 14px; overflow: hidden; }
-    #straumr-layout .str-ok { color: var(--str-green); font-weight: 500; }
-    #straumr-layout .str-response-meta { color: var(--str-muted); }
-    #straumr-layout .str-response-tabs { margin-left: auto; display: flex; gap: 14px; color: var(--str-muted); }
-    #straumr-layout .str-response-tabs .str-active { color: var(--str-accent); }
+    #straumr-requests-layout .str-response-body { padding: 12px 14px; overflow: hidden; }
+    #straumr-requests-layout .str-ok { color: var(--str-green); font-weight: 500; }
+    #straumr-requests-layout .str-response-meta { color: var(--str-muted); }
+    #straumr-requests-layout .str-response-tabs { margin-left: auto; display: flex; gap: 14px; color: var(--str-muted); }
+    #straumr-requests-layout .str-response-tabs .str-active { color: var(--str-accent); }
 
-    #straumr-layout .str-command {
+    #straumr-requests-layout .str-command {
       min-height: 38px;
       padding: 7px 12px;
       border-top: 1px solid var(--str-accent);
@@ -1294,11 +1294,11 @@ html&gt;body{padding:0}&lt;/style&gt;
       color: var(--str-accent);
     }
 
-    #straumr-layout .str-command[hidden] { display: none; }
-    #straumr-layout .str-command-input { color: var(--str-text); margin-left: 6px; }
-    #straumr-layout .str-cursor { background: var(--str-accent); color: var(--str-panel); }
+    #straumr-requests-layout .str-command[hidden] { display: none; }
+    #straumr-requests-layout .str-command-input { color: var(--str-text); margin-left: 6px; }
+    #straumr-requests-layout .str-cursor { background: var(--str-accent); color: var(--str-panel); }
 
-    #straumr-layout .str-footer {
+    #straumr-requests-layout .str-footer {
       min-height: 49px;
       border-top: 1px solid var(--str-border);
       padding: 7px 12px;
@@ -1307,7 +1307,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       color: var(--str-muted);
     }
 
-    #straumr-layout kbd {
+    #straumr-requests-layout kbd {
       color: var(--str-accent);
       background: transparent;
       border: 0;
@@ -1317,15 +1317,15 @@ html&gt;body{padding:0}&lt;/style&gt;
     }
 
     @media (max-width: 700px) {
-      #straumr-layout .str-window { min-height: 0; }
-      #straumr-layout .str-topbar { align-items: flex-start; flex-wrap: wrap; }
-      #straumr-layout .str-workspace { grid-template-columns: 1fr; }
-      #straumr-layout .str-sidebar { border-right: 0; border-bottom: 1px solid var(--str-border); }
-      #straumr-layout .str-request-list { max-height: 250px; overflow: hidden; }
-      #straumr-layout .str-detail { grid-template-rows: auto auto auto; }
-      #straumr-layout .str-overview { grid-template-columns: 1fr; }
-      #straumr-layout .str-meta-panel { border-right: 0; border-bottom: 1px solid var(--str-border); }
-      #straumr-layout .str-id { margin-left: 0; width: 100%; }
+      #straumr-requests-layout .str-window { min-height: 0; }
+      #straumr-requests-layout .str-topbar { align-items: flex-start; flex-wrap: wrap; }
+      #straumr-requests-layout .str-workspace { grid-template-columns: 1fr; }
+      #straumr-requests-layout .str-sidebar { border-right: 0; border-bottom: 1px solid var(--str-border); }
+      #straumr-requests-layout .str-request-list { max-height: 250px; overflow: hidden; }
+      #straumr-requests-layout .str-detail { grid-template-rows: auto auto auto; }
+      #straumr-requests-layout .str-overview { grid-template-columns: 1fr; }
+      #straumr-requests-layout .str-meta-panel { border-right: 0; border-bottom: 1px solid var(--str-border); }
+      #straumr-requests-layout .str-id { margin-left: 0; width: 100%; }
     }
   &lt;/style&gt;
 
@@ -1428,7 +1428,7 @@ html&gt;body{padding:0}&lt;/style&gt;
 
   &lt;script&gt;
     (() =&gt; {
-      const root = document.getElementById(&#x27;straumr-layout&#x27;);
+      const root = document.getElementById(&#x27;straumr-requests-layout&#x27;);
       const workspace = root.querySelector(&#x27;.str-workspace&#x27;);
       const detail = root.querySelector(&#x27;.str-detail&#x27;);
       const metaPanel = root.querySelector(&#x27;.str-meta-panel&#x27;);
@@ -1529,6 +1529,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     })();
   &lt;/script&gt;
 &lt;/div&gt;
+
+
 
 &lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
 &lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;

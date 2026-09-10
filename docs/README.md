@@ -14,6 +14,7 @@ This directory documents Straumr from three angles:
 - [Data Model](./data-model.md): file layout, JSON shapes, serialization details, and resolution rules.
 - [Architecture](./architecture.md): solution structure, service responsibilities, and runtime flow through the app.
 - [Development](./development.md): local build assumptions, code organization, and release pipeline details.
+- [TUI Implementation Guide](./tui-implementation.md): rewrite constraints, approved Workspaces specification, milestones, and progress.
 
 ## Reading Order
 
@@ -28,3 +29,4 @@ If you are changing the codebase, read:
 1. [Architecture](./architecture.md)
 2. [Data Model](./data-model.md)
 3. [Development](./development.md)
+4. [TUI Implementation Guide](./tui-implementation.md)
