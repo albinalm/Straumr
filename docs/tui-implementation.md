@@ -8,8 +8,8 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W1 complete
-- Next checkpoint: begin W2 after reviewing the shared application shell checkpoint
+- Implementation: W2 in progress
+- Next checkpoint: complete and validate the read-only workspace browser before W3
 - Last updated: 2026-09-10
 
 ## Goals
@@ -258,7 +258,7 @@ may persist changes through the appropriate Core service.
 | --- | --- | --- | --- |
 | P0 | Create implementation guide and tracker | Complete | This document |
 | W1 | Replace prototype root with the shared application shell | Complete | `DockLayout`, reactive header/content, framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified |
-| W2 | Add read-only Workspaces list and selected-workspace details | Not started | |
+| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Implementation and automated builds pass; loading/empty state verified; awaiting populated-layout verification |
 | W3 | Add selected workspace's recently used Requests pane | Not started | |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
@@ -295,7 +295,7 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify resize behavior at narrow and wide terminal sizes
 - [ ] verify keyboard and pointer selection
 - [ ] verify focus restoration after prompt, dialog, and external editor use
-- [ ] verify empty workspace registry behavior
+- [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
 - [ ] verify cancellation during loading and operations
 - [x] verify `straumr --help` still opens CLI help
@@ -332,3 +332,5 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Created the guide. No TUI implementation was started.
 - 2026-09-10: Began W1 and added explicit implementation checkpoints and developer-assisted verification.
 - 2026-09-10: Completed W1 with the shared reactive shell and removed the manual Requests prototype.
+- 2026-09-10: Began W2 with the committed W1 shell as the clean baseline.
+- 2026-09-10: Implemented the W2 workspace list/details slice; populated rendering remains to be verified against a real registry.

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Straumr.Console.Shared.Integrations;
 using Straumr.Console.Tui.Infrastructure;
+using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Core.Extensions;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -19,6 +20,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddStraumrCore();
+        services.TryAddSingleton<WorkspaceScreen>();
         services.TryAddSingleton<StraumrTuiApp>();
     }
 
@@ -29,9 +31,13 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
 
         await Terminal.RunAsync(
             app.Root,
-            _ => app.ExitRequested
-                ? TerminalLoopResult.Stop
-                : TerminalLoopResult.Continue,
+            async _ =>
+            {
+                await app.InitializeAsync(cancellationToken);
+                return app.ExitRequested
+                    ? TerminalLoopResult.Stop
+                    : TerminalLoopResult.Continue;
+            },
             new TerminalRunOptions(),
             cancellationToken);
 

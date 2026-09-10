@@ -1,7 +1,7 @@
+using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Visuals.Shared;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
-using XenoAtom.Terminal.UI.Geometry;
 
 namespace Straumr.Console.Tui.Infrastructure;
 
@@ -10,10 +10,13 @@ public sealed class StraumrTuiApp
     private readonly State<TuiScreen> _currentScreen = new(TuiScreen.Workspaces);
     private readonly State<string?> _activeWorkspaceName = new(null);
     private readonly State<Visual> _screenContent;
+    private readonly WorkspaceScreen _workspaceScreen;
+    private bool _initialized;
 
-    public StraumrTuiApp()
+    public StraumrTuiApp(WorkspaceScreen workspaceScreen)
     {
-        _screenContent = new State<Visual>(BuildWorkspacePlaceholder());
+        _workspaceScreen = workspaceScreen;
+        _screenContent = new State<Visual>(workspaceScreen.Root);
 
         Root = new DockLayout()
             .HorizontalAlignment(Align.Stretch)
@@ -27,6 +30,16 @@ public sealed class StraumrTuiApp
 
     public bool ExitRequested { get; private set; }
 
+    public async Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        if (_initialized)
+            return;
+
+        _initialized = true;
+        await _workspaceScreen.LoadAsync(cancellationToken);
+        SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
+    }
+
     public void ShowScreen(TuiScreen screen, Visual content)
     {
         _currentScreen.Value = screen;
@@ -37,12 +50,4 @@ public sealed class StraumrTuiApp
         _activeWorkspaceName.Value = name;
 
     public void RequestExit() => ExitRequested = true;
-
-    private static Visual BuildWorkspacePlaceholder() =>
-        new Group("Workspaces")
-            .HorizontalAlignment(Align.Stretch)
-            .VerticalAlignment(Align.Stretch)
-            .Padding(new Thickness(1))
-            .Content(new Center(
-                new TextBlock("Workspace browser is not loaded.")));
 }
