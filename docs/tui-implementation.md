@@ -8,8 +8,8 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W4 awaiting visual verification
-- Next checkpoint: developer verification of focus cues, pointer focus, and interaction feel
+- Implementation: W4 complete and accepted; W5 not started
+- Next checkpoint: W5 command prompt integration and workspace navigation commands
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-10
 
@@ -394,10 +394,12 @@ may persist changes through the appropriate Core service.
 
 - The row under the pointer shows a hover band; the selection band and its marker
   desaturate while the list does not hold focus.
-- Arrow keys and pointer behavior come from `ListBox<T>`.
+- Arrow, Home/End and Page keys and pointer behavior are owned by `ResourceList`,
+  which replaced `ListBox<T>` once its fixed one-row item height ruled it out.
 - `j` and `k` move the workspace selection when the list owns focus.
 - `Enter` activates the selected workspace through
-  `IStraumrWorkspaceService.ActivateAsync`.
+  `IStraumrWorkspaceService.ActivateAsync`. Two clicks on the same row do the same, so
+  activation is reachable without the keyboard.
 - `/` focuses filtering when filtering is implemented.
 - `:` opens the shared command prompt.
 - `c`, `e`, `y`, `x`, `i`, and `d` are introduced with their corresponding
@@ -422,7 +424,7 @@ may persist changes through the appropriate Core service.
 | W1 | Replace prototype root with the shared application shell | Complete | Reactive header/content and framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified. W2 later replaced the `DockLayout` root with a rule-separated `Grid` inside one window frame |
 | W2 | Add read-only Workspaces list and selected-workspace details | Complete | Screen accepted interactively after several passes over layout, palette, vibrancy, cohesion and header. Extracted into `ResourceScreenLayout`/`ResourceList`/`FieldList`; refactor proved render-identical by snapshot diff at 120x28, 70x20 and 90x16, populated and empty. Solution and CLI-only builds pass; broader resilience checks remain in W8 |
 | W3 | Add selected workspace's recently used Requests pane | Complete | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. User directed work to continue with W4 |
-| W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | In progress | Tab/Shift+Tab focus traversal, contextual command hints, list arrows/Home/End/Page plus `j`/`k`/`g`/`G`, request arrows/Home/End/Page plus `j`/`k`/`g`/`G`, wheel support, and Core activation are implemented. Release and CLI-only builds pass; terminal checks covered both focus directions, long-preview scrolling, top/bottom jumps, paging, activation feedback, and clean exit. Focus cues were then reworked: the focused section title fills with the selection blue, other titles are inert, and the permanently bright left detail title was fixed. Chip and inert states verified by cell dump at exact hex. Awaiting developer visual and pointer verification |
+| W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Complete | Implemented: Tab/Shift+Tab focus traversal, contextual command hints, arrows/Home/End/Page plus `j`/`k`/`g`/`G` on both the list and the request preview, wheel support, Core activation, and double-click activation. Framework finding: `PointerEventArgs.ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by one click on a row arrived as a pair; the gesture therefore also requires both clicks on the same row, and a pointer leaving the list voids the sequence. Focus cues were reworked twice after review: the focused section title fills with the selection blue while every other title is inert, the permanently bright left detail title was fixed, all titles moved onto one rule so the chip travels sideways rather than diagonally, the first detail pane was retitled `Details`, and the active workspace gained a green dot that follows activation. Release and CLI-only builds pass. Cell dumps cover the chip states at exact hex, the mirrored panel geometry, and the dot across plain, hovered and both selected bands. Accepted interactively: focus cues, keyboard selection, hover band, pointer selection, the focused and unfocused selection bands, both focus directions, long-preview scrolling, top/bottom jumps, paging, activation moving the dot, and clean exit |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
 | W6 | Add filtering | Not started | |
 | W7 | Add create, edit, copy, import, export, and delete workflows | Not started | |
@@ -456,9 +458,9 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] launch `straumr` and inspect the Workspaces screen interactively
 - [ ] verify resize behavior at narrow and wide terminal sizes
 - [x] verify keyboard selection
-- [ ] verify pointer selection, including the hover band and the focused/unfocused
+- [x] verify pointer selection, including the hover band and the focused/unfocused
       selection band (headless snapshots render the unfocused state because the
-      snapshot renderer does not apply `AutoFocus`)
+      snapshot renderer does not apply `AutoFocus`, so this was verified in a terminal)
 - [ ] verify focus restoration after prompt, dialog, and external editor use
 - [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
@@ -509,6 +511,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Do not brighten dividers on focus | In a rule-separated shell the rules are structure, not panel borders, so reacting to focus makes them shimmer |
 | 2026-09-10 | Limit filled badges to the count and the identifier | Filled accent surfaces stop reading as emphasis once they are everywhere |
 | 2026-09-10 | Mark the focused region by filling its title with the selection blue, and demote the count badge to the recessed treatment | Swapping two accent blues on Tab was near-invisible: the eye tracks luminance and position, not hue, and the signal was subtractive, so nothing appeared where focus landed. Reserving the one filled accent surface for focus makes it additive and unique |
+| 2026-09-10 | Activate on double-click as well as `Enter` | Activation was keyboard-only, so a pointer user could select a workspace but not use it |
+| 2026-09-10 | Require both clicks of a double-click to land on the same row, rather than trusting `ClickCount` alone | `ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by a click on a row arrived as the second of a pair and activated on what felt like a single click. Keeping `ClickCount` for the timing and adding the same-row test avoids running a click clock of our own |
 | 2026-09-10 | Hold the current workspace's identity as screen state rather than as a field on the presentation item | It changes while the screen is live. Baked into `WorkspaceScreenItem` at load it went stale on activation, and nothing the list read was reactive, so the dot could not move until the next load. State read inside the list's builder is what makes the rebuild happen |
 | 2026-09-10 | Mark the active workspace in the list with a green dot, reversing the rule against active-status labels | The header answers "which workspace is live" for global awareness but is the wrong place to look while working in the list. A dot in the row gutter is scannable down the column, costs no name width beyond its one reserved column, and needs no band of its own, so it composes with selection and hover rather than fighting them |
 | 2026-09-10 | Title the first detail pane `Details` instead of the resource type, and never leave a section on the rule untitled | The screen name and the summary bar above already say which workspace this is, so `Workspace` only repeated them. Leaving the slot blank was the alternative, but an unlabelled section between two labelled ones reads as a missing label rather than a deliberate absence |
@@ -568,6 +572,11 @@ For each Workspaces milestone, run the smallest applicable subset:
   nothing is selected.
 - 2026-09-10: Accepted the W2 visual checkpoint and began W3 with non-stamping,
   per-workspace cached request loading for the recent Requests pane.
+- 2026-09-10: Completed W4. Added double-click activation through the framework's
+  `PointerEventArgs.ClickCount` for its timing, plus a same-row test: `ClickCount` is
+  position-independent, so on its own it fired activation for a click outside the list
+  followed by a single click on a row. Pointer selection, the hover band and both
+  selection bands were accepted in a terminal.
 - 2026-09-10: Moved the current-resource dot to the row's middle line so it reads as
   centred, and made activation move it: the current workspace's identity became screen
   state that the list builder reads, replacing the `IsCurrent` field that was baked

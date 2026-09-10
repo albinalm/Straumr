@@ -38,6 +38,12 @@ public sealed partial class ResourceList : Visual, IScrollable
     private static readonly Rune CurrentDot = new('●');
     private static readonly Rune Blank = new(' ');
 
+    /// <summary>
+    /// Index the previous left click landed on, or -1 when the last click was not on a row of this
+    /// list. A double-click has to hit the same row twice, and <c>ClickCount</c> alone cannot say so.
+    /// </summary>
+    private int _lastClickedIndex = -1;
+
     private readonly ResourceRow[] _rows;
     private readonly int _textInset;
     private readonly IReadOnlyList<Visual> _items;
@@ -288,6 +294,13 @@ public sealed partial class ResourceList : Visual, IScrollable
         e.Handled = true;
     }
 
+    /// <remarks>
+    /// A double-click activates the row, the pointer equivalent of <c>Enter</c>. <c>ClickCount</c>
+    /// counts a click sequence by time alone, so a click anywhere followed by a click on a row
+    /// arrives here as the second of a pair; requiring both clicks to land on the same row is what
+    /// makes the gesture a real double-click. The test is for exactly two clicks so a longer run
+    /// activates once rather than once per press past the second.
+    /// </remarks>
     protected override void OnPointerPressed(PointerEventArgs e)
     {
         if (e.Button != TerminalMouseButton.Left)
@@ -295,18 +308,33 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         int index = IndexAt(e.UiY);
         if (index < 0)
+        {
+            _lastClickedIndex = -1;
             return;
+        }
 
         SelectedIndex = index;
+
+        bool isSecondClickOnSameRow = e.ClickCount == 2 && _lastClickedIndex == index;
+        _lastClickedIndex = index;
         e.Handled = true;
+
+        if (isSecondClickOnSameRow)
+            ActivateSelection();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e) => HoveredIndex = IndexAt(e.UiY);
 
     protected override void OnHoveredChanged(bool isHovered)
     {
-        if (!isHovered)
-            HoveredIndex = -1;
+        if (isHovered)
+            return;
+
+        HoveredIndex = -1;
+
+        // The pointer left, so whatever it clicks next cannot be the second half of a double-click
+        // on a row of this list, however soon it happens.
+        _lastClickedIndex = -1;
     }
 
     /// <summary>Returns the item index under a UI row, or -1 for the gap between items.</summary>
