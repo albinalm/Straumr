@@ -18,12 +18,15 @@ public sealed class StraumrTuiApp
         _workspaceScreen = workspaceScreen;
         _screenContent = new State<Visual>(workspaceScreen.Root);
 
+        var commandBar = new CommandBar();
+        commandBar.SetStyle(StraumrStyles.CommandBar);
+
         Root = new DockLayout()
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch)
             .Top(StraumrHeader.Create(_currentScreen, _activeWorkspaceName))
             .Content(() => _screenContent.Value)
-            .Bottom(new CommandBar());
+            .Bottom(commandBar);
     }
 
     public Visual Root { get; }

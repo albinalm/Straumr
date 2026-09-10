@@ -58,8 +58,12 @@ Shared screen shell:
 
 - Header left: `{straumr} {screen}`.
 - Header right: `active workspace {name}` in a subdued success color.
+- Header content uses normal-weight text with horizontal and vertical breathing
+  room inside a thin frame.
 - Main content: resource list on the left and selected-resource details on the
   right.
+- Detail content begins with a bordered summary spanning both detail columns;
+  the two bordered sections beneath it place their titles inside the panels.
 - Footer: context-aware shortcuts.
 - `:` opens the command prompt.
 - `Escape`, submission, or loss of focus closes and clears the command prompt.
@@ -79,7 +83,10 @@ Approved references:
 - Compose the application shell with `Header`, `DockLayout`, layout containers,
   and a footer or `CommandBar` where their behavior fits.
 - Use `State<T>`, bindings, and computed visuals for changing UI state.
-- Use `ListBox<T>` with a `DataTemplate<T>` for resource lists.
+- Use `ListBox<T>` with a `DataTemplate<T>` for single-line resource lists.
+- Use a small retained-mode list visual for multiline resource rows; the pinned
+  `ListBox<T>` fixes every item to one terminal row and `Button` imposes an
+  unsuitable bold, filled treatment.
 - Bind list selection to state and derive the detail pane from that selection.
 - Use framework commands and gestures for actions exposed in the command bar.
 - Keep key handling local to the control that owns the interaction.
@@ -88,8 +95,9 @@ Approved references:
 - Perform I/O outside render, measure, arrange, and per-frame update paths.
 - Load once on entry and refresh only after an operation or explicit refresh.
 - Show loading, empty, and error states as visuals driven by state.
-- Use theme colors and control styles. Avoid hard-coded terminal palettes except
-  for stable semantic mappings such as HTTP methods.
+- Use the approved Straumr palette through shared control styles. Avoid ad hoc
+  colors outside the shared palette except for semantic mappings such as HTTP
+  methods.
 - Introduce a custom `Visual` only after confirming that composition, templating,
   or styling cannot express the requirement.
 
@@ -258,7 +266,7 @@ may persist changes through the appropriate Core service.
 | --- | --- | --- | --- |
 | P0 | Create implementation guide and tracker | Complete | This document |
 | W1 | Replace prototype root with the shared application shell | Complete | `DockLayout`, reactive header/content, framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified |
-| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Implementation and automated builds pass; loading/empty state verified; awaiting populated-layout verification |
+| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Loading/empty states and builds pass; populated tests exposed `ListBox<T>` and `Button` presentation limitations; custom retained multiline list and approved palette await visual verification |
 | W3 | Add selected workspace's recently used Requests pane | Not started | |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
@@ -325,6 +333,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Preserve `IncludeTui=false` | Keeps a compact CLI-only publish available |
 | 2026-09-10 | Keep headers minimal and show the active workspace at right | Matches the approved layouts without invented status information |
 | 2026-09-10 | Show only recent requests in the Workspaces detail preview | Keeps the pane relevant to workspace usage |
+| 2026-09-10 | Do not use `ListBox<T>` for multiline resource cards | Version 3.9.0 measures and arranges every list item at a fixed height of one row |
+| 2026-09-10 | Use the approved mockup colors as a shared application palette | Default control colors and button treatment do not preserve the mockup's hierarchy or contrast |
 
 ## Change Log
 
@@ -333,4 +343,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Began W1 and added explicit implementation checkpoints and developer-assisted verification.
 - 2026-09-10: Completed W1 with the shared reactive shell and removed the manual Requests prototype.
 - 2026-09-10: Began W2 with the committed W1 shell as the clean baseline.
+- 2026-09-10: Reworked the W2 list after visual verification exposed the framework's fixed one-row `ListBox<T>` layout.
 - 2026-09-10: Implemented the W2 workspace list/details slice; populated rendering remains to be verified against a real registry.
+- 2026-09-10: Removed the premature filter affordance, replaced the interactive splitter with a weighted grid, and composed multiline workspace items inside `ScrollViewer`.
+- 2026-09-10: Replaced button-based workspace rows with a retained multiline list and applied the approved palette after populated visual testing exposed poor contrast and excessive emphasis.
+- 2026-09-10: Corrected the workspace shell to use a padded top bar, an in-panel list heading, a full-width selected-workspace summary, and two lower detail columns with headings inside their borders.

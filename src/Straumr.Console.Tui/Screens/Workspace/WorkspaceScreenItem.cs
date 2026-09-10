@@ -9,4 +9,15 @@ public sealed record WorkspaceScreenItem(
 {
     public string Directory =>
         Path.GetDirectoryName(Entry.Path) ?? Entry.Path;
+
+    public string DisplayDirectory
+    {
+        get
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Directory.StartsWith(home, StringComparison.OrdinalIgnoreCase)
+                ? $"~{Directory[home.Length..]}"
+                : Directory;
+        }
+    }
 }
