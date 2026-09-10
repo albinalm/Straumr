@@ -59,6 +59,7 @@ public sealed class StraumrTuiApp
         if (_initialized)
         {
             await _workspaceScreen.UpdateAsync(cancellationToken);
+            SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
             return;
         }
 

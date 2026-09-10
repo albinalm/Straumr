@@ -91,28 +91,37 @@ internal static class ResourceScreenLayout
         string leftTitle,
         Visual? left,
         string rightTitle,
-        Visual? right) =>
-        new Grid()
+        Visual? right)
+    {
+        Visual leftPane = left ?? new Padder();
+        Visual rightPane = right ?? new Padder();
+
+        return new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
             .Rows(
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() })
             .Cell(
                 PaneColumns()
-                    .Cell(StraumrSurfaces.TitledDivider(leftTitle), 0, 0)
+                    .Cell(StraumrSurfaces.TitledDivider(
+                        leftTitle,
+                        () => leftPane.HasFocusWithin), 0, 0)
                     .Cell(StraumrSurfaces.VerticalDivider((0, new Rune('┬'))), 0, 1)
-                    .Cell(StraumrSurfaces.TitledDivider(rightTitle), 0, 2),
+                    .Cell(StraumrSurfaces.TitledDivider(
+                        rightTitle,
+                        () => rightPane.HasFocusWithin), 0, 2),
                 0,
                 0)
             .Cell(
                 PaneColumns()
-                    .Cell(left ?? new Padder(), 0, 0)
+                    .Cell(leftPane, 0, 0)
                     .Cell(StraumrSurfaces.VerticalDivider(), 0, 1)
-                    .Cell(right ?? new Padder(), 0, 2),
+                    .Cell(rightPane, 0, 2),
                 1,
                 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
+    }
 
     /// <summary>
     /// A plain closing rule and nothing below it, for when no resource is selected. Section titles
@@ -136,11 +145,11 @@ internal static class ResourceScreenLayout
                 new RowDefinition { Height = GridLength.Star() });
 
         Visual heading = StraumrSurfaces.Bar(
-            new TextBlock(listTitle)
+            new TextBlock(() => StraumrSurfaces.FocusLabel(listTitle, () => panel.HasFocusWithin))
                 .Style(() => panel.HasFocusWithin
-                    ? StraumrStyles.AccentText
-                    : StraumrStyles.AccentDimText),
-            new TextBlock(() => $" {listCount()} ").Style(StraumrStyles.AccentChip));
+                    ? StraumrStyles.FocusChip
+                    : StraumrStyles.MutedText),
+            new TextBlock(() => $" {listCount()} ").Style(StraumrStyles.TokenChip));
 
         var filter = new TextBlock(filterHint)
             .Style(StraumrStyles.MutedText)

@@ -20,10 +20,14 @@ public sealed class WorkspaceScreen
     private readonly State<int> _selectedIndex = new(-1);
     private readonly State<string?> _errorMessage = new(null);
     private readonly State<string?> _requestErrorMessage = new(null);
+    private readonly State<string?> _activationErrorMessage = new(null);
+    private readonly State<Guid?> _lastActivatedWorkspaceId = new(null);
+    private readonly State<DateTimeOffset?> _lastActivationTime = new(null);
     private readonly State<IReadOnlyList<StraumrRequest>> _recentRequests = new([]);
     private readonly Dictionary<Guid, IReadOnlyList<StraumrRequest>> _requestCache = [];
     private List<WorkspaceScreenItem> _items = [];
     private Guid? _displayedRequestWorkspaceId;
+    private Guid? _pendingActivationId;
 
     public WorkspaceScreen(
         IStraumrOptionsService optionsService,
@@ -49,6 +53,8 @@ public sealed class WorkspaceScreen
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        await ActivatePendingWorkspaceAsync(cancellationToken);
+
         WorkspaceScreenItem? item = SelectedItem;
         if (item is null || item.Workspace.Id == _displayedRequestWorkspaceId)
             return;
@@ -172,6 +178,11 @@ public sealed class WorkspaceScreen
             AutoFocus = true
         };
         list.BindSelectedIndex(_selectedIndex);
+        list.ItemActivated += index =>
+        {
+            _pendingActivationId = _items[index].Workspace.Id;
+            _activationErrorMessage.Value = null;
+        };
         return ResourceScreenLayout.Scrollable(list);
     }
 
@@ -182,11 +193,20 @@ public sealed class WorkspaceScreen
             return new TextBlock("No workspace selected.").Style(StraumrStyles.MutedText);
 
         StraumrWorkspace workspace = item.Workspace;
+        DateTimeOffset lastAccessed = _lastActivatedWorkspaceId.Value == workspace.Id
+            ? _lastActivationTime.Value ?? workspace.LastAccessed
+            : workspace.LastAccessed;
+        string status = _activationErrorMessage.Value is null
+            ? $"last accessed {TimestampFormatting.Relative(lastAccessed)}"
+            : $"activation failed: {_activationErrorMessage.Value}";
         return StraumrSurfaces.Bar(
             new HStack(
                     new TextBlock(workspace.Name).Style(StraumrStyles.PrimaryText),
-                    new TextBlock($"last accessed {TimestampFormatting.Relative(workspace.LastAccessed)}")
-                        .Style(StraumrStyles.MutedText))
+                    new TextBlock(status)
+                        .Style(_activationErrorMessage.Value is null
+                            ? StraumrStyles.MutedText
+                            : StraumrStyles.RedText)
+                        .Trimming(TextTrimming.EndEllipsis))
                 .Spacing(2),
             new TextBlock($" {item.ShortId} ").Style(StraumrStyles.TokenChip));
     }
@@ -259,7 +279,39 @@ public sealed class WorkspaceScreen
                 .HorizontalAlignment(Align.Stretch));
         }
 
-        return ResourceScreenLayout.Scrollable(content);
+        return new ScrollableContent(content);
+    }
+
+    private async Task ActivatePendingWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingActivationId is not { } workspaceId)
+            return;
+
+        _pendingActivationId = null;
+
+        try
+        {
+            await _workspaceService.ActivateAsync(workspaceId, cancellationToken);
+            WorkspaceScreenItem? item = _items.Find(candidate => candidate.Workspace.Id == workspaceId);
+            if (item is null)
+                return;
+
+            DateTimeOffset activatedAt = DateTimeOffset.UtcNow;
+            item.Workspace.LastAccessed = activatedAt;
+            _lastActivatedWorkspaceId.Value = workspaceId;
+            _lastActivationTime.Value = activatedAt;
+            ActiveWorkspaceName = item.Workspace.Name;
+            _activationErrorMessage.Value = null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            _activationErrorMessage.Value = exception.Message;
+        }
     }
 
     private void ShowRequests(IReadOnlyList<StraumrRequest> requests)

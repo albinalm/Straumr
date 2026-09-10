@@ -1,6 +1,7 @@
 using System.Text;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
 using XenoAtom.Terminal.UI.Input;
@@ -53,11 +54,60 @@ public sealed partial class ResourceList : Visual, IScrollable
         Focusable = true;
         HorizontalAlignment = Align.Stretch;
         VerticalAlignment = Align.Stretch;
+
+        AddCommand(new Command
+        {
+            Id = "ResourceList.Next",
+            LabelMarkup = "Next",
+            Gesture = new KeyGesture('j'),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => MoveSelection(1)
+        });
+        AddCommand(new Command
+        {
+            Id = "ResourceList.Previous",
+            LabelMarkup = "Prev",
+            Gesture = new KeyGesture('k'),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => MoveSelection(-1)
+        });
+        AddCommand(new Command
+        {
+            Id = "ResourceList.Activate",
+            LabelMarkup = "Use",
+            Gesture = new KeyGesture(TerminalKey.Enter),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.CommandBar,
+            CanExecute = _ => SelectedIndex >= 0,
+            Execute = _ => ActivateSelection()
+        });
+        AddCommand(new Command
+        {
+            Id = "ResourceList.First",
+            LabelMarkup = "First",
+            Gesture = new KeyGesture('g'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => SelectedIndex = 0
+        });
+        AddCommand(new Command
+        {
+            Id = "ResourceList.Last",
+            LabelMarkup = "Last",
+            Gesture = new KeyGesture('G'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => SelectedIndex = Count - 1
+        });
     }
 
     public ScrollModel Scroll => _scroll;
 
     public int Count { get; }
+
+    public event Action<int>? ItemActivated;
 
     [Bindable]
     public partial int SelectedIndex { get; set; }
@@ -159,16 +209,30 @@ public sealed partial class ResourceList : Visual, IScrollable
         if (Count == 0)
             return;
 
-        int pageSize = Math.Max(1, Bounds.Height / _itemStride);
-        int target = e.Key switch
+        if (e.Key == TerminalKey.Enter)
         {
-            TerminalKey.Up => SelectedIndex - 1,
-            TerminalKey.Down => SelectedIndex + 1,
-            TerminalKey.Home => 0,
-            TerminalKey.End => Count - 1,
-            TerminalKey.PageUp => SelectedIndex - pageSize,
-            TerminalKey.PageDown => SelectedIndex + pageSize,
-            _ => SelectedIndex
+            ActivateSelection();
+            e.Handled = true;
+            return;
+        }
+
+        int pageSize = Math.Max(1, Bounds.Height / _itemStride);
+        int target = e.Char switch
+        {
+            'j' => SelectedIndex + 1,
+            'k' => SelectedIndex - 1,
+            'g' => 0,
+            'G' => Count - 1,
+            _ => e.Key switch
+            {
+                TerminalKey.Up => SelectedIndex - 1,
+                TerminalKey.Down => SelectedIndex + 1,
+                TerminalKey.Home => 0,
+                TerminalKey.End => Count - 1,
+                TerminalKey.PageUp => SelectedIndex - pageSize,
+                TerminalKey.PageDown => SelectedIndex + pageSize,
+                _ => SelectedIndex
+            }
         };
 
         if (target == SelectedIndex)
@@ -219,6 +283,18 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         SelectedIndex += e.WheelDelta > 0 ? -1 : 1;
         e.Handled = true;
+    }
+
+    private void MoveSelection(int delta)
+    {
+        if (Count > 0)
+            SelectedIndex += delta;
+    }
+
+    private void ActivateSelection()
+    {
+        if (SelectedIndex >= 0)
+            ItemActivated?.Invoke(SelectedIndex);
     }
 
     private void EnsureSelectedVisible()

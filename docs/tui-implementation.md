@@ -8,8 +8,8 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W3 in progress
-- Next checkpoint: interactive verification of the recent Requests pane
+- Implementation: W4 awaiting visual verification
+- Next checkpoint: developer verification of focus cues, pointer focus, and interaction feel
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-10
 
@@ -92,9 +92,13 @@ Shared screen shell:
 - The shell responds to focus and pointer. A list owns three row levels, distinct
   from each other: hover is the faintest, a selected row in an unfocused list is
   stronger and drops its accent marker to a neutral one, and a selected row in a
-  focused list is the vivid band. A panel heading dims while focus is elsewhere.
-- Quantities may use a filled accent badge and identifiers a recessed badge. These
-  are the only filled surfaces; do not spread them further.
+  focused list is the vivid band.
+- Exactly one region owns focus, and its title says so by filling with the selection
+  blue as a chip. Every other title is inert grey. A title that cannot take focus is
+  always inert. So there is one filled blue title on screen, and finding it is how
+  the eye answers "where am I" without having to compare two similar colours.
+- The filled accent surface belongs to focus alone. Quantities and identifiers use
+  the recessed badge. Do not spread either further.
 - Footer: context-aware shortcuts.
 - `:` opens the command prompt.
 - `Escape`, submission, or loss of focus closes and clears the command prompt.
@@ -201,6 +205,7 @@ Straumr.Console.Tui/
       ResourceScreenLayout.cs     the list-and-detail screen scaffold
       ResourceList.cs             multiline list with selection, hover and scrolling
       ResourceRow.cs              presentation model for one list row
+      ScrollableContent.cs        focusable read-only content with Vim scrolling
       FieldList.cs                label/value grid for detail panes
       StraumrHeader.cs            the screen header bar
       StraumrSurfaces.cs          dividers, bars, insets
@@ -236,7 +241,13 @@ message.
 `ResourceList` owns selection, hover, focus response, scrolling and row styling. A
 screen hands it `ResourceRow` values and binds its `SelectedIndex`; it never styles
 rows itself. A list whose rows all omit `Detail` lays out two lines high instead of
-three, which is what the Auths and Secrets mockups need.
+three, which is what the Auths and Secrets mockups need. Its contextual commands
+expose `j`/`k` movement, `g`/`G` first/last jumps, and activation; arrow, Home/End,
+and Page keys remain available without crowding the footer.
+
+`ScrollableContent` owns focus and scrolling for retained read-only content such as
+the recent Requests preview. It exposes contextual `j`/`k`/`g`/`G` commands while
+arrow, Home/End, Page and wheel input update the same bindable offset.
 
 `FieldList.Create` builds a detail pane's label/value grid. Use `FieldList.Count`
 for quantities so they inherit the amber-when-populated rule, `Wrapped` for values
@@ -391,8 +402,8 @@ may persist changes through the appropriate Core service.
 | P0 | Create implementation guide and tracker | Complete | This document |
 | W1 | Replace prototype root with the shared application shell | Complete | Reactive header/content and framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified. W2 later replaced the `DockLayout` root with a rule-separated `Grid` inside one window frame |
 | W2 | Add read-only Workspaces list and selected-workspace details | Complete | Screen accepted interactively after several passes over layout, palette, vibrancy, cohesion and header. Extracted into `ResourceScreenLayout`/`ResourceList`/`FieldList`; refactor proved render-identical by snapshot diff at 120x28, 70x20 and 90x16, populated and empty. Solution and CLI-only builds pass; broader resilience checks remain in W8 |
-| W3 | Add selected workspace's recently used Requests pane | In progress | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. Awaiting visual review |
-| W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
+| W3 | Add selected workspace's recently used Requests pane | Complete | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. User directed work to continue with W4 |
+| W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | In progress | Tab/Shift+Tab focus traversal, contextual command hints, list arrows/Home/End/Page plus `j`/`k`/`g`/`G`, request arrows/Home/End/Page plus `j`/`k`/`g`/`G`, wheel support, and Core activation are implemented. Release and CLI-only builds pass; terminal checks covered both focus directions, long-preview scrolling, top/bottom jumps, paging, activation feedback, and clean exit. Focus cues were then reworked: the focused section title fills with the selection blue, other titles are inert, and the permanently bright left detail title was fixed. Chip and inert states verified by cell dump at exact hex. Awaiting developer visual and pointer verification |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
 | W6 | Add filtering | Not started | |
 | W7 | Add create, edit, copy, import, export, and delete workflows | Not started | |
@@ -478,6 +489,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Add hover and focus row states to the list | A UI that answers the pointer and the focus ring feels live in a way no static palette can |
 | 2026-09-10 | Do not brighten dividers on focus | In a rule-separated shell the rules are structure, not panel borders, so reacting to focus makes them shimmer |
 | 2026-09-10 | Limit filled badges to the count and the identifier | Filled accent surfaces stop reading as emphasis once they are everywhere |
+| 2026-09-10 | Mark the focused region by filling its title with the selection blue, and demote the count badge to the recessed treatment | Swapping two accent blues on Tab was near-invisible: the eye tracks luminance and position, not hue, and the signal was subtractive, so nothing appeared where focus landed. Reserving the one filled accent surface for focus makes it additive and unique |
+| 2026-09-10 | Render an unfocusable section title as inert rather than accented | `TitledDivider` defaulted a missing focus predicate to the focused style, so the left detail title was permanently bright and bright-blue therefore did not mean "focused" |
 | 2026-09-10 | Compress the surface ramp and raise panels above the chrome | The near-black list panel against the shell read as an abrupt step, so the boundary above the list heading looked clipped instead of divided |
 | 2026-09-10 | Drop panel tints entirely for one shared background | Dividers already carry the structure; any tint step reintroduced a seam, and a flat dark ground lets the accents carry the screen. Removed the `ZStack`/`Canvas` wash helpers with it |
 | 2026-09-10 | Darken the shared background to `#090D15` | Gives the accent, amber, green and selection more room to read against |
@@ -486,6 +499,7 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Let `ResourceList` own row styling from `ResourceRow` data | Keeps the selection, hover and populated/inert rules in one place instead of re-deriving them per screen |
 | 2026-09-10 | Prove the extraction with snapshot diffs and a throwaway second screen | Behaviour-preserving refactors of shared visuals are otherwise unverifiable without a terminal |
 | 2026-09-10 | Give the list heading the same padding as the top bar and summary | A heading pressed against its rule reads as cut off; padding it also aligns the two panels' first rules |
+| 2026-09-10 | Give retained read-only previews their own scroll surface | A plain visual has no focus or input ownership; `ScrollableContent` keeps its viewport, bindable offset, scrollbar, commands, keys and wheel behavior together without coupling screens to scrolling mechanics |
 
 ## Change Log
 
@@ -531,3 +545,13 @@ For each Workspaces milestone, run the smallest applicable subset:
   nothing is selected.
 - 2026-09-10: Accepted the W2 visual checkpoint and began W3 with non-stamping,
   per-workspace cached request loading for the recent Requests pane.
+- 2026-09-10: Reworked the W4 focus cue after visual review. The focused section's
+  title now fills with the selection blue as a chip and every other title is inert
+  grey, the count badge dropped to the recessed treatment so the filled accent is
+  unique to focus, and `TitledDivider` no longer treats a missing focus predicate as
+  focused, which had left the left detail title permanently bright. Removed the
+  now-unused dim-accent style and colour. Verified by cell dump in both states.
+- 2026-09-10: Completed W3 and implemented W4 focus ownership, contextual commands,
+  Vim and standard scrolling, pointer-ready focus targets, and asynchronous workspace
+  activation through Core. Automated terminal behavior passes; visual and pointer
+  feel await developer verification.

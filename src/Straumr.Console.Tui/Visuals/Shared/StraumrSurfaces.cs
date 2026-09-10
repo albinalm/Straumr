@@ -42,13 +42,31 @@ internal static class StraumrSurfaces
         return rule;
     }
 
-    /// <summary>A divider carrying a section title on the line itself.</summary>
-    public static Rule TitledDivider(string title)
+    /// <summary>
+    /// A divider carrying a section title on the line itself. The title fills with the focus chip
+    /// while its section owns focus and is otherwise inert.
+    /// </summary>
+    /// <param name="isFocused">
+    /// Whether the titled section owns focus. Omitted for a section that cannot take focus, which
+    /// then never renders as focused; the previous default did the opposite and made a permanently
+    /// bright title compete with the section actually holding focus.
+    /// </param>
+    public static Rule TitledDivider(string title, Func<bool>? isFocused = null)
     {
         Rule rule = HorizontalDivider();
-        rule.StartLabel = new TextBlock(title).Style(StraumrStyles.AccentText);
+        rule.StartLabel = new TextBlock(() => FocusLabel(title, isFocused))
+            .Style(() => isFocused?.Invoke() is true
+                ? StraumrStyles.FocusChip
+                : StraumrStyles.MutedText);
         return rule;
     }
+
+    /// <summary>
+    /// Pads a title so the focus chip has a cell of fill on each side of the text. The unfocused
+    /// title stays unpadded because it paints no background to breathe inside.
+    /// </summary>
+    public static string FocusLabel(string title, Func<bool>? isFocused) =>
+        isFocused?.Invoke() is true ? $" {title} " : title;
 
     /// <summary>
     /// A single-row bar with left- and right-aligned content. <see cref="Header"/> is not used because

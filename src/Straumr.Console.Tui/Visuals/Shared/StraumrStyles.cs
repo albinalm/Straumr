@@ -32,7 +32,6 @@ internal static class StraumrStyles
     public static readonly Color Muted = Hex(0x8FA0C4);
     public static readonly Color MutedBright = Hex(0xB9C6E0);
     public static readonly Color Accent = Hex(0x3B9EFF);
-    public static readonly Color AccentDim = Hex(0x6485B8);
     public static readonly Color Amber = Hex(0xFFC857);
     public static readonly Color Green = Hex(0x3DDC97);
     public static readonly Color Red = Hex(0xFF6B7A);
@@ -60,11 +59,11 @@ internal static class StraumrStyles
     public static readonly TextBlockStyle GreenText =
         PrimaryText with { Foreground = Green };
 
-    public static readonly TextBlockStyle AccentDimText =
-        PrimaryText with { Foreground = AccentDim };
-
-    /// <summary>A filled badge for a quantity.</summary>
-    public static readonly TextBlockStyle AccentChip =
+    /// <summary>
+    /// The only filled accent surface on screen: it marks the region that owns focus. It carries the
+    /// selection band's blue so a blue fill means "here" on a rule exactly as it does on a row.
+    /// </summary>
+    public static readonly TextBlockStyle FocusChip =
         PrimaryText with
         {
             Foreground = TextBright,
@@ -72,7 +71,7 @@ internal static class StraumrStyles
             FillBackground = true
         };
 
-    /// <summary>A raised badge for a technical identifier.</summary>
+    /// <summary>A raised badge for a quantity or a technical identifier.</summary>
     public static readonly TextBlockStyle TokenChip =
         PrimaryText with
         {
@@ -122,6 +121,14 @@ internal static class StraumrStyles
     };
 
     public static readonly Style DividerCell = Style.None.WithForeground(Border);
+
+    public static readonly Style ScrollTrackCell = Style.None
+        .WithForeground(ScrollTrack)
+        .WithBackground(Background);
+
+    public static readonly Style ScrollThumbCell = Style.None
+        .WithForeground(ScrollThumb)
+        .WithBackground(Background);
 
     public static readonly Style SelectedItem = Style.None
         .WithForeground(TextBright)
