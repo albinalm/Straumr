@@ -35,6 +35,8 @@ internal static class StraumrStyles
     public static readonly Color AccentDim = Hex(0x6485B8);
     public static readonly Color Amber = Hex(0xFFC857);
     public static readonly Color Green = Hex(0x3DDC97);
+    public static readonly Color Red = Hex(0xFF6B7A);
+    public static readonly Color Purple = Hex(0xB79CFF);
 
     public static readonly TextBlockStyle PrimaryText =
         TextBlockStyle.Default with
@@ -81,6 +83,12 @@ internal static class StraumrStyles
 
     public static readonly TextBlockStyle AmberText =
         PrimaryText with { Foreground = Amber };
+
+    public static readonly TextBlockStyle RedText =
+        PrimaryText with { Foreground = Red };
+
+    public static readonly TextBlockStyle PurpleText =
+        PrimaryText with { Foreground = Purple };
 
     public static readonly CommandBarStyle CommandBar =
         CommandBarStyle.Default with

@@ -33,7 +33,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             app.Root,
             async _ =>
             {
-                await app.InitializeAsync(cancellationToken);
+                await app.UpdateAsync(cancellationToken);
                 return app.ExitRequested
                     ? TerminalLoopResult.Stop
                     : TerminalLoopResult.Continue;

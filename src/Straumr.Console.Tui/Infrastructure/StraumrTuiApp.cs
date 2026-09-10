@@ -54,10 +54,13 @@ public sealed class StraumrTuiApp
 
     public bool ExitRequested { get; private set; }
 
-    public async Task InitializeAsync(CancellationToken cancellationToken)
+    public async Task UpdateAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
+        {
+            await _workspaceScreen.UpdateAsync(cancellationToken);
             return;
+        }
 
         _initialized = true;
         await _workspaceScreen.LoadAsync(cancellationToken);

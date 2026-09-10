@@ -8,8 +8,8 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W2 in progress
-- Next checkpoint: interactive verification of the outstanding W2 items, then W3
+- Implementation: W3 in progress
+- Next checkpoint: interactive verification of the recent Requests pane
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-10
 
@@ -390,8 +390,8 @@ may persist changes through the appropriate Core service.
 | --- | --- | --- | --- |
 | P0 | Create implementation guide and tracker | Complete | This document |
 | W1 | Replace prototype root with the shared application shell | Complete | Reactive header/content and framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified. W2 later replaced the `DockLayout` root with a rule-separated `Grid` inside one window frame |
-| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Screen complete and reviewed interactively over several passes (layout, palette, vibrancy, cohesion, header). Extracted into `ResourceScreenLayout`/`ResourceList`/`FieldList`; refactor proved render-identical by snapshot diff at 120x28, 70x20 and 90x16, populated and empty. A throwaway Secrets screen was built on the scaffold to confirm reuse. Solution and `-p:IncludeTui=false` builds pass; `straumr --help` still opens CLI help. Outstanding: keyboard/pointer selection, hover and unfocused selection band, resize in a real terminal, cancellation, corrupt-workspace behaviour |
-| W3 | Add selected workspace's recently used Requests pane | Not started | |
+| W2 | Add read-only Workspaces list and selected-workspace details | Complete | Screen accepted interactively after several passes over layout, palette, vibrancy, cohesion and header. Extracted into `ResourceScreenLayout`/`ResourceList`/`FieldList`; refactor proved render-identical by snapshot diff at 120x28, 70x20 and 90x16, populated and empty. Solution and CLI-only builds pass; broader resilience checks remain in W8 |
+| W3 | Add selected workspace's recently used Requests pane | In progress | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. Awaiting visual review |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
 | W6 | Add filtering | Not started | |
@@ -425,9 +425,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] `dotnet build src/Straumr.sln`
 - [x] launch `straumr` and inspect the Workspaces screen interactively
 - [ ] verify resize behavior at narrow and wide terminal sizes
-- [ ] verify keyboard and pointer selection, including the hover band and the
-      focused/unfocused selection band (headless snapshots render the unfocused
-      state because the snapshot renderer does not apply `AutoFocus`)
+- [x] verify keyboard selection
+- [ ] verify pointer selection, including the hover band and the focused/unfocused
+      selection band (headless snapshots render the unfocused state because the
+      snapshot renderer does not apply `AutoFocus`)
 - [ ] verify focus restoration after prompt, dialog, and external editor use
 - [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
@@ -528,3 +529,5 @@ For each Workspaces milestone, run the smallest applicable subset:
   selection band inset from the panel edges, relative last-accessed timestamps,
   and a detail region that empties instead of showing bare section titles when
   nothing is selected.
+- 2026-09-10: Accepted the W2 visual checkpoint and began W3 with non-stamping,
+  per-workspace cached request loading for the recent Requests pane.

@@ -13,18 +13,26 @@ public sealed class WorkspaceScreen
 {
     private readonly IStraumrOptionsService _optionsService;
     private readonly IStraumrWorkspaceService _workspaceService;
+    private readonly IStraumrRequestService _requestService;
     private readonly State<WorkspaceLoadState> _loadState = new(WorkspaceLoadState.Loading);
+    private readonly State<RequestPreviewLoadState> _requestLoadState = new(RequestPreviewLoadState.Idle);
     private readonly State<int> _workspaceCount = new(0);
     private readonly State<int> _selectedIndex = new(-1);
     private readonly State<string?> _errorMessage = new(null);
+    private readonly State<string?> _requestErrorMessage = new(null);
+    private readonly State<IReadOnlyList<StraumrRequest>> _recentRequests = new([]);
+    private readonly Dictionary<Guid, IReadOnlyList<StraumrRequest>> _requestCache = [];
     private List<WorkspaceScreenItem> _items = [];
+    private Guid? _displayedRequestWorkspaceId;
 
     public WorkspaceScreen(
         IStraumrOptionsService optionsService,
-        IStraumrWorkspaceService workspaceService)
+        IStraumrWorkspaceService workspaceService,
+        IStraumrRequestService requestService)
     {
         _optionsService = optionsService;
         _workspaceService = workspaceService;
+        _requestService = requestService;
 
         Root = ResourceScreenLayout.Create(
             "Workspaces",
@@ -38,6 +46,53 @@ public sealed class WorkspaceScreen
     public Visual Root { get; }
 
     public string? ActiveWorkspaceName { get; private set; }
+
+    public async Task UpdateAsync(CancellationToken cancellationToken)
+    {
+        WorkspaceScreenItem? item = SelectedItem;
+        if (item is null || item.Workspace.Id == _displayedRequestWorkspaceId)
+            return;
+
+        Guid workspaceId = item.Workspace.Id;
+        _displayedRequestWorkspaceId = workspaceId;
+        _requestErrorMessage.Value = null;
+
+        if (_requestCache.TryGetValue(workspaceId, out IReadOnlyList<StraumrRequest>? cached))
+        {
+            ShowRequests(cached);
+            return;
+        }
+
+        _recentRequests.Value = [];
+        _requestLoadState.Value = RequestPreviewLoadState.Loading;
+
+        try
+        {
+            IReadOnlyList<StraumrRequest> requests = await _requestService.ListAsync(
+                item.Entry,
+                cancellationToken);
+            IReadOnlyList<StraumrRequest> recent = requests
+                .OrderByDescending(request => request.LastAccessed)
+                .ToArray();
+            _requestCache[workspaceId] = recent;
+
+            if (SelectedItem?.Workspace.Id == workspaceId)
+                ShowRequests(recent);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            if (SelectedItem?.Workspace.Id != workspaceId)
+                return;
+
+            _requestErrorMessage.Value = exception.Message;
+            _requestLoadState.Value = RequestPreviewLoadState.Error;
+        }
+    }
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
@@ -153,7 +208,66 @@ public sealed class WorkspaceScreen
             "Workspace",
             ResourceScreenLayout.Pane(fields),
             "Requests",
-            null);
+            ResourceScreenLayout.Pane(BuildRequestsPane()));
+    }
+
+    private Visual BuildRequestsPane() =>
+        _requestLoadState.Value switch
+        {
+            RequestPreviewLoadState.Idle or RequestPreviewLoadState.Loading =>
+                ResourceScreenLayout.Message(
+                    new HStack(
+                            new Spinner(),
+                            new TextBlock("Loading requests...").Style(StraumrStyles.MutedText))
+                        .Spacing(1)),
+            RequestPreviewLoadState.Empty =>
+                ResourceScreenLayout.Message(
+                    new TextBlock("No requests found.").Style(StraumrStyles.MutedText)),
+            RequestPreviewLoadState.Error =>
+                ResourceScreenLayout.Message(
+                    new TextBlock(() => $"Failed to load requests: {_requestErrorMessage.Value}")
+                        .Style(StraumrStyles.MutedText)
+                        .Wrap(true)),
+            _ => BuildRecentRequests()
+        };
+
+    private Visual BuildRecentRequests()
+    {
+        IReadOnlyList<StraumrRequest> requests = _recentRequests.Value;
+        var content = new VStack().HorizontalAlignment(Align.Stretch);
+
+        for (int index = 0; index < requests.Count; index++)
+        {
+            if (index > 0)
+                content.Add(StraumrSurfaces.HorizontalDivider());
+
+            StraumrRequest request = requests[index];
+            content.Add(new VStack(
+                    new HStack(
+                            new TextBlock(request.Method.Method)
+                                .Style(HttpMethodFormatting.Style(request.Method)),
+                            new TextBlock(request.Name)
+                                .Style(StraumrStyles.PrimaryText)
+                                .Trimming(TextTrimming.EndEllipsis)
+                                .HorizontalAlignment(Align.Stretch))
+                        .Spacing(1)
+                        .HorizontalAlignment(Align.Stretch),
+                    new TextBlock("request · last used")
+                        .Style(StraumrStyles.MutedText),
+                    new TextBlock(TimestampFormatting.Relative(request.LastAccessed))
+                        .Style(StraumrStyles.MutedText))
+                .HorizontalAlignment(Align.Stretch));
+        }
+
+        return ResourceScreenLayout.Scrollable(content);
+    }
+
+    private void ShowRequests(IReadOnlyList<StraumrRequest> requests)
+    {
+        _recentRequests.Value = requests;
+        _requestLoadState.Value = requests.Count == 0
+            ? RequestPreviewLoadState.Empty
+            : RequestPreviewLoadState.Loaded;
     }
 
     private static ResourceRow ToRow(WorkspaceScreenItem item)
@@ -176,6 +290,15 @@ public sealed class WorkspaceScreen
 
     private enum WorkspaceLoadState
     {
+        Loading,
+        Loaded,
+        Empty,
+        Error
+    }
+
+    private enum RequestPreviewLoadState
+    {
+        Idle,
         Loading,
         Loaded,
         Empty,

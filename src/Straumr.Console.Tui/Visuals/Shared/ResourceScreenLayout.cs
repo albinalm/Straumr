@@ -66,10 +66,10 @@ internal static class ResourceScreenLayout
     /// <summary>Wraps pane content in the padding every detail pane uses.</summary>
     public static Visual Pane(Visual content) => StraumrSurfaces.Inset(content, PaneInset);
 
-    /// <summary>Wraps a resource list in the styled scroll viewer every screen uses.</summary>
-    public static Visual Scrollable(ResourceList list)
+    /// <summary>Wraps scrollable pane content in the shared styled scroll viewer.</summary>
+    public static Visual Scrollable(Visual content)
     {
-        var scroller = new ScrollViewer(list, focusable: false)
+        var scroller = new ScrollViewer(content, focusable: false)
         {
             HorizontalScrollEnabled = false,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
