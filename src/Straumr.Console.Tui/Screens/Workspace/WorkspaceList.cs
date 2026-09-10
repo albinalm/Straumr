@@ -16,7 +16,18 @@ public sealed partial class WorkspaceList : Visual, IScrollable
     private const int ItemHeight = 3;
     private const int ItemSpacing = 1;
     private const int ItemStride = ItemHeight + ItemSpacing;
+
+    /// <summary>Blank cells kept between the panel edges and the selection band.</summary>
+    private const int PanelInset = 1;
+
+    /// <summary>The selection bar plus the gap separating it from the item text.</summary>
     private const int MarkerWidth = 2;
+
+    private const int TextInset = PanelInset + MarkerWidth;
+    private const int MinimumTextWidth = 8;
+
+    private static readonly Rune SelectionBar = new('▌');
+    private static readonly Rune Blank = new(' ');
 
     private readonly IReadOnlyList<WorkspaceScreenItem> _workspaces;
     private readonly IReadOnlyList<Visual> _items;
@@ -48,25 +59,18 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     protected override SizeHints MeasureCore(in LayoutConstraints constraints)
     {
-        int contentWidth = 0;
-        var itemConstraints = new LayoutConstraints(
-            0,
-            LayoutConstraints.Unbounded.MaxWidth,
-            ItemHeight,
-            ItemHeight);
+        int textWidth = Math.Max(MinimumTextWidth, constraints.MaxWidth - TextInset - PanelInset);
+        var itemConstraints = new LayoutConstraints(textWidth, textWidth, ItemHeight, ItemHeight);
 
         foreach (Visual item in _items)
-        {
             item.Measure(itemConstraints);
-            contentWidth = Math.Max(contentWidth, item.DesiredSize.Width);
-        }
 
         var natural = new Size(
-            Math.Max(MarkerWidth, contentWidth + MarkerWidth),
+            textWidth + TextInset + PanelInset,
             Math.Max(1, ContentHeight));
 
         return SizeHints.Flex(
-            new Size(MarkerWidth, 1),
+            new Size(TextInset + MinimumTextWidth + PanelInset, 1),
             natural,
             new Size(
                 LayoutConstraints.Unbounded.MaxWidth,
@@ -86,46 +90,41 @@ public sealed partial class WorkspaceList : Visual, IScrollable
             return;
         }
 
-        int contentWidth = Math.Max(0, finalRect.Width - MarkerWidth);
-        int extentWidth = Math.Max(finalRect.Width, DesiredSize.Width);
+        int textWidth = Math.Max(
+            MinimumTextWidth,
+            finalRect.Width - TextInset - PanelInset);
 
         _scroll.SetViewport(finalRect.Width, finalRect.Height);
-        _scroll.SetExtent(extentWidth, ContentHeight);
+        _scroll.SetExtent(finalRect.Width, ContentHeight);
         EnsureSelectedVisible();
 
         for (int index = 0; index < _items.Count; index++)
         {
-            int y = finalRect.Y + index * ItemStride - _scroll.OffsetY;
             _items[index].Arrange(new Rectangle(
-                finalRect.X + MarkerWidth - _scroll.OffsetX,
-                y,
-                contentWidth,
+                finalRect.X + TextInset,
+                finalRect.Y + index * ItemStride - _scroll.OffsetY,
+                textWidth,
                 ItemHeight));
         }
     }
 
     protected override void RenderOverride(CellBuffer buffer)
     {
+        if (SelectedIndex < 0)
+            return;
+
         Rectangle bounds = Bounds;
+        int bandLeft = bounds.X + PanelInset;
+        int bandRight = Math.Max(bandLeft, bounds.Right - PanelInset);
+        int top = bounds.Y + SelectedIndex * ItemStride - _scroll.OffsetY;
+        int bottom = top + ItemHeight;
 
-        for (int index = 0; index < _items.Count; index++)
+        for (int y = Math.Max(top, bounds.Y); y < Math.Min(bottom, bounds.Bottom); y++)
         {
-            if (index != SelectedIndex)
-                continue;
+            for (int x = bandLeft; x < bandRight; x++)
+                buffer.SetCell(x, y, Blank, StraumrStyles.SelectedItem);
 
-            int top = bounds.Y + index * ItemStride - _scroll.OffsetY;
-            int bottom = top + ItemHeight;
-
-            if (bottom <= bounds.Y || top >= bounds.Bottom)
-                continue;
-
-            for (int y = Math.Max(top, bounds.Y); y < Math.Min(bottom, bounds.Bottom); y++)
-            {
-                for (int x = bounds.X; x < bounds.Right; x++)
-                    buffer.SetCell(x, y, new Rune(' '), StraumrStyles.SelectedItem);
-
-                buffer.SetCell(bounds.X, y, new Rune('▌'), StraumrStyles.SelectionMarker);
-            }
+            buffer.SetCell(bandLeft, y, SelectionBar, StraumrStyles.SelectionMarker);
         }
     }
 
@@ -208,13 +207,21 @@ public sealed partial class WorkspaceList : Visual, IScrollable
 
     private static Visual BuildItem(WorkspaceScreenItem item) =>
         new VStack(
-                new TextBlock(item.Workspace.Name)
-                    .Style(StraumrStyles.PrimaryText),
-                new TextBlock(
-                        $"{CountLabel(item.Workspace.Requests.Count, "request")} · {CountLabel(item.Workspace.Auths.Count, "auth")}")
-                    .Style(StraumrStyles.YellowText),
-                new TextBlock(item.DisplayDirectory)
-                    .Style(StraumrStyles.MutedText))
+                Line(item.Workspace.Name, StraumrStyles.PrimaryText, TextTrimming.EndEllipsis),
+                Line(
+                    $"{CountLabel(item.Workspace.Requests.Count, "request")} · {CountLabel(item.Workspace.Auths.Count, "auth")}",
+                    StraumrStyles.YellowText,
+                    TextTrimming.EndEllipsis),
+                Line(item.DisplayDirectory, StraumrStyles.MutedText, TextTrimming.StartEllipsis))
+            .HorizontalAlignment(Align.Stretch);
+
+    private static TextBlock Line(
+        string text,
+        XenoAtom.Terminal.UI.Styling.TextBlockStyle style,
+        TextTrimming trimming) =>
+        new TextBlock(text)
+            .Style(style)
+            .Trimming(trimming)
             .HorizontalAlignment(Align.Stretch);
 
     private static string CountLabel(int count, string noun) =>

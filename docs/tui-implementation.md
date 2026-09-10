@@ -56,14 +56,21 @@ theme styles that produce the same structure.
 
 Shared screen shell:
 
+- A single window frame encloses the whole screen. Regions inside it are
+  separated by one-cell rules and distinguished by surface tint, not by nested
+  boxes with gaps between them.
 - Header left: `{straumr} {screen}`.
 - Header right: `active workspace {name}` in a subdued success color.
 - Header content uses normal-weight text with horizontal and vertical breathing
-  room inside a thin frame.
+  room, closed by a rule.
 - Main content: resource list on the left and selected-resource details on the
-  right.
-- Detail content begins with a bordered summary spanning both detail columns;
-  the two bordered sections beneath it place their titles inside the panels.
+  right, separated by a column divider that carries the correct junction glyph
+  wherever a rule meets it.
+- Detail content begins with a summary spanning both detail columns, closed by a
+  rule that aligns with the last rule of the list panel; the two sections beneath
+  it are separated by a column divider and titled in place.
+- Every value that can outgrow its region is trimmed with an ellipsis or wrapped.
+  Nothing is hard-clipped mid-word.
 - Footer: context-aware shortcuts.
 - `:` opens the command prompt.
 - `Escape`, submission, or loss of focus closes and clears the command prompt.
@@ -80,7 +87,7 @@ Approved references:
 
 ## Framework Rules
 
-- Compose the application shell with `Header`, `DockLayout`, layout containers,
+- Compose the application shell from `Grid`, `Padder`, `Rule`, layout containers,
   and a footer or `CommandBar` where their behavior fits.
 - Use `State<T>`, bindings, and computed visuals for changing UI state.
 - Use `ListBox<T>` with a `DataTemplate<T>` for single-line resource lists.
@@ -100,6 +107,12 @@ Approved references:
   methods.
 - Introduce a custom `Visual` only after confirming that composition, templating,
   or styling cannot express the requirement.
+- Version 3.9.0 has no vertical rule control and no per-visual background, so
+  surface tints and column dividers are painted through `Canvas` painters in
+  `Visuals/Shared/StraumrSurfaces.cs` rather than through a new `Visual`.
+- Do not use `Header` for the screen bars. It forces bold slot text and its own
+  surface color, which the approved layouts do not use. `StraumrSurfaces.Bar`
+  composes the same left/right arrangement from a `Grid`.
 
 The existing `RequestList` manually implements layout, scrolling, selection,
 pointer input, and rendering. Treat it as prototype code, not the pattern for new
@@ -136,11 +149,15 @@ Straumr.Console.Tui/
     Workspace/
       WorkspaceScreen.cs
       WorkspaceScreenItem.cs
+      WorkspaceList.cs
   Visuals/
     Shared/
       StraumrHeader.cs
+      StraumrStyles.cs
+      StraumrSurfaces.cs
       StraumrCommandPrompt.cs
   Formatting/
+    TimestampFormatting.cs
     HttpMethodFormatting.cs
 ```
 
@@ -185,23 +202,23 @@ Header:
 
 Left pane:
 
-- title `Workspaces` and total count
-- filter affordance
+- title `Workspaces` and total count, closed by a rule
+- filter affordance row, closed by a rule
 - one multiline item per workspace
-- workspace name
+- workspace name, trimmed with a trailing ellipsis
 - request and auth counts
-- workspace directory
-- selection styling supplied by the list control
+- workspace directory, trimmed with a leading ellipsis so the tail stays visible
+- selection band spanning the panel inset with a leading accent bar
 
 Detail header:
 
 - workspace name
-- last-accessed timestamp
+- last-accessed timestamp, relative for recent values
 - shortened workspace ID aligned right
 
 Workspace detail group:
 
-- path
+- path, home-shortened and wrapped, ellipsized when the region is too short
 - request count
 - auth count
 - modified timestamp
@@ -265,8 +282,8 @@ may persist changes through the appropriate Core service.
 | ID | Milestone | Status | Evidence |
 | --- | --- | --- | --- |
 | P0 | Create implementation guide and tracker | Complete | This document |
-| W1 | Replace prototype root with the shared application shell | Complete | `DockLayout`, reactive header/content, framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified |
-| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Loading/empty states and builds pass; populated tests exposed `ListBox<T>` and `Button` presentation limitations; custom retained multiline list and approved palette await visual verification |
+| W1 | Replace prototype root with the shared application shell | Complete | Reactive header/content and framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified. W2 later replaced the `DockLayout` root with a rule-separated `Grid` inside one window frame |
+| W2 | Add read-only Workspaces list and selected-workspace details | In progress | Rebuilt as a rule-separated shell after the boxed version was rejected on review; verified with headless snapshots at 60x20, 70x20, 80x24, 100x22, and 120x34 for populated and empty registries; solution and `-p:IncludeTui=false` builds pass; `straumr --help` still opens CLI help; awaiting interactive confirmation of the new layout |
 | W3 | Add selected workspace's recently used Requests pane | Not started | |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
 | W5 | Add command prompt integration and workspace navigation commands | Not started | |
@@ -335,6 +352,11 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Show only recent requests in the Workspaces detail preview | Keeps the pane relevant to workspace usage |
 | 2026-09-10 | Do not use `ListBox<T>` for multiline resource cards | Version 3.9.0 measures and arranges every list item at a fixed height of one row |
 | 2026-09-10 | Use the approved mockup colors as a shared application palette | Default control colors and button treatment do not preserve the mockup's hierarchy or contrast |
+| 2026-09-10 | Build the shell from one window frame plus rules and surface tints | Nested bordered groups with gaps read as separate widgets instead of one screen |
+| 2026-09-10 | Paint column dividers and surface tints with `Canvas` | Version 3.9.0 has no vertical rule control and no per-visual background |
+| 2026-09-10 | Compose screen bars from `Grid` instead of `Header` | `Header` forces bold slots and its own surface color |
+| 2026-09-10 | Trim list paths with a leading ellipsis and names with a trailing one | The tail of a workspace path identifies it; the head of a name does |
+| 2026-09-10 | Verify layout with headless `VisualSnapshotRenderer` snapshots | Gives per-cell evidence of geometry, trimming, and palette before an interactive check |
 
 ## Change Log
 
@@ -348,3 +370,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Removed the premature filter affordance, replaced the interactive splitter with a weighted grid, and composed multiline workspace items inside `ScrollViewer`.
 - 2026-09-10: Replaced button-based workspace rows with a retained multiline list and applied the approved palette after populated visual testing exposed poor contrast and excessive emphasis.
 - 2026-09-10: Corrected the workspace shell to use a padded top bar, an in-panel list heading, a full-width selected-workspace summary, and two lower detail columns with headings inside their borders.
+- 2026-09-10: Replaced the boxed workspace shell with the mockup's rule-separated
+  single frame: one window border, surface-tinted list and detail panels, column
+  dividers with junction glyphs, mockup column ratios, the filter affordance row,
+  ellipsis and wrap behavior on every value that can outgrow its region, a
+  selection band inset from the panel edges, relative last-accessed timestamps,
+  and a detail region that empties instead of showing bare section titles when
+  nothing is selected.

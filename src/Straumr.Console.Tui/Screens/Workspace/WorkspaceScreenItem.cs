@@ -7,17 +7,18 @@ public sealed record WorkspaceScreenItem(
     StraumrWorkspaceEntry Entry,
     bool IsCurrent)
 {
-    public string Directory =>
-        Path.GetDirectoryName(Entry.Path) ?? Entry.Path;
+    public string ShortId => Workspace.Id.ToString("N")[..8];
 
-    public string DisplayDirectory
+    public string DisplayPath => Shorten(Entry.Path);
+
+    public string DisplayDirectory =>
+        Shorten(Path.GetDirectoryName(Entry.Path) ?? Entry.Path);
+
+    private static string Shorten(string path)
     {
-        get
-        {
-            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Directory.StartsWith(home, StringComparison.OrdinalIgnoreCase)
-                ? $"~{Directory[home.Length..]}"
-                : Directory;
-        }
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return home.Length > 0 && path.StartsWith(home, StringComparison.OrdinalIgnoreCase)
+            ? $"~{path[home.Length..]}"
+            : path;
     }
 }

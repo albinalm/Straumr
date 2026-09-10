@@ -2,6 +2,7 @@ using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Visuals.Shared;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
+using XenoAtom.Terminal.UI.Geometry;
 
 namespace Straumr.Console.Tui.Infrastructure;
 
@@ -21,12 +22,32 @@ public sealed class StraumrTuiApp
         var commandBar = new CommandBar();
         commandBar.SetStyle(StraumrStyles.CommandBar);
 
-        Root = new DockLayout()
+        var shell = new Grid()
+            .Columns(new ColumnDefinition { Width = GridLength.Star() })
+            .Rows(
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star() },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto })
+            .Cell(StraumrHeader.Create(_currentScreen, _activeWorkspaceName), 0, 0)
+            .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
+            .Cell(new ComputedVisual(() => _screenContent.Value)
+                .HorizontalAlignment(Align.Stretch)
+                .VerticalAlignment(Align.Stretch), 2, 0)
+            .Cell(StraumrSurfaces.HorizontalDivider(), 3, 0)
+            .Cell(StraumrSurfaces.Inset(commandBar, new Thickness(1, 0, 1, 0)), 4, 0)
             .HorizontalAlignment(Align.Stretch)
-            .VerticalAlignment(Align.Stretch)
-            .Top(StraumrHeader.Create(_currentScreen, _activeWorkspaceName))
-            .Content(() => _screenContent.Value)
-            .Bottom(commandBar);
+            .VerticalAlignment(Align.Stretch);
+
+        var window = new Group()
+            .Padding(new Thickness(0))
+            .Content(shell)
+            .HorizontalAlignment(Align.Stretch)
+            .VerticalAlignment(Align.Stretch);
+        window.SetStyle(StraumrStyles.WindowGroup);
+
+        Root = window;
     }
 
     public Visual Root { get; }

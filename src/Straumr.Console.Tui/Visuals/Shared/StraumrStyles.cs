@@ -17,6 +17,9 @@ internal static class StraumrStyles
     public static readonly Color Yellow = Color.Rgb(232, 195, 107);
     public static readonly Color Selection = Color.Rgb(23, 54, 76);
 
+    /// <summary>The mockup renders the active-workspace label at 76% opacity over the shell background.</summary>
+    public static readonly Color GreenSubdued = Color.Rgb(92, 168, 134);
+
     public static readonly TextBlockStyle PrimaryText =
         TextBlockStyle.Default with
         {
@@ -31,7 +34,7 @@ internal static class StraumrStyles
         PrimaryText with { Foreground = Accent };
 
     public static readonly TextBlockStyle GreenText =
-        PrimaryText with { Foreground = Green };
+        PrimaryText with { Foreground = GreenSubdued };
 
     public static readonly TextBlockStyle YellowText =
         PrimaryText with { Foreground = Yellow };
@@ -48,9 +51,20 @@ internal static class StraumrStyles
             KeycapClose = new Rune(' ')
         };
 
-    public static readonly GroupStyle ListGroup = CreateGroupStyle(PanelAlt);
-    public static readonly GroupStyle DetailGroup = CreateGroupStyle(Panel);
-    public static readonly GroupStyle ShellGroup = CreateGroupStyle(Background);
+    public static readonly GroupStyle WindowGroup = GroupStyle.Single with
+    {
+        BorderCellStyle = Style.None.WithForeground(Border),
+        FocusedBorderCellStyle = Style.None.WithForeground(Border),
+        LabelBackgroundStyle = Style.None.WithBackground(Background),
+        BackgroundStyle = Style.None.WithBackground(Background)
+    };
+
+    public static readonly RuleStyle Divider = RuleStyle.Default with
+    {
+        LineStyle = Style.None.WithForeground(Border)
+    };
+
+    public static readonly Style DividerCell = Style.None.WithForeground(Border);
 
     public static readonly Style SelectedItem = Style.None
         .WithForeground(Text)
@@ -59,13 +73,4 @@ internal static class StraumrStyles
     public static readonly Style SelectionMarker = Style.None
         .WithForeground(Accent)
         .WithBackground(Selection);
-
-    private static GroupStyle CreateGroupStyle(Color background) =>
-        GroupStyle.Single with
-        {
-            BorderCellStyle = Style.None.WithForeground(Border),
-            FocusedBorderCellStyle = Style.None.WithForeground(Border),
-            LabelBackgroundStyle = Style.None.WithBackground(background),
-            BackgroundStyle = Style.None.WithBackground(background)
-        };
 }

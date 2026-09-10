@@ -1,18 +1,27 @@
+using System.Text;
 using System.Text.Json;
+using Straumr.Console.Tui.Formatting;
+using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
-using Straumr.Console.Tui.Visuals.Shared;
-using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
-using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Screens.Workspace;
 
 public sealed class WorkspaceScreen
 {
+    private static readonly Thickness PaneInset = new(1, 1, 1, 1);
+    private static readonly Thickness BarInset = new(1, 0, 1, 0);
+
+    /// <summary>Row offset of the divider under the list heading. Only the list panel has a rule here.</summary>
+    private const int ListHeadingRuleRow = 1;
+
+    /// <summary>Row offset where the list filter rule and the detail summary rule meet the column divider.</summary>
+    private const int SectionRuleRow = 3;
+
     private readonly IStraumrOptionsService _optionsService;
     private readonly IStraumrWorkspaceService _workspaceService;
     private readonly State<WorkspaceLoadState> _loadState = new(WorkspaceLoadState.Loading);
@@ -30,12 +39,18 @@ public sealed class WorkspaceScreen
 
         Root = new Grid()
             .Columns(
-                new ColumnDefinition { Width = GridLength.Star(2) },
-                new ColumnDefinition { Width = GridLength.Star(3) })
+                new ColumnDefinition { Width = GridLength.Star(31) },
+                new ColumnDefinition { Width = GridLength.Fixed(1) },
+                new ColumnDefinition { Width = GridLength.Star(69) })
             .Rows(new RowDefinition { Height = GridLength.Star() })
-            .ColumnGap(1)
-            .Cell(BuildWorkspaceList(), 0, 0)
-            .Cell(BuildWorkspaceDetails(), 0, 1)
+            .Cell(BuildListPanel(), 0, 0)
+            .Cell(
+                StraumrSurfaces.VerticalDivider(
+                    (ListHeadingRuleRow, new Rune('┤')),
+                    (SectionRuleRow, new Rune('┼'))),
+                0,
+                1)
+            .Cell(BuildDetailPanel(), 0, 2)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
     }
@@ -96,67 +111,77 @@ public sealed class WorkspaceScreen
         }
     }
 
-    private Visual BuildWorkspaceList()
+    private Visual BuildListPanel()
     {
-        var group = new Group()
-            .Padding(new Thickness(0))
-            .Content(new Grid()
-                .Columns(new ColumnDefinition { Width = GridLength.Star() })
-                .Rows(
-                    new RowDefinition { Height = GridLength.Auto },
-                    new RowDefinition { Height = GridLength.Auto },
-                    new RowDefinition { Height = GridLength.Star() })
-                .Cell(
-                    new Grid()
-                        .Columns(
-                            new ColumnDefinition { Width = GridLength.Star() },
-                            new ColumnDefinition { Width = GridLength.Auto })
-                        .Rows(new RowDefinition { Height = GridLength.Auto })
-                        .Cell(new TextBlock("Workspaces")
-                            .Style(StraumrStyles.AccentText), 0, 0)
-                        .Cell(new TextBlock(() => _workspaceCount.Value.ToString())
-                            .Style(StraumrStyles.MutedText), 0, 1)
-                        .Margin(new Thickness(1, 1, 1, 1)),
-                    0,
-                    0)
-                .Cell(CreateRule(), 1, 0)
-                .Cell(
-                    new ComputedVisual(BuildWorkspaceListContent)
-                        .Margin(new Thickness(1))
-                        .HorizontalAlignment(Align.Stretch)
-                        .VerticalAlignment(Align.Stretch),
-                    2,
-                    0)
+        Visual heading = StraumrSurfaces.Bar(
+            new TextBlock("Workspaces").Style(StraumrStyles.AccentText),
+            new TextBlock(() => _workspaceCount.Value.ToString()).Style(StraumrStyles.MutedText));
+
+        var filter = new TextBlock("/ filter workspaces")
+            .Style(StraumrStyles.MutedText)
+            .HorizontalAlignment(Align.Stretch);
+
+        var panel = new Grid()
+            .Columns(new ColumnDefinition { Width = GridLength.Star() })
+            .Rows(
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star() })
+            .Cell(StraumrSurfaces.Inset(heading, BarInset), 0, 0)
+            .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
+            .Cell(StraumrSurfaces.Inset(filter, BarInset), 2, 0)
+            .Cell(StraumrSurfaces.HorizontalDivider(), 3, 0)
+            .Cell(new ComputedVisual(BuildListContent)
                 .HorizontalAlignment(Align.Stretch)
-                .VerticalAlignment(Align.Stretch))
+                .VerticalAlignment(Align.Stretch), 4, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
-        group.SetStyle(StraumrStyles.ListGroup);
-        return group;
+        return StraumrSurfaces.PanelAlt(panel);
     }
 
-    private Visual BuildWorkspaceDetails() =>
-        new ComputedVisual(CreateWorkspaceDetails)
+    private Visual BuildDetailPanel()
+    {
+        var panel = new Grid()
+            .Columns(new ColumnDefinition { Width = GridLength.Star() })
+            .Rows(
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star() })
+            .Cell(new ComputedVisual(BuildDetailSummary)
+                .HorizontalAlignment(Align.Stretch), 0, 0)
+            .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
+            .Cell(new ComputedVisual(BuildDetailPanes)
+                .HorizontalAlignment(Align.Stretch)
+                .VerticalAlignment(Align.Stretch), 2, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
-    private Visual? BuildWorkspaceListContent()
+        return StraumrSurfaces.Panel(panel);
+    }
+
+    private Visual? BuildListContent()
     {
         return _loadState.Value switch
         {
-            WorkspaceLoadState.Loading => BuildMessage(
-                new HStack(new Spinner(), new TextBlock("Loading workspaces..."))
+            WorkspaceLoadState.Loading => CenteredMessage(
+                new HStack(
+                        new Spinner(),
+                        new TextBlock("Loading workspaces...").Style(StraumrStyles.MutedText))
                     .Spacing(1)),
-            WorkspaceLoadState.Empty => BuildMessage(
-                new TextBlock("No workspaces found.")),
-            WorkspaceLoadState.Error => BuildMessage(
-                new TextBlock(() => $"Failed to load workspaces: {_errorMessage.Value}")),
-            _ => BuildWorkspaceItems()
+            WorkspaceLoadState.Empty => CenteredMessage(
+                new TextBlock("No workspaces found.").Style(StraumrStyles.MutedText)),
+            WorkspaceLoadState.Error => CenteredMessage(
+                new TextBlock(() => $"Failed to load workspaces: {_errorMessage.Value}")
+                    .Style(StraumrStyles.MutedText)
+                    .Wrap(true)),
+            _ => BuildWorkspaceList()
         };
     }
 
-    private Visual BuildWorkspaceItems()
+    private Visual BuildWorkspaceList()
     {
         var list = new WorkspaceList(_items)
         {
@@ -171,31 +196,51 @@ public sealed class WorkspaceScreen
         };
     }
 
-    private Visual? CreateWorkspaceDetails()
+    private Visual? BuildDetailSummary()
     {
         WorkspaceScreenItem? item = SelectedItem;
         if (item is null)
-            return BuildMessage(new TextBlock("No workspace selected."));
+        {
+            return StraumrSurfaces.Inset(
+                new TextBlock("No workspace selected.").Style(StraumrStyles.MutedText),
+                PaneInset);
+        }
 
         StraumrWorkspace workspace = item.Workspace;
-        var summary = new Grid()
+        Visual summary = StraumrSurfaces.Bar(
+            new HStack(
+                    new TextBlock(workspace.Name).Style(StraumrStyles.PrimaryText),
+                    new TextBlock($"last accessed {TimestampFormatting.Relative(workspace.LastAccessed)}")
+                        .Style(StraumrStyles.MutedText))
+                .Spacing(2),
+            new TextBlock(item.ShortId).Style(StraumrStyles.MutedText));
+
+        return StraumrSurfaces.Inset(summary, PaneInset);
+    }
+
+    private Visual? BuildDetailPanes()
+    {
+        WorkspaceScreenItem? item = SelectedItem;
+        if (item is null)
+            return null;
+
+        return new Grid()
             .Columns(
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star() },
-                new ColumnDefinition { Width = GridLength.Auto })
-            .Rows(new RowDefinition { Height = GridLength.Auto })
-            .Cell(new TextBlock(workspace.Name)
-                .Style(StraumrStyles.PrimaryText), 0, 0)
-            .Cell(new TextBlock($"last accessed {workspace.LastAccessed.LocalDateTime:yyyy-MM-dd HH:mm}")
-                .Style(StraumrStyles.MutedText)
-                .Margin(new Thickness(2, 0, 0, 0)), 0, 1)
-            .Cell(new TextBlock(workspace.Id.ToString("N")[..8])
-                .Style(StraumrStyles.MutedText), 0, 2)
-            .HorizontalAlignment(Align.Stretch);
+                new ColumnDefinition { Width = GridLength.Star(48) },
+                new ColumnDefinition { Width = GridLength.Fixed(1) },
+                new ColumnDefinition { Width = GridLength.Star(52) })
+            .Rows(new RowDefinition { Height = GridLength.Star() })
+            .Cell(BuildWorkspacePane(item), 0, 0)
+            .Cell(StraumrSurfaces.VerticalDivider(), 0, 1)
+            .Cell(BuildRequestsPane(), 0, 2)
+            .HorizontalAlignment(Align.Stretch)
+            .VerticalAlignment(Align.Stretch);
+    }
 
-        var summaryPanel = CreateDetailPanel(summary);
-
-        var workspaceDetails = new Grid()
+    private static Visual BuildWorkspacePane(WorkspaceScreenItem item)
+    {
+        StraumrWorkspace workspace = item.Workspace;
+        var fields = new Grid()
             .Columns(
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star() })
@@ -205,49 +250,35 @@ public sealed class WorkspaceScreen
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto })
             .ColumnGap(2)
-            .Cell(DetailLabel("Path"), 0, 0)
-            .Cell(DetailValue(item.Entry.Path), 0, 1)
-            .Cell(DetailLabel("Requests"), 1, 0)
-            .Cell(DetailValue(workspace.Requests.Count.ToString()), 1, 1)
-            .Cell(DetailLabel("Auths"), 2, 0)
-            .Cell(DetailValue(workspace.Auths.Count.ToString()), 2, 1)
-            .Cell(DetailLabel("Modified"), 3, 0)
-            .Cell(DetailValue(workspace.Modified.LocalDateTime.ToString("yyyy-MM-dd HH:mm")), 3, 1)
+            .Cell(FieldLabel("Path"), 0, 0)
+            .Cell(new TextBlock(item.DisplayPath)
+                .Style(StraumrStyles.PrimaryText)
+                .Wrap(true)
+                .Trimming(TextTrimming.EndEllipsis)
+                .HorizontalAlignment(Align.Stretch), 0, 1)
+            .Cell(FieldLabel("Requests"), 1, 0)
+            .Cell(FieldValue(workspace.Requests.Count.ToString()), 1, 1)
+            .Cell(FieldLabel("Auths"), 2, 0)
+            .Cell(FieldValue(workspace.Auths.Count.ToString()), 2, 1)
+            .Cell(FieldLabel("Modified"), 3, 0)
+            .Cell(FieldValue(TimestampFormatting.Absolute(workspace.Modified)), 3, 1)
             .HorizontalAlignment(Align.Stretch);
 
-        Visual workspacePanel = CreateDetailPanel(
-            new VStack(
-                    new TextBlock("Workspace")
-                        .Style(StraumrStyles.AccentText),
-                    workspaceDetails)
-                .Spacing(1)
-                .HorizontalAlignment(Align.Stretch));
+        return BuildPane("Workspace", fields);
+    }
 
-        Visual requestsPanel = CreateDetailPanel(
-            new VStack(
-                    new TextBlock("Requests")
-                        .Style(StraumrStyles.AccentText))
-                .HorizontalAlignment(Align.Stretch));
+    private static Visual BuildRequestsPane() => BuildPane("Requests", null);
 
-        var detailColumns = new Grid()
-            .Columns(
-                new ColumnDefinition { Width = GridLength.Star() },
-                new ColumnDefinition { Width = GridLength.Star() })
-            .Rows(new RowDefinition { Height = GridLength.Star() })
-            .Cell(workspacePanel, 0, 0)
-            .Cell(requestsPanel, 0, 1)
-            .HorizontalAlignment(Align.Stretch)
-            .VerticalAlignment(Align.Stretch);
+    private static Visual BuildPane(string title, Visual? content)
+    {
+        var stack = new VStack(new TextBlock(title).Style(StraumrStyles.AccentText))
+            .Spacing(1)
+            .HorizontalAlignment(Align.Stretch);
 
-        return new Grid()
-            .Columns(new ColumnDefinition { Width = GridLength.Star() })
-            .Rows(
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Star() })
-            .Cell(summaryPanel, 0, 0)
-            .Cell(detailColumns, 1, 0)
-            .HorizontalAlignment(Align.Stretch)
-            .VerticalAlignment(Align.Stretch);
+        if (content is not null)
+            stack.Add(content);
+
+        return StraumrSurfaces.Inset(stack, PaneInset);
     }
 
     private WorkspaceScreenItem? SelectedItem =>
@@ -256,37 +287,19 @@ public sealed class WorkspaceScreen
             ? _items[_selectedIndex.Value]
             : null;
 
-    private static Visual BuildMessage(Visual content) =>
+    private static Visual CenteredMessage(Visual content) =>
         new Center(content)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
-    private static TextBlock DetailLabel(string text) =>
+    private static TextBlock FieldLabel(string text) =>
         new TextBlock(text).Style(StraumrStyles.MutedText);
 
-    private static TextBlock DetailValue(string text) =>
-        new TextBlock(text).Style(StraumrStyles.PrimaryText);
-
-    private static Visual CreateDetailPanel(Visual content)
-    {
-        var panel = new Group()
-            .Padding(new Thickness(1))
-            .Content(content)
-            .HorizontalAlignment(Align.Stretch)
-            .VerticalAlignment(Align.Stretch);
-        panel.SetStyle(StraumrStyles.DetailGroup);
-        return panel;
-    }
-
-    private static Rule CreateRule()
-    {
-        var rule = new Rule();
-        rule.SetStyle(RuleStyle.Default with
-        {
-            LineStyle = Style.None.WithForeground(StraumrStyles.Border)
-        });
-        return rule;
-    }
+    private static TextBlock FieldValue(string text) =>
+        new TextBlock(text)
+            .Style(StraumrStyles.PrimaryText)
+            .Trimming(TextTrimming.EndEllipsis)
+            .HorizontalAlignment(Align.Stretch);
 
     private enum WorkspaceLoadState
     {
