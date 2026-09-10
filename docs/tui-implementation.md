@@ -6,10 +6,10 @@ framework constraint is discovered.
 
 ## Current Status
 
-- Phase: planning
+- Phase: implementation
 - Active screen: Workspaces
-- Implementation: not started
-- Next checkpoint: obtain confirmation on this guide before changing TUI code
+- Implementation: W1 complete
+- Next checkpoint: begin W2 after reviewing the shared application shell checkpoint
 - Last updated: 2026-09-10
 
 ## Goals
@@ -257,7 +257,7 @@ may persist changes through the appropriate Core service.
 | ID | Milestone | Status | Evidence |
 | --- | --- | --- | --- |
 | P0 | Create implementation guide and tracker | Complete | This document |
-| W1 | Replace prototype root with the shared application shell | Not started | |
+| W1 | Replace prototype root with the shared application shell | Complete | `DockLayout`, reactive header/content, framework `CommandBar`; solution and CLI-only builds pass; fullscreen start/exit and CLI help verified |
 | W2 | Add read-only Workspaces list and selected-workspace details | Not started | |
 | W3 | Add selected workspace's recently used Requests pane | Not started | |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Not started | |
@@ -273,20 +273,33 @@ Only one milestone should be active at a time unless a prerequisite must be
 completed with it. Update the status and Evidence column in the same change that
 completes a milestone.
 
+## Collaboration and Checkpoints
+
+- Stop at a reviewable checkpoint after each milestone instead of attempting the
+  entire TUI rewrite in one pass.
+- Keep this document current so implementation can resume safely after context
+  compaction or a later session.
+- Ask the user to run an interactive check, platform-specific build, or publish
+  when their local environment can provide better evidence than automation.
+- Record unresolved framework behavior and user verification results in the
+  active milestone's Evidence entry before moving on.
+- Do not begin the next milestone until the current milestone builds and its
+  smallest applicable behavior has been verified.
+
 ## Validation Checklist
 
 For each Workspaces milestone, run the smallest applicable subset:
 
-- [ ] `dotnet build src/Straumr.sln`
-- [ ] launch `straumr` and inspect the Workspaces screen interactively
+- [x] `dotnet build src/Straumr.sln`
+- [x] launch `straumr` and inspect the Workspaces screen interactively
 - [ ] verify resize behavior at narrow and wide terminal sizes
 - [ ] verify keyboard and pointer selection
 - [ ] verify focus restoration after prompt, dialog, and external editor use
 - [ ] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
 - [ ] verify cancellation during loading and operations
-- [ ] verify `straumr --help` still opens CLI help
-- [ ] verify `-p:IncludeTui=false` builds without the TUI dependency graph
+- [x] verify `straumr --help` still opens CLI help
+- [x] verify `-p:IncludeTui=false` builds without the TUI dependency graph
 - [ ] verify the full self-contained Native AOT publish when the screen slice is
       complete
 
@@ -317,3 +330,5 @@ For each Workspaces milestone, run the smallest applicable subset:
 
 - 2026-09-10: Split the approved mockups into one editable HTML reference per screen.
 - 2026-09-10: Created the guide. No TUI implementation was started.
+- 2026-09-10: Began W1 and added explicit implementation checkpoints and developer-assisted verification.
+- 2026-09-10: Completed W1 with the shared reactive shell and removed the manual Requests prototype.

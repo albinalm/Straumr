@@ -1,8 +1,10 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Straumr.Console.Shared.Integrations;
-using Straumr.Console.Tui.Visuals;
+using Straumr.Console.Tui.Infrastructure;
+using Straumr.Core.Extensions;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Controls;
 
 namespace Straumr.Console.Tui.Integration;
 
@@ -14,28 +16,25 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public bool IsDefault => true;
     public bool OnlyRunOnEntrypoint => true;
 
-    public void ConfigureServices(Microsoft.Extensions.DependencyInjection.IServiceCollection services) { }
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddStraumrCore();
+        services.TryAddSingleton<StraumrTuiApp>();
+    }
 
     public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        
-        var mainVisual = new MainVisual(serviceProvider);
+        var app = serviceProvider.GetRequiredService<StraumrTuiApp>();
 
         await Terminal.RunAsync(
-            mainVisual,
-            async _ =>
-            {
-                await mainVisual.LoadRequestsAsync(cancellationToken);
-                mainVisual.DismissCommandPromptIfUnfocused();
-                return mainVisual.ExitRequested
-                    ? TerminalLoopResult.Stop
-                    : TerminalLoopResult.Continue;
-            },
+            app.Root,
+            _ => app.ExitRequested
+                ? TerminalLoopResult.Stop
+                : TerminalLoopResult.Continue,
             new TerminalRunOptions(),
             cancellationToken);
-        
+
         return 0;
     }
 }
