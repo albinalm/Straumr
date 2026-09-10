@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Straumr.Console.Tui.Formatting;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -46,9 +47,24 @@ public sealed class WorkspaceScreen
             BuildListContent,
             BuildDetailHead,
             BuildDetailSections);
+
+        PromptCommands =
+        [
+            new TuiCommand("workspace", SelectWorkspaceAsync)
+            {
+                ArgumentValues = WorkspaceNames
+            },
+            new TuiCommand("use", UseWorkspaceAsync)
+            {
+                ArgumentValues = WorkspaceNames
+            },
+            new TuiCommand("refresh", RefreshAsync)
+        ];
     }
 
     public Visual Root { get; }
+
+    public IReadOnlyList<TuiCommand> PromptCommands { get; }
 
     public string? ActiveWorkspaceName { get; private set; }
 
@@ -103,6 +119,8 @@ public sealed class WorkspaceScreen
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
+        _errorMessage.Value = null;
+
         try
         {
             await _optionsService.LoadAsync(cancellationToken);
@@ -286,13 +304,19 @@ public sealed class WorkspaceScreen
             return;
 
         _pendingActivationId = null;
+        await ActivateWorkspaceAsync(workspaceId, cancellationToken);
+    }
 
+    private async Task<TuiCommandResult> ActivateWorkspaceAsync(
+        Guid workspaceId,
+        CancellationToken cancellationToken)
+    {
         try
         {
             await _workspaceService.ActivateAsync(workspaceId, cancellationToken);
             WorkspaceScreenItem? item = _items.Find(candidate => candidate.Workspace.Id == workspaceId);
             if (item is null)
-                return;
+                return TuiCommandResult.None;
 
             DateTimeOffset activatedAt = DateTimeOffset.UtcNow;
             item.Workspace.LastAccessed = activatedAt;
@@ -301,6 +325,7 @@ public sealed class WorkspaceScreen
             _lastActivationTime.Value = activatedAt;
             ActiveWorkspaceName = item.Workspace.Name;
             _activationErrorMessage.Value = null;
+            return TuiCommandResult.None;
         }
         catch (OperationCanceledException)
         {
@@ -310,8 +335,86 @@ public sealed class WorkspaceScreen
             exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
         {
             _activationErrorMessage.Value = exception.Message;
+            return TuiCommandResult.Failed($"activation failed: {exception.Message}");
         }
     }
+
+    private Task<TuiCommandResult> SelectWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(argument.Length == 0
+            ? TuiCommandResult.Failed("usage: workspace <name>")
+            : SelectByName(argument));
+
+    private async Task<TuiCommandResult> UseWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken)
+    {
+        if (argument.Length > 0)
+        {
+            TuiCommandResult selection = SelectByName(argument);
+            if (selection.IsError)
+                return selection;
+        }
+
+        return SelectedItem is { } item
+            ? await ActivateWorkspaceAsync(item.Workspace.Id, cancellationToken)
+            : TuiCommandResult.Failed("no workspace selected");
+    }
+
+    private async Task<TuiCommandResult> RefreshAsync(
+        string argument,
+        CancellationToken cancellationToken)
+    {
+        if (argument.Length > 0)
+            return TuiCommandResult.Failed("usage: refresh");
+
+        Guid? selected = SelectedItem?.Workspace.Id;
+        _requestCache.Clear();
+        _displayedRequestWorkspaceId = null;
+        _requestLoadState.Value = RequestPreviewLoadState.Idle;
+        await LoadAsync(cancellationToken);
+
+        if (_loadState.Value == WorkspaceLoadState.Error)
+            return TuiCommandResult.Failed($"refresh failed: {_errorMessage.Value}");
+
+        int restored = selected is { } id
+            ? _items.FindIndex(item => item.Workspace.Id == id)
+            : -1;
+        if (restored >= 0)
+            _selectedIndex.Value = restored;
+
+        return TuiCommandResult.Ok($"reloaded {CountFormatting.Label(_items.Count, "workspace")}");
+    }
+
+    private TuiCommandResult SelectByName(string name) =>
+        MatchWorkspaces(name) switch
+        {
+            [] => TuiCommandResult.Failed($"no workspace matches {name}"),
+            [WorkspaceScreenItem single] => Select(single),
+            var ambiguous => TuiCommandResult.Failed(
+                $"{name} matches {string.Join(", ", ambiguous.Select(item => item.Workspace.Name))}")
+        };
+
+    private TuiCommandResult Select(WorkspaceScreenItem item)
+    {
+        _selectedIndex.Value = _items.IndexOf(item);
+        return TuiCommandResult.None;
+    }
+
+    private List<WorkspaceScreenItem> MatchWorkspaces(string name)
+    {
+        List<WorkspaceScreenItem> named = _items.FindAll(item =>
+            item.Workspace.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        return named.Count > 0
+            ? named
+            : _items.FindAll(item =>
+                item.Workspace.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IEnumerable<string> WorkspaceNames() =>
+        _items.Select(item => item.Workspace.Name);
 
     private void ShowRequests(IReadOnlyList<StraumrRequest> requests)
     {

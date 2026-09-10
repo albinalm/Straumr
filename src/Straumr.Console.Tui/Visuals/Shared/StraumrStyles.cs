@@ -1,5 +1,6 @@
 using System.Text;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Geometry;
 using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
@@ -100,6 +101,20 @@ internal static class StraumrStyles
             KeycapOpen = new Rune(' '),
             KeycapClose = new Rune(' ')
         };
+
+    public static readonly Style CommandPromptText = Style.None.WithForeground(TextBright);
+
+    public static readonly PromptEditorStyle CommandPrompt = PromptEditorStyle.Default with
+    {
+        Padding = new Thickness(0),
+        Background = Background,
+        PromptSidebarBackground = Background,
+        PromptForeground = Accent,
+        GhostForeground = Muted,
+        PlaceholderForeground = Muted,
+        Selection = Selection,
+        ShowPromptSeparator = false
+    };
 
     public static readonly GroupStyle WindowGroup = GroupStyle.Single with
     {

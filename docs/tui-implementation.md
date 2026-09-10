@@ -1,6 +1,3 @@
-# TUI Implementation Guide
-
-This is the living specification and progress tracker for the Straumr TUI rewrite.
 Update it whenever a milestone is completed, a design decision changes, or a
 framework constraint is discovered.
 
@@ -8,8 +5,8 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W4 complete and accepted; W5 not started
-- Next checkpoint: W5 command prompt integration and workspace navigation commands
+- Implementation: W5 complete; W6 not started
+- Next checkpoint: W6 filtering
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-10
 
@@ -110,8 +107,25 @@ Shared screen shell:
 - The filled accent surface belongs to focus alone. Quantities and identifiers use
   the recessed badge. Do not spread either further.
 - Footer: context-aware shortcuts.
+- The footer row is one row and holds one thing at a time: the shortcut hints, the
+  command prompt while it is open, or a command's result. So the prompt does not
+  add a surface or change the shell's height; it takes the row the hints were using
+  and gives it back.
 - `:` opens the command prompt.
-- `Escape`, submission, or loss of focus closes and clears the command prompt.
+- The prompt is modal while it is open: it owns the keyboard and the pointer, so no
+  gesture belonging to a screen fires behind it, `Tab` cannot walk out of it, and a
+  click elsewhere does not reach what it lands on.
+- `Escape` or submission closes and clears the prompt, on the first press and
+  whatever else is on screen. Nothing else can, because nothing else can take its
+  focus away.
+- `:q` is the only way out of the app, as it is in vim. The framework's own quit
+  gesture is removed rather than left beside it, so there is one way to exit and the
+  footer speaks one vocabulary.
+- The prompt's colon sits in the same column the hints and messages start in, so the
+  row reads as one line of text whichever of the three it is showing.
+- A command's result replaces the hints on that row and expires, because the footer
+  is also the only shortcut surface and a message that outlived its command would
+  cost the screen its hints.
 - Vim navigation is supported where it supplements native control navigation.
 
 Approved references:
@@ -156,6 +170,20 @@ Approved references:
   trust the cell dump over the picture when they disagree.
 - Refactors of shared visuals should be proved by diffing snapshots before and
   after; normalise generated ids and timestamps first.
+- Ask the developer before building a harness to answer a question they can answer
+  from the running app. Automation is for what a person cannot see: exact cell
+  colours, geometry at a size nobody will resize to, a table of command inputs.
+  Whether a key works is not that.
+- Snapshots cover layout and palette but nothing that needs input or focus, because
+  neither exists outside a running loop. Driving those means a real `TerminalApp`
+  and its internal `BeginRun`, `Tick` and `HandleTerminalEvent`, reached by
+  reflection. Use `HandleTerminalEvent`, the entry point the input relay itself
+  uses; `DispatchKeyEvent` routes commands but not the focused control's own key
+  handling, so a probe using it reports keys as unhandled that the app handles.
+  Treat the whole approach as a diagnostic of last resort rather than a test
+  foundation: it depends on private members, it is easy to make it lie by ticking
+  in the wrong order, and it took several wrong conclusions before it agreed with
+  what the developer saw in one keystroke.
 - `Visual.Invalidate` is obsolete. Drive every visual state change through a
   `[Bindable]` partial property so the app invalidates on its own; the framework's
   own `TreeView.HoveredIndex` is the pattern for pointer state.
@@ -174,6 +202,75 @@ Approved references:
 - Do not use `Header` for the screen bars. It forces bold slot text and its own
   surface color, which the approved layouts do not use. `StraumrSurfaces.Bar`
   composes the same left/right arrangement from a `Grid`.
+- Build the command prompt on `PromptEditor`, which already owns prompt prefixes,
+  history, completion hooks, accept and cancel. Three of its constraints matter:
+  its prompt column has a minimum width of two cells, so a one-character prompt
+  renders a trailing blank and `" :"` is what puts the colon in the text column;
+  `PromptEditorStyle` has no foreground for the editor's own text, so the palette
+  reaches it through the `Highlighter` delegate rather than the style; and
+  `PromptEditorCompletionPresentation.InlineCycle` keeps completion inside the
+  prompt row, where `PopupList` would float a surface over the layout.
+- Version 3.9.0 has no typed-command surface. `Command.Name` is documented for
+  "a future command prompt" and `Command.Execute` receives only the target visual,
+  so a command taking an argument cannot be expressed as a framework `Command`.
+  Typed commands therefore live in `TuiCommandSet`, while every gesture stays a
+  framework command.
+- Register an app-wide gesture with `TerminalApp.AddGlobalCommand`. Command
+  discovery collects global commands alongside the focus chain's, so a global
+  command still shows in the `CommandBar`.
+- `KeyGesture` compares modifiers for equality, and `new KeyGesture(':')` carries
+  `TerminalModifiers.None`. A terminal that reports Shift for shifted punctuation
+  therefore never matches it, so a character that needs Shift has to be registered
+  twice, once bare and once with `Shift`. Only one of the two should be presented
+  in the `CommandBar` or the hint appears twice. A control that reads `e.Char` in
+  `OnKeyDown` sidesteps this, which is why `ResourceList`'s `G` works even though
+  its command gesture alone would not match.
+- `Visual.App` is null until the app is running, so anything that needs the
+  `TerminalApp` (focus, global commands) has to happen from input or from the
+  update loop, never from a constructor.
+- Overlay visuals that must keep their identity in a `ZStack` and drive each one's
+  `IsVisible`. `ContentSwitcher` looks like the control for this and is the wrong
+  one: it attaches only the selected child, so the others have no `App` and cannot
+  be focused. A visual the app has to focus also cannot be rebuilt by a
+  `ComputedVisual` each frame.
+- Focus is revoked from a visual that is not visible when the focus pass runs, and
+  a `[Bindable]` computed only takes effect during that pass. So a visual that
+  takes focus the moment it appears has to set its own `IsVisible` imperatively
+  first; a binding that turns it visible later is too late and focus falls back to
+  whatever claims `AutoFocus`.
+- `Visual.HasFocus` is a bindable mirror of `TerminalApp.FocusedElement` and lags
+  it by an update pass. Compare against `FocusedElement` when the answer is needed
+  in the same frame focus moved.
+- A printable keystroke arrives as two independent terminal events, a
+  `TerminalKeyEvent` and a `TerminalTextEvent`, and handling the key does not
+  suppress the text. So a character gesture that gives focus to a text control
+  hands that control the very character that triggered it. Nothing in the framework
+  suppresses the pair, so the control has to ignore the echo itself.
+- The completion handler is called once per `Tab` and not while the user types, and
+  the framework keeps no cycle state of its own: it re-asks on every trigger. So a
+  handler that derives candidates from the current text can only ever offer the one
+  it already inserted, and `InlineCycle` cycles nowhere. Cycling means holding the
+  candidate list across triggers and recognising a repeat by the text and caret the
+  previous completion produced. Because no request arrives between them, that
+  recognition is exact.
+- A surface that should own input while it is up implements
+  `Input.IModalVisual`, the interface `Dialog` and `Popup` use. Declaring
+  `IsModal` keeps focus traversal inside it, stops gestures on other visuals from
+  firing, and swallows pointer input landing elsewhere. Without it a key the surface
+  does not handle falls through to `Tab` traversal, focus leaves, and a surface that
+  closes on lost focus disappears — which is what `Tab` on a prompt with no
+  completion candidate did.
+- Neither `PromptEditorEscapeBehavior` gives `Escape` one meaning: the default
+  spends the first press dismissing an active completion and only the second closes
+  the prompt, and `CancelCompletionOnly` stops it closing the prompt at all. To make
+  one press always close, clear `CancelCommand.Gesture` in the `PromptEditorConfig`
+  so no command claims the key, then handle `Escape` in `OnKeyDown` and call
+  `Cancel()` before closing so the framework's own completion state is reset too.
+- The framework registers its own quit command, `Ctrl+Q` in fullscreen hosting and
+  `Escape` inline. `TerminalApp.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId)`
+  takes it out, and takes both the gesture and its command bar hint with it, so an
+  app that owns its own exit does not have to live beside a second one. Removing it
+  is also what frees `Escape` inline; in fullscreen it was already free.
 
 The existing `RequestList` manually implements layout, scrolling, selection,
 pointer input, and rendering. Treat it as prototype code, not the pattern for new
@@ -204,8 +301,11 @@ Straumr.Console.Tui/
   Integration/
     TuiConsoleIntegration.cs      host: DI registration, Terminal.RunAsync, exit code
   Infrastructure/
-    StraumrTuiApp.cs              window frame, header, screen content, command bar
+    StraumrTuiApp.cs              window frame, header, screen content, footer row
     TuiScreen.cs                  screen enum; its name renders in the header
+    CommandPrompt.cs              the `:` prompt: open, close, focus, completion
+    TuiCommand.cs                 one typed command and its result
+    TuiCommandSet.cs              the command table: resolution and completion
   Screens/
     Workspace/
       WorkspaceScreen.cs          data loading and the parts unique to Workspaces
@@ -223,6 +323,7 @@ Straumr.Console.Tui/
   Formatting/
     TimestampFormatting.cs        relative and absolute timestamps
     CountFormatting.cs            pluralised counts
+    HttpMethodFormatting.cs       semantic colour per HTTP method
 ```
 
 Add a file only when it owns meaningful behavior.
@@ -265,6 +366,29 @@ arrow, Home/End, Page and wheel input update the same bindable offset.
 for quantities so they inherit the amber-when-populated rule, `Wrapped` for values
 long enough to wrap such as paths, and `Text` otherwise.
 
+### The command prompt
+
+`CommandPrompt` owns the `:` prompt: opening it, focusing it, restoring the focus it
+took, clearing its text and asking for completions. It is the shell's, not a
+screen's, so it lives beside `StraumrTuiApp` and every screen reaches it the same
+way.
+
+`TuiCommandSet` is the command table. A `TuiCommand` is a name, optional aliases, an
+async handler that receives the argument text, and optionally a delegate supplying
+its argument values for completion. The set resolves a typed name by exact match,
+then alias, then unique prefix, so `:q` and `:w` work without being declared; an
+ambiguous prefix names its candidates rather than guessing. It also answers
+completion for whichever token the caret sits in: command names in the first token,
+that command's argument values after it.
+
+A handler returns a `TuiCommandResult`: nothing, a message, or a failure. The
+application root shows it on the footer row and lets it expire. Handlers run from
+the update loop rather than from the accept event, which is what lets them do I/O
+and keeps them on the same path as the screen's other Core calls.
+
+`StraumrTuiApp` registers the commands that belong to the whole app and appends what
+the current screen contributes through its `PromptCommands`.
+
 ### Adding a screen
 
 1. Add the screen to `TuiScreen`; the header renders its lowercased name.
@@ -274,8 +398,10 @@ long enough to wrap such as paths, and `Text` otherwise.
 4. Map each item to a `ResourceRow` and call `ResourceScreenLayout.Create`.
 5. Register the screen in `TuiConsoleIntegration.ConfigureServices` and navigate to
    it from `StraumrTuiApp`.
+6. Expose the screen's typed commands as `PromptCommands` so the shared prompt picks
+   them up.
 
-Nothing in steps 1-5 touches layout, palette, dividers or row styling. If a screen
+Nothing in steps 1-6 touches layout, palette, dividers or row styling. If a screen
 needs to, that is a signal to extend the shared piece rather than to hand-roll a
 variant.
 
@@ -295,7 +421,8 @@ redesigns.
 
 - register the TUI's dependencies
 - construct the application root
-- run it with `Terminal.RunAsync`
+- run it with `Terminal.RunAsync` and hand the loop's `TerminalApp` to the root, which
+  needs it for global commands and focus
 - translate application exit into the process exit code
 
 The TUI integration must register the Core services it requires and must not
@@ -306,6 +433,8 @@ The application root should own:
 - current screen
 - active workspace display state
 - command prompt visibility and text
+- the command table, composed from its own commands and the current screen's
+- what the footer row is showing, and expiring a command's message
 - top-level commands and exit state
 - focus restoration when screens or overlays change
 
@@ -314,7 +443,8 @@ A screen should own:
 - its loading, loaded, empty, and error state
 - its selected index or selected item
 - data loading and refresh after screen-specific operations
-- visuals and commands that belong only to that screen
+- visuals and commands that belong only to that screen, gestures and typed commands
+  alike
 
 ## Workspaces Screen Specification
 
@@ -401,10 +531,36 @@ may persist changes through the appropriate Core service.
   `IStraumrWorkspaceService.ActivateAsync`. Two clicks on the same row do the same, so
   activation is reachable without the keyboard.
 - `/` focuses filtering when filtering is implemented.
-- `:` opens the shared command prompt.
+- `:` opens the shared command prompt from anywhere on the screen, including from
+  inside the request preview.
 - `c`, `e`, `y`, `x`, `i`, and `d` are introduced with their corresponding
   lifecycle operations, not as inert hints.
 - Destructive actions require an explicit confirmation surface.
+
+### Command Prompt
+
+The commands the Workspaces screen answers, in addition to the app's own:
+
+- `workspace <name>` selects a workspace without activating it. A name resolves by
+  exact match, then unique prefix; an ambiguous prefix names the workspaces it
+  matched.
+- `use [name]` activates a workspace through `IStraumrWorkspaceService.ActivateAsync`,
+  the named one or the selected one. `Enter` on the list does the same thing.
+- `refresh` reloads the registry through Core, drops the cached request previews and
+  keeps the selected workspace selected. It is the explicit refresh the load-once
+  rule refers to.
+
+`quit`, aliased `q` and `exit`, belongs to the application root and is the only way
+out of the app; the framework's own quit gesture is removed on startup.
+
+`Tab` completes: command names in the first token, workspace names after `workspace`
+and `use`. `Up` and `Down` walk the prompt's history. A command that succeeds and
+has nothing to report says nothing, because the list, the dot and the header already
+show what changed; only `refresh` and failures produce a message.
+
+Commands that would duplicate a gesture are deliberately absent. There is no `next`,
+`first` or `last`, because `j`, `k`, `g` and `G` already move the selection, and no
+screen-switching commands until there is a second screen to switch to.
 
 ### Loading and Failure Behavior
 
@@ -425,7 +581,7 @@ may persist changes through the appropriate Core service.
 | W2 | Add read-only Workspaces list and selected-workspace details | Complete | Screen accepted interactively after several passes over layout, palette, vibrancy, cohesion and header. Extracted into `ResourceScreenLayout`/`ResourceList`/`FieldList`; refactor proved render-identical by snapshot diff at 120x28, 70x20 and 90x16, populated and empty. Solution and CLI-only builds pass; broader resilience checks remain in W8 |
 | W3 | Add selected workspace's recently used Requests pane | Complete | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. User directed work to continue with W4 |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Complete | Implemented: Tab/Shift+Tab focus traversal, contextual command hints, arrows/Home/End/Page plus `j`/`k`/`g`/`G` on both the list and the request preview, wheel support, Core activation, and double-click activation. Framework finding: `PointerEventArgs.ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by one click on a row arrived as a pair; the gesture therefore also requires both clicks on the same row, and a pointer leaving the list voids the sequence. Focus cues were reworked twice after review: the focused section title fills with the selection blue while every other title is inert, the permanently bright left detail title was fixed, all titles moved onto one rule so the chip travels sideways rather than diagonally, the first detail pane was retitled `Details`, and the active workspace gained a green dot that follows activation. Release and CLI-only builds pass. Cell dumps cover the chip states at exact hex, the mirrored panel geometry, and the dot across plain, hovered and both selected bands. Accepted interactively: focus cues, keyboard selection, hover band, pointer selection, the focused and unfocused selection bands, both focus directions, long-preview scrolling, top/bottom jumps, paging, activation moving the dot, and clean exit |
-| W5 | Add command prompt integration and workspace navigation commands | Not started | |
+| W5 | Add command prompt integration and workspace navigation commands | Complete | `PromptEditor` overlaid on the footer row in a `ZStack`, the `:` gesture registered globally both bare and with `Shift`, `TuiCommandSet` with exact/alias/unique-prefix resolution and per-token completion, `quit`/`q`/`exit`, and the screen's `workspace`, `use` and `refresh`. `WorkspaceScreen`'s activation was split out so `Enter`, a double-click and `:use` share one method, and `LoadAsync` became re-runnable for `refresh`. Eleven framework findings, all recorded in Framework Rules: `PromptEditor`'s prompt column has a two-cell minimum, so `" :"` is what aligns the colon with the text column; `PromptEditorStyle` cannot colour the editor's own text, so the palette goes through the `Highlighter` delegate; `Visual.App` is null until the app runs; `ContentSwitcher` attaches only its selected child, which is why it cannot host a visual the app must focus; focus is revoked from a visual that is invisible during the focus pass, so the prompt sets its own `IsVisible` before asking for focus; `HasFocus` lags `FocusedElement` by a pass; and a printable keystroke emits a key event and a text event independently, so the gesture that opens the prompt also types its own character into it unless the prompt discards the echo; the completion handler is re-asked on every `Tab` and the framework keeps no cycle state, so the prompt has to hold the candidate list itself; neither `PromptEditorEscapeBehavior` gives `Escape` one meaning, so the prompt clears `CancelCommand.Gesture` and handles the key itself; and a key a surface does not handle becomes focus traversal, so a surface that must own input has to declare `IModalVisual` as `Dialog` and `Popup` do; and the framework's own quit command comes off through `RemoveGlobalCommand(DefaultQuitCommandId)`, gesture and hint together. Solution, Release and CLI-only builds pass. Evidence: command resolution and completion tables over 15 inputs and 14 caret positions; footer cell dumps at exact hex for hints, message, error and prompt states; full-screen dumps at 96x24, 70x20 and 44x14; and a full round trip driven through the real input path on a running `TerminalApp` — `:` opens and focuses the prompt, typed text reaches the editor, `Enter` runs `:use dashboards` through Core and returns focus to the list, a single `Escape` closes and clears even with a completion on screen, `:bogus` reports `unknown command: bogus`, nothing behind the modal prompt reacts to `Tab`, `Shift+Tab`, a screen gesture or a click, and `:q` is the only exit now that the framework's `Ctrl+Q` is removed. The developer confirmed `:` opens the prompt in a terminal, reported the stray colon that the echo discard now fixes, reported that `Tab` could not cycle between two workspaces sharing a prefix, which the held candidate list now fixes, and reported the three fall-through bugs that modality now fixes. Not covered: `Up`/`Down` history, which needs a terminal |
 | W6 | Add filtering | Not started | |
 | W7 | Add create, edit, copy, import, export, and delete workflows | Not started | |
 | W8 | Validate resizing, empty/error states, CLI isolation, and Native AOT | Not started | |
@@ -462,6 +618,22 @@ For each Workspaces milestone, run the smallest applicable subset:
       selection band (headless snapshots render the unfocused state because the
       snapshot renderer does not apply `AutoFocus`, so this was verified in a terminal)
 - [ ] verify focus restoration after prompt, dialog, and external editor use
+- [x] verify `:` opens the prompt, that one `Escape` or submission closes and clears
+      it whatever is on screen, and that focus returns to the region that had it
+      (driven through `HandleTerminalEvent` on a running `TerminalApp`; the developer
+      confirmed `:` in a terminal)
+- [x] verify the prompt is modal: `Tab` with no candidate and `Shift+Tab` both leave
+      it open and focused, a screen gesture behind it does nothing, and a click
+      elsewhere is swallowed
+- [x] verify `:q` is the only exit: `Ctrl+Q` does nothing and leaves the app
+      responsive, a bare `Escape` on the list does not exit, and the footer no longer
+      advertises a quit gesture
+- [x] verify `Tab` completion cycles past the first candidate, over the reported
+      prefix pair, command names, one candidate and none, and that editing mid-cycle
+      starts a fresh list
+- [ ] verify `Up`/`Down` walk the prompt history
+- [x] verify typed command resolution, aliases, unique prefixes, ambiguity and
+      unknown names (headless tables over the real command set)
 - [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
 - [ ] verify cancellation during loading and operations
@@ -527,6 +699,27 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Prove the extraction with snapshot diffs and a throwaway second screen | Behaviour-preserving refactors of shared visuals are otherwise unverifiable without a terminal |
 | 2026-09-10 | Give the list heading the same padding as the top bar and summary | A heading pressed against its rule reads as cut off; padding it also aligns the two panels' first rules |
 | 2026-09-10 | Give retained read-only previews their own scroll surface | A plain visual has no focus or input ownership; `ScrollableContent` keeps its viewport, bindable offset, scrollbar, commands, keys and wheel behavior together without coupling screens to scrolling mechanics |
+| 2026-09-10 | Give the command prompt the footer row rather than a surface of its own | The mockup's footer already advertises `: command` and the shell is one frame with no floating layers. Taking the row keeps the shell's height fixed, needs no new border or shadow, and matches where a terminal user looks for a colon prompt |
+| 2026-09-10 | Show a command's result on the same row and expire it | The row is also the only shortcut surface, so a message that stayed would cost the screen its hints for good. Expiry keeps the report visible long enough to read and then gives the row back; the loop is event-driven, so in practice the next keystroke is what clears it |
+| 2026-09-10 | Overlay the footer's three contents in a `ZStack` and toggle `IsVisible`, not `ContentSwitcher` | The prompt has to be focusable and keep its text and caret, so it can be neither rebuilt by a `ComputedVisual` nor swapped by `ContentSwitcher`: the switcher attaches only its selected child, leaving the others without an `App` and therefore unfocusable. A `ZStack` attaches all three, so the editor the app focuses is the same attached instance every time |
+| 2026-09-10 | Own the typed-command table instead of driving the prompt from framework commands | Version 3.9.0 has no typed-command surface; `Command.Name` is documented for "a future command prompt" and `Command.Execute` receives only the target visual, so `:use payments` cannot be a framework `Command`. Gestures stay framework commands, and only the typed layer is ours |
+| 2026-09-10 | Resolve a typed name by exact match, then alias, then unique prefix | It is what a vim user expects from `:q` and `:w`, and it means the command table does not have to declare an alias for every abbreviation. An ambiguous prefix names its candidates instead of picking one |
+| 2026-09-10 | Register the `:` gesture as a global command, disabled while the prompt is open | Global registration is the documented way to reach a gesture from anywhere, and command discovery still surfaces it in the command bar, so the footer hint and the gesture come from one declaration. Disabling it while the prompt is open, with `ConsumesGestureWhenUnavailable` off, is what lets a typed colon reach the editor |
+| 2026-09-10 | Run command handlers from the update loop rather than from the accept event | Handlers do Core I/O. The loop is already where the screen's loading and activation happen, so draining a queue there keeps one asynchronous path and lets a command's selection change reach the request preview in the same frame |
+| 2026-09-10 | Prompt with `" :"` and no left inset | `PromptEditor`'s prompt column has a two-cell minimum, so a bare `":"` renders `: text`, which reads as a stray space. Padding the markup instead of the control puts the colon in the column the hints and messages start in, so all three footer contents share one text column |
+| 2026-09-10 | Colour the prompt's text through the `Highlighter` delegate | `PromptEditorStyle` styles the prompt, ghost, placeholder, selection and background but not the editor's own text, which otherwise keeps the framework theme's near-white. A single style run over the snapshot is the framework's own extension point for it |
+| 2026-09-10 | Complete inline instead of in a popup | `PopupList` floats a surface over the layout, which the one-frame shell does not have anywhere to put. `InlineCycle` with ghost completion keeps the whole interaction on the prompt row |
+| 2026-09-10 | Move the prompt's history onto `Up` and `Down` | The default `Alt+Up` is awkward, and in a single-line prompt the plain arrows have nothing else to do. `PromptEditorConfig` is the framework's own hook for the remap |
+| 2026-09-10 | Add `refresh` and no other commands that duplicate a gesture | The load-once rule already refers to an explicit refresh that had no trigger, so `refresh` makes an existing decision real. `next`, `first` and `last` would only restate `j`, `k`, `g` and `G`, and screen-switching commands would advertise screens that do not exist yet |
+| 2026-09-10 | Report only failures and `refresh` | Selecting and activating already show themselves in the list, the dot and the header, so a message would be noise that costs the footer its hints. A command whose effect is invisible is the one that has to speak |
+| 2026-09-10 | Let the prompt set its own `IsVisible` imperatively and compare focus against `FocusedElement` | Both follow from when the framework does its work. Focus is revoked from a visual that is invisible during the focus pass, so a computed `IsVisible` that turns the prompt on later loses focus back to whatever claims `AutoFocus`; the prompt therefore shows itself before asking for focus. And `HasFocus` is a bindable mirror that lags `FocusedElement` by a pass, so a focus-loss check reading it fires on the frame the prompt opened. Reading the authoritative value instead removed the retry that had been papering over both |
+| 2026-09-10 | Register the `:` gesture twice, bare and with `Shift` | `KeyGesture` compares modifiers for equality and a character gesture carries `None`, so on a terminal that reports Shift for shifted punctuation the prompt would never open and nothing would say why. Two registrations cost ten lines and remove a dependency on how the terminal reports a key; only the bare one is presented, so the footer still shows one hint |
+| 2026-09-10 | Swallow the colon that opens the prompt in a small `PromptEditor` subclass | A printable keystroke emits a key event and a text event independently, so the gesture opened the prompt and the paired text event then typed a colon into it. There is no framework hook to suppress the pair, and every ordering-based dodge (focus a frame later, clear the text on the next pass) depends on the two events landing in the same input batch. Discarding one leading character equal to the prompt's own prefix does not: it is correct whichever order they arrive in, and a leading colon is not something a command could ever need. `OnTextInput` is the framework's own extension point for it, which is what justifies the subclass |
+| 2026-09-10 | Hold the candidate list in the prompt so `Tab` can cycle | The framework re-asks the handler on every trigger and keeps no cycle state, so candidates derived from the current text collapse to the one already inserted the moment the first `Tab` fills a whole name in. The prompt now keeps the list and recognises a repeat trigger by the text and caret its own last completion produced, which is exact because no other request arrives in between. Any edit moves the text off that mark and starts a fresh list |
+| 2026-09-10 | Remove the framework's `Ctrl+Q` quit now that `:q` exists | Two ways out is one more than vim has, and the second one was not ours: it put a `Quit ctrl+q` hint in the footer beside commands the screen actually owns, in a vocabulary the rest of the app does not use. `RemoveGlobalCommand(DefaultQuitCommandId)` drops the gesture and the hint together, so the footer reads as Straumr's own and `:q`, `:quit` and `:exit` are the exits. Signal handling is untouched, so the terminal's own interrupt still applies |
+| 2026-09-10 | Make the prompt modal while it is open | Three reported bugs were one cause: a key the prompt did not handle fell through to focus traversal, focus left, and the prompt closed. `Tab` with no completion candidate closed it, `Shift+Tab` closed it and moved to the request preview, and a screen's own gestures were still live behind it. `IModalVisual` is the framework's answer, the one `Dialog` and `Popup` use, and it fixes all three at once instead of consuming keys one at a time. It also settles what "other actions are suppressed" means: the keyboard and the pointer both belong to the prompt until it closes |
+| 2026-09-10 | Keep the lost-focus close as an invariant guard, not a feature | Modality means nothing can take the prompt's focus, so the check can no longer fire and the screen contract no longer promises it. It stays because it enforces "open implies focused" for six lines, and the failure it prevents — a modal prompt left open but unfocused, swallowing every key with no way out — is far worse than the cost of keeping it |
+| 2026-09-10 | Make one `Escape` always close the prompt, against the framework's two-stage default | The screen contract says `Escape` closes and clears the prompt, and neither `PromptEditorEscapeBehavior` delivers that: the default spends the first press dismissing an active completion, and the alternative never closes the prompt at all. Documenting the two-stage behaviour was bending the contract to the framework. Clearing `CancelCommand.Gesture` and handling `Escape` in `OnKeyDown` gives the key one meaning; calling `Cancel()` before closing still lets the framework reset its own completion state, so reopening starts a fresh cycle |
 
 ## Change Log
 
@@ -603,3 +796,81 @@ For each Workspaces milestone, run the smallest applicable subset:
   Vim and standard scrolling, pointer-ready focus targets, and asynchronous workspace
   activation through Core. Automated terminal behavior passes; visual and pointer
   feel await developer verification.
+- 2026-09-10: Implemented W5. Added `CommandPrompt` over the framework's `PromptEditor`,
+  `TuiCommand`/`TuiCommandSet` for the typed command table, the global `:` command, and
+  the Workspaces commands `workspace`, `use` and `refresh` beside the application's
+  `quit`. The footer row became a `ZStack` over the shortcut hints, a message line and
+  the prompt, so the shell's height and the hints' text column are unchanged.
+  `WorkspaceScreen`'s activation was split out of the pending-activation path so
+  `Enter`, a double-click and `:use` all go through one method, and `LoadAsync` became
+  re-runnable for `refresh`.
+- 2026-09-10: Six framework constraints found while building the prompt, three of them
+  only after the developer asked whether `:` was supposed to work. `PromptEditor`'s
+  prompt column has a two-cell minimum, so a bare `":"` renders a stray space before
+  the text and `" :"` is what aligns the colon with the hints' column.
+  `PromptEditorStyle` has no foreground for the editor's own text, so the palette
+  reaches it through the `Highlighter` delegate. `Visual.App` is null until the app is
+  running. `ContentSwitcher` attaches only its selected child, so the prompt it was
+  hosting had no `App` and could not be focused; the footer is a `ZStack` now. Focus is
+  revoked from a visual that is invisible when the focus pass runs, so the prompt sets
+  its own `IsVisible` before asking for focus rather than leaving it to a computed
+  binding. And `HasFocus` lags `FocusedElement` by a pass, so the focus-loss check
+  compares against `FocusedElement`. The last two together removed a focus-retry that
+  had been hiding both.
+- 2026-09-10: Registered the `:` gesture twice, bare and with `Shift`. `KeyGesture`
+  compares modifiers for equality, so on a terminal that reports Shift for shifted
+  punctuation the single bare registration would never have matched. The developer's
+  terminal reports no modifier, which is why it worked there.
+- 2026-09-10: Built a reflection harness to drive input on a running `TerminalApp`
+  after the developer had already answered the question by pressing the key. It did
+  find the attachment and focus bugs above, but asking first would have found them
+  sooner and cheaper. Recorded the order in Framework Rules: ask, then automate what
+  a person cannot see.
+- 2026-09-10: Fixed a stray colon in the prompt, reported from the running app. The
+  gesture opened and focused the prompt on the key event, then the same keystroke's
+  independent text event typed a colon into it. `CommandPrompt` now discards one
+  leading character equal to its own prefix through a small `PromptEditor` subclass
+  overriding `OnTextInput`, which is order-independent unlike deferring focus or
+  clearing the text a frame later. Reproduced and verified by driving both events
+  through `HandleTerminalEvent`.
+- 2026-09-10: Fixed `Tab` completion offering only its first candidate, reported from
+  the running app with two workspaces sharing a prefix. The handler recomputed
+  candidates from the current text, so once the first `Tab` had inserted a whole name
+  that name was the only match. `CommandPrompt` now keeps the candidate list and the
+  text and caret its last completion produced, and treats an unchanged document as a
+  repeat trigger that advances the cycle. Measured first: the handler runs once per
+  `Tab` and never while typing, which is what makes the recognition exact. Verified
+  across the reported pair, command names, a single candidate, no candidate, editing
+  mid-cycle, submitting a cycled value, and reopening after `Escape`.
+- 2026-09-10: Made a single `Escape` close the prompt even with a completion on
+  screen, which is what the screen contract always said. The framework's
+  `CancelPromptOrCompletion` spent the first press on the completion, and its only
+  alternative stops `Escape` closing the prompt at all; clearing
+  `CancelCommand.Gesture` and handling the key in `OnKeyDown` gives it one meaning.
+  `Cancel()` still runs first so the framework's completion state resets and a
+  reopened prompt cycles from the start. Found while doing so that a probe driving
+  `DispatchKeyEvent` misses the focused control's key handling entirely; the probes
+  now use `HandleTerminalEvent` like the input relay does.
+- 2026-09-10: Made the prompt modal, fixing three reported bugs with one change.
+  `Tab` on a command with no completion candidate closed the prompt, `Shift+Tab`
+  closed it and moved focus to the request preview, and the screen's own gestures
+  were still live behind it. All three were the same fall-through: an unhandled key
+  became focus traversal, focus left the prompt, and the lost-focus check closed it.
+  `PromptInput` now implements `IModalVisual`, so while the prompt is up it owns the
+  keyboard and the pointer. The lost-focus check stays as an invariant guard that can
+  no longer fire, and the screen contract no longer promises lost focus as a way to
+  close the prompt.
+- 2026-09-10: Found that the earlier "no candidate leaves the text alone" check had
+  passed only because it asserted before the update pass that closed the prompt. A
+  probe that reads state without settling first can miss exactly the bug it covers.
+- 2026-09-10: Removed the framework's built-in quit so `:q` is the only way out, as
+  in vim. `RemoveGlobalCommand(DefaultQuitCommandId)` takes the `Ctrl+Q` gesture and
+  its command bar hint together, leaving the footer showing only commands the app
+  owns: `j`, `k`, `Enter`, `g`, `G` and `:`. Verified that `Ctrl+Q` now does nothing
+  and the app stays responsive, that a bare `Escape` on the list does not exit
+  either, and that `:q` still does. The probes moved to fullscreen hosting at the
+  same time, because the exit gesture differs between hosts and the inline default
+  had been swallowing `Escape` in tests.
+- 2026-09-10: Observed while dumping the shell at small sizes that the footer row is
+  dropped entirely below roughly 16 rows, the star row keeping its content's minimum
+  instead. Pre-existing and unrelated to the prompt; recorded for W8.

@@ -31,9 +31,9 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
 
         await Terminal.RunAsync(
             app.Root,
-            async _ =>
+            async context =>
             {
-                await app.UpdateAsync(cancellationToken);
+                await app.UpdateAsync(context.App, cancellationToken);
                 return app.ExitRequested
                     ? TerminalLoopResult.Stop
                     : TerminalLoopResult.Continue;
