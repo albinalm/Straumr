@@ -6,19 +6,24 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 
 internal static class StraumrStyles
 {
-    public static readonly Color Background = Color.Rgb(13, 28, 37);
-    public static readonly Color Panel = Color.Rgb(16, 35, 46);
-    public static readonly Color PanelAlt = Color.Rgb(11, 25, 34);
-    public static readonly Color Text = Color.Rgb(216, 230, 238);
-    public static readonly Color Muted = Color.Rgb(137, 161, 175);
-    public static readonly Color Border = Color.Rgb(54, 80, 94);
-    public static readonly Color Accent = Color.Rgb(82, 168, 255);
-    public static readonly Color Green = Color.Rgb(117, 212, 165);
-    public static readonly Color Yellow = Color.Rgb(232, 195, 107);
-    public static readonly Color Selection = Color.Rgb(23, 54, 76);
+    /// <summary>
+    /// The mockup's surfaces sit near hue 202, which reads as teal in a terminal. The ramp below keeps
+    /// the mockup's surface relationships and contrast but rotates them to hue 222 for a deeper blue.
+    /// </summary>
+    public static readonly Color Background = Hex(0x0F1420);
+
+    public static readonly Color Panel = Hex(0x151C2C);
+    public static readonly Color PanelAlt = Hex(0x0B0F19);
+    public static readonly Color Selection = Hex(0x22315E);
+    public static readonly Color Border = Hex(0x2B3654);
+    public static readonly Color BorderStrong = Hex(0x46567D);
+    public static readonly Color Text = Hex(0xD9E0F0);
+    public static readonly Color Muted = Hex(0x8B95AD);
+    public static readonly Color Accent = Hex(0x5C9CFF);
+    public static readonly Color Yellow = Hex(0xE8C36B);
 
     /// <summary>The mockup renders the active-workspace label at 76% opacity over the shell background.</summary>
-    public static readonly Color GreenSubdued = Color.Rgb(92, 168, 134);
+    public static readonly Color GreenSubdued = Hex(0x5BA685);
 
     public static readonly TextBlockStyle PrimaryText =
         TextBlockStyle.Default with
@@ -59,6 +64,12 @@ internal static class StraumrStyles
         BackgroundStyle = Style.None.WithBackground(Background)
     };
 
+    public static readonly ScrollViewerStyle ListScrollViewer = ScrollViewerStyle.Default with
+    {
+        TrackStyle = Style.None.WithForeground(Border).WithBackground(PanelAlt),
+        ThumbStyle = Style.None.WithForeground(BorderStrong).WithBackground(PanelAlt)
+    };
+
     public static readonly RuleStyle Divider = RuleStyle.Default with
     {
         LineStyle = Style.None.WithForeground(Border)
@@ -73,4 +84,7 @@ internal static class StraumrStyles
     public static readonly Style SelectionMarker = Style.None
         .WithForeground(Accent)
         .WithBackground(Selection);
+
+    private static Color Hex(uint rgb) =>
+        Color.Rgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
 }

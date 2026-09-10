@@ -102,9 +102,17 @@ Approved references:
 - Perform I/O outside render, measure, arrange, and per-frame update paths.
 - Load once on entry and refresh only after an operation or explicit refresh.
 - Show loading, empty, and error states as visuals driven by state.
-- Use the approved Straumr palette through shared control styles. Avoid ad hoc
-  colors outside the shared palette except for semantic mappings such as HTTP
-  methods.
+- Use the approved Straumr palette through shared control styles, declared as hex
+  literals in `Visuals/Shared/StraumrStyles.cs`. Avoid ad hoc colors outside the
+  shared palette except for semantic mappings such as HTTP methods.
+- Style every framework control that paints chrome of its own. `ScrollViewer`
+  defaults to a bright grey track and thumb that does not belong to the palette.
+- `Theme` is immutable and can only be built by `Theme.FromScheme` from a
+  16-color `ColorScheme`, so the palette is applied per control style rather than
+  through the theme. Unstyled filler cells therefore keep the framework theme's
+  near-white foreground; it is invisible on blank cells, but a Straumr
+  `ColorScheme` is the eventual fix and any new visible text must be styled
+  explicitly until then.
 - Introduce a custom `Visual` only after confirming that composition, templating,
   or styling cannot express the requirement.
 - Version 3.9.0 has no vertical rule control and no per-visual background, so
@@ -357,6 +365,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Compose screen bars from `Grid` instead of `Header` | `Header` forces bold slots and its own surface color |
 | 2026-09-10 | Trim list paths with a leading ellipsis and names with a trailing one | The tail of a workspace path identifies it; the head of a name does |
 | 2026-09-10 | Verify layout with headless `VisualSnapshotRenderer` snapshots | Gives per-cell evidence of geometry, trimming, and palette before an interactive check |
+| 2026-09-10 | Rotate the surface ramp from the mockup's hue 202 to hue 222 | The mockup's literal surface hex reads as teal in a terminal and dated on review; hue 222 keeps the same surface relationships and contrast while reading as deep blue |
+| 2026-09-10 | Declare palette colors as hex literals | Keeps the ramp comparable to the mockup CSS at a glance |
 
 ## Change Log
 
@@ -370,6 +380,9 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Removed the premature filter affordance, replaced the interactive splitter with a weighted grid, and composed multiline workspace items inside `ScrollViewer`.
 - 2026-09-10: Replaced button-based workspace rows with a retained multiline list and applied the approved palette after populated visual testing exposed poor contrast and excessive emphasis.
 - 2026-09-10: Corrected the workspace shell to use a padded top bar, an in-panel list heading, a full-width selected-workspace summary, and two lower detail columns with headings inside their borders.
+- 2026-09-10: Reworked the palette to a deep blue ramp after visual review, and
+  styled the list scrollbar, which was still painting the framework's default
+  bright grey track and thumb.
 - 2026-09-10: Replaced the boxed workspace shell with the mockup's rule-separated
   single frame: one window border, surface-tinted list and detail panels, column
   dividers with junction glyphs, mockup column ratios, the filter affordance row,

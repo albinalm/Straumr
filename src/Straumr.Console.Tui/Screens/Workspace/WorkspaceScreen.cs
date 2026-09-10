@@ -189,11 +189,13 @@ public sealed class WorkspaceScreen
         };
         list.BindSelectedIndex(_selectedIndex);
 
-        return new ScrollViewer(list, focusable: false)
+        var scroller = new ScrollViewer(list, focusable: false)
         {
             HorizontalScrollEnabled = false,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
+        scroller.SetStyle(StraumrStyles.ListScrollViewer);
+        return scroller;
     }
 
     private Visual? BuildDetailSummary()
