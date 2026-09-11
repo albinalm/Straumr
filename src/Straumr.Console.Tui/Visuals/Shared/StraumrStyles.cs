@@ -116,6 +116,31 @@ internal static class StraumrStyles
         ShowPromptSeparator = false
     };
 
+    public static readonly ButtonStyle Button = ButtonStyle.Default with
+    {
+        Padding = new Thickness(1, 0, 1, 0),
+        ShowBorder = false,
+        Normal = Style.None.WithForeground(MutedBright).WithBackground(Background),
+        Hovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
+        Pressed = Style.None.WithForeground(TextBright).WithBackground(SelectionInactive),
+        Focused = Style.None.WithForeground(TextBright).WithBackground(Selection),
+        Disabled = Style.None.WithForeground(Muted).WithBackground(Background)
+    };
+
+    public static readonly ButtonStyle DangerButton = Button with
+    {
+        Normal = Style.None.WithForeground(Red).WithBackground(Background),
+        Hovered = Style.None.WithForeground(Red).WithBackground(Hover)
+    };
+
+    public static readonly DialogStyle Dialog = DialogStyle.Single with
+    {
+        SurfaceStyle = Style.None.WithBackground(Background),
+        BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
+        FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
+        LabelBackgroundStyle = Style.None.WithBackground(Background)
+    };
+
     public static readonly GroupStyle WindowGroup = GroupStyle.Single with
     {
         BorderCellStyle = Style.None.WithForeground(Border),

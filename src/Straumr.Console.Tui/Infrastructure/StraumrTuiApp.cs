@@ -31,6 +31,7 @@ public sealed class StraumrTuiApp
     {
         _workspaceScreen = workspaceScreen;
         _screenContent = new State<Visual>(workspaceScreen.Root);
+        workspaceScreen.NotificationRequested += Notify;
 
         _commands.Add(new TuiCommand("quit", QuitAsync) { Aliases = ["q", "exit"] });
         foreach (TuiCommand command in workspaceScreen.PromptCommands)

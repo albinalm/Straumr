@@ -5,8 +5,11 @@ using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
+using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Screens.Workspace;
 
@@ -36,6 +39,7 @@ public sealed class WorkspaceScreen
     private List<WorkspaceScreenItem> _visibleItems = [];
     private Guid? _displayedRequestWorkspaceId;
     private Guid? _pendingActivationId;
+    private Guid? _pendingDeleteId;
 
     public WorkspaceScreen(
         IStraumrOptionsService optionsService,
@@ -59,6 +63,16 @@ public sealed class WorkspaceScreen
             _pendingActivationId = _visibleItems[index].Workspace.Id;
             _activationErrorMessage.Value = null;
         };
+        _workspaceList.AddCommand(new Command
+        {
+            Id = "Workspace.Delete",
+            LabelMarkup = "Delete",
+            Gesture = new KeyGesture('d'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            CanExecute = _ => SelectedItem is not null,
+            Execute = _ => ShowDeleteDialog()
+        });
         _workspaceListView = ResourceScreenLayout.Scrollable(_workspaceList);
 
         _filter = new ResourceFilter(
@@ -92,10 +106,13 @@ public sealed class WorkspaceScreen
 
     public IReadOnlyList<TuiCommand> PromptCommands { get; }
 
+    public event Action<TuiCommandResult>? NotificationRequested;
+
     public string? ActiveWorkspaceName { get; private set; }
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        await DeletePendingWorkspaceAsync(cancellationToken);
         await ActivatePendingWorkspaceAsync(cancellationToken);
 
         WorkspaceScreenItem? item = SelectedItem;
@@ -316,6 +333,57 @@ public sealed class WorkspaceScreen
 
         _pendingActivationId = null;
         await ActivateWorkspaceAsync(workspaceId, cancellationToken);
+    }
+
+    private void ShowDeleteDialog()
+    {
+        WorkspaceScreenItem? item = SelectedItem;
+        if (item is null)
+            return;
+
+        new WorkspaceDeleteDialog(
+            item.Workspace.Name,
+            () => _pendingDeleteId = item.Workspace.Id)
+            .Show();
+    }
+
+    private async Task DeletePendingWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingDeleteId is not { } workspaceId)
+            return;
+
+        _pendingDeleteId = null;
+        WorkspaceScreenItem? item = _items.Find(candidate => candidate.Workspace.Id == workspaceId);
+        if (item is null)
+            return;
+
+        int selectedIndex = _selectedIndex.Value;
+
+        try
+        {
+            await _workspaceService.DeleteAsync(workspaceId, cancellationToken);
+            _requestCache.Remove(workspaceId);
+            _displayedRequestWorkspaceId = null;
+            _recentRequests.Value = [];
+            _requestLoadState.Value = RequestPreviewLoadState.Idle;
+            await LoadAsync(cancellationToken);
+
+            if (_visibleItems.Count > 0)
+                _selectedIndex.Value = Math.Clamp(selectedIndex, 0, _visibleItems.Count - 1);
+
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Ok($"deleted workspace {item.Workspace.Name}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Failed($"delete failed: {exception.Message}"));
+        }
     }
 
     private async Task<TuiCommandResult> ActivateWorkspaceAsync(

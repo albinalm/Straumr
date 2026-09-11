@@ -8,8 +8,8 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W6 implemented; interactive verification pending
-- Next checkpoint: W6 populated filtering verification
+- Implementation: W6 accepted; W7a deletion workflow implemented
+- Next checkpoint: W7a deletion dialog and focus-restoration verification
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-11
 
@@ -313,6 +313,7 @@ Straumr.Console.Tui/
     Workspace/
       WorkspaceScreen.cs          data loading and the parts unique to Workspaces
       WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry
+      WorkspaceDeleteDialog.cs    destructive confirmation for workspace deletion
   Visuals/
     Shared/
       ResourceScreenLayout.cs     the list-and-detail screen scaffold
@@ -603,6 +604,21 @@ screen-switching commands until there is a second screen to switch to.
 - Cancellation exits or abandons the operation without presenting it as a
   failure.
 
+### W7 Workflow Checkpoints
+
+W7 is split by interaction shape so each reusable surface is reviewed before the
+next one builds on it:
+
+1. W7a: delete confirmation, async mutation, refresh, notification, and focus
+   restoration.
+2. W7b: create and copy input forms.
+3. W7c: import and export path forms.
+4. W7d: external-editor edit orchestration and terminal focus restoration.
+
+Gesture callbacks only capture intent or close their surface. Core I/O runs from
+the screen update path, then the screen reloads through the same retained state used
+by `refresh`. Dialogs and forms use framework controls and shared Straumr styles.
+
 ## Implementation Milestones
 
 | ID | Milestone | Status | Evidence |
@@ -613,8 +629,8 @@ screen-switching commands until there is a second screen to switch to.
 | W3 | Add selected workspace's recently used Requests pane | Complete | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. User directed work to continue with W4 |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Complete | Implemented: Tab/Shift+Tab focus traversal, contextual command hints, arrows/Home/End/Page plus `j`/`k`/`g`/`G` on both the list and the request preview, wheel support, Core activation, and double-click activation. Framework finding: `PointerEventArgs.ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by one click on a row arrived as a pair; the gesture therefore also requires both clicks on the same row, and a pointer leaving the list voids the sequence. Focus cues were reworked twice after review: the focused section title fills with the selection blue while every other title is inert, the permanently bright left detail title was fixed, all titles moved onto one rule so the chip travels sideways rather than diagonally, the first detail pane was retitled `Details`, and the active workspace gained a green dot that follows activation. Release and CLI-only builds pass. Cell dumps cover the chip states at exact hex, the mirrored panel geometry, and the dot across plain, hovered and both selected bands. Accepted interactively: focus cues, keyboard selection, hover band, pointer selection, the focused and unfocused selection bands, both focus directions, long-preview scrolling, top/bottom jumps, paging, activation moving the dot, and clean exit |
 | W5 | Add command prompt integration and workspace navigation commands | Complete | `PromptEditor` overlaid on the footer row in a `ZStack`, the `:` gesture registered globally both bare and with `Shift`, `TuiCommandSet` with exact/alias/unique-prefix resolution and per-token completion, `quit`/`q`/`exit`, and the screen's `workspace`, `use` and `refresh`. `WorkspaceScreen`'s activation was split out so `Enter`, a double-click and `:use` share one method, and `LoadAsync` became re-runnable for `refresh`. Eleven framework findings, all recorded in Framework Rules: `PromptEditor`'s prompt column has a two-cell minimum, so `" :"` is what aligns the colon with the text column; `PromptEditorStyle` cannot colour the editor's own text, so the palette goes through the `Highlighter` delegate; `Visual.App` is null until the app runs; `ContentSwitcher` attaches only its selected child, which is why it cannot host a visual the app must focus; focus is revoked from a visual that is invisible during the focus pass, so the prompt sets its own `IsVisible` before asking for focus; `HasFocus` lags `FocusedElement` by a pass; and a printable keystroke emits a key event and a text event independently, so the gesture that opens the prompt also types its own character into it unless the prompt discards the echo; the completion handler is re-asked on every `Tab` and the framework keeps no cycle state, so the prompt has to hold the candidate list itself; neither `PromptEditorEscapeBehavior` gives `Escape` one meaning, so the prompt clears `CancelCommand.Gesture` and handles the key itself; and a key a surface does not handle becomes focus traversal, so a surface that must own input has to declare `IModalVisual` as `Dialog` and `Popup` do; and the framework's own quit command comes off through `RemoveGlobalCommand(DefaultQuitCommandId)`, gesture and hint together. Solution, Release and CLI-only builds pass. Evidence: command resolution and completion tables over 15 inputs and 14 caret positions; footer cell dumps at exact hex for hints, message, error and prompt states; full-screen dumps at 96x24, 70x20 and 44x14; and a full round trip driven through the real input path on a running `TerminalApp` — `:` opens and focuses the prompt, typed text reaches the editor, `Enter` runs `:use dashboards` through Core and returns focus to the list, a single `Escape` closes and clears even with a completion on screen, `:bogus` reports `unknown command: bogus`, nothing behind the modal prompt reacts to `Tab`, `Shift+Tab`, a screen gesture or a click, and `:q` is the only exit now that the framework's `Ctrl+Q` is removed. The developer confirmed `:` opens the prompt in a terminal, reported the stray colon that the echo discard now fixes, reported that `Tab` could not cycle between two workspaces sharing a prefix, which the held candidate list now fixes, and reported the three fall-through bugs that modality now fixes. Not covered: `Up`/`Down` history, which needs a terminal |
-| W6 | Add filtering | Awaiting verification | Added the shared retained `ResourceFilter`, live case-insensitive workspace-name/path filtering, match/total badge, stable selection by workspace identity, a focusable no-match state, and `Enter`/`Escape` result focus behavior. The `/` gesture is registered in bare and Shift forms and its paired text echo is discarded. `ResourceList.SetRows` keeps list identity and focus stable while rows change. Debug, Release and CLI-only builds pass with no warnings; CLI help and an empty-registry launch/`:q` exit pass. Populated interactive behavior awaits developer verification |
-| W7 | Add create, edit, copy, import, export, and delete workflows | Not started | |
+| W6 | Add filtering | Complete | Added the shared retained `ResourceFilter`, live case-insensitive workspace-name/path filtering, match/total badge, stable selection by workspace identity, a focusable no-match state, and `Enter`/`Escape` result focus behavior. The `/` gesture is registered in bare and Shift forms and its paired text echo is discarded. `ResourceList.SetRows` keeps list identity and focus stable while rows change. Debug, Release and CLI-only builds pass with no warnings; CLI help and an empty-registry launch/`:q` exit pass. Accepted interactively by the developer: filtering worked as intended |
+| W7 | Add create, edit, copy, import, export, and delete workflows | In progress | W7a implemented: `d` opens a framework-modal confirmation with Cancel focused by default; confirmation queues deletion for the async update path, invokes Core, clears request state, reloads the retained screen, selects the nearest survivor, and reports through the shared footer. Shared dialog and button styles were added. Automated build verification passes; interactive appearance, cancellation, destructive execution, and focus restoration await developer verification |
 | W8 | Validate resizing, empty/error states, CLI isolation, and Native AOT | Not started | |
 | R1 | Implement Requests screen | Not started | |
 | A1 | Implement Auths screen | Not started | |
@@ -648,7 +664,7 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] verify pointer selection, including the hover band and the focused/unfocused
       selection band (headless snapshots render the unfocused state because the
       snapshot renderer does not apply `AutoFocus`, so this was verified in a terminal)
-- [ ] verify focus restoration after prompt, dialog, and external editor use
+- [ ] verify focus restoration after dialog and external editor use (prompt verified)
 - [x] verify `:` opens the prompt, that one `Escape` or submission closes and clears
       it whatever is on screen, and that focus returns to the region that had it
       (driven through `HandleTerminalEvent` on a running `TerminalApp`; the developer
@@ -665,7 +681,7 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify `Up`/`Down` walk the prompt history
 - [x] verify typed command resolution, aliases, unique prefixes, ambiguity and
       unknown names (headless tables over the real command set)
-- [ ] verify `/` from both list and request-preview focus, live name/path filtering,
+- [x] verify `/` from both list and request-preview focus, live name/path filtering,
       match counts, no matches, Enter retention, Escape clearing, and pointer entry
 - [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
@@ -757,6 +773,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-11 | Use a borderless `PromptEditor` for the inline resource filter | It already owns single-line text input, paste, caret, selection, Enter and Escape. Reusing it keeps text editing in the framework while the resource screen owns only filtering semantics |
 | 2026-09-11 | Keep the filter out of initial focus and Tab traversal | The filter exists while Core data is still loading, so an ordinary focusable editor claims initial focus before the workspace list is attached. Activating it only through `/` or the pointer preserves the list as the default region and keeps Tab moving between the list and detail preview |
 | 2026-09-11 | Filter workspaces by name and configured path, and show matches over total | Both values are visible list identity, while request/auth counts are metadata rather than names. `matches/total` makes an active filter and its effect explicit without adding another label |
+| 2026-09-11 | Split W7 by interaction shape and begin with deletion | Deletion exercises the shared modal, safe default focus, async Core mutation, refresh, notification, and focus restoration before forms, paths, or an external process add more variables |
+| 2026-09-11 | Use the framework `Dialog` and `Button` controls for lifecycle surfaces | They already own modality, focus traversal, pointer input, command discovery, and close-time focus restoration; shared Straumr styles preserve the established visual language without replacing framework behavior |
 
 ## Change Log
 
@@ -918,3 +936,8 @@ For each Workspaces milestone, run the smallest applicable subset:
   match/total badge, and kept typed workspace commands independent of the visible
   filter. Debug, Release and CLI-only builds pass; CLI help and an empty-registry
   launch and exit were exercised.
+- 2026-09-11: The developer accepted W6 filtering. Began W7 as four reviewable
+  workflow checkpoints and implemented W7a deletion with a styled framework modal,
+  safe Cancel focus, queued Core mutation, retained-screen reload, nearest-survivor
+  selection, request-cache cleanup, and shared footer notification. Interactive
+  verification remains before W7b begins.
