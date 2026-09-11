@@ -30,8 +30,8 @@ internal static class ResourceScreenLayout
     private const int BarRuleRow = 3;
 
     /// <param name="listTitle">Heading of the list panel, for example <c>Workspaces</c>.</param>
-    /// <param name="listCount">Total resource count, shown as a filled badge beside the heading.</param>
-    /// <param name="filterHint">Placeholder shown on the filter row.</param>
+    /// <param name="listCount">Resource count, shown as a recessed badge beside the filter.</param>
+    /// <param name="filter">The inline filter shared by resource screens.</param>
     /// <param name="listContent">The list itself, or a loading, empty or error state.</param>
     /// <param name="detailHead">
     /// The selected resource's summary bar, or a message when nothing is selected. It must always
@@ -44,17 +44,18 @@ internal static class ResourceScreenLayout
     public static Visual Create(
         string listTitle,
         Func<string> listCount,
-        string filterHint,
+        ResourceFilter filter,
         Func<Visual> listContent,
         Func<Visual> detailHead,
-        Func<Visual> detailSections) =>
-        new Grid()
+        Func<Visual> detailSections)
+    {
+        var layout = new Grid()
             .Columns(
                 new ColumnDefinition { Width = GridLength.Star(31) },
                 new ColumnDefinition { Width = GridLength.Fixed(1) },
                 new ColumnDefinition { Width = GridLength.Star(69) })
             .Rows(new RowDefinition { Height = GridLength.Star() })
-            .Cell(BuildListPanel(listTitle, listCount, filterHint, listContent), 0, 0)
+            .Cell(BuildListPanel(listTitle, listCount, filter, listContent), 0, 0)
             .Cell(
                 StraumrSurfaces.VerticalDivider((BarRuleRow, new Rune('┼'))),
                 0,
@@ -62,6 +63,10 @@ internal static class ResourceScreenLayout
             .Cell(BuildDetailPanel(detailHead, detailSections), 0, 2)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
+
+        filter.AttachCommands(layout);
+        return layout;
+    }
 
     /// <summary>Wraps pane content in the padding every detail pane uses.</summary>
     public static Visual Pane(Visual content) => StraumrSurfaces.Inset(content, PaneInset);
@@ -138,7 +143,7 @@ internal static class ResourceScreenLayout
     private static Visual BuildListPanel(
         string listTitle,
         Func<string> listCount,
-        string filterHint,
+        ResourceFilter filter,
         Func<Visual> listContent)
     {
         var panel = new Grid()
@@ -149,7 +154,7 @@ internal static class ResourceScreenLayout
                 new RowDefinition { Height = GridLength.Star() });
 
         Visual bar = StraumrSurfaces.Bar(
-            new TextBlock(filterHint).Style(StraumrStyles.MutedText),
+            filter.Root,
             new TextBlock(() => $" {listCount()} ").Style(StraumrStyles.TokenChip));
 
         return panel

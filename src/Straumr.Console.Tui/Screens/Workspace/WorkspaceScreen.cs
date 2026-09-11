@@ -18,7 +18,9 @@ public sealed class WorkspaceScreen
     private readonly State<WorkspaceLoadState> _loadState = new(WorkspaceLoadState.Loading);
     private readonly State<RequestPreviewLoadState> _requestLoadState = new(RequestPreviewLoadState.Idle);
     private readonly State<int> _workspaceCount = new(0);
+    private readonly State<int> _visibleWorkspaceCount = new(0);
     private readonly State<int> _selectedIndex = new(-1);
+    private readonly State<string> _filterText = new(string.Empty);
     private readonly State<string?> _errorMessage = new(null);
     private readonly State<string?> _requestErrorMessage = new(null);
     private readonly State<string?> _activationErrorMessage = new(null);
@@ -27,7 +29,11 @@ public sealed class WorkspaceScreen
     private readonly State<DateTimeOffset?> _lastActivationTime = new(null);
     private readonly State<IReadOnlyList<StraumrRequest>> _recentRequests = new([]);
     private readonly Dictionary<Guid, IReadOnlyList<StraumrRequest>> _requestCache = [];
+    private readonly ResourceFilter _filter;
+    private readonly ResourceList _workspaceList;
+    private readonly Visual _workspaceListView;
     private List<WorkspaceScreenItem> _items = [];
+    private List<WorkspaceScreenItem> _visibleItems = [];
     private Guid? _displayedRequestWorkspaceId;
     private Guid? _pendingActivationId;
 
@@ -40,10 +46,30 @@ public sealed class WorkspaceScreen
         _workspaceService = workspaceService;
         _requestService = requestService;
 
+        _workspaceList = new ResourceList(
+            [],
+            ResourceScreenLayout.Message(
+                new TextBlock(() => NoMatchesMessage()).Style(StraumrStyles.MutedText)))
+        {
+            AutoFocus = true
+        };
+        _workspaceList.BindSelectedIndex(_selectedIndex);
+        _workspaceList.ItemActivated += index =>
+        {
+            _pendingActivationId = _visibleItems[index].Workspace.Id;
+            _activationErrorMessage.Value = null;
+        };
+        _workspaceListView = ResourceScreenLayout.Scrollable(_workspaceList);
+
+        _filter = new ResourceFilter(
+            "filter workspaces",
+            ApplyFilter,
+            () => _loadState.Value == WorkspaceLoadState.Loaded ? _workspaceList : null);
+
         Root = ResourceScreenLayout.Create(
             "Workspaces",
-            () => _workspaceCount.Value.ToString(),
-            "/ filter workspaces",
+            FilterCount,
+            _filter,
             BuildListContent,
             BuildDetailHead,
             BuildDetailSections);
@@ -144,9 +170,10 @@ public sealed class WorkspaceScreen
 
             int currentIndex = items.FindIndex(
                 item => item.Workspace.Id == _currentWorkspaceId.Value);
-            _selectedIndex.Value = currentIndex >= 0
-                ? currentIndex
-                : items.Count > 0 ? 0 : -1;
+            Guid? preferredWorkspaceId = currentIndex >= 0
+                ? items[currentIndex].Workspace.Id
+                : items.FirstOrDefault()?.Workspace.Id;
+            ApplyFilter(_filter.Text, preferredWorkspaceId);
 
             ActiveWorkspaceName = currentIndex >= 0
                 ? items[currentIndex].Workspace.Name
@@ -182,24 +209,8 @@ public sealed class WorkspaceScreen
                 new TextBlock(() => $"Failed to load workspaces: {_errorMessage.Value}")
                     .Style(StraumrStyles.MutedText)
                     .Wrap(true)),
-            _ => BuildWorkspaceList()
+            _ => _workspaceListView
         };
-    }
-
-    private Visual BuildWorkspaceList()
-    {
-        Guid? currentWorkspaceId = _currentWorkspaceId.Value;
-        var list = new ResourceList(_items.Select(item => ToRow(item, currentWorkspaceId)))
-        {
-            AutoFocus = true
-        };
-        list.BindSelectedIndex(_selectedIndex);
-        list.ItemActivated += index =>
-        {
-            _pendingActivationId = _items[index].Workspace.Id;
-            _activationErrorMessage.Value = null;
-        };
-        return ResourceScreenLayout.Scrollable(list);
     }
 
     private Visual BuildDetailHead()
@@ -325,6 +336,7 @@ public sealed class WorkspaceScreen
             _lastActivationTime.Value = activatedAt;
             ActiveWorkspaceName = item.Workspace.Name;
             _activationErrorMessage.Value = null;
+            RefreshWorkspaceRows();
             return TuiCommandResult.None;
         }
         catch (OperationCanceledException)
@@ -379,7 +391,7 @@ public sealed class WorkspaceScreen
             return TuiCommandResult.Failed($"refresh failed: {_errorMessage.Value}");
 
         int restored = selected is { } id
-            ? _items.FindIndex(item => item.Workspace.Id == id)
+            ? _visibleItems.FindIndex(item => item.Workspace.Id == id)
             : -1;
         if (restored >= 0)
             _selectedIndex.Value = restored;
@@ -398,7 +410,10 @@ public sealed class WorkspaceScreen
 
     private TuiCommandResult Select(WorkspaceScreenItem item)
     {
-        _selectedIndex.Value = _items.IndexOf(item);
+        if (_filter.Text.Length > 0)
+            _filter.Clear();
+
+        _selectedIndex.Value = _visibleItems.IndexOf(item);
         return TuiCommandResult.None;
     }
 
@@ -415,6 +430,43 @@ public sealed class WorkspaceScreen
 
     private IEnumerable<string> WorkspaceNames() =>
         _items.Select(item => item.Workspace.Name);
+
+    private void ApplyFilter(string text) => ApplyFilter(text, SelectedItem?.Workspace.Id);
+
+    private void ApplyFilter(string text, Guid? preferredWorkspaceId)
+    {
+        _filterText.Value = text;
+        string query = text.Trim();
+        _visibleItems = query.Length == 0
+            ? [.. _items]
+            : _items.Where(item => MatchesFilter(item, query)).ToList();
+        _visibleWorkspaceCount.Value = _visibleItems.Count;
+
+        RefreshWorkspaceRows();
+
+        int preferredIndex = preferredWorkspaceId is { } id
+            ? _visibleItems.FindIndex(item => item.Workspace.Id == id)
+            : -1;
+        _selectedIndex.Value = preferredIndex >= 0
+            ? preferredIndex
+            : _visibleItems.Count > 0 ? 0 : -1;
+    }
+
+    private void RefreshWorkspaceRows() =>
+        _workspaceList.SetRows(
+            _visibleItems.Select(item => ToRow(item, _currentWorkspaceId.Value)));
+
+    private static bool MatchesFilter(WorkspaceScreenItem item, string query) =>
+        item.Workspace.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+        item.Entry.Path.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    private string FilterCount() =>
+        _filterText.Value.Trim().Length == 0
+            ? _workspaceCount.Value.ToString()
+            : $"{_visibleWorkspaceCount.Value}/{_workspaceCount.Value}";
+
+    private string NoMatchesMessage() =>
+        $"No workspaces match {_filterText.Value.Trim()}.";
 
     private void ShowRequests(IReadOnlyList<StraumrRequest> requests)
     {
@@ -439,8 +491,8 @@ public sealed class WorkspaceScreen
 
     private WorkspaceScreenItem? SelectedItem =>
         _selectedIndex.Value >= 0 &&
-        _selectedIndex.Value < _items.Count
-            ? _items[_selectedIndex.Value]
+        _selectedIndex.Value < _visibleItems.Count
+            ? _visibleItems[_selectedIndex.Value]
             : null;
 
     private enum WorkspaceLoadState

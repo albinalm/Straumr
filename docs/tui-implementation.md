@@ -1,3 +1,6 @@
+# TUI Implementation Guide
+
+This is the living specification and progress tracker for the Straumr TUI rewrite.
 Update it whenever a milestone is completed, a design decision changes, or a
 framework constraint is discovered.
 
@@ -5,10 +8,10 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W5 complete; W6 not started
-- Next checkpoint: W6 filtering
+- Implementation: W6 implemented; interactive verification pending
+- Next checkpoint: W6 populated filtering verification
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
-- Last updated: 2026-09-10
+- Last updated: 2026-09-11
 
 ## Goals
 
@@ -313,6 +316,7 @@ Straumr.Console.Tui/
   Visuals/
     Shared/
       ResourceScreenLayout.cs     the list-and-detail screen scaffold
+      ResourceFilter.cs           inline `/` filtering and focus behavior
       ResourceList.cs             multiline list with selection, hover and scrolling
       ResourceRow.cs              presentation model for one list row
       ScrollableContent.cs        focusable read-only content with Vim scrolling
@@ -356,7 +360,17 @@ three, which is what the Auths and Secrets mockups need. A list whose rows all o
 `IsCurrent` reserves no gutter column for the current-resource dot, so a screen with
 no such notion keeps that column for its text. Its contextual commands
 expose `j`/`k` movement, `g`/`G` first/last jumps, and activation; arrow, Home/End,
-and Page keys remain available without crowding the footer.
+and Page keys remain available without crowding the footer. `SetRows` updates a
+retained list in place, preserving its identity and focus while filtering changes
+the resources it displays. An optional empty visual occupies the same focusable
+surface when no rows match.
+
+`ResourceFilter` is the borderless single-line `/` editor used by resource screens.
+It stays out of initial focus and Tab traversal until `/` or the pointer activates
+it. Text changes filter immediately. `Enter` keeps the query and returns focus to
+the results; `Escape` clears it and returns focus. The owning layout contributes the
+`/` command so filtering is reachable from either panel without making it global to
+screens that do not use the resource-browser scaffold.
 
 `ScrollableContent` owns focus and scrolling for retained read-only content such as
 the recent Requests preview. It exposes contextual `j`/`k`/`g`/`G` commands while
@@ -530,12 +544,29 @@ may persist changes through the appropriate Core service.
 - `Enter` activates the selected workspace through
   `IStraumrWorkspaceService.ActivateAsync`. Two clicks on the same row do the same, so
   activation is reachable without the keyboard.
-- `/` focuses filtering when filtering is implemented.
+- `/` focuses the inline workspace filter.
 - `:` opens the shared command prompt from anywhere on the screen, including from
   inside the request preview.
 - `c`, `e`, `y`, `x`, `i`, and `d` are introduced with their corresponding
   lifecycle operations, not as inert hints.
 - Destructive actions require an explicit confirmation surface.
+
+### Filtering
+
+- `/` focuses the inline filter without typing the trigger into the query.
+- Pointer selection of the filter is supported without making it the initial focus
+  target or a Tab stop.
+- Filtering updates as text changes and matches workspace names and configured paths,
+  case-insensitively.
+- The count badge shows the total when no filter is active and `matches/total` while
+  filtering.
+- If the selected workspace remains visible, selection stays on it. Otherwise the
+  first match is selected; no matches clear the detail panes and show an empty state
+  on the still-focusable list surface.
+- `Enter` keeps the current filter and returns focus to the result list. `Escape`
+  clears the filter and returns focus to the list.
+- `:workspace <name>` and `:use <name>` clear an active filter when necessary so a
+  command can select any workspace, not only a visible match.
 
 ### Command Prompt
 
@@ -582,7 +613,7 @@ screen-switching commands until there is a second screen to switch to.
 | W3 | Add selected workspace's recently used Requests pane | Complete | Non-stamping request loading, per-workspace caching, recency ordering, loading/empty/error states and semantic method colours implemented. Release build passes; initial load, workspace switching, cache reuse and clean exit verified in an 80x24 populated terminal. User directed work to continue with W4 |
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Complete | Implemented: Tab/Shift+Tab focus traversal, contextual command hints, arrows/Home/End/Page plus `j`/`k`/`g`/`G` on both the list and the request preview, wheel support, Core activation, and double-click activation. Framework finding: `PointerEventArgs.ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by one click on a row arrived as a pair; the gesture therefore also requires both clicks on the same row, and a pointer leaving the list voids the sequence. Focus cues were reworked twice after review: the focused section title fills with the selection blue while every other title is inert, the permanently bright left detail title was fixed, all titles moved onto one rule so the chip travels sideways rather than diagonally, the first detail pane was retitled `Details`, and the active workspace gained a green dot that follows activation. Release and CLI-only builds pass. Cell dumps cover the chip states at exact hex, the mirrored panel geometry, and the dot across plain, hovered and both selected bands. Accepted interactively: focus cues, keyboard selection, hover band, pointer selection, the focused and unfocused selection bands, both focus directions, long-preview scrolling, top/bottom jumps, paging, activation moving the dot, and clean exit |
 | W5 | Add command prompt integration and workspace navigation commands | Complete | `PromptEditor` overlaid on the footer row in a `ZStack`, the `:` gesture registered globally both bare and with `Shift`, `TuiCommandSet` with exact/alias/unique-prefix resolution and per-token completion, `quit`/`q`/`exit`, and the screen's `workspace`, `use` and `refresh`. `WorkspaceScreen`'s activation was split out so `Enter`, a double-click and `:use` share one method, and `LoadAsync` became re-runnable for `refresh`. Eleven framework findings, all recorded in Framework Rules: `PromptEditor`'s prompt column has a two-cell minimum, so `" :"` is what aligns the colon with the text column; `PromptEditorStyle` cannot colour the editor's own text, so the palette goes through the `Highlighter` delegate; `Visual.App` is null until the app runs; `ContentSwitcher` attaches only its selected child, which is why it cannot host a visual the app must focus; focus is revoked from a visual that is invisible during the focus pass, so the prompt sets its own `IsVisible` before asking for focus; `HasFocus` lags `FocusedElement` by a pass; and a printable keystroke emits a key event and a text event independently, so the gesture that opens the prompt also types its own character into it unless the prompt discards the echo; the completion handler is re-asked on every `Tab` and the framework keeps no cycle state, so the prompt has to hold the candidate list itself; neither `PromptEditorEscapeBehavior` gives `Escape` one meaning, so the prompt clears `CancelCommand.Gesture` and handles the key itself; and a key a surface does not handle becomes focus traversal, so a surface that must own input has to declare `IModalVisual` as `Dialog` and `Popup` do; and the framework's own quit command comes off through `RemoveGlobalCommand(DefaultQuitCommandId)`, gesture and hint together. Solution, Release and CLI-only builds pass. Evidence: command resolution and completion tables over 15 inputs and 14 caret positions; footer cell dumps at exact hex for hints, message, error and prompt states; full-screen dumps at 96x24, 70x20 and 44x14; and a full round trip driven through the real input path on a running `TerminalApp` — `:` opens and focuses the prompt, typed text reaches the editor, `Enter` runs `:use dashboards` through Core and returns focus to the list, a single `Escape` closes and clears even with a completion on screen, `:bogus` reports `unknown command: bogus`, nothing behind the modal prompt reacts to `Tab`, `Shift+Tab`, a screen gesture or a click, and `:q` is the only exit now that the framework's `Ctrl+Q` is removed. The developer confirmed `:` opens the prompt in a terminal, reported the stray colon that the echo discard now fixes, reported that `Tab` could not cycle between two workspaces sharing a prefix, which the held candidate list now fixes, and reported the three fall-through bugs that modality now fixes. Not covered: `Up`/`Down` history, which needs a terminal |
-| W6 | Add filtering | Not started | |
+| W6 | Add filtering | Awaiting verification | Added the shared retained `ResourceFilter`, live case-insensitive workspace-name/path filtering, match/total badge, stable selection by workspace identity, a focusable no-match state, and `Enter`/`Escape` result focus behavior. The `/` gesture is registered in bare and Shift forms and its paired text echo is discarded. `ResourceList.SetRows` keeps list identity and focus stable while rows change. Debug, Release and CLI-only builds pass with no warnings; CLI help and an empty-registry launch/`:q` exit pass. Populated interactive behavior awaits developer verification |
 | W7 | Add create, edit, copy, import, export, and delete workflows | Not started | |
 | W8 | Validate resizing, empty/error states, CLI isolation, and Native AOT | Not started | |
 | R1 | Implement Requests screen | Not started | |
@@ -634,6 +665,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify `Up`/`Down` walk the prompt history
 - [x] verify typed command resolution, aliases, unique prefixes, ambiguity and
       unknown names (headless tables over the real command set)
+- [ ] verify `/` from both list and request-preview focus, live name/path filtering,
+      match counts, no matches, Enter retention, Escape clearing, and pointer entry
 - [x] verify empty workspace registry behavior
 - [ ] verify missing or corrupt workspace behavior
 - [ ] verify cancellation during loading and operations
@@ -720,6 +753,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-10 | Make the prompt modal while it is open | Three reported bugs were one cause: a key the prompt did not handle fell through to focus traversal, focus left, and the prompt closed. `Tab` with no completion candidate closed it, `Shift+Tab` closed it and moved to the request preview, and a screen's own gestures were still live behind it. `IModalVisual` is the framework's answer, the one `Dialog` and `Popup` use, and it fixes all three at once instead of consuming keys one at a time. It also settles what "other actions are suppressed" means: the keyboard and the pointer both belong to the prompt until it closes |
 | 2026-09-10 | Keep the lost-focus close as an invariant guard, not a feature | Modality means nothing can take the prompt's focus, so the check can no longer fire and the screen contract no longer promises it. It stays because it enforces "open implies focused" for six lines, and the failure it prevents — a modal prompt left open but unfocused, swallowing every key with no way out — is far worse than the cost of keeping it |
 | 2026-09-10 | Make one `Escape` always close the prompt, against the framework's two-stage default | The screen contract says `Escape` closes and clears the prompt, and neither `PromptEditorEscapeBehavior` delivers that: the default spends the first press dismissing an active completion, and the alternative never closes the prompt at all. Documenting the two-stage behaviour was bending the contract to the framework. Clearing `CancelCommand.Gesture` and handling `Escape` in `OnKeyDown` gives the key one meaning; calling `Cancel()` before closing still lets the framework reset its own completion state, so reopening starts a fresh cycle |
+| 2026-09-11 | Keep one retained `ResourceList` and replace its rows in place while filtering | Rebuilding the list for every character would replace the focused visual, reset scrolling and make focus restoration fail when a query had no matches. A stable list also gives the empty state somewhere valid to return focus to |
+| 2026-09-11 | Use a borderless `PromptEditor` for the inline resource filter | It already owns single-line text input, paste, caret, selection, Enter and Escape. Reusing it keeps text editing in the framework while the resource screen owns only filtering semantics |
+| 2026-09-11 | Keep the filter out of initial focus and Tab traversal | The filter exists while Core data is still loading, so an ordinary focusable editor claims initial focus before the workspace list is attached. Activating it only through `/` or the pointer preserves the list as the default region and keeps Tab moving between the list and detail preview |
+| 2026-09-11 | Filter workspaces by name and configured path, and show matches over total | Both values are visible list identity, while request/auth counts are metadata rather than names. `matches/total` makes an active filter and its effect explicit without adding another label |
 
 ## Change Log
 
@@ -874,3 +911,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 - 2026-09-10: Observed while dumping the shell at small sizes that the footer row is
   dropped entirely below roughly 16 rows, the star row keeping its content's minimum
   instead. Pre-existing and unrelated to the prompt; recorded for W8.
+- 2026-09-11: Implemented W6 filtering and left it at the populated interactive
+  checkpoint. Added the shared inline `ResourceFilter`, made `ResourceList` update
+  rows without replacing its focused visual, matched workspace names and paths live,
+  preserved selection by workspace identity, added a focusable no-match state and a
+  match/total badge, and kept typed workspace commands independent of the visible
+  filter. Debug, Release and CLI-only builds pass; CLI help and an empty-registry
+  launch and exit were exercised.

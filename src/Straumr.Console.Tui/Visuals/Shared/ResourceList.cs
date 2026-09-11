@@ -44,29 +44,22 @@ public sealed partial class ResourceList : Visual, IScrollable
     /// </summary>
     private int _lastClickedIndex = -1;
 
-    private readonly ResourceRow[] _rows;
-    private readonly int _textInset;
-    private readonly IReadOnlyList<Visual> _items;
+    private ResourceRow[] _rows = [];
+    private int _textInset;
+    private IReadOnlyList<Visual> _items = [];
     private readonly ScrollModel _scroll;
-    private readonly int _itemHeight;
-    private readonly int _itemStride;
+    private readonly Visual? _emptyContent;
+    private int _itemHeight;
+    private int _itemStride;
 
-    public ResourceList(IEnumerable<ResourceRow> rows)
+    public ResourceList(IEnumerable<ResourceRow> rows, Visual? emptyContent = null)
     {
-        ResourceRow[] source = rows.ToArray();
-        _rows = source;
-        Count = source.Length;
-        _itemHeight = source.Any(row => row.Detail is not null) ? 3 : 2;
-        _textInset = PanelInset + MarkerWidth +
-            (source.Any(row => row.IsCurrent) ? CurrentMarkerWidth : 0);
-        _itemStride = _itemHeight + ItemSpacing;
-        _items = source.Select(BuildItem).ToArray();
+        _emptyContent = emptyContent;
         _scroll = new ScrollModel(this);
-        SelectedIndex = Count == 0 ? -1 : 0;
         HoveredIndex = -1;
 
-        foreach (Visual item in _items)
-            AttachChild(item);
+        if (_emptyContent is not null)
+            AttachChild(_emptyContent);
 
         Focusable = true;
         HorizontalAlignment = Align.Stretch;
@@ -118,11 +111,13 @@ public sealed partial class ResourceList : Visual, IScrollable
             Presentation = CommandPresentation.CommandBar,
             Execute = _ => SelectedIndex = Count - 1
         });
+
+        SetRows(rows);
     }
 
     public ScrollModel Scroll => _scroll;
 
-    public int Count { get; }
+    public int Count => _rows.Length;
 
     public event Action<int>? ItemActivated;
 
@@ -133,9 +128,38 @@ public sealed partial class ResourceList : Visual, IScrollable
     [Bindable]
     public partial int HoveredIndex { get; set; }
 
-    protected override int ChildrenCount => _items.Count;
+    public void SetRows(IEnumerable<ResourceRow> rows)
+    {
+        foreach (Visual item in _items)
+            DetachChild(item);
 
-    protected override Visual GetChild(int index) => _items[index];
+        _rows = rows.ToArray();
+        _itemHeight = _rows.Any(row => row.Detail is not null) ? 3 : 2;
+        _textInset = PanelInset + MarkerWidth +
+            (_rows.Any(row => row.IsCurrent) ? CurrentMarkerWidth : 0);
+        _itemStride = _itemHeight + ItemSpacing;
+        _items = _rows.Select(BuildItem).ToArray();
+
+        foreach (Visual item in _items)
+            AttachChild(item);
+
+        if (_emptyContent is not null)
+            _emptyContent.IsVisible = Count == 0;
+
+        SelectedIndex = Count == 0
+            ? -1
+            : Math.Clamp(SelectedIndex, 0, Count - 1);
+        HoveredIndex = -1;
+        _lastClickedIndex = -1;
+        _scroll.SetOffset(0, 0);
+    }
+
+    protected override int ChildrenCount => _items.Count + (_emptyContent is null ? 0 : 1);
+
+    protected override Visual GetChild(int index) =>
+        index < _items.Count
+            ? _items[index]
+            : _emptyContent ?? throw new ArgumentOutOfRangeException(nameof(index));
 
     protected override SizeHints MeasureCore(in LayoutConstraints constraints)
     {
@@ -144,6 +168,9 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         foreach (Visual item in _items)
             item.Measure(itemConstraints);
+
+        if (_emptyContent is not null && Count == 0)
+            _emptyContent.Measure(constraints);
 
         var natural = new Size(
             textWidth + _textInset + PanelInset,
@@ -163,10 +190,18 @@ public sealed partial class ResourceList : Visual, IScrollable
 
     protected override void ArrangeCore(in Rectangle finalRect)
     {
-        if (finalRect.Width <= 0 || finalRect.Height <= 0 || _items.Count == 0)
+        if (finalRect.Width <= 0 || finalRect.Height <= 0)
         {
             _scroll.SetViewport(0, 0);
             _scroll.SetExtent(0, 0);
+            return;
+        }
+
+        if (_items.Count == 0)
+        {
+            _scroll.SetViewport(finalRect.Width, finalRect.Height);
+            _scroll.SetExtent(finalRect.Width, finalRect.Height);
+            _emptyContent?.Arrange(finalRect);
             return;
         }
 
