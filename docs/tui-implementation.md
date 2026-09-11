@@ -473,12 +473,14 @@ the recent Requests preview. It exposes contextual `j`/`k`/`g`/`G` commands whil
 arrow, Home/End, Page and wheel input update the same bindable offset.
 
 The workspace form shows the location it will actually use on a line under the field,
-because that is not something a placeholder can carry: a `TextBox` has no trimming
-control, so a long path filled the field head-first and cut the tail — the half that
-says which folder it is. The line is trimmed from the front instead, and the same
-property feeds both it and the submission, so what is shown and what happens cannot
-drift apart. Leaving the field blank therefore means the location on that line, not
-whatever the global default happens to be. Create offers the configured default; Copy
+but only while that field is blank: once something is typed the field is already showing
+the answer, and a line repeating it underneath is one path too many. Blank is the case
+nothing else on screen can carry, and it is not something a placeholder can carry either
+— a `TextBox` has no trimming control, so a long path filled the field head-first and cut
+the tail, the half that says which folder it is. The line is trimmed from the front
+instead, and the same property feeds both it and the submission, so what is shown and
+what happens cannot drift apart. Leaving the field blank therefore means the location on
+that line, not whatever the global default happens to be. Create offers the configured default; Copy
 offers the folder holding the workspace being copied, which is where a sibling of it
 would be written and is the answer far more often than a setting that has gone stale.
 
@@ -928,6 +930,7 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-11 | Show the resolved location under the field instead of in the placeholder | A `TextBox` placeholder has no trimming control, so a long path filled the field head-first and cut the tail, which is the half that identifies a folder. The line below is trimmed from the front and reads the same property the submission does, so the field can no longer promise one location and write another. It also lets a missing default say so before the operation fails rather than after |
 | 2026-09-11 | Make a blank location mean the line under the field, not Core's default | Once Copy offers a location of its own, returning null on a blank field would have sent Core to the configured default instead — the field showing one destination and the operation choosing another. The resolved location is the only answer either of them reads now |
 | 2026-09-11 | Bind the resolved line's trimming to what it is showing | A path keeps its tail and a sentence keeps its head, so one trimming mode cannot serve both: the missing-default warning came out as `…red. Choose one, or set config workspace-path.` `TextBlock.Trimming` has a `Func` overload, which is the framework's own hook for it |
+| 2026-09-11 | Show the resolved location only while the field is blank | Typing a path put it on screen twice, once in the field and once on the line below it. The line exists for the destination that is otherwise invisible — the default that applies to an empty field — and a field with something in it is already the answer |
 | 2026-09-11 | Scope plain-character gestures to the list, not to the dialog | Routing walks the whole focus chain, so `/` registered on the dialog fired while the path field had focus and opened the filter instead of typing a separator into a path. Characters belong to the control that owns them; `Ctrl`+letter can stay on the dialog because it is not text anyone can type |
 | 2026-09-11 | Gate the app-wide `:` while a modal owns focus | The prompt belongs to the shell and its commands act on the screen behind a dialog, so offering it among a folder browser's navigation keys was noise for something that should not work there either. A global command is collected alongside the focus chain rather than from it, so modality does not suppress it and it has to check for itself |
 | 2026-09-11 | Give the folder browser create, rename and delete, and generalize it as a reusable component | Native pickers all offer them, and the objection that rename or delete could break the registry does not hold: it stores absolute paths and is equally exposed to any file manager, so refusing here protects nothing and only forces a trip outside the app. Keeping the browser ignorant of workspaces is what makes it reusable by import and export later, and means it guards nothing a native picker would not |
@@ -1228,3 +1231,8 @@ For each Workspaces milestone, run the smallest applicable subset:
   this change would have sent Core to the global default while the form displayed the
   source's folder, so both now read one property. Verified by nine assertions over both
   operations, a typed override, a blank submission and an unconfigured default.
+- 2026-09-11: The developer pointed out that a typed path was then showing twice, in the
+  field and again on the line below it. The line now appears only while the field is
+  blank, which is the case it was added for: the default that applies to an empty field
+  and has nowhere else to be seen. A typed path needs no echo, and the field scrolls with
+  the caret, so the tail stays visible as it is entered.

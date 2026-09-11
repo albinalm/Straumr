@@ -132,6 +132,11 @@ internal sealed class WorkspaceFormDialog
 
     public void Show() => _dialog.Show();
 
+    /// <summary>
+    /// The location that applies when the field is left blank. It appears only then: once something
+    /// is typed the field is already showing the answer, and a line repeating it underneath is one
+    /// path too many. What it exists for is the destination nothing else on screen can carry.
+    /// </summary>
     /// <remarks>
     /// The glyph keeps a column of its own: the path beside it is trimmed from the front, and a
     /// marker at the head of that text would be the first thing the ellipsis ate.
@@ -156,6 +161,7 @@ internal sealed class WorkspaceFormDialog
                     .HorizontalAlignment(Align.Stretch),
                 0,
                 1)
+            .IsVisible(() => _locationText.Value.Trim().Length == 0)
             .HorizontalAlignment(Align.Stretch);
 
     /// <summary>
