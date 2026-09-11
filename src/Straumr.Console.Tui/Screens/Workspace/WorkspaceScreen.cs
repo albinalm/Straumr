@@ -42,6 +42,8 @@ public sealed class WorkspaceScreen
     private Guid? _pendingDeleteId;
     private WorkspaceFormSubmission? _pendingCreate;
     private WorkspaceCopySubmission? _pendingCopy;
+    private string? _pendingImportPath;
+    private WorkspaceExportSubmission? _pendingExport;
 
     public WorkspaceScreen(
         IStraumrOptionsService optionsService,
@@ -94,6 +96,25 @@ public sealed class WorkspaceScreen
             CanExecute = _ => SelectedItem is not null,
             Execute = _ => ShowDeleteDialog()
         });
+        _workspaceList.AddCommand(new Command
+        {
+            Id = "Workspace.Import",
+            LabelMarkup = "Import",
+            Gesture = new KeyGesture('i'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => ShowImportDialog()
+        });
+        _workspaceList.AddCommand(new Command
+        {
+            Id = "Workspace.Export",
+            LabelMarkup = "Export",
+            Gesture = new KeyGesture('x'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            CanExecute = _ => SelectedItem is not null,
+            Execute = _ => ShowExportDialog()
+        });
         _workspaceListView = ResourceScreenLayout.Scrollable(_workspaceList);
 
         _filter = new ResourceFilter(
@@ -136,6 +157,8 @@ public sealed class WorkspaceScreen
         await DeletePendingWorkspaceAsync(cancellationToken);
         await CreatePendingWorkspaceAsync(cancellationToken);
         await CopyPendingWorkspaceAsync(cancellationToken);
+        await ImportPendingWorkspaceAsync(cancellationToken);
+        await ExportPendingWorkspaceAsync(cancellationToken);
         await ActivatePendingWorkspaceAsync(cancellationToken);
 
         WorkspaceScreenItem? item = SelectedItem;
@@ -399,6 +422,37 @@ public sealed class WorkspaceScreen
             .Show();
     }
 
+    private void ShowImportDialog()
+    {
+        new FileBrowserDialog(
+            null,
+            Environment.CurrentDirectory,
+            path => _pendingImportPath = path,
+            file => Path.GetExtension(file)
+                .Equals(".straumrpak", StringComparison.OrdinalIgnoreCase),
+            "Import workspace",
+            "Import")
+        .Show();
+    }
+
+    private void ShowExportDialog()
+    {
+        WorkspaceScreenItem? item = SelectedItem;
+        if (item is null)
+            return;
+
+        new FolderBrowserDialog(
+            item.ContainingDirectory,
+            Environment.CurrentDirectory,
+            path => _pendingExport = new WorkspaceExportSubmission(
+                item.Workspace.Id,
+                item.Workspace.Name,
+                path),
+            $"Export {item.Workspace.Name}",
+            "Export here")
+        .Show();
+    }
+
     private async Task CreatePendingWorkspaceAsync(CancellationToken cancellationToken)
     {
         if (_pendingCreate is not { } submission)
@@ -454,6 +508,63 @@ public sealed class WorkspaceScreen
         {
             NotificationRequested?.Invoke(
                 TuiCommandResult.Failed($"copy failed: {exception.Message}"));
+        }
+    }
+
+    private async Task ImportPendingWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingImportPath is not { } path)
+            return;
+
+        _pendingImportPath = null;
+        try
+        {
+            StraumrWorkspaceEntry entry = await _workspaceService.ImportAsync(
+                path,
+                cancellationToken);
+            await ReloadAndSelectAsync(entry.Id, cancellationToken);
+            string name = _items
+                .Find(item => item.Workspace.Id == entry.Id)?
+                .Workspace.Name ?? Path.GetFileNameWithoutExtension(path);
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Ok($"imported workspace {name}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Failed($"import failed: {exception.Message}"));
+        }
+    }
+
+    private async Task ExportPendingWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingExport is not { } pending)
+            return;
+
+        _pendingExport = null;
+        try
+        {
+            string path = await _workspaceService.ExportAsync(
+                pending.WorkspaceId,
+                pending.OutputDirectory,
+                cancellationToken);
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Ok($"exported {pending.WorkspaceName} to {path}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Failed($"export failed: {exception.Message}"));
         }
     }
 
@@ -706,4 +817,9 @@ public sealed class WorkspaceScreen
     private sealed record WorkspaceCopySubmission(
         Guid SourceId,
         WorkspaceFormSubmission Submission);
+
+    private sealed record WorkspaceExportSubmission(
+        Guid WorkspaceId,
+        string WorkspaceName,
+        string OutputDirectory);
 }
