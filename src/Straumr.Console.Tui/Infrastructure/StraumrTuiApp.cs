@@ -26,6 +26,7 @@ public sealed class StraumrTuiApp
     private readonly Queue<string> _submitted = new();
     private DateTimeOffset _messageExpiry;
     private bool _initialized;
+    private TerminalApp? _app;
 
     public StraumrTuiApp(WorkspaceScreen workspaceScreen)
     {
@@ -87,6 +88,7 @@ public sealed class StraumrTuiApp
         if (!_initialized)
         {
             _initialized = true;
+            _app = app;
             app.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId);
             foreach (Command command in BuildOpenPromptCommands())
                 app.AddGlobalCommand(command);
@@ -144,10 +146,35 @@ public sealed class StraumrTuiApp
             Gesture = new KeyGesture(':', modifiers),
             Importance = CommandImportance.Secondary,
             Presentation = presentation,
-            CanExecute = _ => !_prompt.IsOpen,
+            CanExecute = _ => !_prompt.IsOpen && !IsModalOpen,
+            IsVisible = _ => !IsModalOpen,
             ConsumesGestureWhenUnavailable = false,
             Execute = _ => OpenPrompt()
         };
+
+    /// <summary>
+    /// Whether a modal surface such as a dialog owns the keyboard. The prompt belongs to the shell
+    /// and its commands operate on the screen behind a dialog, so while one is up the gesture is
+    /// neither offered nor allowed.
+    /// </summary>
+    /// <remarks>
+    /// A global command is collected alongside the focus chain's rather than from it, so modality
+    /// does not suppress it the way it suppresses a gesture on a visual: without this the folder
+    /// browser advertised <c>: Command</c> among its own navigation keys.
+    /// </remarks>
+    private bool IsModalOpen
+    {
+        get
+        {
+            for (Visual? visual = _app?.FocusedElement; visual is not null; visual = visual.Parent)
+            {
+                if (visual is IModalVisual { IsModal: true } && !ReferenceEquals(visual, _prompt.Root))
+                    return true;
+            }
+
+            return false;
+        }
+    }
 
     private void OpenPrompt()
     {

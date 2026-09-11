@@ -133,6 +133,31 @@ internal static class StraumrStyles
         Hovered = Style.None.WithForeground(Red).WithBackground(Hover)
     };
 
+    public static readonly ButtonStyle PrimaryButton = Button with
+    {
+        Normal = Style.None.WithForeground(Accent).WithBackground(Background),
+        Hovered = Style.None.WithForeground(Accent).WithBackground(Hover)
+    };
+
+    public static readonly TextBoxStyle TextBox = TextBoxStyle.Default with
+    {
+        Padding = new Thickness(1, 0, 1, 0),
+        Border = Border,
+        FocusBorder = Accent,
+        Selection = Selection,
+        Background = Background,
+        ForegroundBrush = Brush.Solid(TextBright),
+        BackgroundBrush = Brush.Solid(Background),
+        Placeholder = Muted
+    };
+
+    public static readonly ValidationStyle Validation = ValidationStyle.Default with
+    {
+        Padding = new Thickness(0),
+        ErrorGlyph = null,
+        ErrorStyle = Style.None.WithForeground(Red).WithBackground(Background)
+    };
+
     public static readonly DialogStyle Dialog = DialogStyle.Single with
     {
         SurfaceStyle = Style.None.WithBackground(Background),

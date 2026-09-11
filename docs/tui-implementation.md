@@ -8,8 +8,10 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W6 accepted; W7a deletion workflow implemented
-- Next checkpoint: W7a deletion dialog and focus-restoration verification
+- Implementation: W7a accepted; W7b create/copy forms and the folder browser implemented,
+  the browser's navigation accepted interactively
+- Next checkpoint: W7b populated create/copy, and the browser's create/rename/delete in a
+  terminal
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-11
 
@@ -226,8 +228,9 @@ Approved references:
   therefore never matches it, so a character that needs Shift has to be registered
   twice, once bare and once with `Shift`. Only one of the two should be presented
   in the `CommandBar` or the hint appears twice. A control that reads `e.Char` in
-  `OnKeyDown` sidesteps this, which is why `ResourceList`'s `G` works even though
-  its command gesture alone would not match.
+  `OnKeyDown` sidesteps this, but only if no command claims the key first: see the
+  case-insensitive routing rule below, which is why `ResourceList`'s `g` was claiming
+  `G` on a terminal that reports no modifier for it.
 - `Visual.App` is null until the app is running, so anything that needs the
   `TerminalApp` (focus, global commands) has to happen from input or from the
   update loop, never from a constructor.
@@ -274,6 +277,55 @@ Approved references:
   takes it out, and takes both the gesture and its command bar hint with it, so an
   app that owns its own exit does not have to live beside a second one. Removing it
   is also what frees `Escape` inline; in fullscreen it was already free.
+- `PromptEditor.Text`'s setter does not raise `OnDocumentChanged`. Only a user edit
+  does, so any programmatic change to a prompt's text is invisible to a handler
+  hanging off that hook and has to report itself.
+- Gesture routing matches a character case-insensitively even though `KeyGesture`
+  equality does not: `new KeyGesture('g')` and `new KeyGesture('G')` compare as
+  different, but a routed `g` command still claims a `G` key event that carries no
+  Shift. A control that wants both keys separately therefore has to keep the hint and
+  handle the key itself, which is what `Command.RouteGesture = false` is for.
+- A terminal sends `Ctrl` plus a letter as the single C0 byte the letter maps to, so a
+  `Ctrl`+letter gesture has to carry that control character —
+  `new KeyGesture((char)('L' & 0x1F), TerminalModifiers.Ctrl)`, not
+  `new KeyGesture('l', TerminalModifiers.Ctrl)`, which matches nothing. The wrong form
+  gives itself away in the command bar: the control character renders as `Ctrl+L` and
+  the letter as a lowercase `Ctrl+l`. Measured against 3.9.0's decoder, the raw-byte
+  path (Alacritty, xterm, Windows Terminal) and the CSI path (kitty keyboard protocol)
+  both arrive as the control character plus `Ctrl`, so one gesture covers both; a host
+  that reported the letter and the modifier separately would need the letter form
+  registered beside it, unpresented.
+- `Ctrl` or `Shift` plus a *named* key is not portable. A plain terminal sends
+  `Ctrl+Enter` as a bare `Enter` — 3.9.0's decoder maps the byte to
+  `Key=Enter, Modifiers=None` — so such a gesture works only where the kitty keyboard
+  protocol or xterm's `modifyOtherKeys` is active, and is advertised everywhere else
+  while doing nothing. Prefer a plain character for an accelerator.
+- A plain-character gesture must be registered on the control that owns it, not on an
+  ancestor. Routing walks the whole focus chain, so a character command on a dialog
+  fires while a text field inside it has focus: `/` on the dialog opened the filter
+  instead of reaching the path being typed.
+- A global command is collected alongside the focus chain's rather than from it, so
+  modality does not suppress it the way it suppresses a gesture on a visual. An
+  app-wide gesture that should not reach a dialog has to say so itself, by walking up
+  from `TerminalApp.FocusedElement` for an `IModalVisual`. A `CommandBar` re-collects
+  on invalidation rather than every frame, so a gate that changes with focus takes
+  effect on the pass focus moved and not before.
+- A command on the focused control wins the gesture over a command with the same
+  gesture on an ancestor. So a dialog's `Escape` does not have to be gated for a text
+  field inside it to claim `Escape`; gating it is only worth doing to stop a second
+  hint for the same key appearing in the command bar. Gating by `CanExecute` plus
+  `ConsumesGestureWhenUnavailable = false` also works and falls through to the focused
+  control's own `OnKeyDown`.
+- A real `TerminalApp` can be driven headlessly, which covers what snapshots cannot:
+  focus, input, and anything a `CommandBar` shows, since `CommandQuery.Collect` needs
+  a running app and renders empty without one. `InMemoryTerminalBackend` plus
+  `TerminalInstance.Initialize` builds the host; `BeginRun`, `Tick`, `EndRun` and
+  `HandleTerminalEvent` are internal and still need reflection, but `CaptureSvg` is
+  public. `TerminalKeyEvent`, `TerminalTextEvent` and `TerminalMouseEvent` are records
+  with settable properties and a parameterless constructor, so events are built by
+  property rather than by constructor. Pointer double-clicks are the one gesture this
+  cannot reproduce: `ClickCount` is derived by the framework and not carried on the
+  event.
 
 The existing `RequestList` manually implements layout, scrolling, selection,
 pointer input, and rendering. Treat it as prototype code, not the pattern for new
@@ -314,20 +366,25 @@ Straumr.Console.Tui/
       WorkspaceScreen.cs          data loading and the parts unique to Workspaces
       WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry
       WorkspaceDeleteDialog.cs    destructive confirmation for workspace deletion
+      WorkspaceFormDialog.cs      create/copy form and local validation
   Visuals/
     Shared/
       ResourceScreenLayout.cs     the list-and-detail screen scaffold
       ResourceFilter.cs           inline `/` filtering and focus behavior
-      ResourceList.cs             multiline list with selection, hover and scrolling
+      ResourceList.cs             one- to three-line list with selection, hover and scrolling
       ResourceRow.cs              presentation model for one list row
       ScrollableContent.cs        focusable read-only content with Vim scrolling
       FieldList.cs                label/value grid for detail panes
+      FolderBrowserDialog.cs      the reusable cross-platform folder browser
+      TextPromptDialog.cs         a modal asking for one line of text
+      StraumrDialog.cs            shared modal construction and cancellation
       StraumrHeader.cs            the screen header bar
       StraumrSurfaces.cs          dividers, bars, insets
       StraumrStyles.cs            the palette and every control style
   Formatting/
     TimestampFormatting.cs        relative and absolute timestamps
     CountFormatting.cs            pluralised counts
+    PathFormatting.cs             home-shortened paths
     HttpMethodFormatting.cs       semantic colour per HTTP method
 ```
 
@@ -356,26 +413,74 @@ message.
 
 `ResourceList` owns selection, hover, focus response, scrolling and row styling. A
 screen hands it `ResourceRow` values and binds its `SelectedIndex`; it never styles
-rows itself. A list whose rows all omit `Detail` lays out two lines high instead of
-three, which is what the Auths and Secrets mockups need. A list whose rows all omit
+rows itself. Row height follows the row data: a list whose rows all omit `Detail` lays
+out two lines high, which is what the Auths and Secrets mockups need, and one whose rows
+also omit `Meta` lays out one line high with no blank row between items, which is what a
+list of plain names such as the folder browser needs. A list whose rows all omit
 `IsCurrent` reserves no gutter column for the current-resource dot, so a screen with
 no such notion keeps that column for its text. Its contextual commands
 expose `j`/`k` movement, `g`/`G` first/last jumps, and activation; arrow, Home/End,
-and Page keys remain available without crowding the footer. `SetRows` updates a
-retained list in place, preserving its identity and focus while filtering changes
-the resources it displays. An optional empty visual occupies the same focusable
-surface when no rows match.
+and Page keys remain available without crowding the footer. `activateLabel` names
+`Enter` in the command bar, the one contextual command whose meaning changes per list.
+`SetRows` updates a retained list in place, preserving its identity and focus while
+filtering changes the resources it displays. An optional empty visual occupies the same
+focusable surface when no rows match.
 
 `ResourceFilter` is the borderless single-line `/` editor used by resource screens.
 It stays out of initial focus and Tab traversal until `/` or the pointer activates
 it. Text changes filter immediately. `Enter` keeps the query and returns focus to
 the results; `Escape` clears it and returns focus. The owning layout contributes the
 `/` command so filtering is reachable from either panel without making it global to
-screens that do not use the resource-browser scaffold.
+screens that do not use the resource-browser scaffold. `Clear` announces the change
+itself, because `PromptEditor.Text`'s setter raises nothing; both `Escape` and a
+screen clearing the filter to reach a hidden resource go through it.
+
+A folder browser is a resource browser, so `FolderBrowserDialog` is built from the
+same pieces rather than from framework list controls: the location and a count badge
+in a bar, `Folders` titled on the rule closing it, a `ResourceList` of one-line rows
+below, and a second rule over a `CommandBar`. So the focus chip travels the same rule
+it does on a screen, and `j`/`k`/`g`/`G`, hover, the selection bands, pointer
+selection and double-click activation all arrive with the list instead of being
+rebuilt. What it adds is its own: a parent row named after the folder it leads to,
+`Backspace` to walk up landing on the folder just left, `Ctrl+L` to swap the
+breadcrumb for an editable path with `Tab` completion, `s` or the button to return the
+highlighted folder, `n`/`r`/`d` to create, rename and delete a folder, and one notice
+line under the title for a failed read, an empty folder, or a query with no matches.
+There are two confirms. `s` and the button return the *highlighted* folder, as a native
+picker's button does, so a folder can be chosen without descending into it first; on the
+row that walks back out there is nothing highlighted to return, so it falls back to the
+folder being browsed. `Ctrl+Enter` returns the folder being browsed outright, which is
+what makes "create a folder, open it, accept it" two keys. Both answers are on screen at
+once: the breadcrumb at the top is what `Ctrl+Enter` returns, and the line beside the
+button is what `s` returns, because a destination nobody can see is one nobody can trust.
+Every gesture it uses is either a plain character, a named key, or `Ctrl` plus a letter
+in its control-character form, so none of them depends on which terminal is running it.
+
+It is a generic component, not a workspace one: a caller supplies the start path, the
+title and the confirming button's label, and gets a path back. It therefore cannot tell
+that a folder holds a workspace, and its rename and delete are as unguarded as a native
+picker's — the registry stores absolute paths and can be broken from any file manager,
+so guarding only inside Straumr would buy safety nowhere. Delete is recursive and final,
+since a portable implementation has no recycle bin to reach for, so its confirmation
+states what the folder holds rather than asking a bare yes or no. `TextPromptDialog`
+is the one-line-of-text modal that create and rename both ask through, and a
+row-scoped command is withdrawn rather than merely disabled where it does not apply,
+because `CommandBarStyle` has no disabled treatment and an inert hint is
+indistinguishable from a live one.
 
 `ScrollableContent` owns focus and scrolling for retained read-only content such as
 the recent Requests preview. It exposes contextual `j`/`k`/`g`/`G` commands while
 arrow, Home/End, Page and wheel input update the same bindable offset.
+
+The workspace form shows the location it will actually use on a line under the field,
+because that is not something a placeholder can carry: a `TextBox` has no trimming
+control, so a long path filled the field head-first and cut the tail — the half that
+says which folder it is. The line is trimmed from the front instead, and the same
+property feeds both it and the submission, so what is shown and what happens cannot
+drift apart. Leaving the field blank therefore means the location on that line, not
+whatever the global default happens to be. Create offers the configured default; Copy
+offers the folder holding the workspace being copied, which is where a sibling of it
+would be written and is the answer far more often than a setting that has gone stale.
 
 `FieldList.Create` builds a detail pane's label/value grid. Use `FieldList.Count`
 for quantities so they inherit the amber-when-populated rule, `Wrapped` for values
@@ -630,7 +735,7 @@ by `refresh`. Dialogs and forms use framework controls and shared Straumr styles
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Complete | Implemented: Tab/Shift+Tab focus traversal, contextual command hints, arrows/Home/End/Page plus `j`/`k`/`g`/`G` on both the list and the request preview, wheel support, Core activation, and double-click activation. Framework finding: `PointerEventArgs.ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by one click on a row arrived as a pair; the gesture therefore also requires both clicks on the same row, and a pointer leaving the list voids the sequence. Focus cues were reworked twice after review: the focused section title fills with the selection blue while every other title is inert, the permanently bright left detail title was fixed, all titles moved onto one rule so the chip travels sideways rather than diagonally, the first detail pane was retitled `Details`, and the active workspace gained a green dot that follows activation. Release and CLI-only builds pass. Cell dumps cover the chip states at exact hex, the mirrored panel geometry, and the dot across plain, hovered and both selected bands. Accepted interactively: focus cues, keyboard selection, hover band, pointer selection, the focused and unfocused selection bands, both focus directions, long-preview scrolling, top/bottom jumps, paging, activation moving the dot, and clean exit |
 | W5 | Add command prompt integration and workspace navigation commands | Complete | `PromptEditor` overlaid on the footer row in a `ZStack`, the `:` gesture registered globally both bare and with `Shift`, `TuiCommandSet` with exact/alias/unique-prefix resolution and per-token completion, `quit`/`q`/`exit`, and the screen's `workspace`, `use` and `refresh`. `WorkspaceScreen`'s activation was split out so `Enter`, a double-click and `:use` share one method, and `LoadAsync` became re-runnable for `refresh`. Eleven framework findings, all recorded in Framework Rules: `PromptEditor`'s prompt column has a two-cell minimum, so `" :"` is what aligns the colon with the text column; `PromptEditorStyle` cannot colour the editor's own text, so the palette goes through the `Highlighter` delegate; `Visual.App` is null until the app runs; `ContentSwitcher` attaches only its selected child, which is why it cannot host a visual the app must focus; focus is revoked from a visual that is invisible during the focus pass, so the prompt sets its own `IsVisible` before asking for focus; `HasFocus` lags `FocusedElement` by a pass; and a printable keystroke emits a key event and a text event independently, so the gesture that opens the prompt also types its own character into it unless the prompt discards the echo; the completion handler is re-asked on every `Tab` and the framework keeps no cycle state, so the prompt has to hold the candidate list itself; neither `PromptEditorEscapeBehavior` gives `Escape` one meaning, so the prompt clears `CancelCommand.Gesture` and handles the key itself; and a key a surface does not handle becomes focus traversal, so a surface that must own input has to declare `IModalVisual` as `Dialog` and `Popup` do; and the framework's own quit command comes off through `RemoveGlobalCommand(DefaultQuitCommandId)`, gesture and hint together. Solution, Release and CLI-only builds pass. Evidence: command resolution and completion tables over 15 inputs and 14 caret positions; footer cell dumps at exact hex for hints, message, error and prompt states; full-screen dumps at 96x24, 70x20 and 44x14; and a full round trip driven through the real input path on a running `TerminalApp` — `:` opens and focuses the prompt, typed text reaches the editor, `Enter` runs `:use dashboards` through Core and returns focus to the list, a single `Escape` closes and clears even with a completion on screen, `:bogus` reports `unknown command: bogus`, nothing behind the modal prompt reacts to `Tab`, `Shift+Tab`, a screen gesture or a click, and `:q` is the only exit now that the framework's `Ctrl+Q` is removed. The developer confirmed `:` opens the prompt in a terminal, reported the stray colon that the echo discard now fixes, reported that `Tab` could not cycle between two workspaces sharing a prefix, which the held candidate list now fixes, and reported the three fall-through bugs that modality now fixes. Not covered: `Up`/`Down` history, which needs a terminal |
 | W6 | Add filtering | Complete | Added the shared retained `ResourceFilter`, live case-insensitive workspace-name/path filtering, match/total badge, stable selection by workspace identity, a focusable no-match state, and `Enter`/`Escape` result focus behavior. The `/` gesture is registered in bare and Shift forms and its paired text echo is discarded. `ResourceList.SetRows` keeps list identity and focus stable while rows change. Debug, Release and CLI-only builds pass with no warnings; CLI help and an empty-registry launch/`:q` exit pass. Accepted interactively by the developer: filtering worked as intended |
-| W7 | Add create, edit, copy, import, export, and delete workflows | In progress | W7a implemented: `d` opens a framework-modal confirmation with Cancel focused by default; confirmation queues deletion for the async update path, invokes Core, clears request state, reloads the retained screen, selects the nearest survivor, and reports through the shared footer. Shared dialog and button styles were added. Automated build verification passes; interactive appearance, cancellation, destructive execution, and focus restoration await developer verification |
+| W7 | Add create, edit, copy, import, export, and delete workflows | In progress | W7a accepted interactively: the `d` modal, cancellation, deletion, refresh, notification, and focus restoration work as intended. W7b implemented: `c` and `y` open one shared styled form for create and copy, with Name validation, an optional location using the configured default as its placeholder, a tab-reachable folder browser, keyboard/pointer controls, queued Core I/O, reload, selection of the result, and footer reporting. The folder browser is composed from the framework's modal, one-line list, scrolling, and button controls because version 3.9.0 and current upstream provide no ready-made directory picker. The empty registry keeps the focusable retained list mounted so Create remains reachable. The folder browser then became `FolderBrowserDialog`, a reusable component that takes a start path, a title and a confirm label and knows nothing about workspaces: navigation on a `ResourceList` of one-line rows, a parent row named after the folder it leads to, walking up landing on the folder just left, a front-trimmed breadcrumb swapping for an editable path on `Ctrl+L`, `s` or the button confirming the highlighted folder — a native picker's meaning, falling back to the folder being browsed on the parent row, with the resolved path shown beside the button — `Ctrl+Enter` confirming the folder being browsed outright, unpresented because only some terminals report the modifier, `n`/`r`/`d` to create, rename and delete, and one notice line for a failed read, an empty folder or a query with no matches. Delete is recursive with a confirmation naming the folders and files inside, because a portable implementation has no recycle bin; rename and delete are unguarded by design, the registry being equally exposed to any file manager. Ten defects were found and fixed by probes driving a real `TerminalApp`, and three by the developer in a terminal. From the probes: the path field stole initial focus so no list hints were reachable, `Escape` in it closed the whole picker, walking up lost the cursor's place, the count badge counted the parent row, `Ctrl+L` echoed its own character, a wrapped validation message, `Rename`/`Delete` advertised but inert on the parent row, and the browser opening on the parent row. From the developer: `Ctrl+L` did nothing, because `Ctrl`+letter arrives as the letter's C0 control byte and the gesture has to carry it — the probe had been synthesising an event shape no decoder produces; and `:` was offered while browsing, a global command being collected alongside the focus chain rather than from it. That audit also condemned `Ctrl+Enter` for Select, which a plain terminal cannot distinguish from `Enter`, and moved character gestures off the dialog onto the list, where they no longer fire while a text field has focus. Four pre-existing shared bugs came out with them, all fixed: `ResourceFilter` never reported a cleared query because `PromptEditor.Text`'s setter raises no event; `G` jumped to the top of a list in both `ResourceList` and `ScrollableContent` because gesture routing matches characters case-insensitively; and `ResourceRow.Meta` became optional for one-line rows. `ResourceList` proved render-identical for the three-line and two-line shapes by snapshot diff against `HEAD`. Debug, Release and CLI-only builds pass with no warnings; CLI help passes; 25 headless behavior assertions pass. The developer accepted the browser over four rounds of interactive review, which produced the remaining fixes: the `Ctrl+L` control-character gesture, `:` gated out of modals, Copy starting beside its source, the resolved location moved out of the placeholder, and the two confirms split so `s` takes the highlight and `Ctrl+Enter` the folder being browsed. W7b is complete but for a populated create and copy end to end, which has no developer confirmation of its own yet. W7c and W7d have not been started |
 | W8 | Validate resizing, empty/error states, CLI isolation, and Native AOT | Not started | |
 | R1 | Implement Requests screen | Not started | |
 | A1 | Implement Auths screen | Not started | |
@@ -659,12 +764,38 @@ For each Workspaces milestone, run the smallest applicable subset:
 
 - [x] `dotnet build src/Straumr.sln`
 - [x] launch `straumr` and inspect the Workspaces screen interactively
-- [ ] verify resize behavior at narrow and wide terminal sizes
+- [ ] verify resize behavior at narrow and wide terminal sizes (the folder browser
+      trims its height to the viewport on open; a resize while it is open is not handled)
+- [x] verify the folder browser: initial focus, every advertised gesture, walking up
+      landing on the folder just left, filtering and clearing, the path field and its
+      completion, a folder that cannot be read, an empty folder, and a short terminal
+      (headless, on a running `TerminalApp`; pointer double-click activation is inherited
+      from `ResourceList` and was verified interactively in W4)
+- [x] verify every gesture is encoded the way a terminal sends it, not the way a probe
+      finds convenient: plain characters, named keys, and `Ctrl` plus a letter in its
+      control-character form, with both decoder paths measured
+- [x] verify `Ctrl+L` and `s` in a terminal, and that no dialog offers `:` (developer
+      confirmed after the control-character fix)
+- [x] verify the folder browser's create, rename and delete: the prompts and their
+      validation, a delete confirmation naming the contents, cancellation leaving the
+      folder alone, selection after a delete, and the parent and drive rows offering
+      neither (headless, on a running `TerminalApp`)
+- [x] verify create, rename and delete in a terminal (developer accepted the browser's
+      operations; a cancelled and a confirmed delete were not called out separately)
+- [ ] verify a populated create and copy end to end, which is the last W7b behaviour with
+      no developer confirmation of its own
+- [x] verify Create offers the configured default and Copy the folder holding its source,
+      that a blank location submits what the line under the field shows, that a typed one
+      wins, and that a missing default is reported before submission
+- [x] verify `s` returns the highlighted folder, that the parent row falls back to the
+      folder being browsed, that plain `Enter` still descends, and that `Ctrl+Enter`
+      returns the folder being browsed — including create, open, accept in two keys
+      (headless, on a running `TerminalApp`)
 - [x] verify keyboard selection
 - [x] verify pointer selection, including the hover band and the focused/unfocused
       selection band (headless snapshots render the unfocused state because the
       snapshot renderer does not apply `AutoFocus`, so this was verified in a terminal)
-- [ ] verify focus restoration after dialog and external editor use (prompt verified)
+- [ ] verify focus restoration after external editor use (prompt and dialog verified)
 - [x] verify `:` opens the prompt, that one `Escape` or submission closes and clears
       it whatever is on screen, and that focus returns to the region that had it
       (driven through `HandleTerminalEvent` on a running `TerminalApp`; the developer
@@ -775,6 +906,35 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-11 | Filter workspaces by name and configured path, and show matches over total | Both values are visible list identity, while request/auth counts are metadata rather than names. `matches/total` makes an active filter and its effect explicit without adding another label |
 | 2026-09-11 | Split W7 by interaction shape and begin with deletion | Deletion exercises the shared modal, safe default focus, async Core mutation, refresh, notification, and focus restoration before forms, paths, or an external process add more variables |
 | 2026-09-11 | Use the framework `Dialog` and `Button` controls for lifecycle surfaces | They already own modality, focus traversal, pointer input, command discovery, and close-time focus restoration; shared Straumr styles preserve the established visual language without replacing framework behavior |
+| 2026-09-11 | Use one workspace form for Create and Copy | Both operations collect the same name and optional output directory; the Copy variant only adds source context. One retained form keeps focus, validation, buttons, styling, and submission semantics identical |
+| 2026-09-11 | Keep the empty-state `ResourceList` mounted | Create must remain reachable when no workspace exists. The retained list already owns focus, gestures, and empty content, so replacing it with a plain message discarded useful behavior for no visual gain |
+| 2026-09-11 | Suppress the opening `c` or `y` text event in the form's first field | Like `:` and `/`, a printable gesture arrives as separate key and text events. The key opens and focuses the form before the paired text event arrives, so the field must discard that one known echo or begin with an unintended character |
+| 2026-09-11 | Compose a cross-platform directory picker from framework controls | The pinned package and current upstream have no file or folder picker. A native Windows dialog would compromise portability, Native AOT, and dependency isolation; a small `Dialog` plus `ListBox`, `ScrollViewer`, and buttons preserves all three and can be reused by export workflows |
+| 2026-09-11 | Bind Enter submission to form text fields, not the whole dialog | Framework command shortcuts run before focused-control key handling. A dialog-wide Enter command therefore submitted the form while Browse owned focus; scoping it to Name and Location keeps fast field submission while Enter activates whichever button is focused |
+| 2026-09-11 | Build the folder browser on `ResourceList` rather than the framework `ListBox` | The picker was the only list in the app that looked and behaved like a different product: `ListBoxStyle` has no hover state at all, and `j`/`k`, jumps, pointer selection and double-click activation were being rebuilt beside a shared list that already owns them. Single-line rows were the only thing missing, and the Requests screen needs those too, so extending the shared list served two consumers rather than one |
+| 2026-09-11 | Give the folder browser its own `CommandBar` instead of relying on the shell footer | The footer does collect a modal's commands, but it sits at the far edge of the screen from a dialog that covers the middle, and on a short terminal the dialog can reach it. A modal that owns the keyboard should say so where the eye already is. The footer keeps showing the same hints; suppressing it for modals would mean giving every dialog a bar, which reopens two accepted surfaces |
+| 2026-09-11 | Fix the hint bar at three rows | The number of hints changes with focus, so a bar sized to its content grew and shrank as `Tab` moved, and the folder list moved with it. Three rows is what the list-focused set needs at this width; spare rows when fewer hints show cost less than a list that will not hold still |
+| 2026-09-11 | Name the parent row after the folder it leads to | `..` says there is a way up but not where up goes, which is most of what is disorienting about walking a tree blind. The parent's name makes every step legible before it is taken, and `↑` keeps the row from reading as a folder that is actually called that |
+| 2026-09-11 | Land on the folder just left when walking up | Descending and coming back put the cursor on the parent row, so returning through a tree meant finding your place again at every level. Passing the folder being left as the preferred selection is what makes up and down inverse operations |
+| 2026-09-11 | Keep the breadcrumb and the path editor in one cell, swapped on `IsVisible` | They are one thing in two states. The breadcrumb trims from the front so the folder you are in survives a path longer than the dialog, which an editable `TextBox` cannot do; the editor shows the real unshortened path, which is what you have to edit. A `ZStack` is the same idiom the footer uses for its three contents |
+| 2026-09-11 | Trim the dialog to the viewport on `Show`, and fix its height otherwise | A list that grew and shrank with each folder's contents would move the buttons under the pointer, so the height is fixed. But at the full height a short terminal pushed the hints and both buttons off screen with no way to see them. `Visual.App` is null until the dialog is shown, so `Show` is the first point the viewport can be read |
+| 2026-09-11 | Report a failed read and still show the way out of the folder | Committing no rows when enumeration failed left the browser in a folder it could not list, with an error and an empty list. Gathering the parent row separately from the folders means a denied folder still offers the row that walks back out of it |
+| 2026-09-11 | Put a failed read, an empty folder and a query with no matches on one notice line | Only one of them can be true, and a list showing nothing but its parent row otherwise reads as a load that failed. One row under the title also means no state needs a region of its own, and the count badge already carries the number |
+| 2026-09-11 | Confirm with `s`, and keep `Ctrl+Enter` as an unpresented alias | A plain terminal sends `Ctrl+Enter` as a bare `Enter`, so on its own the gesture needed the kitty keyboard protocol to work while being advertised everywhere — and worse than dead, it would descend into the folder instead of choosing it. The advertised key is therefore a plain letter, the most portable input there is. The alias costs a few lines and honours the muscle memory a native picker builds, on the terminals that report the modifier; it is not presented, because a key that does the wrong thing on some terminals should not be promised on all of them |
+| 2026-09-11 | Confirm the highlighted folder rather than the one being browsed | It is what a native picker's button means, and it saves descending into a folder only to choose it — the keystrokes were the developer's reason for asking. The parent row has nothing highlighted to return, so it falls back to the folder being browsed, which doubles as the only way to choose that one. The resolved path sits beside the button so neither case has to be inferred |
+| 2026-09-11 | Keep the target's glyph in a column of its own | The path is trimmed from the front so its tail survives a narrow dialog, and a marker placed at the head of that text is the first thing a leading ellipsis eats. The arrow was gone at the first width that mattered |
+| 2026-09-11 | Split the two confirms: `s` takes the highlight, `Ctrl+Enter` takes the folder being browsed | They are genuinely different questions, and a picker wants both: choose a folder you can see, or walk into one and accept where you stand. Giving the second to `Ctrl+Enter` also puts each answer beside the thing that displays it — the breadcrumb for the folder being browsed, the target line for the highlight — so neither needs explaining. It stays unpresented because a terminal that does not report the modifier sends a bare `Enter` and opens the highlighted row instead |
+| 2026-09-11 | Start Copy at the folder holding the workspace being copied | A copy belongs beside its source far more often than in whatever the global default points at — and that setting is the one most likely to be stale, as the developer's own was, left pointing at a contract-check temp directory while every real workspace lived elsewhere. Core lays workspaces out as `{output}/{name}/{id}.straumr`, so the folder a sibling goes in is one level above the workspace's own |
+| 2026-09-11 | Show the resolved location under the field instead of in the placeholder | A `TextBox` placeholder has no trimming control, so a long path filled the field head-first and cut the tail, which is the half that identifies a folder. The line below is trimmed from the front and reads the same property the submission does, so the field can no longer promise one location and write another. It also lets a missing default say so before the operation fails rather than after |
+| 2026-09-11 | Make a blank location mean the line under the field, not Core's default | Once Copy offers a location of its own, returning null on a blank field would have sent Core to the configured default instead — the field showing one destination and the operation choosing another. The resolved location is the only answer either of them reads now |
+| 2026-09-11 | Bind the resolved line's trimming to what it is showing | A path keeps its tail and a sentence keeps its head, so one trimming mode cannot serve both: the missing-default warning came out as `…red. Choose one, or set config workspace-path.` `TextBlock.Trimming` has a `Func` overload, which is the framework's own hook for it |
+| 2026-09-11 | Scope plain-character gestures to the list, not to the dialog | Routing walks the whole focus chain, so `/` registered on the dialog fired while the path field had focus and opened the filter instead of typing a separator into a path. Characters belong to the control that owns them; `Ctrl`+letter can stay on the dialog because it is not text anyone can type |
+| 2026-09-11 | Gate the app-wide `:` while a modal owns focus | The prompt belongs to the shell and its commands act on the screen behind a dialog, so offering it among a folder browser's navigation keys was noise for something that should not work there either. A global command is collected alongside the focus chain rather than from it, so modality does not suppress it and it has to check for itself |
+| 2026-09-11 | Give the folder browser create, rename and delete, and generalize it as a reusable component | Native pickers all offer them, and the objection that rename or delete could break the registry does not hold: it stores absolute paths and is equally exposed to any file manager, so refusing here protects nothing and only forces a trip outside the app. Keeping the browser ignorant of workspaces is what makes it reusable by import and export later, and means it guards nothing a native picker would not |
+| 2026-09-11 | State what a delete destroys rather than asking a bare yes or no | There is no recycle bin behind `Directory.Delete`, and a portable implementation has none to reach for — `Microsoft.VisualBasic.FileIO` is Windows-only and against the Native AOT and dependency-isolation goals. So the confirmation counts the folders and files inside first, bounded at a thousand entries because the count runs from a keystroke and scale is all it has to convey |
+| 2026-09-11 | Withdraw a row-scoped command where it does not apply, rather than disabling it | `CommandBarStyle` has no disabled treatment, so a command the selected row cannot run rendered identically to one it could. After a milestone spent removing keys that were advertised and dead, leaving three more would have been the same defect by another route |
+| 2026-09-11 | Select the first real folder on open, not the parent row | Opening a folder is a statement of interest in its contents. Landing on the row that walks back out also hid `Rename` and `Delete` from the hint bar until the cursor moved, which is the discoverability problem this milestone exists to fix |
+| 2026-09-11 | Ask for a name in a nested modal rather than inline in the location bar | The bar already does two jobs, and a third would have made one row mean three things. Delete needs a confirmation modal regardless, so the nesting depth was already there to be proved rather than avoided |
 
 ## Change Log
 
@@ -941,3 +1101,130 @@ For each Workspaces milestone, run the smallest applicable subset:
   safe Cancel focus, queued Core mutation, retained-screen reload, nearest-survivor
   selection, request-cache cleanup, and shared footer notification. Interactive
   verification remains before W7b begins.
+- 2026-09-11: The developer accepted W7a. Extracted shared modal construction and
+  implemented W7b Create and Copy forms with shared input styling, local Name
+  validation, optional output location, queued Core operations, retained reload and
+  result selection. Kept the resource list mounted for an empty registry so Create
+  remains reachable. A live terminal probe caught and fixed the opening `c` text echo
+  using the established printable-gesture rule; populated operation verification
+  remains before W7c begins.
+- 2026-09-11: Removed the validation error glyph and added a tab-reachable Browse
+  button to the workspace form. Since the framework has no directory picker, added a
+  shared cross-platform folder dialog with list navigation, Enter to descend,
+  Backspace to go up, and Select Folder to return the absolute path. A live terminal
+  probe caught a dialog-wide Enter command stealing activation from Browse; submission
+  now belongs only to the two text fields, so focused buttons receive Enter normally.
+- 2026-09-11: Reworked the folder browser for discoverability after review found it had
+  no visible shortcuts and nothing that said where navigation was going. A probe driving
+  a real `TerminalApp` on an in-memory backend found the cause of the missing hints
+  first: the path field was taking initial focus from the folder list, so the only
+  commands in the focus chain were the dialog's own and none of the list's. Four more
+  defects came out of the same probe. `Escape` in the path field closed the whole picker
+  because the dialog's command ran before the field's key handling, leaving the field's
+  revert unreachable. Walking up reset the cursor to the parent row. The count badge
+  counted the parent row. `Ctrl+L` typed its own `l` into the field it opened, the
+  printable-gesture echo again. The dialog now opens on the list, carries its own
+  three-row `CommandBar`, names the parent row after the folder it leads to, lands on
+  the folder just left when walking up, swaps its breadcrumb for the editable path only
+  when asked, reports a failed read while still offering the way out, and trims itself
+  to short terminals. It is composed from `ResourceList` now rather than `ListBox`, so
+  hover, the selection bands, jumps and pointer activation come from the shared list;
+  `ResourceRow.Meta` became optional to give it one-line rows, which the Requests screen
+  also needs. Proved render-identical for the existing three-line and two-line list
+  shapes by snapshot diff against `HEAD`.
+- 2026-09-11: Two pre-existing bugs in shared code surfaced while building the above,
+  both affecting the Workspaces screen and neither introduced by it. `ResourceFilter`
+  never reported a cleared query, because `PromptEditor.Text`'s setter raises no
+  document-changed event: `Escape` emptied the editor while the results stayed filtered
+  by the query that was no longer visible, and `:workspace <name>` could not reach a
+  workspace the filter was hiding even though the screen contract says it clears the
+  filter to do exactly that. `Clear` now announces the change itself. And `G` jumped to
+  the top of a list instead of the bottom, because gesture routing matches a character
+  case-insensitively while `KeyGesture` equality does not, so the routed `g` command
+  claimed `G` before `OnKeyDown` could tell them apart; both jump commands now keep
+  their hint and leave the key to `OnKeyDown` through `RouteGesture = false`. The guide
+  had recorded the opposite conclusion about `G`, which held only on a terminal that
+  reports Shift for it. `ScrollableContent` carried the same bug — `G` scrolled the
+  request preview to the top instead of the bottom — and is fixed the same way; its
+  commands were already named `Hint`, which is what `RouteGesture = false` declares.
+- 2026-09-11: The developer reported that `Ctrl+L` did nothing and asked why `:` was
+  offered while browsing folders. Both were real and both came from trusting a probe
+  that fabricated its input. `Ctrl+L` was registered as `KeyGesture('l', Ctrl)`, which
+  matches nothing a terminal sends: `Ctrl` plus a letter arrives as the letter's C0
+  control byte, and the gesture has to carry that character. The probe had been
+  synthesising `Char='l'` plus a `Ctrl` modifier, an event shape no decoder produces,
+  so it confirmed a key that could never work; the lowercase `Ctrl+l` in the hint bar
+  was the visible tell, since the correct form renders as `Ctrl+L`. The developer also
+  warned that keybinds had broken across terminals on a previous framework, so the two
+  encodings were measured rather than assumed: 3.9.0's decoder maps both the raw-byte
+  path and the kitty CSI path to the control character plus `Ctrl`, so one gesture
+  covers Alacritty, xterm, Windows Terminal and kitty alike, and the letter form is
+  registered beside it unpresented in case a host reports the letter separately. That
+  audit also condemned `Ctrl+Enter Select`, which a plain terminal cannot distinguish
+  from `Enter`; it is now `s`. Moving `s` and `/` onto the list rather than the dialog
+  fixed a third defect found while testing the first two: a character gesture on an
+  ancestor fires while a text field has focus, so `/` had been opening the filter
+  instead of reaching the path being typed. The `:` leak was separate — a global
+  command is collected alongside the focus chain rather than from it, so modality never
+  suppressed it — and it is now gated on whether an `IModalVisual` owns focus, which
+  keeps it out of every dialog rather than just this one.
+- 2026-09-11: Generalized the picker into `FolderBrowserDialog` and gave it the create,
+  rename and delete a native picker offers. The developer made the case that refusing
+  them protected nothing, and that is right: the registry stores absolute paths and is
+  equally exposed to any file manager, so the only thing the refusal bought was a trip
+  outside the app. They chose recursive delete with a confirmation naming the contents,
+  and no workspace guard — which is also what keeps the browser reusable by import and
+  export, since it now knows nothing about workspaces and takes only a start path, a
+  title and a confirm label. `TextPromptDialog` was extracted for the one line of text
+  that create and rename both ask for, `n`/`r`/`d` carry them, and the delete
+  confirmation counts folders and files first, bounded at a thousand entries because the
+  count runs from a keystroke. Three defects came out of testing it. The validation
+  message wrapped to two lines, so it now names the actual culprit in one. `Rename` and
+  `Delete` stayed advertised but inert on the parent row, because `CanExecute` alone
+  leaves a hint visible and `CommandBarStyle` has no disabled treatment — they are
+  withdrawn by `IsVisible` now, which is the same defect this milestone spent its time
+  removing. And the browser opened on the parent row, which both buried those two hints
+  and made a poor default; it lands on the first real folder now. Verified on a running
+  `TerminalApp`: 25 assertions over the three operations, their validation and refusal
+  paths, focus returning through three levels of nested modal, nearest-survivor
+  selection after a delete, the guards on the parent and drive rows, and the earlier
+  gesture fixes as regression cover. All thirteen hints still fit the bar's three rows.
+  `ResourceList` re-proved snapshot-identical to `HEAD`; Debug, Release and CLI-only
+  builds pass with no warnings.
+- 2026-09-11: The developer asked for `Ctrl+Enter` back, to choose the highlighted folder
+  without descending into it. The keystroke saving was the point, and the better answer
+  was to change what confirming means rather than to add a key: `s` and the button now
+  return the highlighted folder, as a native picker's button does, falling back to the
+  folder being browsed on the row that walks back out. `Ctrl+Enter` came back beside it
+  as an unpresented alias, which measurement justified rather than ruled out — a terminal
+  reporting the modifier matches it, and one that does not sends a bare `Enter` and
+  descends, so it is honoured where it works and promised nowhere. The resolved path is
+  shown beside the button, since a fallback nobody can see is a fallback nobody can
+  trust, and its arrow needed a column of its own: the path is trimmed from the front, so
+  a leading marker was the first thing the ellipsis ate.
+- 2026-09-11: The developer asked for `Ctrl+Enter` to confirm the folder being browsed
+  rather than the highlighted one, so that creating a folder, opening it and accepting it
+  is two keys. They are two different questions and the browser now answers both: `s` and
+  the button take the highlight, `Ctrl+Enter` takes the folder being stood in. Each is
+  displayed by the surface next to it — the breadcrumb for one, the target line for the
+  other — so the split needs no explaining. Worth noting for the terminals that do not
+  report the modifier: `Ctrl+Enter` reaches them as a bare `Enter` and opens the
+  highlighted row, which is now a different action rather than merely a different
+  destination, and is why it stays unpresented. `s` on a freshly created folder reaches
+  the same result in one key, since creating selects what it created.
+- 2026-09-11: The developer showed the browser opening at a `.tmp/claude-cli-contract-check`
+  directory and asked for the start path to come from context. The path itself was not a
+  bug — the browser was faithfully opening `DefaultWorkspacePath`, which their
+  `options.json` had left pointing at a contract-check run while every real workspace sat
+  elsewhere. That is the argument for the change rather than against it: a global setting
+  goes stale, and context does not. Copy now starts at the folder holding the workspace
+  being copied, which is where a sibling of it would be written; Create still offers the
+  configured default. Two problems surfaced while wiring it. The location was being
+  advertised through the `TextBox` placeholder, which has no trimming control and so
+  showed the head of a long path and cut the tail — the same defect as the browser's
+  breadcrumb, in the one place it had not been fixed; the resolved location now has its
+  own line under the field, trimmed from the front, and a missing default says so there
+  rather than failing on submission. And a blank field still meant "null", which after
+  this change would have sent Core to the global default while the form displayed the
+  source's folder, so both now read one property. Verified by nine assertions over both
+  operations, a typed override, a blank submission and an unconfigured default.

@@ -67,7 +67,7 @@ internal sealed class ResourceFilter
         _editor.AcceptedRouted += (_, _) => FocusResults();
         _editor.CanceledRouted += (_, _) =>
         {
-            _editor.Text = string.Empty;
+            Clear();
             FocusResults();
         };
     }
@@ -76,7 +76,17 @@ internal sealed class ResourceFilter
 
     public string Text => _editor.Text ?? string.Empty;
 
-    public void Clear() => _editor.Text = string.Empty;
+    /// <remarks>
+    /// <see cref="PromptEditor.Text"/>'s setter does not raise <c>OnDocumentChanged</c> — only a user
+    /// edit does — so clearing has to report itself. Without this the query text vanished from the
+    /// editor while the results stayed filtered by it, both on <c>Escape</c> and wherever a screen
+    /// clears the filter to reach a resource the query was hiding.
+    /// </remarks>
+    public void Clear()
+    {
+        _editor.Text = string.Empty;
+        _editor.ReportTextChanged();
+    }
 
     public void AttachCommands(Visual target)
     {
@@ -135,6 +145,8 @@ internal sealed class ResourceFilter
         public char? PendingEcho { get; set; }
 
         public Action<string>? TextChanged { get; set; }
+
+        public void ReportTextChanged() => TextChanged?.Invoke(Text ?? string.Empty);
 
         public void Activate()
         {

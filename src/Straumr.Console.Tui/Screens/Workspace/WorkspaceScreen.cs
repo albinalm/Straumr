@@ -40,6 +40,8 @@ public sealed class WorkspaceScreen
     private Guid? _displayedRequestWorkspaceId;
     private Guid? _pendingActivationId;
     private Guid? _pendingDeleteId;
+    private WorkspaceFormSubmission? _pendingCreate;
+    private WorkspaceCopySubmission? _pendingCopy;
 
     public WorkspaceScreen(
         IStraumrOptionsService optionsService,
@@ -63,6 +65,25 @@ public sealed class WorkspaceScreen
             _pendingActivationId = _visibleItems[index].Workspace.Id;
             _activationErrorMessage.Value = null;
         };
+        _workspaceList.AddCommand(new Command
+        {
+            Id = "Workspace.Create",
+            LabelMarkup = "Create",
+            Gesture = new KeyGesture('c'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => ShowCreateDialog()
+        });
+        _workspaceList.AddCommand(new Command
+        {
+            Id = "Workspace.Copy",
+            LabelMarkup = "Copy",
+            Gesture = new KeyGesture('y'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            CanExecute = _ => SelectedItem is not null,
+            Execute = _ => ShowCopyDialog()
+        });
         _workspaceList.AddCommand(new Command
         {
             Id = "Workspace.Delete",
@@ -113,6 +134,8 @@ public sealed class WorkspaceScreen
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
         await DeletePendingWorkspaceAsync(cancellationToken);
+        await CreatePendingWorkspaceAsync(cancellationToken);
+        await CopyPendingWorkspaceAsync(cancellationToken);
         await ActivatePendingWorkspaceAsync(cancellationToken);
 
         WorkspaceScreenItem? item = SelectedItem;
@@ -220,8 +243,7 @@ public sealed class WorkspaceScreen
                         new Spinner(),
                         new TextBlock("Loading workspaces...").Style(StraumrStyles.MutedText))
                     .Spacing(1)),
-            WorkspaceLoadState.Empty => ResourceScreenLayout.Message(
-                new TextBlock("No workspaces found.").Style(StraumrStyles.MutedText)),
+            WorkspaceLoadState.Empty => _workspaceListView,
             WorkspaceLoadState.Error => ResourceScreenLayout.Message(
                 new TextBlock(() => $"Failed to load workspaces: {_errorMessage.Value}")
                     .Style(StraumrStyles.MutedText)
@@ -345,6 +367,105 @@ public sealed class WorkspaceScreen
             item.Workspace.Name,
             () => _pendingDeleteId = item.Workspace.Id)
             .Show();
+    }
+
+    private void ShowCreateDialog() =>
+        new WorkspaceFormDialog(
+            "Create workspace",
+            "Create",
+            null,
+            _optionsService.Options.DefaultWorkspacePath,
+            'c',
+            submission => _pendingCreate = submission)
+        .Show();
+
+    private void ShowCopyDialog()
+    {
+        WorkspaceScreenItem? item = SelectedItem;
+        if (item is null)
+            return;
+
+        // A copy belongs beside what it was copied from far more often than in whatever the global
+        // default currently points at, which is also the setting most likely to have gone stale.
+        new WorkspaceFormDialog(
+            "Copy workspace",
+            "Copy",
+            item.Workspace.Name,
+            item.ContainingDirectory ?? _optionsService.Options.DefaultWorkspacePath,
+            'y',
+            submission => _pendingCopy = new WorkspaceCopySubmission(
+                item.Workspace.Id,
+                submission))
+            .Show();
+    }
+
+    private async Task CreatePendingWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingCreate is not { } submission)
+            return;
+
+        _pendingCreate = null;
+        try
+        {
+            var workspace = new StraumrWorkspace { Name = submission.Name };
+            await _workspaceService.CreateAsync(
+                workspace,
+                submission.OutputDirectory,
+                cancellationToken);
+            await ReloadAndSelectAsync(workspace.Id, cancellationToken);
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Ok($"created workspace {workspace.Name}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Failed($"create failed: {exception.Message}"));
+        }
+    }
+
+    private async Task CopyPendingWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingCopy is not { } pending)
+            return;
+
+        _pendingCopy = null;
+        try
+        {
+            StraumrWorkspaceEntry entry = await _workspaceService.CopyAsync(
+                pending.SourceId,
+                pending.Submission.Name,
+                pending.Submission.OutputDirectory,
+                cancellationToken);
+            await ReloadAndSelectAsync(entry.Id, cancellationToken);
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Ok($"copied workspace {pending.Submission.Name}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
+        {
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Failed($"copy failed: {exception.Message}"));
+        }
+    }
+
+    private async Task ReloadAndSelectAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        if (_filter.Text.Length > 0)
+            _filter.Clear();
+
+        await LoadAsync(cancellationToken);
+        int index = _visibleItems.FindIndex(item => item.Workspace.Id == workspaceId);
+        if (index >= 0)
+            _selectedIndex.Value = index;
     }
 
     private async Task DeletePendingWorkspaceAsync(CancellationToken cancellationToken)
@@ -534,7 +655,9 @@ public sealed class WorkspaceScreen
             : $"{_visibleWorkspaceCount.Value}/{_workspaceCount.Value}";
 
     private string NoMatchesMessage() =>
-        $"No workspaces match {_filterText.Value.Trim()}.";
+        _filterText.Value.Trim().Length == 0
+            ? "No workspaces found."
+            : $"No workspaces match {_filterText.Value.Trim()}.";
 
     private void ShowRequests(IReadOnlyList<StraumrRequest> requests)
     {
@@ -579,4 +702,8 @@ public sealed class WorkspaceScreen
         Empty,
         Error
     }
+
+    private sealed record WorkspaceCopySubmission(
+        Guid SourceId,
+        WorkspaceFormSubmission Submission);
 }

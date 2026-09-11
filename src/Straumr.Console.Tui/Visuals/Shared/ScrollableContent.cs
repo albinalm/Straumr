@@ -156,6 +156,13 @@ public sealed partial class ScrollableContent : Visual, IScrollable
         _scroll.SetOffset(0, ScrollOffset);
     }
 
+    /// <remarks>
+    /// These advertise their keys and nothing more, which is what the name means and what
+    /// <c>RouteGesture = false</c> declares. Routing them would also break them: gesture matching
+    /// is case-insensitive on the character while <c>KeyGesture</c> equality is not, so a routed
+    /// <c>g</c> claimed <c>G</c> too and scrolling to the bottom went to the top instead.
+    /// <see cref="OnKeyDown"/> tells the two apart by <c>e.Char</c>.
+    /// </remarks>
     private static Command Hint(
         string id,
         string label,
@@ -169,6 +176,7 @@ public sealed partial class ScrollableContent : Visual, IScrollable
             Gesture = new KeyGesture(gesture),
             Importance = importance,
             Presentation = CommandPresentation.CommandBar,
+            RouteGesture = false,
             Execute = _ => execute()
         };
 }

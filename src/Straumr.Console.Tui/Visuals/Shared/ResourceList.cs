@@ -18,7 +18,12 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 /// </summary>
 public sealed partial class ResourceList : Visual, IScrollable
 {
-    private const int ItemSpacing = 1;
+    /// <summary>
+    /// Blank rows kept between multiline items so their lines group visually. Single-line rows get
+    /// none: a blank row between every name would double the list's height and halve how much of it
+    /// fits, and one-line items need no separator to be told apart.
+    /// </summary>
+    private const int MultilineItemSpacing = 1;
 
     /// <summary>Blank cells kept between the panel edges and the selection band.</summary>
     private const int PanelInset = 1;
@@ -50,9 +55,17 @@ public sealed partial class ResourceList : Visual, IScrollable
     private readonly ScrollModel _scroll;
     private readonly Visual? _emptyContent;
     private int _itemHeight;
+    private int _itemSpacing;
     private int _itemStride;
 
-    public ResourceList(IEnumerable<ResourceRow> rows, Visual? emptyContent = null)
+    /// <param name="activateLabel">
+    /// How the command bar names <c>Enter</c>. It is the one contextual command whose meaning changes
+    /// per list: activating a workspace is "Use", opening a folder is "Open".
+    /// </param>
+    public ResourceList(
+        IEnumerable<ResourceRow> rows,
+        Visual? emptyContent = null,
+        string activateLabel = "Use")
     {
         _emptyContent = emptyContent;
         _scroll = new ScrollModel(this);
@@ -86,13 +99,18 @@ public sealed partial class ResourceList : Visual, IScrollable
         AddCommand(new Command
         {
             Id = "ResourceList.Activate",
-            LabelMarkup = "Use",
+            LabelMarkup = activateLabel,
             Gesture = new KeyGesture(TerminalKey.Enter),
             Importance = CommandImportance.Primary,
             Presentation = CommandPresentation.CommandBar,
             CanExecute = _ => SelectedIndex >= 0,
             Execute = _ => ActivateSelection()
         });
+        // These two only advertise their keys. Gesture routing matches a character case-insensitively
+        // even though KeyGesture equality does not, so a routed 'g' also claimed 'G' and jumping to
+        // the bottom of a list went to the top instead. RouteGesture: false is the framework's own
+        // hook for a control that wants the hint but handles the key itself, and OnKeyDown below
+        // already distinguishes the two.
         AddCommand(new Command
         {
             Id = "ResourceList.First",
@@ -100,6 +118,7 @@ public sealed partial class ResourceList : Visual, IScrollable
             Gesture = new KeyGesture('g'),
             Importance = CommandImportance.Secondary,
             Presentation = CommandPresentation.CommandBar,
+            RouteGesture = false,
             Execute = _ => SelectedIndex = 0
         });
         AddCommand(new Command
@@ -109,6 +128,7 @@ public sealed partial class ResourceList : Visual, IScrollable
             Gesture = new KeyGesture('G'),
             Importance = CommandImportance.Secondary,
             Presentation = CommandPresentation.CommandBar,
+            RouteGesture = false,
             Execute = _ => SelectedIndex = Count - 1
         });
 
@@ -134,10 +154,15 @@ public sealed partial class ResourceList : Visual, IScrollable
             DetachChild(item);
 
         _rows = rows.ToArray();
-        _itemHeight = _rows.Any(row => row.Detail is not null) ? 3 : 2;
+        _itemHeight = _rows.Any(row => row.Detail is not null)
+            ? 3
+            : _rows.Any(row => row.Meta is not null)
+                ? 2
+                : 1;
         _textInset = PanelInset + MarkerWidth +
             (_rows.Any(row => row.IsCurrent) ? CurrentMarkerWidth : 0);
-        _itemStride = _itemHeight + ItemSpacing;
+        _itemSpacing = _itemHeight == 1 ? 0 : MultilineItemSpacing;
+        _itemStride = _itemHeight + _itemSpacing;
         _items = _rows.Select(BuildItem).ToArray();
 
         foreach (Visual item in _items)
@@ -439,7 +464,7 @@ public sealed partial class ResourceList : Visual, IScrollable
     private int ContentHeight =>
         _items.Count == 0
             ? 0
-            : _items.Count * _itemStride - ItemSpacing;
+            : _items.Count * _itemStride - _itemSpacing;
 
     /// <summary>
     /// Row styles are resolved per frame from <see cref="SelectedIndex"/> so the selected row reads
@@ -453,16 +478,20 @@ public sealed partial class ResourceList : Visual, IScrollable
                     () => index == SelectedIndex
                         ? StraumrStyles.BrightText
                         : StraumrStyles.PrimaryText,
-                    TextTrimming.EndEllipsis),
-                Line(
-                    row.Meta,
-                    () => row.HasContent
-                        ? StraumrStyles.AmberText
-                        : index == SelectedIndex
-                            ? StraumrStyles.MutedBrightText
-                            : StraumrStyles.MutedText,
                     TextTrimming.EndEllipsis))
             .HorizontalAlignment(Align.Stretch);
+
+        if (row.Meta is not null)
+        {
+            stack.Add(Line(
+                row.Meta,
+                () => row.HasContent
+                    ? StraumrStyles.AmberText
+                    : index == SelectedIndex
+                        ? StraumrStyles.MutedBrightText
+                        : StraumrStyles.MutedText,
+                TextTrimming.EndEllipsis));
+        }
 
         if (row.Detail is not null)
         {

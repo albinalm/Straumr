@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Formatting;
 using Straumr.Core.Models;
 
 namespace Straumr.Console.Tui.Screens.Workspace;
@@ -13,16 +14,16 @@ public sealed record WorkspaceScreenItem(
 {
     public string ShortId => Workspace.Id.ToString("N")[..8];
 
-    public string DisplayPath => Shorten(Entry.Path);
+    public string DisplayPath => PathFormatting.Display(Entry.Path);
 
     public string DisplayDirectory =>
-        Shorten(Path.GetDirectoryName(Entry.Path) ?? Entry.Path);
+        PathFormatting.Display(Path.GetDirectoryName(Entry.Path) ?? Entry.Path);
 
-    private static string Shorten(string path)
-    {
-        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return home.Length > 0 && path.StartsWith(home, StringComparison.OrdinalIgnoreCase)
-            ? $"~{path[home.Length..]}"
-            : path;
-    }
+    /// <summary>
+    /// The folder the workspace's own folder sits in, which is the output directory Core composes a
+    /// workspace path from: it lays them out as <c>{output}/{name}/{id}.straumr</c>. So this is where
+    /// a sibling of this workspace would be written, one level above <see cref="DisplayDirectory"/>.
+    /// </summary>
+    public string? ContainingDirectory =>
+        Path.GetDirectoryName(Path.GetDirectoryName(Entry.Path));
 }

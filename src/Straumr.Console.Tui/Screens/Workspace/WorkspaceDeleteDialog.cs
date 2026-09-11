@@ -1,10 +1,6 @@
 using Straumr.Console.Tui.Visuals.Shared;
-using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
-using XenoAtom.Terminal.UI.Geometry;
-using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Screens.Workspace;
 
@@ -38,26 +34,10 @@ internal sealed class WorkspaceDeleteDialog
             .Spacing(1)
             .HorizontalAlignment(Align.Stretch);
 
-        _dialog = new Dialog(
+        _dialog = StraumrDialog.Create(
             new TextBlock("Delete workspace").Style(StraumrStyles.RedText),
-            content)
-        {
-            Width = 58,
-            Padding = new Thickness(2, 1, 2, 1),
-            IsModal = true,
-            IsDraggable = false,
-            IsResizable = false
-        };
-        _dialog.SetStyle(StraumrStyles.Dialog);
-        _dialog.AddCommand(new Command
-        {
-            Id = "WorkspaceDeleteDialog.Cancel",
-            LabelMarkup = "Cancel",
-            Gesture = new KeyGesture(TerminalKey.Escape),
-            Importance = CommandImportance.Primary,
-            Presentation = CommandPresentation.CommandBar,
-            Execute = _ => _dialog.Close()
-        });
+            content,
+            58);
 
         cancelButton.Click(() => _dialog.Close());
         deleteButton.Click(() =>
