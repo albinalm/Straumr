@@ -30,6 +30,13 @@ public sealed class StraumrTuiApp
     private TuiExternalAction? _pendingExternalAction;
     private Visual? _focusOnAttach;
 
+    /// <summary>
+    /// Cancelled by the Ctrl+C global command. Linked into every <see cref="UpdateAsync"/> call so
+    /// Ctrl+C can interrupt an in-flight load or operation the moment it is pressed, not merely once
+    /// the current one happens to finish.
+    /// </summary>
+    private readonly CancellationTokenSource _interruptSource = new();
+
     public StraumrTuiApp(WorkspaceScreen workspaceScreen)
     {
         _workspaceScreen = workspaceScreen;
@@ -94,10 +101,14 @@ public sealed class StraumrTuiApp
     {
         AttachTo(app);
 
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, _interruptSource.Token);
+        CancellationToken token = linked.Token;
+
         if (!_initialized)
         {
             _initialized = true;
-            await _workspaceScreen.LoadAsync(cancellationToken);
+            await _workspaceScreen.LoadAsync(token);
             SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
             return;
         }
@@ -107,8 +118,8 @@ public sealed class StraumrTuiApp
 
         _prompt.CloseIfFocusLost();
         ExpireMessage();
-        await RunSubmittedCommandsAsync(cancellationToken);
-        await _workspaceScreen.UpdateAsync(cancellationToken);
+        await RunSubmittedCommandsAsync(token);
+        await _workspaceScreen.UpdateAsync(token);
         SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
     }
 
@@ -122,6 +133,30 @@ public sealed class StraumrTuiApp
         _activeWorkspaceName.Value = name;
 
     public void RequestExit() => ExitRequested = true;
+
+    /// <remarks>
+    /// Ctrl+C is the terminal's universal "stop this" convention, distinct from the deliberate
+    /// <c>:q</c> vocabulary the rest of the app uses to exit. Leaving it unclaimed meant the
+    /// keystroke simply vanished: nothing exited, nothing cancelled, no feedback at all. It is a
+    /// global command rather than routed through a screen so it still works with a dialog focused,
+    /// which is exactly when a user reaches for it.
+    /// </remarks>
+    private Command BuildInterruptCommand() =>
+        new()
+        {
+            Id = "Straumr.Interrupt",
+            LabelMarkup = "Cancel",
+            Gesture = new KeyGesture((char)('C' & 0x1F), TerminalModifiers.Ctrl),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.None,
+            Execute = _ => RequestInterrupt()
+        };
+
+    private void RequestInterrupt()
+    {
+        _interruptSource.Cancel();
+        RequestExit();
+    }
 
     public async Task RunPendingExternalActionAsync(CancellationToken cancellationToken)
     {
@@ -143,6 +178,7 @@ public sealed class StraumrTuiApp
         app.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId);
         foreach (Command command in BuildOpenPromptCommands())
             app.AddGlobalCommand(command);
+        app.AddGlobalCommand(BuildInterruptCommand());
 
         if (_focusOnAttach is not { } focusTarget)
             return;

@@ -30,25 +30,34 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     {
         var app = serviceProvider.GetRequiredService<StraumrTuiApp>();
 
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            TerminalInstance terminal = await Terminal.RunAsync(
-                app.Root,
-                async context =>
-                {
-                    await app.UpdateAsync(context.App, cancellationToken);
-                    return app.ExitRequested || app.HasPendingExternalAction
-                        ? TerminalLoopResult.Stop
-                        : TerminalLoopResult.Continue;
-                },
-                new TerminalRunOptions(),
-                cancellationToken);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                TerminalInstance terminal = await Terminal.RunAsync(
+                    app.Root,
+                    async context =>
+                    {
+                        await app.UpdateAsync(context.App, cancellationToken);
+                        return app.ExitRequested || app.HasPendingExternalAction
+                            ? TerminalLoopResult.Stop
+                            : TerminalLoopResult.Continue;
+                    },
+                    new TerminalRunOptions(),
+                    cancellationToken);
 
-            if (app.ExitRequested || !app.HasPendingExternalAction)
-                break;
+                if (app.ExitRequested || !app.HasPendingExternalAction)
+                    break;
 
-            await terminal.StopInputAsync(cancellationToken);
-            await app.RunPendingExternalActionAsync(cancellationToken);
+                await terminal.StopInputAsync(cancellationToken);
+                await app.RunPendingExternalActionAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (app.ExitRequested)
+        {
+            // Ctrl+C cancels StraumrTuiApp's own interrupt source to unwind an in-flight load or
+            // operation immediately rather than waiting for it to finish on its own, which surfaces
+            // here as a cancellation of whatever Core call was in flight when it was pressed.
         }
 
         return 0;

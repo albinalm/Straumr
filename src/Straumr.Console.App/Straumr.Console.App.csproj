@@ -24,6 +24,16 @@
         <DefineConstants>$(DefineConstants);INCLUDE_TUI</DefineConstants>
     </PropertyGroup>
 
+    <!--
+        A CLI-only build and a full build previously shared bin/obj under the same configuration, so an
+        incremental build after switching IncludeTui could leave stale outputs from the other variant in
+        place instead of reliably adding or removing the TUI assembly. The two variants now build to
+        separate trees so alternating between them is always exact without requiring a clean.
+    -->
+    <PropertyGroup Condition="'$(IncludeTui)' != 'true'">
+        <BaseOutputPath>bin\cli-only\</BaseOutputPath>
+    </PropertyGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\Straumr.Console.Cli\Straumr.Console.Cli.csproj" />
         <ProjectReference Include="..\Straumr.Console.Tui\Straumr.Console.Tui.csproj"

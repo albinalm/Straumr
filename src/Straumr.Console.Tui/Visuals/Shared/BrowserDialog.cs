@@ -251,7 +251,7 @@ internal abstract class BrowserDialog
             new TextBlock(title).Style(StraumrStyles.AccentText),
             content,
             DialogWidth);
-        _dialog.Height = DialogHeight;
+        _dialog.Height(ComputeHeight);
 
         // The shared Escape closes the dialog, which is wrong while a text field owns the key and
         // wrong to advertise beside that field's own Escape. Both editors already win the gesture by
@@ -276,26 +276,26 @@ internal abstract class BrowserDialog
 
     protected virtual bool IncludeFile(string path) => false;
 
-    /// <remarks>
-    /// The height is fixed rather than sized to content, because a folder list that grew and shrank
-    /// with each folder's contents would move the buttons under the pointer. It is trimmed to the
-    /// viewport here instead: the dialog keeps its own width, but at the full height a short terminal
-    /// pushed the hints and both buttons off screen. <c>Visual.App</c> is null until the dialog is
-    /// shown, so this is the first point the viewport can be read at all.
-    /// </remarks>
     public void Show()
     {
         LoadDirectory(_currentPath.Value);
         _dialog.Show();
-
-        if (_dialog.App is { } app)
-        {
-            _dialog.Height = Math.Clamp(
-                app.Terminal.Size.Rows - ViewportMargin,
-                MinimumDialogHeight,
-                DialogHeight);
-        }
     }
+
+    /// <remarks>
+    /// The height is fixed rather than sized to content, because a folder list that grew and shrank
+    /// with each folder's contents would move the buttons under the pointer. It is clamped to the
+    /// viewport instead: the dialog keeps its own width, but at the full height a short terminal
+    /// pushes the hints and both buttons off screen. This runs on every dynamic update pass rather
+    /// than once on <see cref="Show"/>, so a resize while the dialog is open reclamps it instead of
+    /// leaving it sized for the terminal it was opened in. <c>Visual.App</c> is null until the dialog
+    /// is shown, so this is the earliest point the viewport can be read at all; before that it falls
+    /// back to the unclamped height.
+    /// </remarks>
+    private int? ComputeHeight() =>
+        _dialog.App is { } app
+            ? Math.Clamp(app.Terminal.Size.Rows - ViewportMargin, MinimumDialogHeight, DialogHeight)
+            : DialogHeight;
 
     /// <remarks>
     /// A terminal sends <c>Ctrl</c> and a letter as the single C0 byte the letter maps to, so the
