@@ -27,12 +27,15 @@ public sealed class StraumrTuiApp
     private DateTimeOffset _messageExpiry;
     private bool _initialized;
     private TerminalApp? _app;
+    private TuiExternalAction? _pendingExternalAction;
+    private Visual? _focusOnAttach;
 
     public StraumrTuiApp(WorkspaceScreen workspaceScreen)
     {
         _workspaceScreen = workspaceScreen;
         _screenContent = new State<Visual>(workspaceScreen.Root);
         workspaceScreen.NotificationRequested += Notify;
+        workspaceScreen.ExternalActionRequested += RequestExternalAction;
 
         _commands.Add(new TuiCommand("quit", QuitAsync) { Aliases = ["q", "exit"] });
         foreach (TuiCommand command in workspaceScreen.PromptCommands)
@@ -76,26 +79,31 @@ public sealed class StraumrTuiApp
             .VerticalAlignment(Align.Stretch);
         window.SetStyle(StraumrStyles.WindowGroup);
 
-        Root = window;
+        // An explicit window layer remains parentless after a run, allowing the retained tree to be
+        // attached to a fresh TerminalApp after an external editor releases the terminal.
+        Root = new WindowLayer(window);
     }
 
     public Visual Root { get; }
 
     public bool ExitRequested { get; private set; }
 
+    public bool HasPendingExternalAction => _pendingExternalAction is not null;
+
     public async Task UpdateAsync(TerminalApp app, CancellationToken cancellationToken)
     {
+        AttachTo(app);
+
         if (!_initialized)
         {
             _initialized = true;
-            _app = app;
-            app.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId);
-            foreach (Command command in BuildOpenPromptCommands())
-                app.AddGlobalCommand(command);
             await _workspaceScreen.LoadAsync(cancellationToken);
             SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
             return;
         }
+
+        if (HasPendingExternalAction)
+            return;
 
         _prompt.CloseIfFocusLost();
         ExpireMessage();
@@ -114,6 +122,39 @@ public sealed class StraumrTuiApp
         _activeWorkspaceName.Value = name;
 
     public void RequestExit() => ExitRequested = true;
+
+    public async Task RunPendingExternalActionAsync(CancellationToken cancellationToken)
+    {
+        TuiExternalAction? action = _pendingExternalAction;
+        _pendingExternalAction = null;
+        if (action is null)
+            return;
+
+        Notify(await action.ExecuteAsync(cancellationToken));
+        _focusOnAttach = action.FocusTarget;
+    }
+
+    private void AttachTo(TerminalApp app)
+    {
+        if (ReferenceEquals(_app, app))
+            return;
+
+        _app = app;
+        app.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId);
+        foreach (Command command in BuildOpenPromptCommands())
+            app.AddGlobalCommand(command);
+
+        if (_focusOnAttach is not { } focusTarget)
+            return;
+
+        _focusOnAttach = null;
+        app.Focus(focusTarget);
+    }
+
+    private void RequestExternalAction(TuiExternalAction action)
+    {
+        _pendingExternalAction ??= action;
+    }
 
     private Visual BuildMessageLine() =>
         new TextBlock(() => _message.Value.Message ?? string.Empty)

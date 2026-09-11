@@ -44,6 +44,17 @@ internal static class FieldList
             .Trimming(TextTrimming.EndEllipsis)
             .HorizontalAlignment(Align.Stretch);
 
+    /// <summary>
+    /// A value describing what is wrong with the resource, in the palette's red so the detail pane
+    /// carries the same warning the list row does.
+    /// </summary>
+    public static Visual Problem(string value) =>
+        new TextBlock(value)
+            .Style(StraumrStyles.RedText)
+            .Wrap(true)
+            .Trimming(TextTrimming.EndEllipsis)
+            .HorizontalAlignment(Align.Stretch);
+
     /// <summary>Shares the resource list's semantics: a populated count is amber, an empty one inert.</summary>
     public static Visual Count(int count) =>
         new TextBlock(count.ToString())

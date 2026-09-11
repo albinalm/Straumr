@@ -20,6 +20,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddStraumrCore();
+        services.TryAddSingleton<ExternalEditor>();
         services.TryAddSingleton<WorkspaceScreen>();
         services.TryAddSingleton<StraumrTuiApp>();
     }
@@ -29,17 +30,26 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     {
         var app = serviceProvider.GetRequiredService<StraumrTuiApp>();
 
-        await Terminal.RunAsync(
-            app.Root,
-            async context =>
-            {
-                await app.UpdateAsync(context.App, cancellationToken);
-                return app.ExitRequested
-                    ? TerminalLoopResult.Stop
-                    : TerminalLoopResult.Continue;
-            },
-            new TerminalRunOptions(),
-            cancellationToken);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            TerminalInstance terminal = await Terminal.RunAsync(
+                app.Root,
+                async context =>
+                {
+                    await app.UpdateAsync(context.App, cancellationToken);
+                    return app.ExitRequested || app.HasPendingExternalAction
+                        ? TerminalLoopResult.Stop
+                        : TerminalLoopResult.Continue;
+                },
+                new TerminalRunOptions(),
+                cancellationToken);
+
+            if (app.ExitRequested || !app.HasPendingExternalAction)
+                break;
+
+            await terminal.StopInputAsync(cancellationToken);
+            await app.RunPendingExternalActionAsync(cancellationToken);
+        }
 
         return 0;
     }

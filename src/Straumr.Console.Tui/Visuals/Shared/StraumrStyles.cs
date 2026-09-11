@@ -36,6 +36,12 @@ internal static class StraumrStyles
     public static readonly Color Amber = Hex(0xFFC857);
     public static readonly Color Green = Hex(0x3DDC97);
     public static readonly Color Red = Hex(0xFF6B7A);
+
+    /// <summary>
+    /// Red for text sitting on the selection band, where the base red falls under 4.5:1. It plays the
+    /// part <see cref="TextBright"/> plays for a selected row's ordinary text.
+    /// </summary>
+    public static readonly Color RedBright = Hex(0xFF9BA6);
     public static readonly Color Purple = Hex(0xB79CFF);
 
     public static readonly TextBlockStyle PrimaryText =
@@ -86,6 +92,9 @@ internal static class StraumrStyles
 
     public static readonly TextBlockStyle RedText =
         PrimaryText with { Foreground = Red };
+
+    public static readonly TextBlockStyle RedBrightText =
+        PrimaryText with { Foreground = RedBright };
 
     public static readonly TextBlockStyle PurpleText =
         PrimaryText with { Foreground = Purple };

@@ -475,9 +475,13 @@ public sealed partial class ResourceList : Visual, IScrollable
         var stack = new VStack(
                 Line(
                     row.Name,
-                    () => index == SelectedIndex
-                        ? StraumrStyles.BrightText
-                        : StraumrStyles.PrimaryText,
+                    () => row.IsBroken
+                        ? index == SelectedIndex
+                            ? StraumrStyles.RedBrightText
+                            : StraumrStyles.RedText
+                        : index == SelectedIndex
+                            ? StraumrStyles.BrightText
+                            : StraumrStyles.PrimaryText,
                     TextTrimming.EndEllipsis))
             .HorizontalAlignment(Align.Stretch);
 

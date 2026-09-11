@@ -2,6 +2,8 @@ using System.Text.Json;
 using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Visuals.Shared;
+using Straumr.Core.Configuration;
+using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
@@ -18,6 +20,7 @@ public sealed class WorkspaceScreen
     private readonly IStraumrOptionsService _optionsService;
     private readonly IStraumrWorkspaceService _workspaceService;
     private readonly IStraumrRequestService _requestService;
+    private readonly ExternalEditor _externalEditor;
     private readonly State<WorkspaceLoadState> _loadState = new(WorkspaceLoadState.Loading);
     private readonly State<RequestPreviewLoadState> _requestLoadState = new(RequestPreviewLoadState.Idle);
     private readonly State<int> _workspaceCount = new(0);
@@ -48,11 +51,13 @@ public sealed class WorkspaceScreen
     public WorkspaceScreen(
         IStraumrOptionsService optionsService,
         IStraumrWorkspaceService workspaceService,
-        IStraumrRequestService requestService)
+        IStraumrRequestService requestService,
+        ExternalEditor externalEditor)
     {
         _optionsService = optionsService;
         _workspaceService = workspaceService;
         _requestService = requestService;
+        _externalEditor = externalEditor;
 
         _workspaceList = new ResourceList(
             [],
@@ -64,7 +69,7 @@ public sealed class WorkspaceScreen
         _workspaceList.BindSelectedIndex(_selectedIndex);
         _workspaceList.ItemActivated += index =>
         {
-            _pendingActivationId = _visibleItems[index].Workspace.Id;
+            _pendingActivationId = _visibleItems[index].Id;
             _activationErrorMessage.Value = null;
         };
         _workspaceList.AddCommand(new Command
@@ -78,12 +83,22 @@ public sealed class WorkspaceScreen
         });
         _workspaceList.AddCommand(new Command
         {
+            Id = "Workspace.Edit",
+            LabelMarkup = "Edit",
+            Gesture = new KeyGesture('e'),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            CanExecute = _ => SelectedItem is not null,
+            Execute = _ => RequestEdit()
+        });
+        _workspaceList.AddCommand(new Command
+        {
             Id = "Workspace.Copy",
             LabelMarkup = "Copy",
             Gesture = new KeyGesture('y'),
             Importance = CommandImportance.Secondary,
             Presentation = CommandPresentation.CommandBar,
-            CanExecute = _ => SelectedItem is not null,
+            CanExecute = _ => SelectedItem is { IsCorrupt: false },
             Execute = _ => ShowCopyDialog()
         });
         _workspaceList.AddCommand(new Command
@@ -112,7 +127,7 @@ public sealed class WorkspaceScreen
             Gesture = new KeyGesture('x'),
             Importance = CommandImportance.Secondary,
             Presentation = CommandPresentation.CommandBar,
-            CanExecute = _ => SelectedItem is not null,
+            CanExecute = _ => SelectedItem is { IsCorrupt: false },
             Execute = _ => ShowExportDialog()
         });
         _workspaceListView = ResourceScreenLayout.Scrollable(_workspaceList);
@@ -150,6 +165,8 @@ public sealed class WorkspaceScreen
 
     public event Action<TuiCommandResult>? NotificationRequested;
 
+    public event Action<TuiExternalAction>? ExternalActionRequested;
+
     public string? ActiveWorkspaceName { get; private set; }
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
@@ -162,12 +179,19 @@ public sealed class WorkspaceScreen
         await ActivatePendingWorkspaceAsync(cancellationToken);
 
         WorkspaceScreenItem? item = SelectedItem;
-        if (item is null || item.Workspace.Id == _displayedRequestWorkspaceId)
+        if (item is null || item.Id == _displayedRequestWorkspaceId)
             return;
 
-        Guid workspaceId = item.Workspace.Id;
+        Guid workspaceId = item.Id;
         _displayedRequestWorkspaceId = workspaceId;
         _requestErrorMessage.Value = null;
+
+        if (item.IsCorrupt)
+        {
+            _recentRequests.Value = [];
+            _requestLoadState.Value = RequestPreviewLoadState.Idle;
+            return;
+        }
 
         if (_requestCache.TryGetValue(workspaceId, out IReadOnlyList<StraumrRequest>? cached))
         {
@@ -188,7 +212,7 @@ public sealed class WorkspaceScreen
                 .ToArray();
             _requestCache[workspaceId] = recent;
 
-            if (SelectedItem?.Workspace.Id == workspaceId)
+            if (SelectedItem?.Id == workspaceId)
                 ShowRequests(recent);
         }
         catch (OperationCanceledException)
@@ -198,7 +222,7 @@ public sealed class WorkspaceScreen
         catch (Exception exception) when (
             exception is StraumrException or IOException or UnauthorizedAccessException or JsonException)
         {
-            if (SelectedItem?.Workspace.Id != workspaceId)
+            if (SelectedItem?.Id != workspaceId)
                 return;
 
             _requestErrorMessage.Value = exception.Message;
@@ -213,33 +237,31 @@ public sealed class WorkspaceScreen
         try
         {
             await _optionsService.LoadAsync(cancellationToken);
-            IReadOnlyList<StraumrWorkspace> workspaces =
-                await _workspaceService.ListAsync(cancellationToken);
-
-            Dictionary<Guid, StraumrWorkspaceEntry> entries = [];
-            foreach (StraumrWorkspaceEntry entry in _optionsService.Options.Workspaces)
-                entries.TryAdd(entry.Id, entry);
-
             _currentWorkspaceId.Value = _optionsService.Options.CurrentWorkspace?.Id;
+
             List<WorkspaceScreenItem> items = [];
-            foreach (StraumrWorkspace workspace in workspaces)
+            foreach (StraumrWorkspaceEntry entry in _optionsService.Options.Workspaces)
             {
-                if (entries.TryGetValue(workspace.Id, out StraumrWorkspaceEntry? entry))
-                    items.Add(new WorkspaceScreenItem(workspace, entry));
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // A registry entry whose folder is gone is not a workspace in trouble, it is one that
+                // was removed from outside Straumr, which is what Core's own listing does with it too.
+                if (File.Exists(entry.Path))
+                    items.Add(await LoadItemAsync(entry, cancellationToken));
             }
 
             _items = items;
             _workspaceCount.Value = items.Count;
 
             int currentIndex = items.FindIndex(
-                item => item.Workspace.Id == _currentWorkspaceId.Value);
+                item => item.Id == _currentWorkspaceId.Value);
             Guid? preferredWorkspaceId = currentIndex >= 0
-                ? items[currentIndex].Workspace.Id
-                : items.FirstOrDefault()?.Workspace.Id;
+                ? items[currentIndex].Id
+                : items.FirstOrDefault()?.Id;
             ApplyFilter(_filter.Text, preferredWorkspaceId);
 
             ActiveWorkspaceName = currentIndex >= 0
-                ? items[currentIndex].Workspace.Name
+                ? items[currentIndex].Name
                 : null;
             _loadState.Value = items.Count == 0
                 ? WorkspaceLoadState.Empty
@@ -254,6 +276,49 @@ public sealed class WorkspaceScreen
         {
             _errorMessage.Value = exception.Message;
             _loadState.Value = WorkspaceLoadState.Error;
+        }
+    }
+
+    /// <remarks>
+    /// A workspace whose file cannot be read stays on the list as a corrupt item rather than being
+    /// dropped from it. Dropping it hides the problem and the path to its file, and the file is often
+    /// one edit away from being a workspace again.
+    /// </remarks>
+    private async Task<WorkspaceScreenItem> LoadItemAsync(
+        StraumrWorkspaceEntry entry,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            StraumrWorkspace workspace = await _workspaceService.GetAsync(
+                entry.Id,
+                updateLastAccessed: false,
+                cancellationToken);
+            return workspace.Id == entry.Id
+                ? new WorkspaceScreenItem(workspace, entry)
+                : new WorkspaceScreenItem(null, entry, MismatchedIdReason);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (JsonException)
+        {
+            return new WorkspaceScreenItem(null, entry, InvalidJsonReason);
+        }
+        catch (StraumrException exception)
+        {
+            return new WorkspaceScreenItem(
+                null,
+                entry,
+                exception.Reason == StraumrError.CorruptEntry
+                    ? InvalidJsonReason
+                    : exception.Message);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            return new WorkspaceScreenItem(null, entry, exception.Message);
         }
     }
 
@@ -281,6 +346,18 @@ public sealed class WorkspaceScreen
         if (item is null)
             return new TextBlock("No workspace selected.").Style(StraumrStyles.MutedText);
 
+        if (item.IsCorrupt)
+        {
+            return StraumrSurfaces.Bar(
+                new HStack(
+                        new TextBlock(item.Name).Style(StraumrStyles.RedText),
+                        new TextBlock("cannot be read")
+                            .Style(StraumrStyles.RedText)
+                            .Trimming(TextTrimming.EndEllipsis))
+                    .Spacing(2),
+                new TextBlock($" {item.ShortId} ").Style(StraumrStyles.TokenChip));
+        }
+
         StraumrWorkspace workspace = item.Workspace;
         DateTimeOffset lastAccessed = _lastActivatedWorkspaceId.Value == workspace.Id
             ? _lastActivationTime.Value ?? workspace.LastAccessed
@@ -306,6 +383,9 @@ public sealed class WorkspaceScreen
         if (item is null)
             return ResourceScreenLayout.EmptySections();
 
+        if (item.IsCorrupt)
+            return BuildCorruptSections(item.DisplayPath, item.Corruption);
+
         StraumrWorkspace workspace = item.Workspace;
         Visual fields = FieldList.Create(
             ("Path", FieldList.Wrapped(item.DisplayPath)),
@@ -318,6 +398,33 @@ public sealed class WorkspaceScreen
             ResourceScreenLayout.Pane(fields),
             "Requests",
             ResourceScreenLayout.Pane(BuildRequestsPane()));
+    }
+
+    /// <remarks>
+    /// The detail pane is where the reason belongs in full: the list can only say that something is
+    /// wrong, and the summary bar only has one trimmed line to say it in.
+    /// </remarks>
+    private static Visual BuildCorruptSections(string displayPath, string problem)
+    {
+        Visual details = new VStack(
+                FieldList.Create(
+                    ("Path", FieldList.Wrapped(displayPath)),
+                    ("Problem", FieldList.Problem(problem))),
+                new TextBlock("Press e to open the file in your editor and repair it.")
+                    .Style(StraumrStyles.MutedText)
+                    .Wrap(true)
+                    .HorizontalAlignment(Align.Stretch))
+            .Spacing(1)
+            .HorizontalAlignment(Align.Stretch);
+
+        return ResourceScreenLayout.TwoPaneSections(
+            "Details",
+            ResourceScreenLayout.Pane(details),
+            "Requests",
+            ResourceScreenLayout.Pane(ResourceScreenLayout.Message(
+                new TextBlock("Unavailable until the file is valid.")
+                    .Style(StraumrStyles.MutedText)
+                    .Wrap(true))));
     }
 
     private Visual BuildRequestsPane() =>
@@ -387,9 +494,123 @@ public sealed class WorkspaceScreen
             return;
 
         new WorkspaceDeleteDialog(
-            item.Workspace.Name,
-            () => _pendingDeleteId = item.Workspace.Id)
+            item.Name,
+            () => _pendingDeleteId = item.Id)
             .Show();
+    }
+
+    private void RequestEdit()
+    {
+        WorkspaceScreenItem? item = SelectedItem;
+        if (item is null)
+            return;
+
+        if (!_externalEditor.IsConfigured)
+        {
+            NotificationRequested?.Invoke(
+                TuiCommandResult.Failed("edit failed: no default editor is configured"));
+            return;
+        }
+
+        ExternalActionRequested?.Invoke(new TuiExternalAction(
+            cancellationToken => EditWorkspaceAsync(item.Id, cancellationToken),
+            _workspaceList));
+    }
+
+    private async Task<TuiCommandResult> EditWorkspaceAsync(
+        Guid workspaceId,
+        CancellationToken cancellationToken)
+    {
+        WorkspaceScreenItem? item = _items.Find(candidate => candidate.Id == workspaceId);
+        if (item is null)
+            return TuiCommandResult.Failed("edit failed: the workspace is no longer listed");
+
+        try
+        {
+            string edited = await _externalEditor.EditJsonAsync(
+                await ReadForEditingAsync(item, cancellationToken),
+                cancellationToken);
+            return await SaveEditedWorkspaceAsync(item, edited, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (ExternalEditorException exception)
+        {
+            return TuiCommandResult.Failed($"edit failed: {exception.Message}");
+        }
+        catch (Exception exception) when (
+            exception is StraumrException or IOException or UnauthorizedAccessException
+                or JsonException)
+        {
+            return TuiCommandResult.Failed($"edit failed: {exception.Message}");
+        }
+    }
+
+    /// <remarks>
+    /// A workspace that still parses is re-read through Core so the editor opens on what is on disk
+    /// rather than on what the screen loaded. One that does not parse has nothing for Core to return,
+    /// and its file as it stands is exactly what has to be edited.
+    /// </remarks>
+    private async Task<string> ReadForEditingAsync(
+        WorkspaceScreenItem item,
+        CancellationToken cancellationToken)
+    {
+        if (item.IsCorrupt)
+            return await File.ReadAllTextAsync(item.Entry.Path, cancellationToken);
+
+        StraumrWorkspace workspace = await _workspaceService.GetAsync(
+            item.Id,
+            updateLastAccessed: false,
+            cancellationToken);
+        return JsonSerializer.Serialize(workspace, StraumrJsonContext.Default.StraumrWorkspace);
+    }
+
+    /// <remarks>
+    /// An edit Core cannot accept is still the developer's work, so it is written to the workspace file
+    /// as it stands and the workspace is listed as corrupt until it is repaired. Reporting the mistake
+    /// and discarding the text costs the edit and offers nothing back; keeping it means pressing
+    /// <c>e</c> again reopens the very text that needs fixing.
+    /// </remarks>
+    private async Task<TuiCommandResult> SaveEditedWorkspaceAsync(
+        WorkspaceScreenItem item,
+        string edited,
+        CancellationToken cancellationToken)
+    {
+        _requestCache.Remove(item.Id);
+        _displayedRequestWorkspaceId = null;
+        _requestLoadState.Value = RequestPreviewLoadState.Idle;
+
+        StraumrWorkspace? workspace = TryReadWorkspace(edited);
+        string? problem = workspace is null
+            ? InvalidJsonReason
+            : workspace.Id != item.Id
+                ? MismatchedIdReason
+                : null;
+
+        if (problem is not null)
+        {
+            await File.WriteAllTextAsync(item.Entry.Path, edited, cancellationToken);
+            await ReloadAndSelectAsync(item.Id, cancellationToken);
+            return TuiCommandResult.Failed($"saved {item.Name}, but {problem}; press e to fix it");
+        }
+
+        await _workspaceService.SaveAsync(workspace!, cancellationToken);
+        await ReloadAndSelectAsync(item.Id, cancellationToken);
+        return TuiCommandResult.Ok($"updated workspace {workspace!.Name}");
+    }
+
+    private static StraumrWorkspace? TryReadWorkspace(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, StraumrJsonContext.Default.StraumrWorkspace);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private void ShowCreateDialog() =>
@@ -413,11 +634,11 @@ public sealed class WorkspaceScreen
         new WorkspaceFormDialog(
             "Copy workspace",
             "Copy",
-            item.Workspace.Name,
+            item.Name,
             item.ContainingDirectory ?? _optionsService.Options.DefaultWorkspacePath,
             'y',
             submission => _pendingCopy = new WorkspaceCopySubmission(
-                item.Workspace.Id,
+                item.Id,
                 submission))
             .Show();
     }
@@ -445,10 +666,10 @@ public sealed class WorkspaceScreen
             item.ContainingDirectory,
             Environment.CurrentDirectory,
             path => _pendingExport = new WorkspaceExportSubmission(
-                item.Workspace.Id,
-                item.Workspace.Name,
+                item.Id,
+                item.Name,
                 path),
-            $"Export {item.Workspace.Name}",
+            $"Export {item.Name}",
             "Export here")
         .Show();
     }
@@ -524,8 +745,8 @@ public sealed class WorkspaceScreen
                 cancellationToken);
             await ReloadAndSelectAsync(entry.Id, cancellationToken);
             string name = _items
-                .Find(item => item.Workspace.Id == entry.Id)?
-                .Workspace.Name ?? Path.GetFileNameWithoutExtension(path);
+                .Find(item => item.Id == entry.Id)?
+                .Name ?? Path.GetFileNameWithoutExtension(path);
             NotificationRequested?.Invoke(
                 TuiCommandResult.Ok($"imported workspace {name}"));
         }
@@ -574,7 +795,7 @@ public sealed class WorkspaceScreen
             _filter.Clear();
 
         await LoadAsync(cancellationToken);
-        int index = _visibleItems.FindIndex(item => item.Workspace.Id == workspaceId);
+        int index = _visibleItems.FindIndex(item => item.Id == workspaceId);
         if (index >= 0)
             _selectedIndex.Value = index;
     }
@@ -585,7 +806,7 @@ public sealed class WorkspaceScreen
             return;
 
         _pendingDeleteId = null;
-        WorkspaceScreenItem? item = _items.Find(candidate => candidate.Workspace.Id == workspaceId);
+        WorkspaceScreenItem? item = _items.Find(candidate => candidate.Id == workspaceId);
         if (item is null)
             return;
 
@@ -604,7 +825,7 @@ public sealed class WorkspaceScreen
                 _selectedIndex.Value = Math.Clamp(selectedIndex, 0, _visibleItems.Count - 1);
 
             NotificationRequested?.Invoke(
-                TuiCommandResult.Ok($"deleted workspace {item.Workspace.Name}"));
+                TuiCommandResult.Ok($"deleted workspace {item.Name}"));
         }
         catch (OperationCanceledException)
         {
@@ -622,19 +843,23 @@ public sealed class WorkspaceScreen
         Guid workspaceId,
         CancellationToken cancellationToken)
     {
+        WorkspaceScreenItem? item = _items.Find(candidate => candidate.Id == workspaceId);
+        if (item is null)
+            return TuiCommandResult.None;
+
+        if (item.IsCorrupt)
+            return TuiCommandResult.Failed($"cannot use {item.Name}: {item.Corruption}");
+
         try
         {
             await _workspaceService.ActivateAsync(workspaceId, cancellationToken);
-            WorkspaceScreenItem? item = _items.Find(candidate => candidate.Workspace.Id == workspaceId);
-            if (item is null)
-                return TuiCommandResult.None;
 
             DateTimeOffset activatedAt = DateTimeOffset.UtcNow;
-            item.Workspace.LastAccessed = activatedAt;
+            item.Workspace!.LastAccessed = activatedAt;
             _currentWorkspaceId.Value = workspaceId;
             _lastActivatedWorkspaceId.Value = workspaceId;
             _lastActivationTime.Value = activatedAt;
-            ActiveWorkspaceName = item.Workspace.Name;
+            ActiveWorkspaceName = item.Name;
             _activationErrorMessage.Value = null;
             RefreshWorkspaceRows();
             return TuiCommandResult.None;
@@ -670,7 +895,7 @@ public sealed class WorkspaceScreen
         }
 
         return SelectedItem is { } item
-            ? await ActivateWorkspaceAsync(item.Workspace.Id, cancellationToken)
+            ? await ActivateWorkspaceAsync(item.Id, cancellationToken)
             : TuiCommandResult.Failed("no workspace selected");
     }
 
@@ -681,7 +906,7 @@ public sealed class WorkspaceScreen
         if (argument.Length > 0)
             return TuiCommandResult.Failed("usage: refresh");
 
-        Guid? selected = SelectedItem?.Workspace.Id;
+        Guid? selected = SelectedItem?.Id;
         _requestCache.Clear();
         _displayedRequestWorkspaceId = null;
         _requestLoadState.Value = RequestPreviewLoadState.Idle;
@@ -691,7 +916,7 @@ public sealed class WorkspaceScreen
             return TuiCommandResult.Failed($"refresh failed: {_errorMessage.Value}");
 
         int restored = selected is { } id
-            ? _visibleItems.FindIndex(item => item.Workspace.Id == id)
+            ? _visibleItems.FindIndex(item => item.Id == id)
             : -1;
         if (restored >= 0)
             _selectedIndex.Value = restored;
@@ -705,7 +930,7 @@ public sealed class WorkspaceScreen
             [] => TuiCommandResult.Failed($"no workspace matches {name}"),
             [WorkspaceScreenItem single] => Select(single),
             var ambiguous => TuiCommandResult.Failed(
-                $"{name} matches {string.Join(", ", ambiguous.Select(item => item.Workspace.Name))}")
+                $"{name} matches {string.Join(", ", ambiguous.Select(item => item.Name))}")
         };
 
     private TuiCommandResult Select(WorkspaceScreenItem item)
@@ -720,18 +945,18 @@ public sealed class WorkspaceScreen
     private List<WorkspaceScreenItem> MatchWorkspaces(string name)
     {
         List<WorkspaceScreenItem> named = _items.FindAll(item =>
-            item.Workspace.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
         return named.Count > 0
             ? named
             : _items.FindAll(item =>
-                item.Workspace.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
+                item.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
     }
 
     private IEnumerable<string> WorkspaceNames() =>
-        _items.Select(item => item.Workspace.Name);
+        _items.Select(item => item.Name);
 
-    private void ApplyFilter(string text) => ApplyFilter(text, SelectedItem?.Workspace.Id);
+    private void ApplyFilter(string text) => ApplyFilter(text, SelectedItem?.Id);
 
     private void ApplyFilter(string text, Guid? preferredWorkspaceId)
     {
@@ -745,7 +970,7 @@ public sealed class WorkspaceScreen
         RefreshWorkspaceRows();
 
         int preferredIndex = preferredWorkspaceId is { } id
-            ? _visibleItems.FindIndex(item => item.Workspace.Id == id)
+            ? _visibleItems.FindIndex(item => item.Id == id)
             : -1;
         _selectedIndex.Value = preferredIndex >= 0
             ? preferredIndex
@@ -757,7 +982,7 @@ public sealed class WorkspaceScreen
             _visibleItems.Select(item => ToRow(item, _currentWorkspaceId.Value)));
 
     private static bool MatchesFilter(WorkspaceScreenItem item, string query) =>
-        item.Workspace.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+        item.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
         item.Entry.Path.Contains(query, StringComparison.OrdinalIgnoreCase);
 
     private string FilterCount() =>
@@ -780,15 +1005,26 @@ public sealed class WorkspaceScreen
 
     private static ResourceRow ToRow(WorkspaceScreenItem item, Guid? currentWorkspaceId)
     {
+        if (item.IsCorrupt)
+        {
+            return new ResourceRow(
+                item.Name,
+                "cannot be read",
+                HasContent: false,
+                item.DisplayDirectory,
+                item.Id == currentWorkspaceId,
+                IsBroken: true);
+        }
+
         int requests = item.Workspace.Requests.Count;
         int auths = item.Workspace.Auths.Count;
 
         return new ResourceRow(
-            item.Workspace.Name,
+            item.Name,
             $"{CountFormatting.Label(requests, "request")} · {CountFormatting.Label(auths, "auth")}",
             requests > 0 || auths > 0,
             item.DisplayDirectory,
-            item.Workspace.Id == currentWorkspaceId);
+            item.Id == currentWorkspaceId);
     }
 
     private WorkspaceScreenItem? SelectedItem =>
@@ -796,6 +1032,11 @@ public sealed class WorkspaceScreen
         _selectedIndex.Value < _visibleItems.Count
             ? _visibleItems[_selectedIndex.Value]
             : null;
+
+    private const string InvalidJsonReason = "the workspace file is not valid JSON";
+
+    private const string MismatchedIdReason =
+        "the workspace file's ID no longer matches the registry";
 
     private enum WorkspaceLoadState
     {

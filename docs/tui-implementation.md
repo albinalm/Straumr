@@ -8,9 +8,13 @@ framework constraint is discovered.
 
 - Phase: implementation
 - Active screen: Workspaces
-- Implementation: W7a accepted; W7b create/copy and the reusable browser implemented;
-  W7c import/export workflows implemented and awaiting interactive verification
-- Next checkpoint: verify import/export in a populated terminal, then begin W7d external editing
+- Implementation: W7 complete; every one of its checkpoints is accepted interactively.
+  The Workspaces screen now carries its full lifecycle: create, edit, copy, import,
+  export and delete
+- Next checkpoint: W8, not started. It validates resizing, empty and error states, CLI
+  isolation and Native AOT, and inherits the three unverified behaviours left on the
+  checklist below: a workspace file broken or removed from outside Straumr, cancellation
+  during loading and operations, and `Up`/`Down` prompt history
 - Shared building blocks are in place; see Shared Building Blocks before adding a screen
 - Last updated: 2026-09-11
 
@@ -276,6 +280,19 @@ Approved references:
   takes it out, and takes both the gesture and its command bar hint with it, so an
   app that owns its own exit does not have to live beside a second one. Removing it
   is also what frees `Escape` inline; in fullscreen it was already free.
+- A fullscreen `Terminal.RunAsync` owns one `TerminalApp` and tears down its raw-mode,
+  cursor, mouse, paste, and alternate-screen scopes when the loop stops. It does not
+  stop the underlying `TerminalInstance` input loop, so an external process that needs
+  the terminal must run only after `RunAsync` returns and `StopInputAsync` completes.
+- Re-entering fullscreen with the same retained tree requires the supplied root to be
+  a `WindowLayer`. When given an ordinary visual, `TerminalApp` wraps it in an internal
+  `WindowLayer` whose child relationship survives disposal, and the next hosted run
+  rejects that visual as already parented. An explicit `WindowLayer` stays parentless,
+  while its content retains all screen state and selection across runs.
+- Every hosted run creates a new `TerminalApp`. App-wide commands therefore have to be
+  registered for each new instance, and focus restoration has to happen after the
+  retained tree attaches to that instance. Holding a visual as the restoration target
+  is safe; trying to focus it between runs is not, because `Visual.App` is null then.
 - `PromptEditor.Text`'s setter does not raise `OnDocumentChanged`. Only a user edit
   does, so any programmatic change to a prompt's text is invisible to a handler
   hanging off that hook and has to report itself.
@@ -415,7 +432,8 @@ message.
 
 `ResourceList` owns selection, hover, focus response, scrolling and row styling. A
 screen hands it `ResourceRow` values and binds its `SelectedIndex`; it never styles
-rows itself. Row height follows the row data: a list whose rows all omit `Detail` lays
+rows itself. A row marked `IsBroken` reads red at every row level, so a resource that
+cannot be used is recognisable before it is selected. Row height follows the row data: a list whose rows all omit `Detail` lays
 out two lines high, which is what the Auths and Secrets mockups need, and one whose rows
 also omit `Meta` lays out one line high with no blank row between items, which is what a
 list of plain names such as the folder browser needs. A list whose rows all omit
@@ -685,6 +703,32 @@ may persist changes through the appropriate Core service.
 - `:workspace <name>` and `:use <name>` clear an active filter when necessary so a
   command can select any workspace, not only a visible match.
 
+### Unreadable Workspaces
+
+A registry entry whose file is not a workspace stays on the list instead of vanishing
+from it. It is named after the folder Core created for it, since there is no name
+inside the file to read, and it reads red on every row level so it is recognisable
+without being selected.
+
+- Two things make an entry unreadable: its file is not valid JSON, or the ID inside it
+  is not the ID the registry has. Both are shown the same way and both are repaired the
+  same way.
+- An entry whose file is simply gone is not shown. That is a workspace removed from
+  outside Straumr, not one in trouble, and Core's own listing drops it too.
+- The summary bar reads the name and `cannot be read`; the Details pane names the path,
+  states the problem in red, and says `e` opens the file for repair. The Requests pane
+  says only that it is unavailable, because nothing can be read to list.
+- It cannot be activated. `Enter`, a double-click and `:use` all report why instead,
+  and `Copy` and `Export` withdraw from the command bar. `Edit` and `Delete` stay,
+  because repairing it and removing it are the two things left to do with it.
+- One unreadable workspace never fails the load. Each registry entry is read on its own,
+  so the failure is scoped to the row it belongs to.
+
+An edit that produces one of the two is written to the workspace file rather than
+discarded, and the workspace is listed as unreadable until it is repaired. `e` on it
+reopens exactly the text that needs fixing, so a mistyped brace costs a keystroke rather
+than the edit.
+
 ### Command Prompt
 
 The commands the Workspaces screen answers, in addition to the app's own:
@@ -746,7 +790,7 @@ by `refresh`. Dialogs and forms use framework controls and shared Straumr styles
 | W4 | Add focus, arrow, pointer, `j`/`k`, and activation behavior | Complete | Implemented: Tab/Shift+Tab focus traversal, contextual command hints, arrows/Home/End/Page plus `j`/`k`/`g`/`G` on both the list and the request preview, wheel support, Core activation, and double-click activation. Framework finding: `PointerEventArgs.ClickCount` counts a click sequence by time and not by position, so a click anywhere followed by one click on a row arrived as a pair; the gesture therefore also requires both clicks on the same row, and a pointer leaving the list voids the sequence. Focus cues were reworked twice after review: the focused section title fills with the selection blue while every other title is inert, the permanently bright left detail title was fixed, all titles moved onto one rule so the chip travels sideways rather than diagonally, the first detail pane was retitled `Details`, and the active workspace gained a green dot that follows activation. Release and CLI-only builds pass. Cell dumps cover the chip states at exact hex, the mirrored panel geometry, and the dot across plain, hovered and both selected bands. Accepted interactively: focus cues, keyboard selection, hover band, pointer selection, the focused and unfocused selection bands, both focus directions, long-preview scrolling, top/bottom jumps, paging, activation moving the dot, and clean exit |
 | W5 | Add command prompt integration and workspace navigation commands | Complete | `PromptEditor` overlaid on the footer row in a `ZStack`, the `:` gesture registered globally both bare and with `Shift`, `TuiCommandSet` with exact/alias/unique-prefix resolution and per-token completion, `quit`/`q`/`exit`, and the screen's `workspace`, `use` and `refresh`. `WorkspaceScreen`'s activation was split out so `Enter`, a double-click and `:use` share one method, and `LoadAsync` became re-runnable for `refresh`. Eleven framework findings, all recorded in Framework Rules: `PromptEditor`'s prompt column has a two-cell minimum, so `" :"` is what aligns the colon with the text column; `PromptEditorStyle` cannot colour the editor's own text, so the palette goes through the `Highlighter` delegate; `Visual.App` is null until the app runs; `ContentSwitcher` attaches only its selected child, which is why it cannot host a visual the app must focus; focus is revoked from a visual that is invisible during the focus pass, so the prompt sets its own `IsVisible` before asking for focus; `HasFocus` lags `FocusedElement` by a pass; and a printable keystroke emits a key event and a text event independently, so the gesture that opens the prompt also types its own character into it unless the prompt discards the echo; the completion handler is re-asked on every `Tab` and the framework keeps no cycle state, so the prompt has to hold the candidate list itself; neither `PromptEditorEscapeBehavior` gives `Escape` one meaning, so the prompt clears `CancelCommand.Gesture` and handles the key itself; and a key a surface does not handle becomes focus traversal, so a surface that must own input has to declare `IModalVisual` as `Dialog` and `Popup` do; and the framework's own quit command comes off through `RemoveGlobalCommand(DefaultQuitCommandId)`, gesture and hint together. Solution, Release and CLI-only builds pass. Evidence: command resolution and completion tables over 15 inputs and 14 caret positions; footer cell dumps at exact hex for hints, message, error and prompt states; full-screen dumps at 96x24, 70x20 and 44x14; and a full round trip driven through the real input path on a running `TerminalApp` — `:` opens and focuses the prompt, typed text reaches the editor, `Enter` runs `:use dashboards` through Core and returns focus to the list, a single `Escape` closes and clears even with a completion on screen, `:bogus` reports `unknown command: bogus`, nothing behind the modal prompt reacts to `Tab`, `Shift+Tab`, a screen gesture or a click, and `:q` is the only exit now that the framework's `Ctrl+Q` is removed. The developer confirmed `:` opens the prompt in a terminal, reported the stray colon that the echo discard now fixes, reported that `Tab` could not cycle between two workspaces sharing a prefix, which the held candidate list now fixes, and reported the three fall-through bugs that modality now fixes. Not covered: `Up`/`Down` history, which needs a terminal |
 | W6 | Add filtering | Complete | Added the shared retained `ResourceFilter`, live case-insensitive workspace-name/path filtering, match/total badge, stable selection by workspace identity, a focusable no-match state, and `Enter`/`Escape` result focus behavior. The `/` gesture is registered in bare and Shift forms and its paired text echo is discarded. `ResourceList.SetRows` keeps list identity and focus stable while rows change. Debug, Release and CLI-only builds pass with no warnings; CLI help and an empty-registry launch/`:q` exit pass. Accepted interactively by the developer: filtering worked as intended |
-| W7 | Add create, edit, copy, import, export, and delete workflows | In progress | W7a accepted interactively: the `d` modal, cancellation, deletion, refresh, notification, and focus restoration work as intended. W7b implemented: `c` and `y` open one shared styled form for create and copy, with Name validation, an optional location using the configured default as its placeholder, a tab-reachable folder browser, keyboard/pointer controls, queued Core I/O, reload, selection of the result, and footer reporting. The folder browser is composed from the framework's modal, one-line list, scrolling, and button controls because version 3.9.0 and current upstream provide no ready-made directory picker. The empty registry keeps the focusable retained list mounted so Create remains reachable. The folder browser then became `FolderBrowserDialog`, a reusable component that takes a start path, a title and a confirm label and knows nothing about workspaces: navigation on a `ResourceList` of one-line rows, a parent row named after the folder it leads to, walking up landing on the folder just left, a front-trimmed breadcrumb swapping for an editable path on `Ctrl+L`, `s` or the button confirming the highlighted folder — a native picker's meaning, falling back to the folder being browsed on the parent row, with the resolved path shown beside the button — `Ctrl+Enter` confirming the folder being browsed outright, unpresented because only some terminals report the modifier, `n`/`r`/`d` to create, rename and delete, and one notice line for a failed read, an empty folder or a query with no matches. Delete is recursive with a confirmation naming the folders and files inside, because a portable implementation has no recycle bin; rename and delete are unguarded by design, the registry being equally exposed to any file manager. Ten defects were found and fixed by probes driving a real `TerminalApp`, and three by the developer in a terminal. From the probes: the path field stole initial focus so no list hints were reachable, `Escape` in it closed the whole picker, walking up lost the cursor's place, the count badge counted the parent row, `Ctrl+L` echoed its own character, a wrapped validation message, `Rename`/`Delete` advertised but inert on the parent row, and the browser opening on the parent row. From the developer: `Ctrl+L` did nothing, because `Ctrl`+letter arrives as the letter's C0 control byte and the gesture has to carry it — the probe had been synthesising an event shape no decoder produces; and `:` was offered while browsing, a global command being collected alongside the focus chain rather than from it. That audit also condemned `Ctrl+Enter` for Select, which a plain terminal cannot distinguish from `Enter`, and moved character gestures off the dialog onto the list, where they no longer fire while a text field has focus. Four pre-existing shared bugs came out with them, all fixed: `ResourceFilter` never reported a cleared query because `PromptEditor.Text`'s setter raises no event; `G` jumped to the top of a list in both `ResourceList` and `ScrollableContent` because gesture routing matches characters case-insensitively; and `ResourceRow.Meta` became optional for one-line rows. `ResourceList` proved render-identical for the three-line and two-line shapes by snapshot diff against `HEAD`. Debug, Release and CLI-only builds pass with no warnings; CLI help passes; 25 headless behavior assertions pass. The developer accepted the browser over four rounds of interactive review, which produced the remaining fixes: the `Ctrl+L` control-character gesture, `:` gated out of modals, Copy starting beside its source, the resolved location moved out of the placeholder, and the two confirms split so `s` takes the highlight and `Ctrl+Enter` the folder being browsed. W7b is complete but for a populated create and copy end to end, which has no developer confirmation of its own yet. W7c adds `i` import and `x` export through the same browser: its optional file-selection mode lists and completes only `.straumrpak` archives beside navigable folders, while export retains folder selection. Both operations queue Core I/O through `UpdateAsync`, reload and select an imported workspace, restore modal focus, and report through the footer. Debug, Release, CLI-only, and CLI help checks pass; interactive verification remains. W7d has not been started |
+| W7 | Add create, edit, copy, import, export, and delete workflows | Complete | W7a accepted interactively: the `d` modal, cancellation, deletion, refresh, notification, and focus restoration work as intended. W7b implemented: `c` and `y` open one shared styled form for create and copy, with Name validation, an optional location using the configured default as its placeholder, a tab-reachable folder browser, keyboard/pointer controls, queued Core I/O, reload, selection of the result, and footer reporting. The folder browser is composed from the framework's modal, one-line list, scrolling, and button controls because version 3.9.0 and current upstream provide no ready-made directory picker. The empty registry keeps the focusable retained list mounted so Create remains reachable. The folder browser then became `FolderBrowserDialog`, a reusable component that takes a start path, a title and a confirm label and knows nothing about workspaces: navigation on a `ResourceList` of one-line rows, a parent row named after the folder it leads to, walking up landing on the folder just left, a front-trimmed breadcrumb swapping for an editable path on `Ctrl+L`, `s` or the button confirming the highlighted folder — a native picker's meaning, falling back to the folder being browsed on the parent row, with the resolved path shown beside the button — `Ctrl+Enter` confirming the folder being browsed outright, unpresented because only some terminals report the modifier, `n`/`r`/`d` to create, rename and delete, and one notice line for a failed read, an empty folder or a query with no matches. Delete is recursive with a confirmation naming the folders and files inside, because a portable implementation has no recycle bin; rename and delete are unguarded by design, the registry being equally exposed to any file manager. Ten defects were found and fixed by probes driving a real `TerminalApp`, and three by the developer in a terminal. From the probes: the path field stole initial focus so no list hints were reachable, `Escape` in it closed the whole picker, walking up lost the cursor's place, the count badge counted the parent row, `Ctrl+L` echoed its own character, a wrapped validation message, `Rename`/`Delete` advertised but inert on the parent row, and the browser opening on the parent row. From the developer: `Ctrl+L` did nothing, because `Ctrl`+letter arrives as the letter's C0 control byte and the gesture has to carry it — the probe had been synthesising an event shape no decoder produces; and `:` was offered while browsing, a global command being collected alongside the focus chain rather than from it. That audit also condemned `Ctrl+Enter` for Select, which a plain terminal cannot distinguish from `Enter`, and moved character gestures off the dialog onto the list, where they no longer fire while a text field has focus. Four pre-existing shared bugs came out with them, all fixed: `ResourceFilter` never reported a cleared query because `PromptEditor.Text`'s setter raises no event; `G` jumped to the top of a list in both `ResourceList` and `ScrollableContent` because gesture routing matches characters case-insensitively; and `ResourceRow.Meta` became optional for one-line rows. `ResourceList` proved render-identical for the three-line and two-line shapes by snapshot diff against `HEAD`. Debug, Release and CLI-only builds pass with no warnings; CLI help passes; 25 headless behavior assertions pass. The developer accepted the browser over four rounds of interactive review, which produced the remaining fixes: the `Ctrl+L` control-character gesture, `:` gated out of modals, Copy starting beside its source, the resolved location moved out of the placeholder, and the two confirms split so `s` takes the highlight and `Ctrl+Enter` the folder being browsed. W7b is complete but for a populated create and copy end to end, which has no developer confirmation of its own yet. W7c adds `i` import and `x` export through the shared `BrowserDialog` specializations: `FileBrowserDialog` lists and completes only `.straumrpak` archives beside navigable folders, while `FolderBrowserDialog` retains folder selection. Both operations queue Core I/O through `UpdateAsync`, reload and select an imported workspace, restore modal focus, and report through the footer. Debug, Release, CLI-only, and CLI help checks pass; the developer accepted the W7c UX interactively. W7d adds `e` editing through `$EDITOR`: the host ends fullscreen and stops the framework's persistent input loop before launching the process, then re-enters with the retained tree, reloads and reselects the edited workspace, restores list focus, and reports success or discarded changes in the footer. Quoted executable paths and editor arguments such as `--wait` are supported without a shell. A headless end-to-end probe verified command parsing, JSON edit/save, two consecutive fullscreen hosts over one retained tree, root detachment, and focus restoration. The developer then rejected discarding an edit that produced invalid JSON, so `ExternalEditor` now returns text and the screen owns what happens to text it cannot read: the edit is written to the workspace file and the workspace is listed as unreadable, named after its folder, red on the list, refused for activation, withdrawn from `Copy` and `Export`, and repaired by pressing `e` again. A mismatched ID is treated the same way rather than rejected and thrown away. Loading moved from `ListAsync` to one read per registry entry so one unreadable file scopes its failure to its own row instead of taking the screen to its error state, which also covers a file broken from outside Straumr. `ResourceRow.IsBroken`, `FieldList.Problem` and a `RedBright` palette entry carry it in the shared pieces. Debug, Release, solution and CLI-only builds pass with no warnings. The developer then accepted W7d interactively, and finally a populated create and copy end to end, which was W7b's own outstanding confirmation. All four checkpoints are accepted and W7 is complete |
 | W8 | Validate resizing, empty/error states, CLI isolation, and Native AOT | Not started | Alternating CLI-only and full incremental builds in the same Release output can leave the full app without the TUI assembly; a full rebuild restores it. Separate or otherwise make variant outputs reliable during W8 |
 | R1 | Implement Requests screen | Not started | |
 | A1 | Implement Auths screen | Not started | |
@@ -793,9 +837,11 @@ For each Workspaces milestone, run the smallest applicable subset:
       neither (headless, on a running `TerminalApp`)
 - [x] verify create, rename and delete in a terminal (developer accepted the browser's
       operations; a cancelled and a confirmed delete were not called out separately)
-- [ ] verify a populated create and copy end to end, which is the last W7b behaviour with
-      no developer confirmation of its own
-- [ ] verify W7c import and export end to end, including archive-only file listing,
+- [x] verify a populated create and copy end to end: the form and its opening-gesture echo,
+      Name validation, the resolved-location line appearing only while the field is blank,
+      the Browse round trip, Copy starting beside its source, Core's duplicate-name refusal,
+      and the result reloaded, selected and reported (accepted by the developer)
+- [x] verify W7c import and export end to end, including archive-only file listing,
       folder navigation, filtering, `Ctrl+L` completion, selection, cancellation,
       imported-workspace selection, the exported package, and footer failures
 - [x] verify Create offers the configured default and Copy the folder holding its source,
@@ -809,7 +855,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] verify pointer selection, including the hover band and the focused/unfocused
       selection band (headless snapshots render the unfocused state because the
       snapshot renderer does not apply `AutoFocus`, so this was verified in a terminal)
-- [ ] verify focus restoration after external editor use (prompt and dialog verified)
+- [x] verify external editor handoff, save, redraw, selection, and focus restoration in
+      a populated terminal, and that an edit producing invalid JSON is written back rather
+      than discarded, reads red, cannot be activated, names its problem in the detail pane,
+      and reopens under `e` (accepted by the developer)
 - [x] verify `:` opens the prompt, that one `Escape` or submission closes and clears
       it whatever is on screen, and that focus returns to the region that had it
       (driven through `HandleTerminalEvent` on a running `TerminalApp`; the developer
@@ -829,7 +878,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] verify `/` from both list and request-preview focus, live name/path filtering,
       match counts, no matches, Enter retention, Escape clearing, and pointer entry
 - [x] verify empty workspace registry behavior
-- [ ] verify missing or corrupt workspace behavior
+- [ ] verify a workspace file broken or removed from outside Straumr: a corrupt one lists
+      red and names its problem, a missing one is dropped, and neither takes the screen to
+      its error state. The same presentation reached through an edit is accepted already;
+      what is untested is reaching it without one
 - [ ] verify cancellation during loading and operations
 - [x] verify `straumr --help` still opens CLI help
 - [x] verify `-p:IncludeTui=false` builds without the TUI dependency graph
@@ -949,11 +1001,26 @@ For each Workspaces milestone, run the smallest applicable subset:
 | 2026-09-11 | State what a delete destroys rather than asking a bare yes or no | There is no recycle bin behind `Directory.Delete`, and a portable implementation has none to reach for — `Microsoft.VisualBasic.FileIO` is Windows-only and against the Native AOT and dependency-isolation goals. So the confirmation counts the folders and files inside first, bounded at a thousand entries because the count runs from a keystroke and scale is all it has to convey |
 | 2026-09-11 | Withdraw a row-scoped command where it does not apply, rather than disabling it | `CommandBarStyle` has no disabled treatment, so a command the selected row cannot run rendered identically to one it could. After a milestone spent removing keys that were advertised and dead, leaving three more would have been the same defect by another route |
 | 2026-09-11 | Select the first real folder on open, not the parent row | Opening a folder is a statement of interest in its contents. Landing on the row that walks back out also hid `Rename` and `Delete` from the hint bar until the cursor moved, which is the discoverability problem this milestone exists to fix |
+| 2026-09-11 | Pause the fullscreen host around `$EDITOR` instead of awaiting the process inside its update callback | The framework deliberately keeps input and rendering alive while an async update awaits. Letting the editor run there would leave two owners fighting over one terminal. Ending the host releases its display modes, stopping the terminal input loop releases stdin, and a new host can then redraw the retained state |
+| 2026-09-11 | Launch the configured editor directly from a tokenized command | `$EDITOR` commonly contains a quoted executable path or required arguments such as `code --wait`. Tokenizing those into `ProcessStartInfo.ArgumentList` supports both without shell-specific escaping or injection, while the temporary JSON path remains one safe final argument |
 | 2026-09-11 | Ask for a name in a nested modal rather than inline in the location bar | The bar already does two jobs, and a third would have made one row mean three things. Delete needs a confirmation modal regardless, so the nesting depth was already there to be proved rather than avoided |
 | 2026-09-11 | Extend the shared folder browser with filtered-file selection for import | Import and export should not introduce their own path UI after the browser was built for reuse. A caller-supplied predicate keeps filesystem policy outside the component while preserving one navigation, filter, completion and focus model |
 | 2026-09-11 | Split filesystem browsing into a shared base and explicit folder/file dialogs | The selection policies are different concepts even though their navigation and presentation are identical. Keeping `FolderBrowserDialog` and `FileBrowserDialog` thin makes the call site state its intent without duplicating the browser |
+| 2026-09-11 | Write back an edit Core cannot accept and list the workspace as unreadable, rather than reporting the error and discarding it | The text is the developer's work and the editor is gone by the time it is judged, so discarding it is unrecoverable: a mistyped brace costs everything typed beside it. Writing it back costs nothing that was not already the developer's own file, and makes `e` reopen the very text that needs fixing. It also means the screen has to survive an unreadable workspace, which it had to do anyway for a file broken from outside Straumr |
+| 2026-09-11 | Load each registry entry on its own rather than through `IStraumrWorkspaceService.ListAsync` | The list answers with workspaces, so an entry that yields none has already been dropped by the time the screen sees it, and a file that throws rather than returning null took the whole screen to its error state. Reading per entry is what lets one row carry its own failure. Core keeps the reading; the screen only decides what an unreadable entry looks like, which is presentation |
+| 2026-09-11 | Show an unreadable workspace's folder name rather than an invented placeholder | Core lays workspaces out as `{output}/{name}/{id}.straumr`, so the folder is the name the workspace was created with. It is a real answer already on disk, where `(unreadable)` or a bare ID would tell the developer nothing about which workspace this is |
+| 2026-09-11 | Add a brighter red to the palette for a broken name on the selection band | The base red holds 7:1 over the background but only 3.4:1 over the selection blue, so a selected broken row would have failed the palette's own 4.5:1 rule. `RedBright` plays the part `TextBright` already plays for ordinary row text |
 
 ## Change Log
+
+- 2026-09-11: W7 is complete. The developer accepted W7d interactively, including keeping
+  an edit that produces invalid JSON, and then accepted a populated create and copy end to
+  end, which was W7b's own outstanding confirmation — the folder browser had been accepted
+  in its place. All four checkpoints are now accepted and the Workspaces screen carries its
+  full lifecycle. Three behaviours remain unverified and pass to W8 rather than blocking
+  W7: a workspace file broken or removed from outside Straumr, which reaches the unreadable
+  presentation without going through an edit; cancellation during loading and operations;
+  and `Up`/`Down` prompt history. W8 itself is not started.
 
 - 2026-09-10: Split the approved mockups into one editable HTML reference per screen.
 - 2026-09-10: Created the guide. No TUI implementation was started.
@@ -1259,3 +1326,29 @@ For each Workspaces milestone, run the smallest applicable subset:
   filtered-file selection now live behind thin `FolderBrowserDialog` and
   `FileBrowserDialog` specializations. Import uses the file dialog and export uses the
   folder dialog.
+- 2026-09-11: The developer accepted the W7c import/export UX interactively. W7d is the
+  next checkpoint.
+- 2026-09-11: Workspace editing no longer discards an edit Core cannot accept. The
+  external editor now returns text and leaves parsing to its caller, so the screen decides
+  what to do with JSON it cannot read: it writes the text to the workspace file and lists
+  the workspace as unreadable until it is repaired. That required the screen to survive an
+  unreadable workspace, which it now does for one broken from outside Straumr too — each
+  registry entry is read on its own, a failure is scoped to its row, the row is named after
+  its folder and reads red, the detail pane names the problem and points at `e`, activation
+  is refused with its reason, and `Copy` and `Export` withdraw while `Edit` and `Delete`
+  stay. A mismatched ID inside the file is treated the same way rather than being rejected
+  and thrown away. Shared pieces gained `ResourceRow.IsBroken`, `FieldList.Problem`, and a
+  `RedBright` palette entry for a broken name on the selection band. Debug, Release,
+  solution and CLI-only builds pass with no warnings. Interactive verification remains.
+- 2026-09-11: Implemented W7d workspace editing through `$EDITOR`. The screen queues a
+  reusable external action rather than starting a process under the live TUI; the host
+  lets `Terminal.RunAsync` release fullscreen modes, explicitly stops the framework's
+  persistent input loop, executes the edit, then starts a new host over the same retained
+  state. An explicit `WindowLayer` makes that tree re-hostable, and app-wide commands are
+  registered on every new `TerminalApp`. The editor writes source-generated JSON to a
+  temporary file, supports quoted executable paths and arguments without a shell, rejects
+  changed workspace IDs, deletes the file, saves through Core, reloads and reselects the
+  workspace, and restores list focus on attachment. A headless end-to-end probe edited and
+  saved a workspace, reused the root across two fullscreen runs, and verified the restored
+  focus. Debug, Release, CLI-only, and CLI help checks pass. Interactive verification
+  remains.

@@ -21,9 +21,15 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 /// marks it with a dot so the screen answers "which one is live" without a trip to the header. A
 /// list whose rows all omit it reserves no column for the marker.
 /// </param>
+/// <param name="IsBroken">
+/// Whether the resource cannot be used as it stands, such as a workspace whose file no longer parses.
+/// The list reads its name in red, so a resource needing attention is recognisable from the list alone
+/// rather than only after selecting it.
+/// </param>
 public sealed record ResourceRow(
     string Name,
     string? Meta = null,
     bool HasContent = false,
     string? Detail = null,
-    bool IsCurrent = false);
+    bool IsCurrent = false,
+    bool IsBroken = false);
