@@ -16,7 +16,6 @@ public sealed class StraumrTuiApp
     private const string OpenPromptCommandId = "Straumr.OpenCommandPrompt";
 
     private static readonly TimeSpan MessageLifetime = TimeSpan.FromSeconds(5);
-    private static readonly Thickness FooterInset = new(1, 0, 1, 0);
 
     private readonly State<TuiScreen> _currentScreen;
     private readonly State<string?> _activeWorkspaceName = new(null);
@@ -66,9 +65,9 @@ public sealed class StraumrTuiApp
         commandBar.SetStyle(StraumrStyles.CommandBar);
 
         var footer = new ZStack(
-                StraumrSurfaces.Inset(commandBar, FooterInset)
+                StraumrSurfaces.Inset(commandBar, StraumrSurfaces.RowInset)
                     .IsVisible(() => !_prompt.IsOpen && _message.Value.Message is null),
-                StraumrSurfaces.Inset(BuildMessageLine(), FooterInset)
+                StraumrSurfaces.Inset(BuildMessageLine(), StraumrSurfaces.RowInset)
                     .IsVisible(() => !_prompt.IsOpen && _message.Value.Message is not null),
                 _prompt.Root)
             .HorizontalAlignment(Align.Stretch);

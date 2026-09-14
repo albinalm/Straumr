@@ -18,7 +18,11 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 /// </remarks>
 internal static class ResourceScreenLayout
 {
-    private static readonly Thickness PaneInset = new(1, 1, 1, 1);
+    /// <summary>
+    /// The padding every pane and every three-row bar takes, so a full-screen view lands its content
+    /// on the same rows a panel does.
+    /// </summary>
+    public static readonly Thickness PaneInset = new(1, 1, 1, 1);
 
     /// <summary>
     /// Top padding on list content so its first row lands on the same row as the first value in a

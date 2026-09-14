@@ -14,6 +14,7 @@ public static class HttpExtensions
         try
         {
             using HttpResponseMessage response = await requestTask;
+            TimeSpan timeToHeaders = stopwatch.Elapsed;
             byte[] raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             stopwatch.Stop();
             string body = DecodeBody(raw, response.Content.Headers.ContentType?.CharSet);
@@ -33,6 +34,8 @@ public static class HttpExtensions
             {
                 StatusCode = response.StatusCode,
                 Duration = stopwatch.Elapsed,
+                TimeToHeaders = timeToHeaders,
+                BodyDownloadDuration = stopwatch.Elapsed - timeToHeaders,
                 Content = body,
                 RawContent = raw,
                 Exception = null,
@@ -58,6 +61,7 @@ public static class HttpExtensions
             };
         }
     }
+
     private static string DecodeBody(byte[] raw, string? charset)
     {
         if (raw.Length == 0)

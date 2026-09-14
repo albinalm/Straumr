@@ -99,6 +99,14 @@ internal static class StraumrStyles
     public static readonly TextBlockStyle PurpleText =
         PrimaryText with { Foreground = Purple };
 
+
+    /// <summary>
+    /// Text in the command bar's key colour, for a hint that has to name a second key its one
+    /// keycap cannot show. The bar parses a label as markup, so this is the one place a colour is
+    /// written into text rather than taken from a style; it still comes from the palette.
+    /// </summary>
+    public static string KeyMarkup(string text) => $"[{Accent.ToHexString()}]{text}[/]";
+
     public static readonly CommandBarStyle CommandBar =
         CommandBarStyle.Default with
         {
@@ -163,6 +171,39 @@ internal static class StraumrStyles
         Hovered = Style.None.WithForeground(Accent).WithBackground(Hover)
     };
 
+    /// <summary>
+    /// A page title notched into the rule above a pane, for a region whose pages are its whole
+    /// content. It is a button rather than a label so a page stays one click away where the
+    /// framework's own tab strip would have been, and it never takes focus of its own: the pane
+    /// below it owns the focus the chip reports.
+    /// </summary>
+    public static readonly ButtonStyle RuleTab = Button with
+    {
+        Normal = Style.None.WithForeground(Muted).WithBackground(Background),
+        Hovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
+        Pressed = Style.None.WithForeground(Accent).WithBackground(Hover),
+        Focused = Style.None.WithForeground(Muted).WithBackground(Background),
+        Disabled = Style.None.WithForeground(Muted).WithBackground(Background)
+    };
+
+    /// <summary>The selected page while its pane is not the region that owns focus.</summary>
+    public static readonly ButtonStyle RuleTabSelected = RuleTab with
+    {
+        Normal = Style.None.WithForeground(Accent).WithBackground(Background),
+        Focused = Style.None.WithForeground(Accent).WithBackground(Background)
+    };
+
+    /// <summary>
+    /// The selected page while its pane owns focus. It carries the focus chip's fill, so a
+    /// full-screen view answers "where am I" with the one filled blue title every screen has.
+    /// </summary>
+    public static readonly ButtonStyle RuleTabFocused = RuleTab with
+    {
+        Normal = Style.None.WithForeground(TextBright).WithBackground(Selection),
+        Hovered = Style.None.WithForeground(TextBright).WithBackground(Selection),
+        Focused = Style.None.WithForeground(TextBright).WithBackground(Selection)
+    };
+
     public static readonly TextBoxStyle TextBox = TextBoxStyle.Default with
     {
         Padding = new Thickness(1, 0, 1, 0),
@@ -197,6 +238,13 @@ internal static class StraumrStyles
         LabelBackgroundStyle = Style.None.WithBackground(Background),
         BackgroundStyle = Style.None.WithBackground(Background)
     };
+
+    public static readonly SpinnerStyle RequestPulse = new("RequestPulse", TimeSpan.FromMilliseconds(80),
+        ["●···········", "·●··········", "··●·········", "···●········", "····●·······", "·····●······",
+         "······●·····", "·······●····", "········●···", "·········●··", "··········●·", "···········●",
+         "··········●·", "·········●··", "········●···", "·······●····", "······●·····", "·····●······",
+         "····●·······", "···●········", "··●·········", "·●··········"])
+    { Foreground = Accent };
 
     public static readonly ScrollViewerStyle ListScrollViewer = ScrollViewerStyle.Default with
     {

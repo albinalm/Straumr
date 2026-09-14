@@ -3,6 +3,84 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-14: `Tab` now changes page in the full-screen response, and `Shift+Tab` steps
+  back, because `Tab` already means "move the chip along the rule" and that rule carries
+  the pages here; a command claims the key before focus traversal reaches it, and nothing
+  else on the rule can be stepped to. `t` still moves pages too and the hint names both, as
+  `Tab /t Next tab`: a bar renders one gesture per hint and renders a gestureless hint not at
+  all, so the second key rides in the presented hint's label, painted in the bar's key colour
+  through the label markup a `CommandBar` already parses. The inline pane keeps `t`
+  as its own hint, since `Tab` there belongs to the screen's regions. To
+  make room for the hint, the full-screen pane builds its `ScrollableContent` with
+  `hints: false`: the movement commands are advertisements only — `OnKeyDown` handles the
+  keys — so `j`/`k`/`g`/`G`, the arrows, Home/End, Page and the wheel all still work while
+  the footer reads `b Beautify / minify · y Copy body · Escape Back · s Send again ·
+  Tab /t Next tab`. That is the same trade the resize keys already make. Verified on a running
+  app: `Tab` moved the selected page and focus followed it, `Shift+Tab` came back, and the
+  Requests screen's own snapshots are unchanged. Debug and Release solution builds pass.
+
+- 2026-09-14: Three corrections to the full-screen response from the developer's review of
+  the cohesion pass. It now opens with the Body page focused — `AutoFocus` is not enough,
+  because the dialog takes the focus pass that follows its own `Show`, so the view asks for
+  focus once it has an app to ask, which leaves a titled region lit from the first frame
+  instead of none. The header names the request alone, `{straumr} · categorize`: the kind of
+  view is already evident from what is on screen, and the request is what the reader has to
+  keep track of, so `StraumrHeader`'s overload now takes one name rather than a screen and a
+  crumb. And `s` sends the request again without leaving the view, the same letter the list
+  sends with: it queues through `UpdateAsync` where every other Core call runs, stands down
+  while a send is already in flight, and puts the view back in its in-flight state. Escape
+  cancels a re-send from a cached view too, which it could not before, since that path had
+  been given a cancel that did nothing. A running in-memory app confirms the Body page holds
+  focus when the view opens, the footer reading `b Beautify / minify · y Copy body ·
+  Escape Back · s Send again` at 120 columns, and the bar and footer returning to
+  `IN FLIGHT` and `Escape Cancel` on a re-send. Debug and Release solution builds pass
+  without warnings. The send itself is not driven headlessly and still wants a terminal.
+
+- 2026-09-14: Made the full-screen response read as a screen of the app rather than as a
+  dialog over one, from the developer's report that it works but does not feel cohesive.
+  It now carries the shell's own identity header — `{straumr} · response · <request>` on
+  the left, the active workspace on the right — a three-row summary bar holding the method
+  and URL opposite either the in-flight pulse or the finished measurements, and its Body,
+  Headers and Network titles notched into the rule that closes that bar, the selected one
+  carrying the focus chip. That replaces a `Response` title stacked over a separate tab
+  strip, which named the region twice and lit two focus cues at once. The dialog also lost
+  its frame title and its padding, so its rules run to the frame as the shell's do; the bar
+  keeps its three rows when a send finishes instead of collapsing the activity row and
+  shifting the screen under the reader; a transport failure is reported once, short in the
+  bar and in full on the pages, instead of twice; the Network page uses the `Key: value`
+  formatting the Headers page uses; and the footer notice lives as long as the shell's
+  messages do. The inline response's third tab was renamed from `Details` to `Network` so
+  both surfaces name the same page the same way, and the method token now keeps its width
+  in both summary bars rather than being the first thing trimmed. New shared pieces:
+  `PreviewPane.OnRule`, `StraumrDialog.CreateScreen`, a `StraumrHeader` overload taking the
+  screen name and a crumb, `StraumrSurfaces.RowInset` and a public `ResourceScreenLayout.PaneInset`.
+  Debug solution build passes without warnings; Workspaces and the shared list snapshots are
+  byte-identical to before the change, and the response view was captured at 120x30, 80x24
+  and 44x14 while sending, on success and on a transport failure. The focus chip, clicking a
+  title and the animation need the developer's terminal.
+
+- 2026-09-14: Restored the initial full-screen response appearance at the developer's
+  request: compact pulse and live elapsed label above the response tabs. Removed the
+  separate orbital loading scene, transfer dashboard and its streaming-progress API.
+  Kept the timer fix, response inspection, formatting, clipboard and cancellation.
+
+- 2026-09-14: Fixed the frozen in-flight duration reported by the developer. A plain
+  Stopwatch read is not a reactive dependency, and the screen update awaits sending.
+  The label now uses the framework animation scheduler at 100 ms intervals to update
+  its retained TextBlock on the UI thread, with no background timer. A running
+  in-memory TerminalApp verified the text advancing during an awaited callback and
+  remaining unchanged after the clock stopped. Debug and Release builds pass.
+
+- 2026-09-14: Replaced the Requests send spinner dialog with a viewport-sized response
+  view that stays open on success, HTTP/transport errors, cancellation and timeout.
+  A shared-style pulse and elapsed counter animate while sending. Body, Headers and
+  Network tabs expose full wrapped content and measured header/body timings, bytes,
+  HTTP version and body read rate. `v` expands a cached response without resending;
+  `b` beautifies/minifies JSON and `y` copies the full currently formatted body in
+  either response surface. Invalid JSON and unavailable clipboard access report
+  errors. Debug/Release and CLI-only builds pass, as do local formatting/metrics
+  checks and layout captures at 120x28, 80x24 and 44x14. Interactive acceptance pending.
+
 - 2026-09-14: Persisted the Requests screen's three movable divider shares under its
   own `StraumrOptions.PaneLayouts["Requests"]` entry, leaving an independent settings
   slot for each future screen. Values restore before the retained tree is built, save

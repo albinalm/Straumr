@@ -18,7 +18,12 @@ public sealed partial class ScrollableContent : Visual, IScrollable
     private readonly Visual _content;
     private readonly ScrollModel _scroll;
 
-    public ScrollableContent(Visual content)
+    /// <param name="hints">
+    /// Whether the movement keys are advertised in the footer. A region that shares that row with a
+    /// screen's own actions can turn them off, as the resize keys already present one of four: the
+    /// keys keep working from <see cref="OnKeyDown"/>, which is where they were handled anyway.
+    /// </param>
+    public ScrollableContent(Visual content, bool hints = true)
     {
         _content = content;
         _scroll = new ScrollModel(this);
@@ -27,6 +32,9 @@ public sealed partial class ScrollableContent : Visual, IScrollable
         this.IsTabStop(this.IsReachable);
         HorizontalAlignment = Align.Stretch;
         VerticalAlignment = Align.Stretch;
+
+        if (!hints)
+            return;
 
         AddCommand(Hint("ScrollableContent.Next", "Scroll down", 'j',
             () => ScrollBy(1)));

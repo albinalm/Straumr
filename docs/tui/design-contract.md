@@ -62,6 +62,17 @@ Shared screen shell:
   jump between levels of the hierarchy.
 - The filled accent surface belongs to focus alone. Quantities and identifiers use
   the recessed badge. Do not spread either further.
+- A view that fills the terminal is a screen, not a dialog, and is built from the
+  pieces above: no title on its frame, the same header naming it, a three-row bar, a
+  pane, and the one-row footer. A view of one resource is named by that resource
+  rather than by the kind of view it is, because the kind is already evident and the
+  resource is what the reader has to keep track of. It opens with a region focused, as
+  a screen does. Where such a view has pages rather than sections, the page titles take
+  the place the section titles take: notched into the one rule, the selected one
+  carrying the chip while the pane owns focus, and `Tab` steps between them. A titled
+  rule over a tab strip of its own would name the region twice and light two cues at
+  once, and a page needing a letter of its own would make `Tab` mean one thing on a
+  screen with regions and nothing on a screen with pages.
 - Footer: context-aware shortcuts.
 - The footer row is one row and holds one thing at a time: the shortcut hints, the
   command prompt while it is open, or a command's result. So the prompt does not

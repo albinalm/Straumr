@@ -41,7 +41,8 @@ public sealed class RequestScreen : ITuiScreen
     private readonly ResourceFilter _filter;
     private readonly PaneSplits _splits;
     private readonly PreviewPane _requestPreview = new("Body", "Headers", "Params");
-    private readonly PreviewPane _responsePreview = new("Body", "Headers", "Details");
+    private readonly PreviewPane _responsePreview = new("Body", "Headers", "Network");
+    private readonly ResponseBodyActions _responseBody;
     private readonly ScrollableContent _authView;
     private readonly Visual _sections;
     private readonly Dictionary<(Guid Workspace, Guid Request), StraumrResponse> _responses = [];
@@ -51,7 +52,7 @@ public sealed class RequestScreen : ITuiScreen
     private Guid? _displayedId;
     private Guid? _pendingSend;
     private CancellationTokenSource? _sendCancellation;
-    private Dialog? _sendDialog;
+    private RequestResponseView? _responseView;
     private bool _savePaneLayout;
 
     public RequestScreen(IStraumrOptionsService options, IStraumrWorkspaceService workspaces,
@@ -60,6 +61,10 @@ public sealed class RequestScreen : ITuiScreen
     {
         (_options, _workspaces, _requests, _auths, _secrets, _editor) =
             (options, workspaces, requests, auths, secrets, editor);
+        _responseBody = new ResponseBodyActions(_responsePreview, (message, failed) =>
+            NotificationRequested?.Invoke(failed ? TuiCommandResult.Failed(message) : TuiCommandResult.Ok(message)));
+        _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", 'v', OpenResponse,
+            () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item && _responses.ContainsKey((workspace.Id, item.Id))));
         StraumrPaneLayout paneLayout = options.Options.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
             ?? new StraumrPaneLayout();
         _splits = new PaneSplits(paneLayout.Panels, paneLayout.Sections, paneLayout.Stack);
@@ -72,7 +77,7 @@ public sealed class RequestScreen : ITuiScreen
         _list.ItemActivated += _ => _requestPreview.FocusTarget.App?.Focus(_requestPreview.FocusTarget);
         _filter = new ResourceFilter("filter requests", ApplyFilter, () => _list);
         _list.AddCommand(ActionCommand("Edit", 'e', RequestEdit, () => SelectedItem is not null));
-        _list.AddCommand(ActionCommand("Send", 's', QueueSend, () => SelectedItem is { IsBroken: false }));
+        _list.AddCommand(ActionCommand("Send fullscreen", 's', QueueSend, () => SelectedItem is { IsBroken: false }));
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
         Visual responsePane = ResourceScreenLayout.Pane(_responsePreview.Root);
         var responseRule = StraumrSurfaces.TitledDivider("Response", responsePane.Owns);
@@ -179,6 +184,7 @@ public sealed class RequestScreen : ITuiScreen
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        _responseView?.Update();
         if (_savePaneLayout)
         {
             _savePaneLayout = false;
@@ -211,6 +217,7 @@ public sealed class RequestScreen : ITuiScreen
             return;
         if (item.Request is not { } request)
         {
+            _responseBody.SetBody(null);
             _requestPreview.SetText($"{item.Problem}\n\nPress e to repair this request.\n{item.Path}", "Unavailable.", "Unavailable.");
             _responseSummary.Value = "Unavailable";
             _responsePreview.SetText("Repair the request before sending it.", "Unavailable.", "Unavailable.");
@@ -230,7 +237,8 @@ public sealed class RequestScreen : ITuiScreen
         if (SelectedItem is not { } item)
             return new TextBlock("No request selected.").Style(StraumrStyles.MutedText).Trimming(TextTrimming.EndEllipsis);
         Visual summary = item.Request is { } request
-            ? new HStack(new TextBlock(request.Method.Method).Style(HttpMethodFormatting.Style(request.Method)),
+            ? new HStack(new TextBlock(request.Method.Method).Style(HttpMethodFormatting.Style(request.Method))
+                    .MinWidth(request.Method.Method.Length),
                 new TextBlock(RequestEditorState.FromRequest(request).GetDisplayUri()).Style(StraumrStyles.PrimaryText)
                     .Trimming(TextTrimming.EndEllipsis).HorizontalAlignment(Align.Stretch)).Spacing(2)
             : new TextBlock($"{item.Name} · cannot be read").Style(StraumrStyles.RedText).Trimming(TextTrimming.EndEllipsis);
@@ -271,6 +279,7 @@ public sealed class RequestScreen : ITuiScreen
         _responseFailed.Value = false;
         if (_workspace is null || !_responses.TryGetValue((_workspace.Id, id), out StraumrResponse? response))
         {
+            _responseBody.SetBody(null);
             _responseSummary.Value = "Not sent";
             _responsePreview.SetText("No response yet. Press s on the request to send it.", "No response headers.", "No response yet.");
             return;
@@ -284,8 +293,11 @@ public sealed class RequestScreen : ITuiScreen
             details += "\n\nWarnings\n" + string.Join('\n', response.Warnings);
         if (response.Exception is { } exception)
             details += "\n\n" + exception.Message;
-        _responsePreview.SetText(response.Exception?.Message ?? ContentFormatting.Preview(response.Content, formatJson: true),
+        _responsePreview.SetText(response.Exception?.Message ?? "No body.",
             ContentFormatting.Headers(response.ResponseHeaders), details);
+        _responseBody.SetBody(response.Content);
+        if (response.Exception is not null)
+            _responsePreview.SetPageText(0, response.Exception.Message);
     }
 
     private void ApplyFilter(string query) => ApplyFilter(query, SelectedItem?.Id);
@@ -335,21 +347,44 @@ public sealed class RequestScreen : ITuiScreen
     {
         if (SelectedItem is not { IsBroken: false } item || _sendCancellation is not null)
             return;
-        _sendCancellation = new CancellationTokenSource();
-        _pendingSend = item.Id;
-        var cancel = new Button("Cancel") { AutoFocus = true };
-        cancel.SetStyle(StraumrStyles.Button);
-        cancel.Click(() => _sendCancellation?.Cancel());
-        _sendDialog = StraumrDialog.Create(new TextBlock("Sending request").Style(StraumrStyles.AccentText),
-            new VStack(new HStack(new Spinner(), new TextBlock(item.Name).Style(StraumrStyles.PrimaryText)).Spacing(1),
-                new TextBlock(item.Request!.Uri).Style(StraumrStyles.MutedText).Wrap(true), cancel).Spacing(1), 64);
-        _sendDialog.RemoveCommand(StraumrDialog.CancelCommandId);
-        _sendDialog.AddCommand(new Command
+        _responseView = BuildResponseView(item.Id, item.Request!, () => _list.App?.Focus(_list));
+        QueueSend(item.Id);
+        _responseView.Show();
+    }
+
+    private void OpenResponse()
+    {
+        if (_workspace is not { } workspace || SelectedItem is not { Request: { } request } item ||
+            !_responses.TryGetValue((workspace.Id, item.Id), out StraumrResponse? response))
+            return;
+        _responseView = BuildResponseView(item.Id, request,
+            () => _responsePreview.FocusTarget.App?.Focus(_responsePreview.FocusTarget));
+        _responseView.Complete(response, cached: true);
+        _responseView.Show();
+    }
+
+    /// <remarks>
+    /// Sending again is the same send, so it goes through the same queue rather than around it: the
+    /// view returns to its in-flight state and <see cref="UpdateAsync"/> runs the request where every
+    /// other Core call runs. It stands down while one is already in flight, as `s` on the list does.
+    /// </remarks>
+    private RequestResponseView BuildResponseView(Guid id, StraumrRequest request, Action restoreFocus) =>
+        new(request, ActiveWorkspaceName, () => _sendCancellation?.Cancel(), () =>
         {
-            Id = "Request.CancelSend", LabelMarkup = "Cancel", Gesture = new KeyGesture(TerminalKey.Escape),
-            Presentation = CommandPresentation.CommandBar, Execute = _ => _sendCancellation?.Cancel()
+            if (_sendCancellation is not null)
+                return;
+            QueueSend(id);
+            _responseView?.Restart();
+        }, () =>
+        {
+            _responseView = null;
+            restoreFocus();
         });
-        _sendDialog.Show();
+
+    private void QueueSend(Guid id)
+    {
+        _sendCancellation = new CancellationTokenSource();
+        _pendingSend = id;
     }
 
     private async Task SendAsync(Guid id, CancellationToken cancellationToken)
@@ -364,21 +399,23 @@ public sealed class RequestScreen : ITuiScreen
                 throw new StraumrException(problem, StraumrError.CorruptEntry);
             StraumrResponse response = await _requests.SendAsync(workspace, request, cancellationToken: linked.Token);
             _responses[(workspace.Id, id)] = response;
+            _responseView?.Complete(response);
             _displayedId = null;
-            NotificationRequested?.Invoke(response.Exception is null ? TuiCommandResult.None : TuiCommandResult.Failed(response.Exception.Message));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && _sendCancellation.IsCancellationRequested)
         {
-            NotificationRequested?.Invoke(TuiCommandResult.Ok("request cancelled"));
+            _responseView?.Fail("Request cancelled");
         }
-        catch (Exception exception) when (IsRecoverable(exception) || exception is HttpRequestException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            NotificationRequested?.Invoke(TuiCommandResult.Failed($"send failed: {exception.Message}"));
+            _responseView?.Fail("Request timed out");
+        }
+        catch (Exception exception) when (IsRecoverable(exception) || exception is HttpRequestException or UriFormatException or InvalidOperationException)
+        {
+            _responseView?.Fail("Send failed", exception.Message);
         }
         finally
         {
-            _sendDialog?.Close();
-            _sendDialog = null;
             _sendCancellation.Dispose();
             _sendCancellation = null;
         }

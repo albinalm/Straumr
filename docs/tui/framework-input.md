@@ -62,6 +62,23 @@ framework behavior.
   `ConsumesGestureWhenUnavailable = false` also works and falls through to the focused
   control's own `OnKeyDown`.
 
+- A command whose gesture is `Tab` claims the key before focus traversal gets it, so a
+  surface with nothing else to step to can give `Tab` its own meaning: the full-screen
+  response cycles its pages with it, and `Shift+Tab` cycles back. `Shift` plus a named
+  key is portable here where `Ctrl+Enter` was not, because a terminal sends back-tab as
+  its own sequence and 3.9.0 decodes it as `Key=Tab, Modifiers=Shift` — which is how the
+  framework's own backwards traversal works. Measured on a running app: `Tab` moved the
+  selected page and focus followed it, rather than traversal moving focus somewhere else.
+
+- A `CommandBar` hint is one keycap plus a label, and the keycap is rendered from the
+  command's gesture: there is no way to give it text of its own, and a command with no
+  gesture is not rendered at all — measured, it simply vanishes from the row. A hint that
+  has to name a second key therefore carries it in the label, which is parsed as ANSI
+  markup (`[#RRGGBB]…[/]`, `[bold]`, `[/]` closing the last tag). `StraumrStyles.KeyMarkup`
+  paints such a key in the bar's own key colour, so `Tab /t Next tab` reads as two keys and
+  one label. The keycap's padding still separates them by a space; it belongs to every hint
+  in the app through `CommandBarStyle`, not to this one.
+
 ## Focus and modality
 
 - `Visual.App` is null until the app is running, so anything that needs the

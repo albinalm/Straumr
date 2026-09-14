@@ -3,6 +3,38 @@
 Part of the [TUI implementation guide](./README.md). Run the smallest applicable
 subset for the milestone in hand, and tick items here in the same change.
 
+- [x] The full-screen response opens with Body focused, changes page on `Tab` and back on
+      `Shift+Tab` with focus following the page, and offers `s Send again` when it is not
+      sending: verified on a running in-memory app, which also showed the bar and footer
+      returning to `IN FLIGHT` and `Escape Cancel` on a re-send, and the footer reading
+      `b`, `y`, `Escape Back`, `s Send again`, `Tab /t Next tab` at 120 columns, with both
+      `Tab` and `/t` in the key colour and only the label grey (checked against the emitted
+      colour codes, since a `CommandBar` renders nothing without a running app).
+- [x] Full-screen response reads as a screen: header, three-row bar, titles on the rule,
+      rules meeting the frame. Captured at 120x30, 80x24 and 44x14 while sending, on
+      success and on a transport failure.
+- [x] The shared header and footer insets moved without moving anything: Workspaces and
+      the one-, two- and three-line list snapshots are byte-identical to before.
+- [ ] Terminal check of the cohesion pass: the selected title carries the focus chip and
+      no second cue competes with it, clicking a title selects that page and leaves focus
+      in the pane, the bar does not jump when a send lands, a failed send
+      says it once in the bar and once on the pages, `Tab` and `Shift+Tab` change page, and
+      `s` sends again — including a second send from a cached response and Escape
+      cancelling one.
+- [x] Full-screen response: Debug/Release solution and Release CLI-only builds.
+- [x] Restored compact send appearance: local layout/response checks and Debug
+      (separate output directory) and Release builds pass.
+- [x] In-flight elapsed label advances during awaited work and stops with its clock:
+      verified through the real animation scheduler in an in-memory TerminalApp.
+- [x] Response layout captures at 120x28, 80x24 and 44x14: sending, success, formatted
+      JSON and timeout. Preserves JSON line breaks and the method token when narrow.
+- [x] Response helper checks: beautify/minify, >64 KiB full-body retention, invalid
+      JSON unchanged, header/body timing consistency, cancellation propagation and
+      transport failure (local diagnostic, no input harness or real clipboard writes).
+- [ ] Terminal check: `s` opens full-screen, pulse/elapsed animate, resize reflows,
+      `t` changes tabs, `b` formats, `y` copies, Escape cancels then returns, `v`
+      reopens without sending; check slow sends and Ctrl+C too.
+
 For each Workspaces milestone, run the smallest applicable subset:
 
 - [x] `dotnet build src/Straumr.sln`

@@ -8,6 +8,8 @@ public class StraumrResponse
     public required string? Content { get; init; }
     public byte[]? RawContent { get; init; }
     public required TimeSpan Duration { get; init; }
+    public TimeSpan? TimeToHeaders { get; init; }
+    public TimeSpan? BodyDownloadDuration { get; init; }
     public required Exception? Exception { get; init; }
 
     public IReadOnlyDictionary<string, IEnumerable<string>> ResponseHeaders { get; init; } =

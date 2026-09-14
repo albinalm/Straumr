@@ -43,6 +43,8 @@ Straumr.Console.Tui/
     Request/
       RequestScreen.cs            loading, filtering, inspection, sending and editor handoff
       RequestScreenItem.cs        readable/broken request presentation model
+      RequestResponseView.cs      fullscreen send activity, response tabs and network metrics
+      ResponseBodyActions.cs      body-scoped JSON formatting and full-text clipboard actions
       RequestAuthentication.cs    auth metadata and secret-reference availability
   Visuals/
     Shared/
@@ -107,4 +109,3 @@ A screen should own:
 - data loading and refresh after screen-specific operations
 - visuals and commands that belong only to that screen, gestures and typed commands
   alike
-

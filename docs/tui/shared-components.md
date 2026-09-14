@@ -130,7 +130,9 @@ folder browser.
 
 `ScrollableContent` owns focus and scrolling for retained read-only content such as
 the recent Requests preview. It exposes contextual `j`/`k`/`g`/`G` commands while
-arrow, Home/End, Page and wheel input update the same bindable offset.
+arrow, Home/End, Page and wheel input update the same bindable offset. Those commands
+are hints and nothing else — `OnKeyDown` is where the keys are handled — so a region
+sharing the footer with a screen's actions can take `hints: false` and keep every key.
 
 The workspace form shows the location it will actually use on a line under the field,
 but only while that field is blank: once something is typed the field is already showing
@@ -143,6 +145,32 @@ what happens cannot drift apart. Leaving the field blank therefore means the loc
 that line, not whatever the global default happens to be. Create offers the configured default; Copy
 offers the folder holding the workspace being copied, which is where a sibling of it
 would be written and is the answer far more often than a setting that has gone stale.
+
+## Preview panes and full-screen views
+
+`PreviewPane` is the tabbed read-only text pane: one `ScrollableContent` per page and
+`SetText`/`SetPageText` to replace a page's text without disturbing the others. Its
+default form puts the page titles on a framework tab strip and cycles them with `t`,
+which is what a pane inside a titled section needs, `Tab` there belonging to the screen's
+regions. `PreviewPane.OnRule` puts them on a `Rule` the caller places instead, for a pane
+that is a whole screen: the titles are then where every other title is, the selected one
+carries the focus chip while the pane owns focus, a title is a clickable chip that hands
+focus to the page it selects rather than keeping it, and `Tab` and `Shift+Tab` step
+between them — nothing else on that rule can be stepped to, so `Tab` keeps meaning "move
+the chip along the rule" (`t` still works, and the hint names both keys, the second one
+painted in the bar's key colour through `StraumrStyles.KeyMarkup`, because a bar renders
+one gesture per hint and nothing at all for a gestureless one). Only the selected page is
+visible, and visibility is set outright rather than bound, because focus is revoked from a
+visual that is invisible during the focus pass. Such a pane also builds its
+`ScrollableContent` with `hints: false`: the footer row it shares with the screen's own
+actions is one row, and four movement hints would crowd them out, as they did.
+
+`StraumrDialog.CreateScreen` is the modal such a view sits in: the full terminal, no
+frame title, no padding, so its rules run to the frame exactly as the shell's do and
+the view names itself with `StraumrHeader.Create`, whose second overload takes the name to
+show — the screen, or for a view of one resource, that resource.
+`StraumrSurfaces.RowInset` and `ResourceScreenLayout.PaneInset` are the two paddings
+involved, shared so a full-screen view lands its rows where a panel lands them.
 
 ## Field lists
 

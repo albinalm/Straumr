@@ -14,6 +14,12 @@ internal static class StraumrSurfaces
     private static readonly Rune VerticalLine = new('│');
 
     /// <summary>
+    /// The breathing room a one-row bar takes. Only its text is inset: the rules and the frame keep
+    /// the full width, so a rule always meets the frame it ends at.
+    /// </summary>
+    public static readonly Thickness RowInset = new(1, 0, 1, 0);
+
+    /// <summary>
     /// A full-height column divider. <paramref name="junctions"/> replaces the line glyph on the rows
     /// where a <see cref="HorizontalDivider"/> meets the column, keyed by row offset within the divider.
     /// </summary>

@@ -14,6 +14,28 @@ internal static class StraumrDialog
     /// </summary>
     public const string CancelCommandId = "StraumrDialog.Cancel";
 
+    /// <summary>
+    /// A modal that fills the terminal and carries no frame title: a full-screen view names itself
+    /// with the shell's own header bar instead, so the frame it sits in is the window frame every
+    /// screen has rather than a dialog's. It takes no padding either, so its rules run to the frame.
+    /// </summary>
+    public static Dialog CreateScreen(Visual content)
+    {
+        var dialog = new Dialog(content)
+        {
+            Padding = new Thickness(0),
+            IsModal = true,
+            IsDraggable = false,
+            IsResizable = false,
+            Left = 0,
+            Top = 0
+        };
+        dialog.SetStyle(StraumrStyles.Dialog);
+        dialog.Width(() => dialog.App?.Terminal.Size.Columns ?? 80);
+        dialog.Height(() => dialog.App?.Terminal.Size.Rows ?? 24);
+        return dialog;
+    }
+
     public static Dialog Create(Visual title, Visual content, int width)
     {
         var dialog = new Dialog(title, content)

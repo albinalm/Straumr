@@ -10,6 +10,10 @@ visuals, layout or palette. For keys, focus, commands and hosting see
 - Compose the application shell from `Grid`, `Padder`, `Rule`, layout containers,
   and a footer or `CommandBar` where their behavior fits.
 - Use `State<T>`, bindings, and computed visuals for changing UI state.
+- A binding that reads only `Stopwatch.Elapsed` has no reactive dependency and will
+  not refresh as time passes. Timed labels use `IAnimatedVisual` to update retained
+  text on the UI thread; the animation scheduler runs even while the screen's async
+  update awaits I/O. Its timestamps use Stopwatch ticks (`Stopwatch.Frequency`).
 - Use `ListBox<T>` with a `DataTemplate<T>` for single-line resource lists.
 - Use a small retained-mode list visual for multiline resource rows; the pinned
   `ListBox<T>` fixes every item to one terminal row and `Button` imposes an
