@@ -34,6 +34,7 @@ Example layout:
 - `Workspaces`: registry of workspace IDs and manifest paths
 - `Secrets`: registry of secret IDs and secret file paths
 - `CurrentWorkspace`: the active workspace entry
+- `PaneLayouts`: TUI divider shares keyed by screen name
 
 Example:
 
@@ -56,6 +57,13 @@ Example:
   "CurrentWorkspace": {
     "Id": "c55da52f-a4d7-41b2-a2e2-487a006318d7",
     "Path": "/tmp/straumr-docs-ws/demo/c55da52f-a4d7-41b2-a2e2-487a006318d7.straumr"
+  },
+  "PaneLayouts": {
+    "Requests": {
+      "Panels": 35,
+      "Sections": 52,
+      "Stack": 46
+    }
   }
 }
 ```

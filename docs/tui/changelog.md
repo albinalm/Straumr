@@ -3,6 +3,16 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-14: Persisted the Requests screen's three movable divider shares under its
+  own `StraumrOptions.PaneLayouts["Requests"]` entry, leaving an independent settings
+  slot for each future screen. Values restore before the retained tree is built, save
+  through the update loop after a resize, and clamp malformed persisted shares. The TUI
+  now loads options before constructing the shell and starts on Requests when the
+  validated options contain an active workspace; otherwise it starts on Workspaces.
+  A focused probe restored 42/53/61, moved and saved 46/53/61 exactly once, round-tripped
+  the entry through generated JSON metadata, and confirmed Requests as the initial screen.
+  Debug and Release solution builds and the Release CLI-only build pass without warnings.
+
 - 2026-09-14: Fixed the Requests screen's ghost focus states, reported from a terminal:
   Tab reached positions where no region was titled and the resize keys moved a divider
   belonging to somewhere else. Three separate causes, found by driving Tab through

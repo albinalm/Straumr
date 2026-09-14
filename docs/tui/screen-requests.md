@@ -28,6 +28,11 @@ implements, what evidence exists, and where to resume.
 - `e` on the list uses the existing external-editor host handoff. A valid edit saves
   through Core; invalid request JSON or identity is written back for repair rather
   than discarded. Editing clears that request's cached response and reloads selection.
+- The three movable divider shares load from and save to the `Requests` entry in
+  `StraumrOptions.PaneLayouts`. Invalid persisted shares are clamped to the layout's
+  supported range.
+- Startup opens Requests when options contain a valid active workspace; with no active
+  workspace it continues to open Workspaces.
 - Create/copy/delete request forms, request import/export and separate Auths/Secrets
   screens are not implemented by this checkpoint. No inert hints advertise them.
 
@@ -42,6 +47,11 @@ implements, what evidence exists, and where to resume.
 - Debug solution build passed without warnings. The final shared-grid adjustment also
   built successfully through the local snapshot checker; rebuild the host before the
   next interactive pass so it includes that last adjustment.
+- A focused in-memory-host probe confirmed that startup selects Requests for an active
+  workspace and that a configured 42/53/61 layout is restored; moving the panel divider
+  saved 46/53/61 exactly once through the options service, and the generated JSON metadata
+  round-tripped that per-screen entry. Debug and Release solution builds and the Release
+  CLI-only build pass without warnings after these changes.
 - One local checker, `.tmp/r1-check`, captured the existing one-, two- and three-line
   lists before/after: identical. Workspaces remained identical at 120x28 and 80x24;
   its heading alignment changed at 70x20 when the two grids became one. Requests was
@@ -54,8 +64,8 @@ implements, what evidence exists, and where to resume.
   the current screen explicitly handles only user cancellation of its send dialog.
 - Review edit recovery when Core refuses a syntactically valid edit (for example a
   duplicate name): the current code reports the refusal but does not retain that draft.
-- R1 Release/CLI-only builds and a fresh Native AOT publish have not been run. W8's
-  successful builds/publish precede these changes and must not be counted as R1 evidence.
+- A fresh Native AOT publish has not been run. W8's successful publish predates these
+  changes and must not be counted as R1 evidence.
 - Continue with small, reviewable changes. Prefer the developer's quick terminal checks
   over adding input probes. Preserve the accepted Workspaces design and extend shared
   components when the behavior is common.

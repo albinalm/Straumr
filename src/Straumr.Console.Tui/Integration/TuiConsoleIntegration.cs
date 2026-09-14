@@ -5,6 +5,7 @@ using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Screens.Request;
 using Straumr.Core.Extensions;
+using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 
@@ -30,6 +31,20 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args,
         CancellationToken cancellationToken)
     {
+        IStraumrOptionsService optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
+        try
+        {
+            await optionsService.LoadAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (RequestScreen.IsRecoverable(exception))
+        {
+            // The initial screen needs options before construction. Its normal load repeats this
+            // inside the shell, where the existing screen-level error state can explain a failure.
+        }
         var app = serviceProvider.GetRequiredService<StraumrTuiApp>();
 
         try

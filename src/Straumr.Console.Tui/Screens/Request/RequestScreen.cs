@@ -19,6 +19,8 @@ namespace Straumr.Console.Tui.Screens.Request;
 
 public sealed class RequestScreen : ITuiScreen
 {
+    private const string PaneLayoutKey = nameof(TuiScreen.Requests);
+
     private readonly IStraumrOptionsService _options;
     private readonly IStraumrWorkspaceService _workspaces;
     private readonly IStraumrRequestService _requests;
@@ -37,7 +39,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<bool> _responseFailed = new(false);
     private readonly ResourceList _list;
     private readonly ResourceFilter _filter;
-    private readonly PaneSplits _splits = new();
+    private readonly PaneSplits _splits;
     private readonly PreviewPane _requestPreview = new("Body", "Headers", "Params");
     private readonly PreviewPane _responsePreview = new("Body", "Headers", "Details");
     private readonly ScrollableContent _authView;
@@ -50,6 +52,7 @@ public sealed class RequestScreen : ITuiScreen
     private Guid? _pendingSend;
     private CancellationTokenSource? _sendCancellation;
     private Dialog? _sendDialog;
+    private bool _savePaneLayout;
 
     public RequestScreen(IStraumrOptionsService options, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
@@ -57,6 +60,10 @@ public sealed class RequestScreen : ITuiScreen
     {
         (_options, _workspaces, _requests, _auths, _secrets, _editor) =
             (options, workspaces, requests, auths, secrets, editor);
+        StraumrPaneLayout paneLayout = options.Options.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
+            ?? new StraumrPaneLayout();
+        _splits = new PaneSplits(paneLayout.Panels, paneLayout.Sections, paneLayout.Stack);
+        _splits.Changed += QueuePaneLayoutSave;
         _list = new ResourceList([], ResourceScreenLayout.Message(
             new TextBlock(() => _emptyMessage.Value)
                 .Style(() => _loadError.Value ? StraumrStyles.RedText : StraumrStyles.MutedText)
@@ -172,6 +179,23 @@ public sealed class RequestScreen : ITuiScreen
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        if (_savePaneLayout)
+        {
+            _savePaneLayout = false;
+            try
+            {
+                await _options.SaveAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (IsRecoverable(exception))
+            {
+                NotificationRequested?.Invoke(TuiCommandResult.Failed(
+                    $"cannot save pane layout: {exception.Message}"));
+            }
+        }
         if (_pendingSend is { } id)
         {
             _pendingSend = null;
@@ -417,4 +441,15 @@ public sealed class RequestScreen : ITuiScreen
         Importance = CommandImportance.Primary, Presentation = CommandPresentation.CommandBar,
         IsVisible = _ => available(), CanExecute = _ => available(), Execute = _ => execute()
     };
+
+    private void QueuePaneLayoutSave()
+    {
+        _options.Options.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
+        {
+            Panels = _splits.Panels.Share,
+            Sections = _splits.Sections.Share,
+            Stack = _splits.Stack.Share
+        };
+        _savePaneLayout = true;
+    }
 }

@@ -25,11 +25,16 @@ internal sealed class PaneSplit
 
     public PaneSplit(int share)
     {
+        share = Math.Clamp(share, Minimum, Maximum);
         _initial = share;
         _share = share;
         _first = new State<GridLength>(GridLength.Star(share));
         _second = new State<GridLength>(GridLength.Star(100 - share));
     }
+
+    public int Share => _share;
+
+    public event Action? Changed;
 
     public ColumnDefinition FirstColumn() => Column(_first);
 
@@ -53,6 +58,7 @@ internal sealed class PaneSplit
         _share = share;
         _first.Value = GridLength.Star(share);
         _second.Value = GridLength.Star(100 - share);
+        Changed?.Invoke();
     }
 
     private static ColumnDefinition Column(State<GridLength> width)
@@ -76,14 +82,26 @@ internal sealed class PaneSplit
 /// </summary>
 internal sealed class PaneSplits
 {
+    public PaneSplits(int panels = 31, int sections = 48, int stack = 50)
+    {
+        Panels = new PaneSplit(panels);
+        Sections = new PaneSplit(sections);
+        Stack = new PaneSplit(stack);
+        Panels.Changed += OnChanged;
+        Sections.Changed += OnChanged;
+        Stack.Changed += OnChanged;
+    }
+
     /// <summary>The list panel against the detail panel.</summary>
-    public PaneSplit Panels { get; } = new(31);
+    public PaneSplit Panels { get; }
 
     /// <summary>The two titled sections of the detail panel.</summary>
-    public PaneSplit Sections { get; } = new(48);
+    public PaneSplit Sections { get; }
 
     /// <summary>The detail sections against a pane stacked under them.</summary>
-    public PaneSplit Stack { get; } = new(50);
+    public PaneSplit Stack { get; }
+
+    public event Action? Changed;
 
     /// <summary>
     /// Whether this screen stacks a pane under its sections. Only such a screen has a horizontal
@@ -92,4 +110,6 @@ internal sealed class PaneSplits
     public bool HasStack { get; private set; }
 
     internal void UseStack() => HasStack = true;
+
+    private void OnChanged() => Changed?.Invoke();
 }

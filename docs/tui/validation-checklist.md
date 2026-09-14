@@ -11,6 +11,12 @@ For each Workspaces milestone, run the smallest applicable subset:
       re-clamps its height to the viewport on every update pass rather than once on open
       (see [decisions.md](./decisions.md)), so a resize while it is open reflows instead of leaving it sized
       for the terminal it was opened in (developer confirmed in a terminal)
+- [x] verify the Requests pane layout is restored and saved per screen: an in-memory
+      options probe restored 42/53/61 for `PaneLayouts["Requests"]`, moved the panel
+      divider once, and observed one save carrying 46/53/61
+- [x] verify initial navigation with an active workspace: the retained shell selected
+      Requests before its first render in the in-memory host; the no-active-workspace
+      branch remains Workspaces by construction
 - [x] verify the folder browser: initial focus, every advertised gesture, walking up
       landing on the folder just left, filtering and clearing, the path field and its
       completion, a folder that cannot be read, an empty folder, and a short terminal

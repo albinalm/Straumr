@@ -35,6 +35,11 @@ proportion when the terminal is resized. Definitions are bound rather than assig
 because a screen that rebuilds its detail sections hands the grid new definitions each
 time while the split has to outlive them.
 
+Screens that persist their dividers seed `PaneSplits` from the entry named for that
+screen in `StraumrOptions.PaneLayouts`, then save all three shares when one changes.
+Keeping the entries keyed by screen prevents a Requests layout from becoming the
+default for another screen when movable dividers are added there later.
+
 `Ctrl` with a Vim direction moves a divider that way. Which divider depends on where
 focus is: in the list panel the horizontal keys move the panel divider, in the detail
 panel they move the one between its two sections, and the vertical keys move the rule

@@ -1,6 +1,7 @@
 using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Screens.Request;
 using Straumr.Console.Tui.Visuals.Shared;
+using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
@@ -17,7 +18,7 @@ public sealed class StraumrTuiApp
     private static readonly TimeSpan MessageLifetime = TimeSpan.FromSeconds(5);
     private static readonly Thickness FooterInset = new(1, 0, 1, 0);
 
-    private readonly State<TuiScreen> _currentScreen = new(TuiScreen.Workspaces);
+    private readonly State<TuiScreen> _currentScreen;
     private readonly State<string?> _activeWorkspaceName = new(null);
     private readonly State<TuiCommandResult> _message = new(TuiCommandResult.None);
     private readonly Dictionary<TuiScreen, ITuiScreen> _screens;
@@ -40,10 +41,17 @@ public sealed class StraumrTuiApp
     /// </summary>
     private readonly CancellationTokenSource _interruptSource = new();
 
-    public StraumrTuiApp(WorkspaceScreen workspaceScreen, RequestScreen requestScreen)
+    public StraumrTuiApp(
+        WorkspaceScreen workspaceScreen,
+        RequestScreen requestScreen,
+        IStraumrOptionsService optionsService)
     {
-        _screen = workspaceScreen;
         _screens = new ITuiScreen[] { workspaceScreen, requestScreen }.ToDictionary(screen => screen.Kind);
+        TuiScreen initialScreen = optionsService.Options.CurrentWorkspace is null
+            ? TuiScreen.Workspaces
+            : TuiScreen.Requests;
+        _currentScreen = new State<TuiScreen>(initialScreen);
+        _screen = _screens[initialScreen];
         foreach (ITuiScreen screen in _screens.Values)
         {
             screen.NotificationRequested += Notify;
