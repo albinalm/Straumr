@@ -187,16 +187,42 @@ way.
 
 `TuiCommandSet` is the command table. A `TuiCommand` is a name, optional aliases, an
 async handler that receives the argument text, and optionally a delegate supplying
-its argument values for completion. The set resolves a typed name by exact match,
+its argument values for completion. A command may instead delegate completion of its
+whole argument to another command set; the shell uses that for `ws` / `workspace` and
+`rq` / `request`, so the first nested token completes a destination-screen command and
+the following token completes that command's workspace or request name. The set
+resolves a typed name by exact match,
 then alias, then unique prefix, so `:q` and `:w` work without being declared; an
 ambiguous prefix names its candidates rather than guessing. It also answers
 completion for whichever token the caret sits in: command names in the first token,
 that command's argument values after it.
 
+Individual commands can opt out of unique-prefix resolution. Navigation does: the only
+accepted forms are `workspace` / `ws` and `request` / `rq`, preventing `w` in Requests
+from unexpectedly changing screens. Ordinary commands retain prefix matching.
+
+Identifier arguments are one value. Names containing whitespace must be enclosed in
+double quotes; completion adds the quotes itself and can continue matching after an
+opening quote has already been typed. The shared parser removes the quotes for screen
+handlers and reports missing quotes or trailing text in the footer.
+
 A handler returns a `TuiCommandResult`: nothing, a message, or a failure. The
 application root shows it on the footer row and lets it expire. Handlers run from
 the update loop rather than from the accept event, which is what lets them do I/O
 and keeps them on the same path as the screen's other Core calls.
+
+Commands that can safely update another screen's context without displaying it opt in
+through `RunsInPlaceFromOtherScreens`. `use` is the first: from Requests the shell loads
+Workspaces, runs its existing activation handler, and reloads Requests without changing
+visibility. Because completion itself is synchronous, a workspace-context change reloads
+every hidden screen once before the next input. That primes both workspace names/IDs from
+Requests and request names from Workspaces without hardcoding either completion direction.
+
+Commands that open a full-screen transient child opt in through `OpensTransientScreen`.
+If one is dispatched from another screen, the shell records that source on a stack and
+returns to it when the owning `ITuiScreen` reports `TransientScreenClosed`. This is a
+navigation contract rather than a Send/Workspaces special case, so future screens can
+open the same kind of close-to-previous view.
 
 `StraumrTuiApp` registers the commands that belong to the whole app and appends what
 the current screen contributes through its `PromptCommands`.

@@ -76,6 +76,7 @@ public class StraumrRequestService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateName(request.Name);
         string fullPath = RequestPath(request.Id, workspace);
         if (File.Exists(fullPath))
         {
@@ -98,6 +99,7 @@ public class StraumrRequestService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateName(request.Name);
         string fullPath = RequestPath(request.Id, workspace);
         if (!File.Exists(fullPath))
         {
@@ -284,6 +286,16 @@ public class StraumrRequestService(
         catch (JsonException exception)
         {
             throw new StraumrException("Invalid request", StraumrError.CorruptEntry, exception);
+        }
+    }
+
+    private static void ValidateName(string name)
+    {
+        if (name.Contains('"'))
+        {
+            throw new StraumrException(
+                "Request names cannot contain double quotes",
+                StraumrError.InvalidEntry);
         }
     }
 

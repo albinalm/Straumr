@@ -14,6 +14,10 @@ framework behavior.
   so a command taking an argument cannot be expressed as a framework `Command`.
   Typed commands therefore live in `TuiCommandSet`, while every gesture stays a
   framework command.
+- Unique-prefix matching is a per-command policy. Screen navigation opts out: only the
+  canonical `workspace` / `request` names and their explicit `ws` / `rq` aliases may
+  navigate. In particular, `w` remains a local selection alias where present and never
+  becomes an accidental abbreviation for `workspace` elsewhere.
 - Register an app-wide gesture with `TerminalApp.AddGlobalCommand`. Command
   discovery collects global commands alongside the focus chain's, so a global
   command still shows in the `CommandBar`.

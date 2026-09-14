@@ -11,6 +11,7 @@ public interface ITuiScreen
     IReadOnlyList<TuiCommand> PromptCommands { get; }
     event Action<TuiCommandResult>? NotificationRequested;
     event Action<TuiExternalAction>? ExternalActionRequested;
+    event Action? TransientScreenClosed;
     Task LoadAsync(CancellationToken cancellationToken);
     Task UpdateAsync(CancellationToken cancellationToken);
 }

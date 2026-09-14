@@ -3,6 +3,21 @@
 Part of the [TUI implementation guide](./README.md). Run the smallest applicable
 subset for the milestone in hand, and tick items here in the same change.
 
+- [x] Cross-screen typed-command implementation builds in Debug, Release, and the
+      Release CLI-isolated configuration with no warnings.
+- [x] Navigation resolution is exact-only: a focused command-set probe returns no
+      command for `w` or `wo`, and resolves both `ws` and `workspace` to the canonical
+      workspace command. Ordinary command prefix matching remains enabled by default.
+- [x] Quoted identifier probes: a quoted name with spaces parses to one value; an
+      unquoted spaced name and an unterminated quote fail; completion turns both a plain
+      and already-open partial into quoted candidates; Core accepts a normal request name
+      and rejects one containing a double quote.
+- [ ] Terminal-check `:send <request>`, `:ws use <workspace>` /
+      `:workspace use <workspace>`, and `:rq send <request>` /
+      `:request send <request>`; include name/ID completion before Workspaces has been
+      visited, Requests remaining visible and refreshing after `use`, bare namespace
+      navigation, automatic quoting for spaced request names, full-screen response focus,
+      returning to the actual calling screen on close, and the no-active-workspace footer error.
 - [x] The full-screen response opens with Body focused, changes page on `Tab` and back on
       `Shift+Tab` with focus following the page, and offers `s Send again` when it is not
       sending: verified on a running in-memory app, which also showed the bar and footer

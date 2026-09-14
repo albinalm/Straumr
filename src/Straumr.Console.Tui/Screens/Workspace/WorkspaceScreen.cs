@@ -149,14 +149,15 @@ public sealed class WorkspaceScreen : ITuiScreen
 
         PromptCommands =
         [
-            new TuiCommand("workspace", SelectWorkspaceAsync)
+            new TuiCommand("select", SelectWorkspaceAsync)
             {
                 Aliases = ["w"],
-                ArgumentValues = WorkspaceNames
+                ArgumentValues = WorkspaceIdentifiers
             },
             new TuiCommand("use", UseWorkspaceAsync)
             {
-                ArgumentValues = WorkspaceNames
+                ArgumentValues = UsableWorkspaceIdentifiers,
+                RunsInPlaceFromOtherScreens = true
             },
             new TuiCommand("refresh", RefreshAsync)
         ];
@@ -173,6 +174,12 @@ public sealed class WorkspaceScreen : ITuiScreen
     public event Action<TuiCommandResult>? NotificationRequested;
 
     public event Action<TuiExternalAction>? ExternalActionRequested;
+
+    public event Action? TransientScreenClosed
+    {
+        add { }
+        remove { }
+    }
 
     public string? ActiveWorkspaceName { get; private set; }
 
@@ -887,18 +894,24 @@ public sealed class WorkspaceScreen : ITuiScreen
 
     private Task<TuiCommandResult> SelectWorkspaceAsync(
         string argument,
-        CancellationToken cancellationToken) =>
-        Task.FromResult(argument.Length == 0
-            ? TuiCommandResult.Failed("usage: workspace <name>")
-            : SelectByName(argument));
+        CancellationToken cancellationToken)
+    {
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return Task.FromResult(TuiCommandResult.Failed(error!));
+        return Task.FromResult(name.Length == 0
+            ? TuiCommandResult.Failed("usage: select <name>")
+            : SelectByName(name));
+    }
 
     private async Task<TuiCommandResult> UseWorkspaceAsync(
         string argument,
         CancellationToken cancellationToken)
     {
-        if (argument.Length > 0)
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return TuiCommandResult.Failed(error!);
+        if (name.Length > 0)
         {
-            TuiCommandResult selection = SelectByName(argument);
+            TuiCommandResult selection = SelectByName(name);
             if (selection.IsError)
                 return selection;
         }
@@ -954,16 +967,22 @@ public sealed class WorkspaceScreen : ITuiScreen
     private List<WorkspaceScreenItem> MatchWorkspaces(string name)
     {
         List<WorkspaceScreenItem> named = _items.FindAll(item =>
-            item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            item.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+            item.Id.ToString().Equals(name, StringComparison.OrdinalIgnoreCase));
 
         return named.Count > 0
             ? named
             : _items.FindAll(item =>
-                item.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
+                item.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase) ||
+                item.Id.ToString().StartsWith(name, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IEnumerable<string> WorkspaceNames() =>
-        _items.Select(item => item.Name);
+    private IEnumerable<string> WorkspaceIdentifiers() =>
+        _items.SelectMany(item => new[] { item.Name, item.Id.ToString() });
+
+    private IEnumerable<string> UsableWorkspaceIdentifiers() =>
+        _items.Where(item => !item.IsCorrupt)
+            .SelectMany(item => new[] { item.Name, item.Id.ToString() });
 
     private void ApplyFilter(string text) => ApplyFilter(text, SelectedItem?.Id);
 

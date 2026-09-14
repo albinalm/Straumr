@@ -107,7 +107,7 @@ may persist changes through the appropriate Core service.
   on the still-focusable list surface.
 - `Enter` keeps the current filter and returns focus to the result list. `Escape`
   clears the filter and returns focus to the list.
-- `:workspace <name>` and `:use <name>` clear an active filter when necessary so a
+- `:select <name>` and `:use <name>` clear an active filter when necessary so a
   command can select any workspace, not only a visible match.
 
 ## Unreadable Workspaces
@@ -140,7 +140,7 @@ than the edit.
 
 The commands the Workspaces screen answers, in addition to the app's own:
 
-- `workspace <name>` selects a workspace without activating it. A name resolves by
+- `select <name>` selects a workspace without activating it. A name resolves by
   exact match, then unique prefix; an ambiguous prefix names the workspaces it
   matched.
 - `use [name]` activates a workspace through `IStraumrWorkspaceService.ActivateAsync`,
@@ -148,12 +148,21 @@ The commands the Workspaces screen answers, in addition to the app's own:
 - `refresh` reloads the registry through Core, drops the cached request previews and
   keeps the selected workspace selected. It is the explicit refresh the load-once
   rule refers to.
+- `rq <command>` and `request <command>` navigate to Requests and run one of that
+  screen's commands after it loads. In particular, `rq send <name>` and
+  `request send <name>` use Requests' own send path; without an active workspace the
+  footer reports the problem instead of starting a send.
+- A successful namespaced send opens its full-screen response as a transient child;
+  closing that view reloads and returns here. The return target is recorded by the shell,
+  not encoded as Workspaces behavior.
+- Bare `request` / `rq` shows Requests. Bare `workspace` / `ws` identifies this screen;
+  the plural command spellings are deliberately absent.
 
 `quit`, aliased `q` and `exit`, belongs to the application root and is the only way
 out of the app; the framework's own quit gesture is removed on startup.
 
-`Tab` completes: command names in the first token, workspace names after `workspace`
-and `use`. `Up` and `Down` walk the prompt's history. A command that succeeds and
+`Tab` completes: command names in the first token, workspace names after `select`
+and `use`. Names containing spaces are quoted automatically. `Up` and `Down` walk the prompt's history. A command that succeeds and
 has nothing to report says nothing, because the list, the dot and the header already
 show what changed; only `refresh` and failures produce a message.
 

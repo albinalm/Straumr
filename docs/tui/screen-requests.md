@@ -11,8 +11,15 @@ implements, what evidence exists, and where to resume.
   skipped; unreadable requests remain as broken rows with an editor repair path.
   Request files are `{id}.json` beside the workspace's `.straumr` file.
 - The shared list shows method and name. Filtering matches name, method and URL;
-  `:request <name>`/`:r <name>` resolves exact names or unique prefixes and clears
-  a filter to reach the selection. `:refresh` reloads the current screen.
+  `:select <name>`/`:r <name>` resolves exact names or unique prefixes and clears
+  a filter to reach the selection. `:send <name>` resolves through the same selection
+  path and opens the full-screen send view. `:refresh` reloads the current screen.
+- `:ws <command>` and `:workspace <command>` dispatch through Workspaces' command
+  table. `:ws use linkz-identity` loads that table, activates the workspace, and reloads
+  Requests in place: the visible screen never changes. Workspace names and IDs are
+  preloaded from the registry so `Tab` completes the identifier even when Workspaces
+  has never been visited. Other workspace commands navigate before running; bare
+  `:workspace` / `:ws` shows Workspaces. There is no plural `:workspaces` command.
 - `Enter` inspects the selected request by focusing its content preview. The summary
   shows method, URL including configured parameters, and shortened request ID.
 - Authentication displays the configured source, type, injected header and token/cache
@@ -36,6 +43,13 @@ implements, what evidence exists, and where to resume.
   A failure is reported once: short in the bar, in full on the pages. The view opens with
   Body focused, and `s` sends the request again from inside it — the same letter the list
   sends with — queued through the update loop and unavailable while one is in flight.
+- A typed send from another screen opens this same full-screen response as a transient
+  child. Closing it returns to the screen that issued the command; the shell keeps that
+  source on a stack rather than assuming it was Workspaces.
+- Request names containing spaces are entered as one quoted argument, for example
+  `:send "monthly report"`. Completion inserts the quotes automatically. Core rejects
+  double quotes in request names on both create and save so every persisted name has an
+  unambiguous quoted command representation.
   `Escape` cancels an active send, from a re-send as much as from the first one; afterward
   it returns to Requests. Timeouts, transport errors and cancellation remain visible.
   Ctrl+C retains cancellation/exit.
@@ -108,6 +122,9 @@ implements, what evidence exists, and where to resume.
   send by Escape and Ctrl+C, external-editor save/repair/focus, retained state when
   switching workspaces/screens, and populated narrow/short layouts. Timeout handling
   now distinguishes user cancellation from HTTP timeout and keeps either in the view.
+- Terminal-check direct `:send`, in-place `:ws use` / `:workspace use` with identifier
+  completion and refreshed Requests, plus `:rq send` / `:request send`, including the
+  no-active-workspace footer error. Their Debug and Release builds pass without warnings.
 - Review edit recovery when Core refuses a syntactically valid edit (for example a
   duplicate name): the current code reports the refusal but does not retain that draft.
 - A fresh Native AOT publish has not been run. W8's successful publish predates these

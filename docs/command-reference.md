@@ -48,6 +48,9 @@ Request options:
 - `--auth`
 - `-e|--editor`
 
+Request names may contain spaces but cannot contain a double quote (`"`). Core enforces
+this invariant for create, copy, and save/edit operations.
+
 Auth options for non-interactive creation (requires `--type`):
 
 - `-t|--type <type>` — `bearer`, `basic`, `oauth2`, `oauth2-client-credentials`, `oauth2-authorization-code`, `oauth2-password`, `custom`

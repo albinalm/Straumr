@@ -3,6 +3,41 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-15: Screen navigation no longer participates in unique-prefix resolution.
+  `workspace` / `ws` and `request` / `rq` are the only accepted navigation spellings,
+  so `:w` in Requests now reports an unknown command instead of opening Workspaces.
+  Prefix matching remains enabled for ordinary commands. A focused resolver probe
+  confirmed `w` and `wo` do not resolve while `ws` and `workspace` do; Debug, Release,
+  and CLI-isolated builds pass without warnings.
+
+- 2026-09-14: Cross-screen Send now returns to its caller. `send` declares that it opens
+  a transient full-screen child; when a noun namespace navigates to run it, the shell
+  pushes the source screen onto a return stack. Closing the response emits the screen's
+  generic transient-close event, which reloads and restores that source. There is no
+  Workspaces constant in the return path, so later screens and nested transient views can
+  use the same contract. Request identifiers are now parsed as one command argument:
+  whitespace requires double quotes, completion inserts those quotes automatically (and
+  matches a partially typed opening quote), and malformed quoting reports through the
+  footer. Core create/save rejects request names containing a double quote; copy reaches
+  the same check through create. Focused probes pass for quoted parsing, missing-quote and
+  unquoted-space errors, automatic completion quoting, and Core name rejection. Debug,
+  Release, and CLI-isolated builds pass without warnings; terminal acceptance remains.
+
+- 2026-09-14: Added typed cross-screen command namespaces. `:ws use <workspace>` and
+  `:workspace use <workspace>` now load Workspaces invisibly, run its existing `use`,
+  and reload the still-visible Requests screen; `:rq send <request>` and
+  `:request send <request>` do the
+  reverse through Requests' new direct `:send <request>`. The canonical navigation
+  commands are singular — `:workspace` and `:request` — with `:ws` and `:rq` as their
+  aliases; the plural spellings are gone. The former noun-based item selection commands
+  are now `:select <name>`, retaining `:w` and `:r`. Namespace completion delegates to the destination
+  command table. A workspace-context change reloads every hidden screen before the next
+  input, so nested `use` completes valid workspace names/IDs and nested `send` completes
+  current request names even when their screens have not been visited. A no-workspace send reports a
+  footer error, and post-navigation focus waits while the response modal is open so the
+  Requests list cannot steal it. Debug, Release, and CLI-isolated solution builds pass
+  without warnings; terminal acceptance remains.
+
 - 2026-09-14: `Tab` now changes page in the full-screen response, and `Shift+Tab` steps
   back, because `Tab` already means "move the chip along the rule" and that rule carries
   the pages here; a command claims the key before focus traversal reaches it, and nothing

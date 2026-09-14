@@ -39,7 +39,20 @@ preserve a JSON document's line breaks and indentation.
 root, focus target, active workspace name, commands, loading/update and notification/
 external-action events. Both roots remain mounted in a `ZStack`; navigation changes
 visibility, reloads the destination and restores list focus. The command table is
-rebuilt for the current screen. `:requests`/`:rq` and `:workspaces`/`:ws` navigate
-explicitly, and nothing else does: a gesture that changes screens was removed rather
-than left beside them, so the typed vocabulary is the only way between windows. Workspaces keeps `:w` as an explicit alias
-for `workspace`, avoiding ambiguity with the new `workspaces` command.
+rebuilt for the current screen. `:request`/`:rq` and `:workspace`/`:ws` navigate
+explicitly and can dispatch a destination-screen command after loading it. Nothing
+else changes screens: a gesture that did so was removed, leaving the typed vocabulary
+as the only way between windows. Each screen keeps `:select` for typed item selection,
+with `:r` on Requests and `:w` on Workspaces.
+
+A destination command may opt into running in place from another screen. The shell then
+loads the hidden destination, executes that same command handler, and reloads the visible
+source instead of changing visibility. Use this only when the source has a meaningful
+refreshed view of the result; workspace activation from Requests is the current example.
+
+A command that opens a full-screen transient child marks that fact on its `TuiCommand`.
+When it is dispatched from another screen, the shell pushes the source onto a return
+stack. The child reports its close through `ITuiScreen.TransientScreenClosed`, and the
+shell reloads and returns to whatever screen was pushed. Neither the child nor the
+destination screen names Workspaces, so the same close-to-previous behavior composes
+with future screens and nested transient views.

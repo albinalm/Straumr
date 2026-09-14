@@ -99,7 +99,12 @@ public sealed class RequestScreen : ITuiScreen
             () => SelectedItem is null ? ResourceScreenLayout.EmptySections() : _sections);
         PromptCommands =
         [
-            new TuiCommand("request", SelectRequestAsync) { Aliases = ["r"], ArgumentValues = () => _items.Select(item => item.Name) },
+            new TuiCommand("select", SelectRequestAsync) { Aliases = ["r"], ArgumentValues = () => _items.Select(item => item.Name) },
+            new TuiCommand("send", SendRequestAsync)
+            {
+                ArgumentValues = () => _items.Select(item => item.Name),
+                OpensTransientScreen = true
+            },
             new TuiCommand("refresh", RefreshAsync)
         ];
     }
@@ -111,6 +116,7 @@ public sealed class RequestScreen : ITuiScreen
     public IReadOnlyList<TuiCommand> PromptCommands { get; }
     public event Action<TuiCommandResult>? NotificationRequested;
     public event Action<TuiExternalAction>? ExternalActionRequested;
+    public event Action? TransientScreenClosed;
     private RequestScreenItem? SelectedItem => (uint)_selectedIndex.Value < (uint)_visible.Value.Count ? _visible.Value[_selectedIndex.Value] : null;
 
     public async Task LoadAsync(CancellationToken cancellationToken)
@@ -129,7 +135,7 @@ public sealed class RequestScreen : ITuiScreen
             _items = [];
             if (_workspace is null)
             {
-                _emptyMessage.Value = "No active workspace. Use :workspaces to choose one.";
+                _emptyMessage.Value = "No active workspace. Use :workspace to choose one.";
                 ApplyFilter(string.Empty);
                 return;
             }
@@ -159,7 +165,7 @@ public sealed class RequestScreen : ITuiScreen
         {
             _items = [];
             _loadError.Value = true;
-            _emptyMessage.Value = $"Cannot load requests: {exception.Message}\nUse :refresh to retry, or :workspaces.";
+            _emptyMessage.Value = $"Cannot load requests: {exception.Message}\nUse :refresh to retry, or :workspace.";
             ApplyFilter(_filter.Text);
         }
         finally
@@ -319,19 +325,26 @@ public sealed class RequestScreen : ITuiScreen
             _emptyMessage.Value = _query.Value.Length > 0 ? "No requests match this filter." : "No requests in this workspace.";
     }
 
-    private Task<TuiCommandResult> SelectRequestAsync(string name, CancellationToken cancellationToken)
+    private Task<TuiCommandResult> SelectRequestAsync(string argument, CancellationToken cancellationToken)
     {
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return Task.FromResult(TuiCommandResult.Failed(error!));
         if (name.Length == 0)
-            return Task.FromResult(TuiCommandResult.Failed("usage: request <name>"));
+            return Task.FromResult(TuiCommandResult.Failed("usage: select <name>"));
+        return Task.FromResult(SelectRequest(name));
+    }
+
+    private TuiCommandResult SelectRequest(string name)
+    {
         List<RequestScreenItem> matches = _items.FindAll(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         if (matches.Count == 0)
             matches = _items.FindAll(item => item.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
         if (matches.Count != 1)
-            return Task.FromResult(TuiCommandResult.Failed(matches.Count == 0 ? $"no request matches {name}" :
-                $"{name} matches {string.Join(", ", matches.Select(item => item.Name))}"));
+            return TuiCommandResult.Failed(matches.Count == 0 ? $"no request matches {name}" :
+                $"{name} matches {string.Join(", ", matches.Select(item => item.Name))}");
         _filter.Clear();
         _selectedIndex.Value = _visible.Value.IndexOf(matches[0]);
-        return Task.FromResult(TuiCommandResult.None);
+        return TuiCommandResult.None;
     }
 
     private async Task<TuiCommandResult> RefreshAsync(string argument, CancellationToken cancellationToken)
@@ -341,6 +354,29 @@ public sealed class RequestScreen : ITuiScreen
         await LoadAsync(cancellationToken);
         return _loadError.Value ? TuiCommandResult.Failed(_emptyMessage.Value) :
             TuiCommandResult.Ok($"reloaded {CountFormatting.Label(_items.Count, "request")}");
+    }
+
+    private Task<TuiCommandResult> SendRequestAsync(string argument, CancellationToken cancellationToken)
+    {
+        if (_workspace is null)
+            return Task.FromResult(TuiCommandResult.Failed("no active workspace; use :ws use <workspace>"));
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return Task.FromResult(TuiCommandResult.Failed(error!));
+        if (name.Length == 0)
+            return Task.FromResult(TuiCommandResult.Failed("usage: send <name>"));
+
+        TuiCommandResult selection = SelectRequest(name);
+        if (selection.IsError)
+            return Task.FromResult(selection);
+        if (SelectedItem is not { Request: { } request } item)
+            return Task.FromResult(TuiCommandResult.Failed($"cannot send {name}: the request cannot be read"));
+        if (_sendCancellation is not null)
+            return Task.FromResult(TuiCommandResult.Failed("a request is already being sent"));
+
+        _responseView = BuildResponseView(item.Id, request, () => _list.App?.Focus(_list));
+        QueueSend(item.Id);
+        _responseView.Show();
+        return Task.FromResult(TuiCommandResult.None);
     }
 
     private void QueueSend()
@@ -379,6 +415,7 @@ public sealed class RequestScreen : ITuiScreen
         {
             _responseView = null;
             restoreFocus();
+            TransientScreenClosed?.Invoke();
         });
 
     private void QueueSend(Guid id)
@@ -463,6 +500,7 @@ public sealed class RequestScreen : ITuiScreen
         null => "the file is not a valid request",
         { } when request.Id != id => "the request ID does not match its file",
         { } when string.IsNullOrWhiteSpace(request.Name) => "the request name is missing",
+        { } when request.Name.Contains('"') => "the request name contains a double quote",
         { } when string.IsNullOrWhiteSpace(request.Uri) => "the request URL is missing",
         { Method: null } => "the HTTP method is missing",
         { Params: null } or { Headers: null } or { Bodies: null } => "a request collection is null",

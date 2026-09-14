@@ -22,11 +22,12 @@ public sealed class StraumrTuiApp
     private readonly State<TuiCommandResult> _message = new(TuiCommandResult.None);
     private readonly Dictionary<TuiScreen, ITuiScreen> _screens;
     private ITuiScreen _screen;
-    private TuiScreen? _pendingScreen;
+    private PendingNavigation? _pendingNavigation;
     private bool _focusAfterNavigation;
     private readonly TuiCommandSet _commands = new();
     private readonly CommandPrompt _prompt;
     private readonly Queue<string> _submitted = new();
+    private readonly Stack<TuiScreen> _returnScreens = new();
     private DateTimeOffset _messageExpiry;
     private bool _initialized;
     private TerminalApp? _app;
@@ -55,6 +56,7 @@ public sealed class StraumrTuiApp
         {
             screen.NotificationRequested += Notify;
             screen.ExternalActionRequested += RequestExternalAction;
+            screen.TransientScreenClosed += ReturnFromTransientScreen;
             screen.Root.IsVisible = ReferenceEquals(screen, _screen);
         }
         SetCommands();
@@ -120,7 +122,7 @@ public sealed class StraumrTuiApp
         {
             _initialized = true;
             await _screen.LoadAsync(token);
-            SetActiveWorkspace(_screen.ActiveWorkspaceName);
+            await SetActiveWorkspaceAsync(_screen.ActiveWorkspaceName, token);
             return;
         }
 
@@ -134,8 +136,8 @@ public sealed class StraumrTuiApp
             return;
         await NavigatePendingAsync(token);
         await _screen.UpdateAsync(token);
-        SetActiveWorkspace(_screen.ActiveWorkspaceName);
-        if (_focusAfterNavigation && _screen.FocusTarget.App == app)
+        await SetActiveWorkspaceAsync(_screen.ActiveWorkspaceName, token);
+        if (_focusAfterNavigation && !IsModalOpen && _screen.FocusTarget.App == app)
         {
             _focusAfterNavigation = false;
             app.Focus(_screen.FocusTarget);
@@ -144,41 +146,105 @@ public sealed class StraumrTuiApp
 
     private async Task NavigatePendingAsync(CancellationToken cancellationToken)
     {
-        if (_pendingScreen is not { } kind)
+        if (_pendingNavigation is not { } pending)
             return;
-        _pendingScreen = null;
-        if (_screen.Kind == kind)
+        _pendingNavigation = null;
+
+        if (pending.RunInPlace)
+        {
+            ITuiScreen target = _screens[pending.Screen];
+            await target.LoadAsync(cancellationToken);
+            TuiCommandResult result = await CreateScreenCommandSet(target)
+                .ExecuteAsync(pending.Command, cancellationToken);
+            if (!result.IsError)
+                await _screen.LoadAsync(cancellationToken);
+            Notify(result);
             return;
-        _screen.Root.IsVisible = false;
-        _screen = _screens[kind];
-        _screen.Root.IsVisible = true;
-        _currentScreen.Value = kind;
-        _message.Value = TuiCommandResult.None;
-        SetCommands();
-        await _screen.LoadAsync(cancellationToken);
-        _focusAfterNavigation = true;
+        }
+
+        if (_screen.Kind != pending.Screen)
+        {
+            _screen.Root.IsVisible = false;
+            _screen = _screens[pending.Screen];
+            _screen.Root.IsVisible = true;
+            _currentScreen.Value = pending.Screen;
+            _message.Value = TuiCommandResult.None;
+            SetCommands();
+            await _screen.LoadAsync(cancellationToken);
+            _focusAfterNavigation = true;
+        }
+
+        if (pending.Command.Length > 0)
+        {
+            TuiCommandResult result = await CreateScreenCommandSet(_screen)
+                .ExecuteAsync(pending.Command, cancellationToken);
+            if (!result.IsError && pending.ReturnScreen is { } returnScreen)
+                _returnScreens.Push(returnScreen);
+            Notify(result);
+        }
     }
 
     private void SetCommands()
     {
         _commands.Clear();
         _commands.Add(new TuiCommand("quit", QuitAsync) { Aliases = ["q", "exit"] });
-        _commands.Add(new TuiCommand("requests", (argument, _) => QueueNavigation(TuiScreen.Requests, argument)) { Aliases = ["rq"] });
-        _commands.Add(new TuiCommand("workspaces", (argument, _) => QueueNavigation(TuiScreen.Workspaces, argument)) { Aliases = ["ws"] });
+        _commands.Add(NavigationCommand(TuiScreen.Requests, "request", "rq"));
+        _commands.Add(NavigationCommand(TuiScreen.Workspaces, "workspace", "ws"));
         foreach (TuiCommand command in _screen.PromptCommands)
             _commands.Add(command);
     }
 
-    private Task<TuiCommandResult> QueueNavigation(TuiScreen screen, string argument)
+    private TuiCommand NavigationCommand(TuiScreen screen, string name, string shortAlias) =>
+        new(name, (argument, _) => QueueNavigation(screen, argument))
+        {
+            Aliases = [shortAlias],
+            AllowPrefixMatch = false,
+            CompleteArgument = (argument, caret) => CreateScreenCommandSet(_screens[screen]).Complete(argument, caret)
+        };
+
+    private Task<TuiCommandResult> QueueNavigation(TuiScreen screen, string command)
     {
-        if (argument.Length > 0)
-            return Task.FromResult(TuiCommandResult.Failed($"usage: {screen.ToString().ToLowerInvariant()}"));
-        _pendingScreen = screen;
+        TuiCommand? destinationCommand = CreateScreenCommandSet(_screens[screen]).ResolveCommand(command);
+        bool runInPlace = _screen.Kind != screen &&
+            destinationCommand is { RunsInPlaceFromOtherScreens: true };
+        TuiScreen? returnScreen = _screen.Kind != screen &&
+            destinationCommand is { OpensTransientScreen: true }
+                ? _screen.Kind
+                : null;
+        _pendingNavigation = new PendingNavigation(screen, command, runInPlace, returnScreen);
         return Task.FromResult(TuiCommandResult.None);
     }
 
-    public void SetActiveWorkspace(string? name) =>
+    private void ReturnFromTransientScreen()
+    {
+        if (_returnScreens.TryPop(out TuiScreen screen))
+            _pendingNavigation = new PendingNavigation(screen, string.Empty, false, null);
+    }
+
+    private static TuiCommandSet CreateScreenCommandSet(ITuiScreen screen)
+    {
+        var commands = new TuiCommandSet();
+        foreach (TuiCommand command in screen.PromptCommands)
+            commands.Add(command);
+        return commands;
+    }
+
+    private async Task SetActiveWorkspaceAsync(string? name, CancellationToken cancellationToken)
+    {
+        if (_activeWorkspaceName.Value == name)
+            return;
+
         _activeWorkspaceName.Value = name;
+        if (name is null)
+            return;
+
+        // Completion is synchronous while the prompt is open. Whenever the shared workspace
+        // context changes, preload every hidden screen so its namespace commands can complete
+        // against current data before the user visits it. This scales with added screens and also
+        // prepares request-name completion after activating a workspace from Workspaces.
+        foreach (ITuiScreen screen in _screens.Values.Where(screen => !ReferenceEquals(screen, _screen)))
+            await screen.LoadAsync(cancellationToken);
+    }
 
     public void RequestExit() => ExitRequested = true;
 
@@ -334,4 +400,10 @@ public sealed class StraumrTuiApp
         RequestExit();
         return Task.FromResult(TuiCommandResult.None);
     }
+
+    private readonly record struct PendingNavigation(
+        TuiScreen Screen,
+        string Command,
+        bool RunInPlace,
+        TuiScreen? ReturnScreen);
 }
