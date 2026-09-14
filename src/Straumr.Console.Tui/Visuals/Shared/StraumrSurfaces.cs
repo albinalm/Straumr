@@ -47,7 +47,8 @@ internal static class StraumrSurfaces
     /// while its section owns focus and is otherwise inert.
     /// </summary>
     /// <param name="isFocused">
-    /// Whether the titled section owns focus. Omitted for a section that cannot take focus, which
+    /// Whether the titled section owns focus, which callers answer with <see cref="FocusScope.Owns"/>
+    /// rather than <c>HasFocusWithin</c>, since that excludes the visual itself. Omitted for a section that cannot take focus, which
     /// then never renders as focused; the previous default did the opposite and made a permanently
     /// bright title compete with the section actually holding focus.
     /// </param>

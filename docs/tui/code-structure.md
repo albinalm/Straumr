@@ -1,0 +1,110 @@
+# Code Structure and Runtime Boundaries
+
+Part of the [TUI implementation guide](./README.md). Read before adding a file,
+deciding where something lives, or wiring a screen into the host.
+
+## Straumr code rules
+
+- Match the feature-oriented structure used by `Straumr.Console.Cli`.
+- Inject Core interfaces instead of resolving services throughout the visual
+  tree.
+- Keep integration setup in `Integration`.
+- Keep navigation and shared application state in `Infrastructure`.
+- Keep each screen and its screen-specific presentation models together.
+- Put genuinely shared visuals and formatting helpers under `Visuals/Shared`.
+- Use TUI presentation models when a Core model does not directly represent the
+  information shown on screen.
+- Do not add comments unless they explain an implicit behavior or a constraint a
+  future developer could reasonably miss.
+- Prefer short methods that construct one coherent region or perform one
+  operation.
+- Do not add interfaces or callback abstractions until there is more than one
+  concrete consumer or a real test boundary.
+
+Current structure:
+
+```text
+Straumr.Console.Tui/
+  Integration/
+    TuiConsoleIntegration.cs      host: DI registration, Terminal.RunAsync, exit code
+  Infrastructure/
+    StraumrTuiApp.cs              shell, retained screen navigation, commands, footer
+    ITuiScreen.cs                shared contract implemented by Workspaces and Requests
+    TuiScreen.cs                  screen enum; its name renders in the header
+    CommandPrompt.cs              the `:` prompt: open, close, focus, completion
+    TuiCommand.cs                 one typed command and its result
+    TuiCommandSet.cs              the command table: resolution and completion
+  Screens/
+    Workspace/
+      WorkspaceScreen.cs          data loading and the parts unique to Workspaces
+      WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry
+      WorkspaceDeleteDialog.cs    destructive confirmation for workspace deletion
+      WorkspaceFormDialog.cs      create/copy form and local validation
+    Request/
+      RequestScreen.cs            loading, filtering, inspection, sending and editor handoff
+      RequestScreenItem.cs        readable/broken request presentation model
+      RequestAuthentication.cs    auth metadata and secret-reference availability
+  Visuals/
+    Shared/
+      FocusScope.cs               the two focus questions Visual answers only about itself
+      ResourceScreenLayout.cs     the list-and-detail screen scaffold
+      ResourceFilter.cs           inline `/` filtering and focus behavior
+      ResourceList.cs             one- to three-line list with selection, hover and scrolling
+      ResourceRow.cs              presentation model for one list row
+      ScrollableContent.cs        focusable read-only content with Vim scrolling
+      PreviewPane.cs              retained, styled tabs over scrollable text previews
+      FieldList.cs                label/value grid for detail panes
+      BrowserDialog.cs            shared filesystem browser behavior
+      FolderBrowserDialog.cs      folder-selection specialization
+      FileBrowserDialog.cs        filtered-file selection specialization
+      PathCompletion.cs           filesystem completion for browser path entry
+      TextPromptDialog.cs         a modal asking for one line of text
+      StraumrDialog.cs            shared modal construction and cancellation
+      StraumrHeader.cs            the screen header bar
+      StraumrSurfaces.cs          dividers, bars, insets
+      StraumrStyles.cs            the palette and every control style
+  Formatting/
+    TimestampFormatting.cs        relative and absolute timestamps
+    CountFormatting.cs            pluralised counts
+    PathFormatting.cs             home-shortened paths
+    HttpMethodFormatting.cs       semantic colour per HTTP method
+    ContentFormatting.cs          bounded JSON/text previews, headers and response sizes
+```
+
+Add a file only when it owns meaningful behavior.
+
+The existing `RequestList` manually implements layout, scrolling, selection,
+pointer input, and rendering. Treat it as prototype code, not the pattern for new
+screens.
+
+## Runtime Boundaries
+
+`TuiConsoleIntegration` should remain a thin host:
+
+- register the TUI's dependencies
+- construct the application root
+- run it with `Terminal.RunAsync` and hand the loop's `TerminalApp` to the root, which
+  needs it for global commands and focus
+- translate application exit into the process exit code
+
+The TUI integration must register the Core services it requires and must not
+depend on CLI registration as an accidental side effect.
+
+The application root should own:
+
+- current screen
+- active workspace display state
+- command prompt visibility and text
+- the command table, composed from its own commands and the current screen's
+- what the footer row is showing, and expiring a command's message
+- top-level commands and exit state
+- focus restoration when screens or overlays change
+
+A screen should own:
+
+- its loading, loaded, empty, and error state
+- its selected index or selected item
+- data loading and refresh after screen-specific operations
+- visuals and commands that belong only to that screen, gestures and typed commands
+  alike
+

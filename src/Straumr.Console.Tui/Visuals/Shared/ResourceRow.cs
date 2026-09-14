@@ -1,3 +1,5 @@
+using XenoAtom.Terminal.UI.Styling;
+
 namespace Straumr.Console.Tui.Visuals.Shared;
 
 /// <summary>
@@ -32,4 +34,7 @@ public sealed record ResourceRow(
     bool HasContent = false,
     string? Detail = null,
     bool IsCurrent = false,
-    bool IsBroken = false);
+    bool IsBroken = false,
+    ResourceToken? LeadingToken = null);
+
+public sealed record ResourceToken(string Text, TextBlockStyle Style, TextBlockStyle? SelectedStyle = null);

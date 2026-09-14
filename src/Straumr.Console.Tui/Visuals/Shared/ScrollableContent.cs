@@ -24,6 +24,7 @@ public sealed partial class ScrollableContent : Visual, IScrollable
         _scroll = new ScrollModel(this);
         AttachChild(content);
         Focusable = true;
+        this.IsTabStop(this.IsReachable);
         HorizontalAlignment = Align.Stretch;
         VerticalAlignment = Align.Stretch;
 

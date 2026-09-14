@@ -8,6 +8,8 @@ public sealed class TuiCommandSet
 
     public void Add(TuiCommand command) => _commands.Add(command);
 
+    public void Clear() => _commands.Clear();
+
     public async Task<TuiCommandResult> ExecuteAsync(string input, CancellationToken cancellationToken)
     {
         string text = input.Trim();

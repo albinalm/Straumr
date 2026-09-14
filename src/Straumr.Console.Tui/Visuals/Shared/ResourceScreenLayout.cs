@@ -1,7 +1,10 @@
 using System.Text;
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
+using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
 
@@ -41,35 +44,98 @@ internal static class ResourceScreenLayout
     /// The rule closing <paramref name="detailHead"/> and everything below it, from
     /// <see cref="TwoPaneSections"/> or <see cref="EmptySections"/>.
     /// </param>
+    /// <param name="splits">The screen's movable dividers, which outlive every rebuild of its content.</param>
     public static Visual Create(
         string listTitle,
         Func<string> listCount,
         ResourceFilter filter,
+        PaneSplits splits,
         Func<Visual> listContent,
         Func<Visual> detailHead,
         Func<Visual> detailSections)
     {
+        Visual detailPanel = BuildDetailPanel(detailHead, detailSections);
+
         var layout = new Grid()
             .Columns(
-                new ColumnDefinition { Width = GridLength.Star(31) },
+                splits.Panels.FirstColumn(),
                 new ColumnDefinition { Width = GridLength.Fixed(1) },
-                new ColumnDefinition { Width = GridLength.Star(69) })
+                splits.Panels.SecondColumn())
             .Rows(new RowDefinition { Height = GridLength.Star() })
             .Cell(BuildListPanel(listTitle, listCount, filter, listContent), 0, 0)
             .Cell(
                 StraumrSurfaces.VerticalDivider((BarRuleRow, new Rune('┼'))),
                 0,
                 1)
-            .Cell(BuildDetailPanel(detailHead, detailSections), 0, 2)
+            .Cell(detailPanel, 0, 2)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
         filter.AttachCommands(layout);
+        AttachResizeCommands(layout, splits, filter, detailPanel);
         return layout;
     }
 
-    /// <summary>Wraps pane content in the padding every detail pane uses.</summary>
-    public static Visual Pane(Visual content) => StraumrSurfaces.Inset(content, PaneInset);
+    /// <summary>
+    /// <c>Ctrl</c> with a Vim direction moves a divider that way. Which divider depends on where
+    /// focus is: in the list panel the horizontal keys move the panel divider, and in the detail
+    /// panel they move the one between its two sections, so the keys always move the divider the
+    /// focused region sits against. The vertical keys move the rule over a stacked pane, which only
+    /// the detail panel has.
+    /// </summary>
+    /// <remarks>
+    /// They are registered on the layout rather than globally so a dialog's focus chain never
+    /// reaches them, and they stand down while the filter is being typed into: a terminal sends
+    /// <c>Ctrl+H</c> as the byte <c>Backspace</c> arrives on, so a live command here would eat the
+    /// filter's own deletion. <c>ConsumesGestureWhenUnavailable</c> is what lets the keystroke fall
+    /// through to the editor instead of being swallowed.
+    /// </remarks>
+    private static void AttachResizeCommands(
+        Visual layout,
+        PaneSplits splits,
+        ResourceFilter filter,
+        Visual detailPanel)
+    {
+        PaneSplit Horizontal() => detailPanel.HasFocusWithin ? splits.Sections : splits.Panels;
+        bool Editing() => filter.Root.HasFocusWithin;
+        bool Stacked() => splits.HasStack && detailPanel.HasFocusWithin && !Editing();
+
+        layout.AddCommand(ResizeCommand("Left", 'H', () => Horizontal().Move(-1), () => !Editing()));
+        layout.AddCommand(ResizeCommand("Right", 'L', () => Horizontal().Move(1), () => !Editing(),
+            CommandPresentation.CommandBar));
+        layout.AddCommand(ResizeCommand("Up", 'K', () => splits.Stack.Move(-1), Stacked));
+        layout.AddCommand(ResizeCommand("Down", 'J', () => splits.Stack.Move(1), Stacked));
+    }
+
+    /// <remarks>
+    /// One of the four is presented and the rest are silent: the footer is a single row already
+    /// carrying the screen's own actions, and four hints for one family of keys would crowd them out.
+    /// </remarks>
+    private static Command ResizeCommand(
+        string direction,
+        char key,
+        Action execute,
+        Func<bool> available,
+        CommandPresentation presentation = CommandPresentation.None) =>
+        new()
+        {
+            Id = $"ResourceScreen.Resize{direction}",
+            LabelMarkup = "Resize panes",
+            Gesture = new KeyGesture((char)(key & 0x1f), TerminalModifiers.Ctrl),
+            Importance = CommandImportance.Tertiary,
+            Presentation = presentation,
+            CanExecute = _ => available(),
+            IsVisible = _ => available(),
+            ConsumesGestureWhenUnavailable = false,
+            Execute = _ => execute()
+        };
+
+    /// <summary>
+    /// Wraps pane content in the padding every detail pane uses, inside a <see cref="FlexiblePane"/>
+    /// so the content cannot outvote the weights its column was given.
+    /// </summary>
+    public static Visual Pane(Visual content) =>
+        new FlexiblePane(StraumrSurfaces.Inset(content, PaneInset));
 
     /// <summary>Wraps scrollable pane content in the shared styled scroll viewer.</summary>
     public static Visual Scrollable(Visual content)
@@ -93,6 +159,7 @@ internal static class ResourceScreenLayout
     /// Two detail panes side by side, titled on the rule that closes the detail head.
     /// </summary>
     public static Visual TwoPaneSections(
+        PaneSplits splits,
         string leftTitle,
         Visual? left,
         string rightTitle,
@@ -101,29 +168,16 @@ internal static class ResourceScreenLayout
         Visual leftPane = left ?? new Padder();
         Visual rightPane = right ?? new Padder();
 
-        return new Grid()
-            .Columns(new ColumnDefinition { Width = GridLength.Star() })
-            .Rows(
+        return PaneColumns(
+                splits.Sections,
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() })
-            .Cell(
-                PaneColumns()
-                    .Cell(StraumrSurfaces.TitledDivider(
-                        leftTitle,
-                        () => leftPane.HasFocusWithin), 0, 0)
-                    .Cell(StraumrSurfaces.VerticalDivider((0, new Rune('┬'))), 0, 1)
-                    .Cell(StraumrSurfaces.TitledDivider(
-                        rightTitle,
-                        () => rightPane.HasFocusWithin), 0, 2),
-                0,
-                0)
-            .Cell(
-                PaneColumns()
-                    .Cell(leftPane, 0, 0)
-                    .Cell(StraumrSurfaces.VerticalDivider(), 0, 1)
-                    .Cell(rightPane, 0, 2),
-                1,
-                0)
+            .Cell(StraumrSurfaces.TitledDivider(leftTitle, leftPane.Owns), 0, 0)
+            .Cell(StraumrSurfaces.VerticalDivider((0, new Rune('┬'))), 0, 1)
+            .Cell(StraumrSurfaces.TitledDivider(rightTitle, rightPane.Owns), 0, 2)
+            .Cell(leftPane, 1, 0)
+            .Cell(StraumrSurfaces.VerticalDivider(), 1, 1)
+            .Cell(rightPane, 1, 2)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
     }
@@ -133,6 +187,26 @@ internal static class ResourceScreenLayout
     /// over an empty region read as unfinished, so they are omitted rather than shown bare.
     /// </summary>
     public static Visual EmptySections() => StraumrSurfaces.HorizontalDivider();
+
+    public static Visual StackedSections(
+        PaneSplits splits,
+        Visual overview,
+        Visual divider,
+        Visual preview)
+    {
+        splits.UseStack();
+        return new Grid()
+            .Columns(new ColumnDefinition { Width = GridLength.Star() })
+            .Rows(
+                splits.Stack.FirstRow(),
+                new RowDefinition { Height = GridLength.Auto },
+                splits.Stack.SecondRow())
+            .Cell(overview, 0, 0)
+            .Cell(divider, 1, 0)
+            .Cell(preview, 2, 0)
+            .HorizontalAlignment(Align.Stretch)
+            .VerticalAlignment(Align.Stretch);
+    }
 
     /// <remarks>
     /// The panel mirrors the detail panel: a three-row bar, the rule closing it, then content. The list
@@ -159,7 +233,7 @@ internal static class ResourceScreenLayout
 
         return panel
             .Cell(StraumrSurfaces.Inset(bar, PaneInset), 0, 0)
-            .Cell(StraumrSurfaces.TitledDivider(listTitle, () => panel.HasFocusWithin), 1, 0)
+            .Cell(StraumrSurfaces.TitledDivider(listTitle, panel.Owns), 1, 0)
             .Cell(
                 StraumrSurfaces.Inset(
                     new ComputedVisual(() => listContent())
@@ -189,13 +263,13 @@ internal static class ResourceScreenLayout
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
-    private static Grid PaneColumns() =>
+    private static Grid PaneColumns(PaneSplit split, params RowDefinition[] rows) =>
         new Grid()
             .Columns(
-                new ColumnDefinition { Width = GridLength.Star(48) },
+                split.FirstColumn(),
                 new ColumnDefinition { Width = GridLength.Fixed(1) },
-                new ColumnDefinition { Width = GridLength.Star(52) })
-            .Rows(new RowDefinition { Height = GridLength.Star() })
+                split.SecondColumn())
+            .Rows(rows.Length == 0 ? [new RowDefinition { Height = GridLength.Star() }] : rows)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 }

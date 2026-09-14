@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Straumr.Console.Shared.Integrations;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Workspace;
+using Straumr.Console.Tui.Screens.Request;
 using Straumr.Core.Extensions;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -22,6 +23,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.AddStraumrCore();
         services.TryAddSingleton<ExternalEditor>();
         services.TryAddSingleton<WorkspaceScreen>();
+        services.TryAddSingleton<RequestScreen>();
         services.TryAddSingleton<StraumrTuiApp>();
     }
 

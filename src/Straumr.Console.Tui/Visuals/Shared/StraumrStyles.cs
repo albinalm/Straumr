@@ -111,6 +111,21 @@ internal static class StraumrStyles
             KeycapClose = new Rune(' ')
         };
 
+    public static readonly TabControlStyle PreviewTabs = TabControlStyle.NoBorder with
+    {
+        TabPadding = new Thickness(1, 0, 1, 0),
+        StripStyle = Style.None.WithForeground(Muted).WithBackground(Background),
+        TabStyle = Style.None.WithForeground(Muted).WithBackground(Background),
+        TabHoveredStyle = Style.None.WithForeground(TextBright).WithBackground(Hover),
+        TabPressedStyle = Style.None.WithForeground(Accent).WithBackground(Hover),
+        TabSelectedStyle = Style.None.WithForeground(Accent).WithBackground(Background),
+        BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
+        FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
+        OverflowButtonStyle = Style.None.WithForeground(Muted).WithBackground(Background),
+        OverflowButtonHoveredStyle = Style.None.WithForeground(Accent).WithBackground(Hover),
+        OverflowButtonPressedStyle = Style.None.WithForeground(Accent).WithBackground(Hover)
+    };
+
     public static readonly Style CommandPromptText = Style.None.WithForeground(TextBright);
 
     public static readonly PromptEditorStyle CommandPrompt = PromptEditorStyle.Default with

@@ -1,4 +1,5 @@
 using Straumr.Console.Tui.Screens.Workspace;
+using Straumr.Console.Tui.Screens.Request;
 using Straumr.Console.Tui.Visuals.Shared;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -18,9 +19,11 @@ public sealed class StraumrTuiApp
 
     private readonly State<TuiScreen> _currentScreen = new(TuiScreen.Workspaces);
     private readonly State<string?> _activeWorkspaceName = new(null);
-    private readonly State<Visual> _screenContent;
     private readonly State<TuiCommandResult> _message = new(TuiCommandResult.None);
-    private readonly WorkspaceScreen _workspaceScreen;
+    private readonly Dictionary<TuiScreen, ITuiScreen> _screens;
+    private ITuiScreen _screen;
+    private TuiScreen? _pendingScreen;
+    private bool _focusAfterNavigation;
     private readonly TuiCommandSet _commands = new();
     private readonly CommandPrompt _prompt;
     private readonly Queue<string> _submitted = new();
@@ -37,16 +40,17 @@ public sealed class StraumrTuiApp
     /// </summary>
     private readonly CancellationTokenSource _interruptSource = new();
 
-    public StraumrTuiApp(WorkspaceScreen workspaceScreen)
+    public StraumrTuiApp(WorkspaceScreen workspaceScreen, RequestScreen requestScreen)
     {
-        _workspaceScreen = workspaceScreen;
-        _screenContent = new State<Visual>(workspaceScreen.Root);
-        workspaceScreen.NotificationRequested += Notify;
-        workspaceScreen.ExternalActionRequested += RequestExternalAction;
-
-        _commands.Add(new TuiCommand("quit", QuitAsync) { Aliases = ["q", "exit"] });
-        foreach (TuiCommand command in workspaceScreen.PromptCommands)
-            _commands.Add(command);
+        _screen = workspaceScreen;
+        _screens = new ITuiScreen[] { workspaceScreen, requestScreen }.ToDictionary(screen => screen.Kind);
+        foreach (ITuiScreen screen in _screens.Values)
+        {
+            screen.NotificationRequested += Notify;
+            screen.ExternalActionRequested += RequestExternalAction;
+            screen.Root.IsVisible = ReferenceEquals(screen, _screen);
+        }
+        SetCommands();
 
         _prompt = new CommandPrompt(_commands.Complete, _submitted.Enqueue);
 
@@ -71,7 +75,7 @@ public sealed class StraumrTuiApp
                 new RowDefinition { Height = GridLength.Auto })
             .Cell(StraumrHeader.Create(_currentScreen, _activeWorkspaceName), 0, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
-            .Cell(new ComputedVisual(() => _screenContent.Value)
+            .Cell(new ZStack(_screens.Values.Select(screen => screen.Root).ToArray())
                 .HorizontalAlignment(Align.Stretch)
                 .VerticalAlignment(Align.Stretch), 2, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 3, 0)
@@ -108,8 +112,8 @@ public sealed class StraumrTuiApp
         if (!_initialized)
         {
             _initialized = true;
-            await _workspaceScreen.LoadAsync(token);
-            SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
+            await _screen.LoadAsync(token);
+            SetActiveWorkspace(_screen.ActiveWorkspaceName);
             return;
         }
 
@@ -119,14 +123,51 @@ public sealed class StraumrTuiApp
         _prompt.CloseIfFocusLost();
         ExpireMessage();
         await RunSubmittedCommandsAsync(token);
-        await _workspaceScreen.UpdateAsync(token);
-        SetActiveWorkspace(_workspaceScreen.ActiveWorkspaceName);
+        if (ExitRequested)
+            return;
+        await NavigatePendingAsync(token);
+        await _screen.UpdateAsync(token);
+        SetActiveWorkspace(_screen.ActiveWorkspaceName);
+        if (_focusAfterNavigation && _screen.FocusTarget.App == app)
+        {
+            _focusAfterNavigation = false;
+            app.Focus(_screen.FocusTarget);
+        }
     }
 
-    public void ShowScreen(TuiScreen screen, Visual content)
+    private async Task NavigatePendingAsync(CancellationToken cancellationToken)
     {
-        _currentScreen.Value = screen;
-        _screenContent.Value = content;
+        if (_pendingScreen is not { } kind)
+            return;
+        _pendingScreen = null;
+        if (_screen.Kind == kind)
+            return;
+        _screen.Root.IsVisible = false;
+        _screen = _screens[kind];
+        _screen.Root.IsVisible = true;
+        _currentScreen.Value = kind;
+        _message.Value = TuiCommandResult.None;
+        SetCommands();
+        await _screen.LoadAsync(cancellationToken);
+        _focusAfterNavigation = true;
+    }
+
+    private void SetCommands()
+    {
+        _commands.Clear();
+        _commands.Add(new TuiCommand("quit", QuitAsync) { Aliases = ["q", "exit"] });
+        _commands.Add(new TuiCommand("requests", (argument, _) => QueueNavigation(TuiScreen.Requests, argument)) { Aliases = ["rq"] });
+        _commands.Add(new TuiCommand("workspaces", (argument, _) => QueueNavigation(TuiScreen.Workspaces, argument)) { Aliases = ["ws"] });
+        foreach (TuiCommand command in _screen.PromptCommands)
+            _commands.Add(command);
+    }
+
+    private Task<TuiCommandResult> QueueNavigation(TuiScreen screen, string argument)
+    {
+        if (argument.Length > 0)
+            return Task.FromResult(TuiCommandResult.Failed($"usage: {screen.ToString().ToLowerInvariant()}"));
+        _pendingScreen = screen;
+        return Task.FromResult(TuiCommandResult.None);
     }
 
     public void SetActiveWorkspace(string? name) =>

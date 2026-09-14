@@ -15,7 +15,7 @@ using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Screens.Workspace;
 
-public sealed class WorkspaceScreen
+public sealed class WorkspaceScreen : ITuiScreen
 {
     private readonly IStraumrOptionsService _optionsService;
     private readonly IStraumrWorkspaceService _workspaceService;
@@ -36,6 +36,7 @@ public sealed class WorkspaceScreen
     private readonly State<IReadOnlyList<StraumrRequest>> _recentRequests = new([]);
     private readonly Dictionary<Guid, IReadOnlyList<StraumrRequest>> _requestCache = [];
     private readonly ResourceFilter _filter;
+    private readonly PaneSplits _splits = new();
     private readonly ResourceList _workspaceList;
     private readonly Visual _workspaceListView;
     private List<WorkspaceScreenItem> _items = [];
@@ -141,6 +142,7 @@ public sealed class WorkspaceScreen
             "Workspaces",
             FilterCount,
             _filter,
+            _splits,
             BuildListContent,
             BuildDetailHead,
             BuildDetailSections);
@@ -149,6 +151,7 @@ public sealed class WorkspaceScreen
         [
             new TuiCommand("workspace", SelectWorkspaceAsync)
             {
+                Aliases = ["w"],
                 ArgumentValues = WorkspaceNames
             },
             new TuiCommand("use", UseWorkspaceAsync)
@@ -160,6 +163,10 @@ public sealed class WorkspaceScreen
     }
 
     public Visual Root { get; }
+
+    public TuiScreen Kind => TuiScreen.Workspaces;
+
+    public Visual FocusTarget => _workspaceList;
 
     public IReadOnlyList<TuiCommand> PromptCommands { get; }
 
@@ -394,6 +401,7 @@ public sealed class WorkspaceScreen
             ("Modified", FieldList.Text(TimestampFormatting.Absolute(workspace.Modified))));
 
         return ResourceScreenLayout.TwoPaneSections(
+            _splits,
             "Details",
             ResourceScreenLayout.Pane(fields),
             "Requests",
@@ -404,7 +412,7 @@ public sealed class WorkspaceScreen
     /// The detail pane is where the reason belongs in full: the list can only say that something is
     /// wrong, and the summary bar only has one trimmed line to say it in.
     /// </remarks>
-    private static Visual BuildCorruptSections(string displayPath, string problem)
+    private Visual BuildCorruptSections(string displayPath, string problem)
     {
         Visual details = new VStack(
                 FieldList.Create(
@@ -418,6 +426,7 @@ public sealed class WorkspaceScreen
             .HorizontalAlignment(Align.Stretch);
 
         return ResourceScreenLayout.TwoPaneSections(
+            _splits,
             "Details",
             ResourceScreenLayout.Pane(details),
             "Requests",

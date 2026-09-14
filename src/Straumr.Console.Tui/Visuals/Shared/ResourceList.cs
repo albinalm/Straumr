@@ -75,6 +75,7 @@ public sealed partial class ResourceList : Visual, IScrollable
             AttachChild(_emptyContent);
 
         Focusable = true;
+        this.IsTabStop(this.IsReachable);
         HorizontalAlignment = Align.Stretch;
         VerticalAlignment = Align.Stretch;
 
@@ -472,8 +473,7 @@ public sealed partial class ResourceList : Visual, IScrollable
     /// </summary>
     private Visual BuildItem(ResourceRow row, int index)
     {
-        var stack = new VStack(
-                Line(
+        Visual name = Line(
                     row.Name,
                     () => row.IsBroken
                         ? index == SelectedIndex
@@ -482,7 +482,24 @@ public sealed partial class ResourceList : Visual, IScrollable
                         : index == SelectedIndex
                             ? StraumrStyles.BrightText
                             : StraumrStyles.PrimaryText,
-                    TextTrimming.EndEllipsis))
+                    TextTrimming.EndEllipsis);
+
+        if (row.LeadingToken is { } token)
+        {
+            name = new Grid()
+                .Columns(
+                    new ColumnDefinition { Width = GridLength.Fixed(_rows.Max(item => item.LeadingToken?.Text.Length ?? 0)) },
+                    new ColumnDefinition { Width = GridLength.Star() })
+                .Rows(new RowDefinition { Height = GridLength.Auto })
+                .ColumnGap(1)
+                .Cell(Line(token.Text,
+                    () => index == SelectedIndex ? token.SelectedStyle ?? token.Style : token.Style,
+                    TextTrimming.EndEllipsis), 0, 0)
+                .Cell(name, 0, 1)
+                .HorizontalAlignment(Align.Stretch);
+        }
+
+        var stack = new VStack(name)
             .HorizontalAlignment(Align.Stretch);
 
         if (row.Meta is not null)
