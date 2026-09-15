@@ -55,7 +55,7 @@ internal sealed class RequestResponseView
                 new RowDefinition { Height = GridLength.Auto }, new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() }, new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto })
-            .Cell(StraumrHeader.Create(() => request.Name, () => workspaceName), 0, 0)
+            .Cell(StraumrHeader.Create(() => SecretFormatting.Display(request.Name), () => workspaceName), 0, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
             .Cell(BuildBar(request), 2, 0)
             .Cell(_preview.TabRule!, 3, 0)
@@ -218,7 +218,8 @@ internal sealed class RequestResponseView
     /// </remarks>
     private Visual BuildFooter()
     {
-        var hints = new CommandBar().Style(StraumrStyles.CommandBar);
+        // Wrapped rather than clipped; see StraumrTuiApp's footer.
+        var hints = new CommandBar { MultiLine = true }.Style(StraumrStyles.CommandBar);
         return new ZStack(
                 StraumrSurfaces.Inset(hints, StraumrSurfaces.RowInset)
                     .IsVisible(() => _notice.Value.Length == 0),

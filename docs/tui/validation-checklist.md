@@ -223,4 +223,26 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify the editor's chrome follows the fields: change the method and watch the bar's token
       change text as well as colour, edit the URL and watch the bar follow, and type a name and
       watch the header follow
+- [ ] verify the unsaved marker comes back: change a field and watch it turn amber, change it back
+      and watch it read saved again, then press `Escape` and confirm it closes without asking.
+      Worth trying on a header and a multipart part too, which fold into the request later than a
+      text field does
+- [ ] verify the Secrets region: its title lights when it owns focus and Authentication's does not,
+      `j`/`k` scroll it when the list is longer than its share, an unavailable secret reads red, and
+      a request with no references says so rather than showing an empty region
+- [ ] verify a secret reference reads as `{name}` in the request list, both summary bars and both
+      headers, and still reads as `{{secret:name}}` in the editor's fields and the body preview
+- [ ] verify saving keeps the editor open: `Ctrl+S` leaves the form up, the marker goes green and
+      is grey a second later without touching the keyboard, and `Escape` then closes without asking
+- [ ] verify a created request is only created once: `c`, fill it in, `Ctrl+S` twice, and confirm
+      the list holds one request and the second save updated it. Then edit a field and confirm the
+      marker goes back to unsaved
+- [ ] verify focus cannot fall through to the screen behind: on Requests, press `t` in the Request
+      pane and confirm the page changes with the title still lit, the footer still showing this
+      screen's commands and this page's `j`/`k` hints, and nothing flickering in between; then click
+      the blank strip above the first row and confirm the same. The footer naming another screen's
+      commands, or losing the scroll hints for a frame, is the tell
+- [ ] verify the hint rows wrap rather than clip at a narrow width: shrink the terminal until the
+      footer needs two rows on the list, the editor and the full-screen response, and confirm every
+      hint is still readable and the content above shrank to make room
 

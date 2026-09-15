@@ -137,6 +137,25 @@ framework behavior.
   `TextBox`, `Select` or `Switch` used raw is a Tab stop wherever it sits, so the editor's
   hidden pages answered Tab with a caret in the middle of the visible page and swallowed
   everything typed into it. `FormTextBox`, `ChoiceField` and `ToggleField` now compute it.
+- `AutoFocus` needs the same answer, on a path `IsTabStop` never reaches. Every render, an
+  app whose `FocusedElement` has gone null takes the first focusable claiming `AutoFocus`,
+  and that search is ancestor-blind too. A screen waiting in the shell's `ZStack` therefore
+  caught every stray focus in the app — focus lost to a page hidden under the caret, or to
+  a click landing on nothing — and took the footer's commands with it while staying
+  invisible. A screen's main region claims `AutoFocus` through `FocusScope.IsReachable`.
+- A control that hides the page focus is on must take focus with it, in the same keystroke.
+  The framework revokes focus from what is no longer visible and re-homes it to whatever
+  claims `AutoFocus`, and a single frame of that is visible: the screen appears to flicker
+  to wherever focus went and back, and the footer loses the page's keys while it is away.
+- Which rules out letting a control swap the page. `TabControl` hosts the selected page
+  alone and attaches the next one on the app's own next pass, and it cannot be hurried:
+  `EnsureChildrenPrepared` runs only when the control is marked out of date, and that
+  marking happens on the pass that would have attached it anyway. Keep every page attached
+  instead and drive visibility directly — a `ZStack` of all of them, one made visible
+  outright, which `PagedPane` does and `PreviewPane` now does by handing `TabControl` the
+  same content visual for every tab. Assigning a content host the visual it already holds
+  is a no-op, so the strip, the selection and the styling stay the control's and nothing is
+  detached.
 - `TabControl` is focusable, so its tab strip is a Tab stop separate from the content it
   selects. One titled region then answered two Tabs, and `IsTabStop(false)` on the strip
   is what puts one stop back in each titled region; it stays focusable for the pointer.

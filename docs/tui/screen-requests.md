@@ -23,8 +23,16 @@ implements, what evidence exists, and where to resume.
 - `Enter` inspects the selected request by focusing its content preview. The summary
   shows method, URL including configured parameters, and shortened request ID.
 - Authentication displays the configured source, type, injected header and token/cache
-  status. It does not fetch credentials merely to inspect them or show credential
-  material. Secret-reference names are checked through Core without access stamping.
+  status. It does not fetch credentials merely to inspect them, and says nothing about
+  credential material: that a token is not printed on screen needs no line of its own.
+- Secrets is its own region under Authentication, sharing that column's height. It lists
+  every `{{secret:name}}` the request or its auth refers to, each with whether the store
+  can supply it; one that cannot reads red, since it is the reason a send will fail before
+  it does. Names are checked through Core without access stamping. When A1 arrives, what an
+  auth references in its own right belongs on that screen; this stays scoped to the request.
+- A secret reference reads as `{name}` wherever a value is shown rather than edited — the
+  request list, the summary bars, both headers. The stored `{{secret:name}}` is what the
+  editor's fields and the body preview show, because that is the text being edited.
 - Request preview tabs: Body, Headers, Params. Response tabs: Body, Headers, Network,
   named the same on the inline pane and on the full-screen view. Network contains actual
   status, duration, size, HTTP version, warnings and failures;
@@ -69,8 +77,11 @@ implements, what evidence exists, and where to resume.
   across the form carries `Ctrl`, because a bare letter belongs to whichever field has focus. The bar shows the method and
   URL as the fields change them, with the parameters folded in, opposite an unsaved marker.
   A copy opens with its source's name cleared rather than pre-filled, because a name of its
-  own is the one thing it has to be given. Saving reloads and selects the result and reports
-  on the list's footer; a save Core refuses keeps the form open holding the work.
+  own is the one thing it has to be given. Saving keeps the form open: the marker in the bar
+  goes green for a second and settles to grey on `saved`, the list behind reloads and selects
+  the result, and the result line is said on the form's own footer. A request created this way
+  stops being new, so the next save changes it rather than creating another. A save Core
+  refuses keeps the form open holding the work.
   Name and URL are checked before the save is attempted, and a name containing a double quote
   is refused here rather than by Core, since Core would refuse it anyway.
   An auth the workspace no longer holds, and a method the list does not offer, both stay

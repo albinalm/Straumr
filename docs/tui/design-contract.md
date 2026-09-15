@@ -53,6 +53,11 @@ Shared screen shell:
   focused list is the vivid band. Which resource is current is a separate question
   from which row is selected, so its marker is painted over whichever band the row
   carries and composes with all three levels instead of competing with them.
+- The hint row wraps to as many rows as the focused region's hints need, and the content
+  above gives up the lines. A hint that does not fit is dropped from the end of the row,
+  where the least-used actions are; losing those silently is worse than a row that changes
+  height. A region that cannot afford the movement pins its own bar to a fixed height, as
+  the folder browser does.
 - Exactly one region owns focus, and its title says so by filling with the selection
   blue as a chip. Every other title is inert grey. A title that cannot take focus is
   always inert. So there is one filled blue title on screen, and finding it is how

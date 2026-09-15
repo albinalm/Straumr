@@ -56,6 +56,83 @@ public sealed class RequestEditorState
         return state;
     }
 
+    /// <summary>
+    /// An independent copy, for holding what a request looked like before it was edited.
+    /// </summary>
+    public RequestEditorState Copy()
+    {
+        RequestEditorState copy = new(Name)
+        {
+            Uri = Uri,
+            Method = Method,
+            BodyType = BodyType,
+            AuthId = AuthId
+        };
+
+        foreach (KeyValuePair<string, string> kv in Params)
+        {
+            copy.Params[kv.Key] = kv.Value;
+        }
+
+        foreach (KeyValuePair<string, string> kv in Headers)
+        {
+            copy.Headers[kv.Key] = kv.Value;
+        }
+
+        foreach (KeyValuePair<BodyType, string> kv in Bodies)
+        {
+            copy.Bodies[kv.Key] = kv.Value;
+        }
+
+        return copy;
+    }
+
+    /// <summary>
+    /// Whether this holds the same request as <paramref name="other"/>, which is how an editor
+    /// answers whether there is anything to save.
+    /// </summary>
+    /// <remarks>
+    /// A body a type no longer uses is still carried, because the editor keeps what every type was
+    /// given so that looking at XML does not throw the JSON away. Comparing the whole map would
+    /// therefore call a request edited when all that happened was a look at another type, so only
+    /// the body that would be sent counts.
+    /// </remarks>
+    public bool Matches(RequestEditorState other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        return string.Equals(Name, other.Name, StringComparison.Ordinal) &&
+               string.Equals(Uri, other.Uri, StringComparison.Ordinal) &&
+               string.Equals(Method, other.Method, StringComparison.Ordinal) &&
+               BodyType == other.BodyType &&
+               AuthId == other.AuthId &&
+               string.Equals(Body(this), Body(other), StringComparison.Ordinal) &&
+               Same(Params, other.Params) &&
+               Same(Headers, other.Headers);
+
+        static string Body(RequestEditorState state) =>
+            state.Bodies.GetValueOrDefault(state.BodyType, string.Empty);
+
+        static bool Same(Dictionary<string, string> left, Dictionary<string, string> right)
+        {
+            if (left.Count != right.Count)
+            {
+                return false;
+            }
+
+            foreach (KeyValuePair<string, string> kv in left)
+            {
+                if (!right.TryGetValue(kv.Key, out string? value) ||
+                    !string.Equals(kv.Value, value, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
     public string GetDisplayUri()
     {
         if (string.IsNullOrWhiteSpace(Uri) || Params.Count == 0)

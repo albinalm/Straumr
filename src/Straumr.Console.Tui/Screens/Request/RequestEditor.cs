@@ -24,6 +24,14 @@ internal sealed class RequestEditor
     private const string NoAuth = "None";
 
     private readonly RequestEditorState _state;
+
+    /// <summary>
+    /// The request as it was opened, for answering whether there is anything to save. It is replaced
+    /// by every save, because the view stays open and what was just written is what the next edit
+    /// has to differ from.
+    /// </summary>
+    private RequestEditorState _opened;
+
     private readonly ResourceEditorView _view;
 
     /// <summary>
@@ -77,8 +85,11 @@ internal sealed class RequestEditor
         Action<ExternalContentEdit> editContent)
     {
         _state = state;
+        _opened = state.Copy();
         _summaryMethod = new State<string>(state.Method);
-        _summaryUri = new State<string>(state.Uri.Length == 0 ? string.Empty : state.GetDisplayUri());
+        _summaryUri = new State<string>(state.Uri.Length == 0
+            ? string.Empty
+            : SecretFormatting.Display(state.GetDisplayUri()));
         _bodyTextType = RequestEditingHelpers.IsFieldBody(state.BodyType) || state.BodyType == BodyType.None
             ? BodyType.Json
             : state.BodyType;
@@ -162,7 +173,7 @@ internal sealed class RequestEditor
         _headers = new KeyValueField("Headers", "header", state.Headers);
 
         _view = new ResourceEditorView(
-            () => state.Name.Length == 0 ? "new request" : state.Name,
+            () => state.Name.Length == 0 ? "new request" : SecretFormatting.Display(state.Name),
             () => workspaceName,
             BuildSummary(),
             isNew,
@@ -173,7 +184,8 @@ internal sealed class RequestEditor
                 new EditorForm("Body", bodyType, _bodyText, formBody, multipartBody, noBody)
             ],
             save,
-            closed);
+            closed,
+            () => !_state.Matches(_opened));
     }
 
     public void Show() => _view.Show();
@@ -187,10 +199,16 @@ internal sealed class RequestEditor
     private void SyncSummary()
     {
         _summaryMethod.Value = _state.Method;
-        _summaryUri.Value = _state.Uri.Length == 0 ? string.Empty : _state.GetDisplayUri();
+        _summaryUri.Value = _state.Uri.Length == 0
+            ? string.Empty
+            : SecretFormatting.Display(_state.GetDisplayUri());
     }
 
-    public void Saved() => _view.Saved();
+    public void Saved()
+    {
+        _opened = _state.Copy();
+        _view.Saved();
+    }
 
     public void Failed(string message) => _view.Failed(message);
 

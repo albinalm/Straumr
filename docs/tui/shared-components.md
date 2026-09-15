@@ -200,6 +200,10 @@ chips show at once: the one on the rule says which page, this one says which fie
 are filled through `FormTextBox.SetText` and never through `Text`, which is what leaves the caret
 after the value rather than in front of it.
 
+`TwoPaneSections` takes an optional predicate for its left title, for a column that holds more
+than one region: the title then lights for the part it names rather than for everything stacked
+below it.
+
 `EditorForm` is one page of fields. Its label column is sized from the labels rather than by a
 grid, because a hidden field has to take no height at all and a grid row cannot be asked to
 disappear. At most one field wanting the leftover height is visible at a time; where several
@@ -209,13 +213,17 @@ that does not apply cannot be wrong.
 
 `ResourceEditorView` is the screen they sit on, built from the pieces the full-screen response
 is built from: the identity header naming the resource, a three-row bar, the page titles
-notched into the rule that closes it, a pane, and the one-row footer. Its bar carries whatever
+notched into the rule that closes it, a pane, and the one-row footer. The unsaved marker is a comparison rather than a latch: the caller answers whether what the
+fields hold still differs from what was opened, and the view re-asks after every edit, so a value
+typed and typed back reads as saved again and closing stops asking about it. Its bar carries whatever
 the caller says identifies the resource — for a request, its live method and URL — opposite an
 unsaved marker, and keeps its three rows either way. `Ctrl+S` saves and `Escape` closes,
-asking first when there is work to lose. A save that succeeds closes the view and is reported
-on the screen behind it, where the reader is looking and where the saved resource is now
-selected; a save Core refuses keeps the view open and says why on its own footer, because a
-refusal is about a field that has to be corrected here.
+asking first when there is work to lose. A save that succeeds keeps the view open and turns the marker green for a
+second before it settles to grey on `saved`, because editing and saving is something done more
+than once per visit; a save Core refuses keeps it open too and says why on its own footer. Both
+outcomes are reported on that footer, the shell's line being behind this view. Staying open is
+why the caller is told a resource has been created: the next save has to change it rather than
+create another.
 
 `KeyValueField` is headers, query parameters, form fields and multipart parts, which are all
 the same thing. It is a `ResourceList` rather than a grid of its own, so selection, hover,
@@ -260,6 +268,11 @@ left rather than to the page's entry point.
 the view they are looking at.
 
 ## Paged panes
+
+`PreviewPane` keeps all of its pages attached in one stack and shows the current one, rather than
+letting `TabControl` swap its content: a page that comes and goes takes focus with it when it goes,
+and the frame before focus lands again is visible. The control still owns the strip, the selection
+and the styling — it is handed the same content visual for every tab.
 
 `PagedPane` owns the rule-as-tab-strip idiom: page titles notched into the rule above a pane,
 the selected one carrying the focus chip while the pane owns focus, and a click or a gesture to

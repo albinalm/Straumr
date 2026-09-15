@@ -3,6 +3,76 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-15: The hint rows wrap instead of clipping. A bar held to one row drops the hints that do
+  not fit, and it drops them from the end — which is where the less-used actions sit, and where a
+  reader looks when they do not already know the key. `CommandBar.MultiLine` is the framework's own
+  switch for it and the folder browser already used it; the shell's footer, the editor's and the
+  full-screen response's now do too. Each of those rows is sized to its content, so the screen above
+  gives up the lines, which is the right way round. The row does change height as focus moves and
+  the hints with it — the folder browser pins itself to three rows to stop that moving a list under
+  the pointer, and any region that cannot take the shift can do the same.
+
+- 2026-09-15: Fixed the screen behind stealing focus, which the developer found two ways into:
+  pressing `t` to change the Request pane's tab, and clicking the blank strip above the first row.
+  Both end the same way, and the footer gave it away by showing the Workspaces screen's commands
+  while Requests was on show. The framework re-homes lost focus on every render by taking the first
+  focusable that claims `AutoFocus`, and that search tests the candidate's own visibility and not
+  its ancestors' — the same ancestor-blindness as `Tab` traversal, on a path `IsTabStop` never
+  reaches. The hidden screen's list claimed `AutoFocus` unconditionally and sat earlier in the tree,
+  so it caught every stray focus in the app while staying invisible. Both screens now claim it
+  through `FocusScope.IsReachable`, which is the same answer already given to `Tab`. The other half
+  was the losing of focus itself: `t` hid the page under the caret and put focus nowhere, where
+  `PagedPane` has always taken focus with the page it selects. `PreviewPane` now does too, and stopped letting
+  `TabControl` swap its content to get there. Two attempts went the other way first and the
+  developer saw both: deferring the focus a pass left a frame with focus nowhere in the pane, which
+  reads as the screen flickering to the list and back, and holding focus on the strip across that
+  frame cost the footer this page's keys, which is the same fault one step quieter. The control now
+  gets one content visual for every tab — a stack holding all three pages — so nothing is ever
+  detached, the current page is made visible outright, and focus moves in the keystroke that
+  selected it. It keeps the strip, the selection and the styling; it just stops owning the swap.
+  `PagedPane` has always worked this way, which is why it never had the problem.
+
+- 2026-09-15: Saving keeps the editor open. It used to close the view and report on the screen
+  behind, which is wrong for a form you are still working in — an edit and a save is one thing you do
+  repeatedly, not a way out. The marker in the bar now answers instead: green the moment the save
+  lands, grey a second later, reading `saved` either way. It needs a clock of its own, since the
+  update pass runs on input and a save is followed by none, so the marker is wrapped in a small
+  animated visual that fades it on the framework's animation scheduler — the same clock the in-flight
+  duration ticks on. Staying open changed three things behind it: a created request stops being new,
+  so the next save changes what the first one wrote rather than creating a second (the screen holds
+  the id rather than capturing it); the comparison the unsaved marker uses is re-based on what was
+  just written, or every save would immediately read as unsaved again; and the result line moved to
+  the editor's own footer, since the shell's is behind it.
+
+- 2026-09-15: Secrets became a region of its own. It had been a paragraph at the bottom of the
+  Authentication pane, listing names that are already visible in the body and the URL and printing
+  `None` the rest of the time. It answers a different question from the rest of that pane — whether
+  this request can fill itself in when it is sent — so it now sits under Authentication in the same
+  column with its own title on its own rule, its own share of the height, and its own scrolling. The
+  references are carried as references rather than as one joined string, so each takes a row with
+  its name in the secret colour and `unavailable` in red: the reason a send will fail, before it
+  does. `TwoPaneSections` grew an optional predicate for the left title, because a column holding
+  two regions cannot have its title lit by both. The full enumeration of what an auth references
+  belongs on the Auths screen when A1 comes; what is here is scoped to this request.
+- 2026-09-15: A secret reference in a label now reads as `{token}` rather than `{{secret:token}}`.
+  The stored form is deliberately unmistakable, which is right in a document being written and
+  wrong in a list of names — the developer's request name ended in `{{secret:t…`, most of a row spent
+  on syntax and then trimmed before reaching what it refers to. `SecretFormatting.Display` shortens
+  it for the request list, the summary bars, the editor's header and the full-screen response's.
+  Only labels: the editor's fields and the body preview keep the stored text, because that is the
+  text being edited.
+
+- 2026-09-15: The unsaved marker now answers whether anything differs, not whether anything was
+  typed. It latched on the first edit and never came back, so undoing a change by hand left the
+  editor claiming work that no longer existed — and `Escape` asking about it. `ResourceEditorView`
+  takes a `hasChanges` from its caller and re-asks after every edit; `RequestEditor` keeps a copy of
+  the request as it was opened and compares. Bodies a type no longer uses are left out of the
+  comparison, since the editor deliberately keeps what every type was given and looking at XML
+  should not count as editing. A new or copied request stays unsaved regardless, having nothing to
+  be the same as. Removed the `Credential material hidden` line from the Authentication pane at the
+  developer's request: that a token is not printed on screen is what anyone would assume, and the
+  line spent a row of the pane saying it.
+
 - 2026-09-15: The editor's chrome went stale: the bar still said `GET` after the method was changed
   to `PUT`, the URL beside it never moved, and the header kept the old name while a new one was
   typed. All three read the state being edited, which is a plain object the binding graph knows

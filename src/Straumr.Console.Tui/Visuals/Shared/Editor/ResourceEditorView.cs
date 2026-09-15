@@ -1,5 +1,9 @@
+using System.Diagnostics;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Animation;
+using XenoAtom.Terminal.UI.Geometry;
+using XenoAtom.Terminal.UI.Layout;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
@@ -22,6 +26,9 @@ internal sealed class ResourceEditorView
 {
     private static readonly TimeSpan NoticeLifetime = TimeSpan.FromSeconds(5);
 
+    /// <summary>How long the marker stays green after a save.</summary>
+    private static readonly TimeSpan SavedLifetime = TimeSpan.FromSeconds(1);
+
     /// <summary>The C0 control character a terminal sends for <c>Ctrl</c> plus a letter.</summary>
     private const char SaveControlChar = (char)('S' & 0x1F);
 
@@ -39,6 +46,17 @@ internal sealed class ResourceEditorView
     /// </summary>
     private readonly State<string> _headerName;
     private readonly State<bool> _dirty;
+
+    /// <summary>
+    /// Whether saving still creates the resource. It stops being true the moment one does, because
+    /// the view stays open afterwards and the next save has to change what the first one wrote.
+    /// </summary>
+    private readonly State<bool> _isNew;
+
+    /// <summary>Whether a save has just landed, which the marker shows green for a moment.</summary>
+    private readonly State<bool> _justSaved = new(false);
+
+    private SavedFlash? _flash;
     private readonly State<bool> _saving = new(false);
     private readonly State<string> _notice = new(string.Empty);
     private readonly State<bool> _noticeError = new(false);
@@ -57,6 +75,12 @@ internal sealed class ResourceEditorView
     /// Whether saving creates the resource rather than changing one. It decides what the bar says
     /// before anything has been typed, and whether closing with edits is worth asking about.
     /// </param>
+    /// <param name="hasChanges">
+    /// Whether what the fields hold still differs from what was opened. Asked after every edit
+    /// rather than latched on the first one, so a value typed and then typed back reads as saved
+    /// again and closing stops asking about work that no longer exists. Only the caller can answer
+    /// it: this view does not know what a resource is, let alone when two of them are the same.
+    /// </param>
     /// <param name="save">
     /// Asked for, not performed. Core calls belong on the screen's update loop, where every other one
     /// in this app runs; the screen answers through <see cref="Saved"/> or <see cref="Failed"/>.
@@ -68,17 +92,28 @@ internal sealed class ResourceEditorView
         bool isNew,
         EditorForm[] pages,
         Action save,
-        Action closed)
+        Action closed,
+        Func<bool> hasChanges)
     {
         _forms = pages;
         _save = save;
         _closed = closed;
         _name = name;
         _headerName = new State<string>(name());
+        _isNew = new State<bool>(isNew);
         _dirty = new State<bool>(isNew);
 
         foreach (EditorForm form in _forms)
-            form.Changed += () => _dirty.Value = true;
+        {
+            form.Changed += () =>
+            {
+                // Everything a field keeps in a shape of its own goes into the state first, or the
+                // comparison would be made against a value the reader has already changed.
+                foreach (EditorForm page in _forms)
+                    page.Commit();
+                _dirty.Value = _isNew.Value || hasChanges();
+            };
+        }
 
         _pages = new PagedPane(tabCyclesPages: false,
             _forms.Select(form => new PagedPanePage(form.Title, form.Root, () => form.FocusTarget)).ToArray());
@@ -92,7 +127,7 @@ internal sealed class ResourceEditorView
                 new RowDefinition { Height = GridLength.Auto })
             .Cell(StraumrHeader.Create(() => _headerName.Value, workspaceName), 0, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
-            .Cell(BuildBar(summary, isNew), 2, 0)
+            .Cell(BuildBar(summary), 2, 0)
             .Cell(_pages.TabRule, 3, 0)
             .Cell(ResourceScreenLayout.Pane(_pages.Root), 4, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 5, 0)
@@ -201,8 +236,10 @@ internal sealed class ResourceEditorView
     {
         _saving.Value = false;
         _dirty.Value = false;
-        _dialog.Close();
-        _closed();
+        // What was created exists now, so the next save changes it rather than making a second one.
+        _isNew.Value = false;
+        _justSaved.Value = true;
+        _flash?.Arm(SavedLifetime);
     }
 
     /// <summary>
@@ -282,7 +319,13 @@ internal sealed class ResourceEditorView
     /// The bar keeps its three rows whether the resource is being edited or written, so saving
     /// changes what the right half says rather than shifting the screen under the reader.
     /// </remarks>
-    private Visual BuildBar(Visual summary, bool isNew)
+    /// <remarks>
+    /// The marker goes green the moment a save lands and grey a second later. Saving no longer
+    /// closes the view, so something has to say that it happened; a colour that fades says it
+    /// without taking a row or needing to be dismissed, and what it fades to is the same "saved"
+    /// the marker would have read anyway.
+    /// </remarks>
+    private Visual BuildBar(Visual summary)
     {
         Visual status = new HStack(
                 new TextBlock(() => _saving.Value ? "●" : _dirty.Value ? "●" : "○")
@@ -290,18 +333,25 @@ internal sealed class ResourceEditorView
                         ? StraumrStyles.AccentText
                         : _dirty.Value
                             ? StraumrStyles.AmberText
-                            : StraumrStyles.MutedText),
+                            : _justSaved.Value
+                                ? StraumrStyles.GreenText
+                                : StraumrStyles.MutedText),
                 new TextBlock(() => _saving.Value
                         ? "saving"
                         : _dirty.Value
-                            ? isNew ? "not created yet" : "unsaved changes"
+                            ? _isNew.Value ? "not created yet" : "unsaved changes"
                             : "saved")
-                    .Style(() => _saving.Value ? StraumrStyles.AccentText : StraumrStyles.MutedBrightText)
+                    .Style(() => _saving.Value
+                        ? StraumrStyles.AccentText
+                        : _justSaved.Value
+                            ? StraumrStyles.GreenText
+                            : StraumrStyles.MutedBrightText)
                     .Trimming(TextTrimming.EndEllipsis))
             .Spacing(1);
 
+        _flash = new SavedFlash(status, _justSaved);
         return StraumrSurfaces.Inset(
-            StraumrSurfaces.Bar(summary, status),
+            StraumrSurfaces.Bar(summary, _flash),
             ResourceScreenLayout.PaneInset);
     }
 
@@ -311,7 +361,8 @@ internal sealed class ResourceEditorView
     /// </remarks>
     private Visual BuildFooter()
     {
-        var hints = new CommandBar().Style(StraumrStyles.CommandBar);
+        // Wrapped rather than clipped; see StraumrTuiApp's footer.
+        var hints = new CommandBar { MultiLine = true }.Style(StraumrStyles.CommandBar);
         return new ZStack(
                 StraumrSurfaces.Inset(hints, StraumrSurfaces.RowInset)
                     .IsVisible(() => _notice.Value.Length == 0),
@@ -350,4 +401,51 @@ internal sealed class ResourceEditorView
         ConsumesGestureWhenUnavailable = false,
         Execute = _ => TrySave()
     };
+
+    /// <summary>
+    /// Holds the status marker and turns its green back to grey once the moment has passed.
+    /// </summary>
+    /// <remarks>
+    /// A timer is needed because the update pass runs on input and on animation, and a save is
+    /// followed by neither: the marker would have stayed green until the next keystroke. The
+    /// framework's animation scheduler is the clock every other timed thing in this app uses, and
+    /// asking for no tick at all while nothing is pending costs nothing when nothing is.
+    /// </remarks>
+    private sealed class SavedFlash : Visual, IAnimatedVisual
+    {
+        private readonly Visual _content;
+        private readonly State<bool> _flag;
+        private long _until;
+
+        public SavedFlash(Visual content, State<bool> flag)
+        {
+            _content = content;
+            _flag = flag;
+            AttachChild(content);
+        }
+
+        public void Arm(TimeSpan lifetime) =>
+            _until = Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * lifetime.TotalSeconds);
+
+        public long NextAnimationTick => _flag.Value ? _until : long.MaxValue;
+
+        public bool AdvanceAnimation(long timestamp)
+        {
+            if (!_flag.Value || timestamp < _until)
+                return false;
+
+            _flag.Value = false;
+            return true;
+        }
+
+        protected override int ChildrenCount => 1;
+
+        protected override Visual GetChild(int index) =>
+            index == 0 ? _content : throw new ArgumentOutOfRangeException(nameof(index));
+
+        protected override SizeHints MeasureCore(in LayoutConstraints constraints) =>
+            _content.Measure(constraints);
+
+        protected override void ArrangeCore(in Rectangle finalRect) => _content.Arrange(finalRect);
+    }
 }

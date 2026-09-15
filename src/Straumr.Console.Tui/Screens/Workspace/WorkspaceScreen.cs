@@ -63,10 +63,9 @@ public sealed class WorkspaceScreen : ITuiScreen
         _workspaceList = new ResourceList(
             [],
             ResourceScreenLayout.Message(
-                new TextBlock(() => NoMatchesMessage()).Style(StraumrStyles.MutedText)))
-        {
-            AutoFocus = true
-        };
+                new TextBlock(() => NoMatchesMessage()).Style(StraumrStyles.MutedText)));
+        // Claimed only while this screen is the one on show; see FocusScope.
+        _workspaceList.AutoFocus(_workspaceList.IsReachable);
         _workspaceList.BindSelectedIndex(_selectedIndex);
         _workspaceList.ItemActivated += index =>
         {

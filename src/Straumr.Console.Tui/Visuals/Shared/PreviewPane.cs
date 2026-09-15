@@ -55,14 +55,31 @@ internal sealed class PreviewPane
             // of the Tab rotation, so one Tab moves between titled regions rather than within one.
             tabs.IsTabStop(false);
             tabs.SetStyle(StraumrStyles.PreviewTabs);
+            // Every tab is given the same content: one stack holding all the pages, with the current
+            // one made visible outright. The control's own way is to host the selected page alone and
+            // swap it, which detaches the page focus is on and leaves focus nowhere until the next
+            // page is attached a pass later — long enough for the app to re-home focus outside the
+            // pane and for the footer to lose this page's keys, both of which are visible. Handing it
+            // one content visual that never changes takes the swap out of the control's hands; it
+            // keeps the strip, the selection and the styling, and the pages stop coming and going.
+            // It is also what `PagedPane` has always done, which is why it never had this problem.
+            // One instance, given to every tab: assigning the content host the visual it already
+            // holds is a no-op, so nothing is detached when the selection moves.
+            ZStack stack = new ZStack(_views.Cast<Visual>().ToArray())
+                .HorizontalAlignment(Align.Stretch)
+                .VerticalAlignment(Align.Stretch);
             for (int index = 0; index < pages.Length; index++)
             {
                 int pageIndex = index;
                 tabs.AddTab(new TextBlock(pages[index]).Style(() => SelectedPage == pageIndex
-                    ? StraumrStyles.AccentText : StraumrStyles.MutedText), _views[index]);
+                    ? StraumrStyles.AccentText : StraumrStyles.MutedText), stack);
             }
             _tabs = tabs;
             Root = tabs;
+            // A page is selected by the key below and by a click on the strip, so what follows a
+            // selection belongs to the selection and not to either of the ways of making one.
+            tabs.SelectionChanged(ShowSelectedPage);
+            ShowSelectedPage();
             // Where the titles are on a strip of their own the pane is one titled region among
             // several, `Tab` belongs to those, and `t` moves within this one.
             Root.AddCommand(new Command
@@ -72,7 +89,7 @@ internal sealed class PreviewPane
                 Gesture = new KeyGesture('t'),
                 Importance = CommandImportance.Secondary,
                 Presentation = CommandPresentation.CommandBar,
-                Execute = _ => tabs.SelectedIndex = (tabs.SelectedIndex + 1) % _views.Length
+                Execute = _ => SelectNextTab()
             });
         }
     }
@@ -87,6 +104,31 @@ internal sealed class PreviewPane
     private int SelectedPage => _tabs?.SelectedIndex ?? _paged!.SelectedPage;
 
     public Visual Page(int index) => _views[index];
+
+    private void SelectNextTab() =>
+        _tabs!.SelectedIndex = (_tabs.SelectedIndex + 1) % _views.Length;
+
+    /// <summary>
+    /// Shows the selected page, hides the rest, and takes focus with it when the pane had it.
+    /// </summary>
+    /// <remarks>
+    /// Visibility is assigned rather than bound, and focus is asked for after it: focus is revoked
+    /// from a visual that is not visible when the focus pass runs, so the page being left has to
+    /// stop being the visible one before the page being entered is asked for it. Every page is
+    /// attached the whole time, so this is one keystroke's work with no frame in between.
+    /// </remarks>
+    private void ShowSelectedPage()
+    {
+        bool owned = Root.Owns();
+        for (int index = 0; index < _views.Length; index++)
+            _views[index].IsVisible = index == SelectedPage;
+
+        if (!owned)
+            return;
+
+        Visual target = FocusTarget;
+        target.App?.Focus(target);
+    }
 
     public void SetPageText(int index, string value)
     {

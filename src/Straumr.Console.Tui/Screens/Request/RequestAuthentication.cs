@@ -6,9 +6,20 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Tui.Screens.Request;
 
-internal sealed record RequestAuthentication(string Source, string Type, string Injects, string Status, string References, string? Problem)
+/// <param name="References">
+/// Every secret the request or its auth refers to, and whether each one resolves. Held as the
+/// references they are rather than as one joined string, because the region showing them puts each
+/// on its own row and colours the ones that would fail a send.
+/// </param>
+internal sealed record RequestAuthentication(
+    string Source,
+    string Type,
+    string Injects,
+    string Status,
+    IReadOnlyList<SecretReference> References,
+    string? Problem)
 {
-    public static readonly RequestAuthentication Loading = new("Loading…", "", "", "", "", null);
+    public static readonly RequestAuthentication Loading = new("Loading…", "", "", "", [], null);
 
     public static async Task<RequestAuthentication> LoadAsync(
         StraumrRequest request, StraumrWorkspaceEntry workspace,
@@ -32,18 +43,18 @@ internal sealed record RequestAuthentication(string Source, string Type, string 
         string referenceText = JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest);
         if (auth is not null)
             referenceText += JsonSerializer.Serialize(auth, StraumrJsonContext.Default.StraumrAuth);
-        var references = new List<string>();
+        var references = new List<SecretReference>();
         foreach (string name in SecretHelpers.SecretPattern.Matches(referenceText)
                      .Select(match => match.Groups["name"].Value).Distinct(StringComparer.Ordinal))
         {
             try
             {
                 await secretService.GetAsync(name, updateLastAccessed: false, cancellationToken);
-                references.Add($"{name} · available");
+                references.Add(new SecretReference(name, Available: true));
             }
             catch (Exception exception) when (RequestScreen.IsRecoverable(exception))
             {
-                references.Add($"{name} · unavailable");
+                references.Add(new SecretReference(name, Available: false));
             }
         }
 
@@ -62,7 +73,10 @@ internal sealed record RequestAuthentication(string Source, string Type, string 
                 CustomAuthConfig => "Cached value available",
                 _ => auth is not null || direct ? "Configured" : "No authentication"
             },
-            references.Count == 0 ? "None" : string.Join('\n', references),
+            references,
             problem);
     }
 }
+
+/// <summary>One <c>{{secret:name}}</c> a request depends on, and whether the store can supply it.</summary>
+internal sealed record SecretReference(string Name, bool Available);

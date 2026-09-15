@@ -162,12 +162,18 @@ internal static class ResourceScreenLayout
     /// <summary>
     /// Two detail panes side by side, titled on the rule that closes the detail head.
     /// </summary>
+    /// <param name="leftFocused">
+    /// Whether the left title's region owns focus, for a left pane that is more than one region:
+    /// the title then names the part it belongs to rather than everything stacked in that column.
+    /// Omitted where the pane is the region, which is the usual case.
+    /// </param>
     public static Visual TwoPaneSections(
         PaneSplits splits,
         string leftTitle,
         Visual? left,
         string rightTitle,
-        Visual? right)
+        Visual? right,
+        Func<bool>? leftFocused = null)
     {
         Visual leftPane = left ?? new Padder();
         Visual rightPane = right ?? new Padder();
@@ -176,7 +182,7 @@ internal static class ResourceScreenLayout
                 splits.Sections,
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() })
-            .Cell(StraumrSurfaces.TitledDivider(leftTitle, leftPane.Owns), 0, 0)
+            .Cell(StraumrSurfaces.TitledDivider(leftTitle, leftFocused ?? leftPane.Owns), 0, 0)
             .Cell(StraumrSurfaces.VerticalDivider((0, new Rune('┬'))), 0, 1)
             .Cell(StraumrSurfaces.TitledDivider(rightTitle, rightPane.Owns), 0, 2)
             .Cell(leftPane, 1, 0)

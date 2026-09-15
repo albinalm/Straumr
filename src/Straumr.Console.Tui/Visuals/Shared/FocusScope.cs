@@ -34,6 +34,11 @@ internal static class FocusScope
     /// both read and write the same bindable value, so a focusable that read its own
     /// <c>IsVisible</c> crashed the moment something computed that same property, which the pair
     /// dialog's value box did.
+    /// <c>AutoFocus</c> asks this same question and has to be answered with it. The framework hands
+    /// focus to the first focusable claiming it whenever focus is lost — a page hidden under the
+    /// caret, a click landing on nothing — and that search tests the candidate's own visibility and
+    /// not its ancestors' either. A screen waiting behind another therefore caught every stray focus
+    /// in the app, taking the footer and the movement keys with it while staying hidden.
     /// </remarks>
     public static bool IsReachable(this Visual visual)
     {

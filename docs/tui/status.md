@@ -107,6 +107,16 @@ Update it in the same change that completes or advances a milestone.
   reached only the popup, through the style's factory), and `Ctrl+Tab` steps focus backwards as a
   global command beside the framework's own `Shift+Tab` — unpresented, because many terminals
   either flatten it to a bare `Tab` or keep it for their own tab switching.
+- Secrets moved out of the Authentication pane into a region of its own in the same column, with
+  its own title, share of the height and scrolling, and each reference on a row with its
+  availability; a reference now reads as `{name}` in labels. Both were the developer's call, the
+  second after seeing a request name trimmed mid-reference.
+- Saving now keeps the editor open, with the bar's marker going green for a second and settling to
+  grey; a created request stops being new so a second save updates it, and results are said on the
+  editor's own footer.
+- Fixed focus falling through to the hidden screen, reported twice: `t` on the Request pane and a
+  click on empty list space. `AutoFocus` is ancestor-blind like `Tab` traversal, so both screens now
+  claim it through `IsReachable`, and `PreviewPane` takes focus with the tab it selects.
 - Next checkpoint: the developer's terminal pass over the editor, the external body edit and the
   dropdown keys included, then the rest of R1's outstanding UI feedback and its verification. Do not start Auths or Secrets yet. The
   accepted Workspaces screen is the design baseline; the HTML mockups predate improvements

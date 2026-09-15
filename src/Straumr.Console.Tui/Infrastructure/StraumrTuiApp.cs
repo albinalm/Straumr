@@ -63,7 +63,13 @@ public sealed class StraumrTuiApp
 
         _prompt = new CommandPrompt(_commands.Complete, _submitted.Enqueue);
 
-        var commandBar = new CommandBar();
+        // Wrapped rather than clipped. The row is as wide as the terminal and the hints are as many
+        // as the focused region has, so a bar held to one row silently drops the last of them — and
+        // the ones it drops are at the end, which is where the less-used actions sit and where a
+        // reader looks when they do not already know the key. The row grows instead; the screen
+        // above it gives up the lines, which is the right way round for a row that is only as tall
+        // as it has to be.
+        var commandBar = new CommandBar { MultiLine = true };
         commandBar.SetStyle(StraumrStyles.CommandBar);
 
         var footer = new ZStack(

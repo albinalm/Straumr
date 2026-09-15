@@ -45,6 +45,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly PreviewPane _responsePreview = new("Body", "Headers", "Network");
     private readonly ResponseBodyActions _responseBody;
     private readonly ScrollableContent _authView;
+    private readonly ScrollableContent _secretsView;
     private readonly Visual _sections;
     private readonly Dictionary<(Guid Workspace, Guid Request), StraumrResponse> _responses = [];
     private List<RequestScreenItem> _items = [];
@@ -55,6 +56,13 @@ public sealed class RequestScreen : ITuiScreen
     private CancellationTokenSource? _sendCancellation;
     private RequestResponseView? _responseView;
     private RequestEditor? _editorView;
+
+    /// <summary>
+    /// The request the open editor writes to, or <see langword="null"/> while it would create one.
+    /// It is a field rather than a captured value because the editor stays open after a save: what
+    /// a create wrote is what the next save has to change.
+    /// </summary>
+    private Guid? _editingId;
 
     /// <summary>
     /// What an external body edit has to say, held until the editor screen is back on the terminal
@@ -92,7 +100,9 @@ public sealed class RequestScreen : ITuiScreen
         _list = new ResourceList([], ResourceScreenLayout.Message(
             new TextBlock(() => _emptyMessage.Value)
                 .Style(() => _loadError.Value ? StraumrStyles.RedText : StraumrStyles.MutedText)
-                .Wrap(true).Trimming(TextTrimming.EndEllipsis)), activateLabel: "Inspect") { AutoFocus = true };
+                .Wrap(true).Trimming(TextTrimming.EndEllipsis)), activateLabel: "Inspect");
+        // Claimed only while this screen is the one on show; see FocusScope.
+        _list.AutoFocus(_list.IsReachable);
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => _requestPreview.FocusTarget.App?.Focus(_requestPreview.FocusTarget);
         _filter = new ResourceFilter("filter requests", ApplyFilter, () => _list);
@@ -109,14 +119,33 @@ public sealed class RequestScreen : ITuiScreen
             _list.AddCommand(command);
         _list.AddCommand(ActionCommand("Send fullscreen", 's', QueueSend, () => SelectedItem is { IsBroken: false }));
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
+        _secretsView = new ScrollableContent(new ComputedVisual(BuildSecrets));
         Visual responsePane = ResourceScreenLayout.Pane(_responsePreview.Root);
         var responseRule = StraumrSurfaces.TitledDivider("Response", responsePane.Owns);
         responseRule.EndLabel = new TextBlock(() => _responseSummary.Value)
             .Style(() => _responseFailed.Value ? StraumrStyles.RedText : StraumrStyles.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
+        // Secrets is a region of its own rather than a paragraph under Authentication: what it
+        // answers — whether this request can fill itself in when it is sent — is a different
+        // question from how the request authenticates, and it is worth seeing without asking for
+        // it. The column's two regions share its height; each scrolls when its own content is
+        // longer than its share.
+        Visual authPane = ResourceScreenLayout.Pane(_authView);
+        Visual secretsPane = ResourceScreenLayout.Pane(_secretsView);
+        Visual authColumn = new Grid()
+            .Columns(new ColumnDefinition { Width = GridLength.Star() })
+            .Rows(
+                new RowDefinition { Height = GridLength.Star() },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star() })
+            .Cell(authPane, 0, 0)
+            .Cell(StraumrSurfaces.TitledDivider("Secrets", secretsPane.Owns), 1, 0)
+            .Cell(secretsPane, 2, 0)
+            .HorizontalAlignment(Align.Stretch)
+            .VerticalAlignment(Align.Stretch);
         _sections = ResourceScreenLayout.StackedSections(_splits,
-            ResourceScreenLayout.TwoPaneSections(_splits, "Authentication", ResourceScreenLayout.Pane(_authView),
-                "Request", ResourceScreenLayout.Pane(_requestPreview.Root)),
+            ResourceScreenLayout.TwoPaneSections(_splits, "Authentication", authColumn,
+                "Request", ResourceScreenLayout.Pane(_requestPreview.Root), authPane.Owns),
             responseRule, responsePane);
         Visual listView = ResourceScreenLayout.Scrollable(_list);
         Root = ResourceScreenLayout.Create("Requests",
@@ -260,9 +289,15 @@ public sealed class RequestScreen : ITuiScreen
             {
                 _editorView?.Failed(result.Message!);
             }
+            else if (_editorView is { } editor)
+            {
+                // Said on the editor's own footer, not the shell's: saving no longer closes the
+                // view, so a message behind it would expire without being read.
+                editor.Saved();
+                editor.Report(result.Message!, error: false);
+            }
             else
             {
-                _editorView?.Saved();
                 NotificationRequested?.Invoke(result);
             }
         }
@@ -320,9 +355,9 @@ public sealed class RequestScreen : ITuiScreen
         Visual summary = item.Request is { } request
             ? new HStack(new TextBlock(request.Method.Method).Style(HttpMethodFormatting.Style(request.Method))
                     .MinWidth(request.Method.Method.Length),
-                new TextBlock(RequestEditorState.FromRequest(request).GetDisplayUri()).Style(StraumrStyles.PrimaryText)
+                new TextBlock(SecretFormatting.Display(RequestEditorState.FromRequest(request).GetDisplayUri())).Style(StraumrStyles.PrimaryText)
                     .Trimming(TextTrimming.EndEllipsis).HorizontalAlignment(Align.Stretch)).Spacing(2)
-            : new TextBlock($"{item.Name} · cannot be read").Style(StraumrStyles.RedText).Trimming(TextTrimming.EndEllipsis);
+            : new TextBlock($"{SecretFormatting.Display(item.Name)} · cannot be read").Style(StraumrStyles.RedText).Trimming(TextTrimming.EndEllipsis);
         return StraumrSurfaces.Bar(summary, new TextBlock($" {item.Id.ToString()[..8]} ").Style(StraumrStyles.TokenChip));
     }
 
@@ -335,14 +370,36 @@ public sealed class RequestScreen : ITuiScreen
             ("Type", FieldList.Text(auth.Type)),
             ("Injects", FieldList.Wrapped(auth.Injects)),
             ("Status", FieldList.Wrapped(auth.Status)));
+        // No line saying the credential is hidden. That a request's token is not printed on screen
+        // is what anyone would assume, so the line answered a question nobody asked while taking a
+        // row of a pane that has better uses for it.
         var content = new VStack(fields).Spacing(1).HorizontalAlignment(Align.Stretch);
-        if (auth.Type != "None" && auth.Type.Length > 0)
-            content.Add(new TextBlock("Credential material hidden").Style(StraumrStyles.MutedText).Wrap(true));
         if (auth.Problem is { } problem)
             content.Add(FieldList.Problem(problem));
-        content.Add(new TextBlock("Secret references").Style(StraumrStyles.MutedBrightText));
-        content.Add(FieldList.Wrapped(auth.References));
         return content;
+    }
+
+    /// <summary>
+    /// Every secret this request depends on, its own and its auth's, and whether the store can
+    /// supply it. One that cannot reads red: it is the reason a send will fail, before it does.
+    /// </summary>
+    private Visual BuildSecrets()
+    {
+        if (_authentication.Value is not { } auth)
+            return new TextBlock("Unavailable.").Style(StraumrStyles.MutedText);
+        if (auth.References.Count == 0)
+            return new TextBlock("No secret references.").Style(StraumrStyles.MutedText).Wrap(true);
+
+        return new VStack(auth.References
+                .Select(reference => (Visual)new HStack(
+                        new TextBlock(reference.Name)
+                            .Style(StraumrStyles.PurpleText)
+                            .Trimming(TextTrimming.EndEllipsis),
+                        new TextBlock(reference.Available ? "· available" : "· unavailable")
+                            .Style(reference.Available ? StraumrStyles.MutedText : StraumrStyles.RedText))
+                    .Spacing(1))
+                .ToArray())
+            .HorizontalAlignment(Align.Stretch);
     }
 
     private void SetRequestPreview(StraumrRequest request)
@@ -391,7 +448,7 @@ public sealed class RequestScreen : ITuiScreen
             item.Request is { } request && (request.Uri.Contains(_query.Value, StringComparison.OrdinalIgnoreCase) ||
                 request.Method.Method.Contains(_query.Value, StringComparison.OrdinalIgnoreCase))).ToList();
         _matchCount.Value = _visible.Value.Count;
-        _list.SetRows(_visible.Value.Select(item => new ResourceRow(item.Name, IsBroken: item.IsBroken,
+        _list.SetRows(_visible.Value.Select(item => new ResourceRow(SecretFormatting.Display(item.Name), IsBroken: item.IsBroken,
             LeadingToken: item.Request is { } request ? new ResourceToken(request.Method.Method,
                 HttpMethodFormatting.Style(request.Method), request.Method == HttpMethod.Delete ? StraumrStyles.RedBrightText : null) : null)));
         int index = selected is { } id ? _visible.Value.FindIndex(item => item.Id == id) : -1;
@@ -575,12 +632,13 @@ public sealed class RequestScreen : ITuiScreen
         if (isNew && source is not null)
             state.Name = string.Empty;
 
-        Guid? editing = isNew ? null : source!.Id;
+        _editingId = isNew ? null : source!.Id;
         var editor = new RequestEditor(state, _workspaceAuths, ActiveWorkspaceName, isNew, openingGesture,
-            () => _pendingSave = token => SaveEditAsync(state, editing, token),
+            () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
             {
                 _editorView = null;
+                _editingId = null;
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
@@ -632,7 +690,7 @@ public sealed class RequestScreen : ITuiScreen
     /// being edited by a form that never mentions them.
     /// </remarks>
     private async Task<TuiCommandResult> SaveEditAsync(
-        RequestEditorState state, Guid? editing, CancellationToken cancellationToken)
+        RequestEditorState state, CancellationToken cancellationToken)
     {
         if (_workspace is not { } workspace)
             return TuiCommandResult.Failed("no active workspace");
@@ -640,7 +698,8 @@ public sealed class RequestScreen : ITuiScreen
         try
         {
             StraumrRequest saved;
-            if (editing is { } id)
+            bool created = _editingId is null;
+            if (_editingId is { } id)
             {
                 StraumrRequest existing = await _requests.GetAsync(workspace, id, updateLastAccessed: false, cancellationToken);
                 state.ApplyTo(existing);
@@ -650,11 +709,13 @@ public sealed class RequestScreen : ITuiScreen
             else
             {
                 saved = await _requests.CreateAsync(workspace, state.ToRequest(), cancellationToken);
+                // The editor is still open on it, so from here it is a request that exists.
+                _editingId = saved.Id;
             }
 
             await LoadAsync(cancellationToken);
             ApplyFilter(_filter.Text, saved.Id);
-            return TuiCommandResult.Ok(editing is null
+            return TuiCommandResult.Ok(created
                 ? $"created request {saved.Name}"
                 : $"updated request {saved.Name}");
         }
