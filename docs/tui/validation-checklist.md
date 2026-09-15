@@ -254,4 +254,8 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [x] verify the hint rows wrap rather than clip at a narrow width (developer-confirmed): shrink the terminal until the
       footer needs two rows on the list, the editor and the full-screen response, and confirm every
       hint is still readable and the content above shrank to make room
+- [x] verify deleting a request: `d` asks first and Cancel is focused, cancelling changes nothing,
+      confirming removes the file and leaves the selection on the row below — the row above when it
+      was the last one — and the footer says what went (developer-confirmed on the ordinary path).
+      Not yet tried: deleting a request that cannot be read, and one with a response cached
 

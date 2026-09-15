@@ -3,6 +3,15 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-15: Added deleting a request, which the screen had never had — the developer noticed it
+  missing right after accepting the screen, and they were right: `c`, `e` and `y` were all there and
+  the one key that removes anything was not. `d` asks through the shared `ConfirmDialog`, red and
+  with Cancel holding focus, and the removal itself runs on the update pass where every other Core
+  call on this screen runs. It is offered for a request that cannot be read as well, unlike Copy and
+  Send: a file that does not parse is one a reader is more likely to want rid of, not less. The
+  cached response goes with it, and the row below the deleted one takes its place — on the last row,
+  the row above — which is what every other list in this app does.
+
 - 2026-09-15: The developer accepted the Requests screen. R1 is complete; A1, the Auths screen, is
   next and not started. Worth knowing before it begins: almost everything R1 grew in its last day is
   shared, so an auth should be `RequestEditor.cs`-sized over the same kit — the editor's fields and

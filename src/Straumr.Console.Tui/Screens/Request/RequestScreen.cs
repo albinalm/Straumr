@@ -53,6 +53,9 @@ public sealed class RequestScreen : ITuiScreen
     private StraumrWorkspaceEntry? _workspace;
     private Guid? _displayedId;
     private Guid? _pendingSend;
+
+    /// <summary>The request the reader has confirmed deleting, removed on the next update pass.</summary>
+    private Guid? _pendingDeleteId;
     private CancellationTokenSource? _sendCancellation;
     private RequestResponseView? _responseView;
     private RequestEditor? _editorView;
@@ -113,6 +116,9 @@ public sealed class RequestScreen : ITuiScreen
         _list.AddCommand(ActionCommand("Edit", 'e', RequestEdit, () => SelectedItem is not null));
         _list.AddCommand(ActionCommand("Copy", 'y', () => OpenEditor(SelectedItem, 'y'),
             () => SelectedItem is { IsBroken: false }));
+        // Offered for a broken request too, unlike Copy and Send: one that cannot be read is one a
+        // reader is more likely to want rid of, not less.
+        _list.AddCommand(ActionCommand("Delete", 'd', ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Request.EditJson", "Edit JSON", 'e',
                      () => { if (SelectedItem is { } item) EditAsJson(item); },
                      () => SelectedItem is not null))
@@ -280,6 +286,8 @@ public sealed class RequestScreen : ITuiScreen
             _editorNotice = null;
             _editorView?.Report(notice, error: true);
         }
+
+        await DeletePendingAsync(cancellationToken);
 
         if (_pendingSave is { } save)
         {
@@ -645,6 +653,56 @@ public sealed class RequestScreen : ITuiScreen
             EditContentExternally);
         _editorView = editor;
         editor.Show();
+    }
+
+    private void ShowDeleteDialog()
+    {
+        if (SelectedItem is not { } item)
+            return;
+
+        new ConfirmDialog(
+            "Delete request",
+            $"Delete {SecretFormatting.Display(item.Name)}?",
+            "The request will be permanently deleted.",
+            "Delete",
+            destructive: true,
+            () => _pendingDeleteId = item.Id).Show();
+    }
+
+    /// <remarks>
+    /// Run from the update pass, where every other Core call on this screen runs, rather than from
+    /// inside the keystroke that confirmed it.
+    /// </remarks>
+    private async Task DeletePendingAsync(CancellationToken cancellationToken)
+    {
+        if (_pendingDeleteId is not { } id || _workspace is not { } workspace)
+            return;
+
+        _pendingDeleteId = null;
+        if (_items.Find(candidate => candidate.Id == id) is not { } item)
+            return;
+
+        int index = _selectedIndex.Value;
+        try
+        {
+            await _requests.DeleteAsync(workspace, id, cancellationToken);
+            _responses.Remove((workspace.Id, id));
+            await LoadAsync(cancellationToken);
+            ApplyFilter(_filter.Text, null);
+            // The row below the one deleted takes its place, as it does in every list in this app;
+            // on the last row that is the row above.
+            if (_visible.Value.Count > 0)
+                _selectedIndex.Value = Math.Clamp(index, 0, _visible.Value.Count - 1);
+            NotificationRequested?.Invoke(TuiCommandResult.Ok($"deleted request {item.Name}"));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            NotificationRequested?.Invoke(TuiCommandResult.Failed($"delete failed: {exception.Message}"));
+        }
     }
 
     /// <summary>

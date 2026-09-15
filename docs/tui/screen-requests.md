@@ -98,6 +98,11 @@ implements, what evidence exists, and where to resume.
   opens laid out over lines; a body returned unchanged leaves the request unchanged. The form gives up the terminal for the run and takes it back afterwards
   on the page it left, with the rest of the form untouched; without `EDITOR` set it says so
   rather than offering an editor of its own, as the CLI has always done for the same work.
+- `d` deletes the selected request, asking first through the shared confirm modal with Cancel
+  holding focus. It is offered for a broken request too, unlike Copy and Send. The file is
+  removed, its cached response with it, and the row below takes its place. There is no `:delete`
+  command, as there is none on Workspaces: removing something is a thing to do with the row in
+  front of you rather than by naming it.
 - `Ctrl+E` on the list, and `:json [name]`, open the request's file in the configured editor.
   That is the advanced route, for a field the form does not offer or an edit easier made as
   text; it is secondary in the footer because the form is how a request is normally changed.
