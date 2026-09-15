@@ -266,6 +266,28 @@ public sealed class StraumrTuiApp
             Execute = _ => RequestInterrupt()
         };
 
+    /// <summary>
+    /// <c>Ctrl+Tab</c> steps focus backwards, beside the <c>Shift+Tab</c> the framework already
+    /// handles. Global, so it means the same thing on every screen and inside every dialog.
+    /// </summary>
+    /// <remarks>
+    /// Unpresented, for the reason <c>Ctrl+Enter</c> is: many terminals send <c>Ctrl</c> with
+    /// <c>Tab</c> as a bare <c>Tab</c>, and several — Windows Terminal among them — keep the
+    /// combination for their own tab switching and never pass it on. A key that works on some
+    /// terminals should not be promised on all of them, and where it does not arrive the portable
+    /// <c>Shift+Tab</c> is unaffected.
+    /// </remarks>
+    private static Command BuildFocusPreviousCommand(TerminalApp app) =>
+        new()
+        {
+            Id = "Straumr.FocusPrevious",
+            LabelMarkup = "Previous field",
+            Gesture = new KeyGesture(TerminalKey.Tab, TerminalModifiers.Ctrl),
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.None,
+            Execute = _ => app.FocusPrevious()
+        };
+
     private void RequestInterrupt()
     {
         _interruptSource.Cancel();
@@ -293,6 +315,7 @@ public sealed class StraumrTuiApp
         foreach (Command command in BuildOpenPromptCommands())
             app.AddGlobalCommand(command);
         app.AddGlobalCommand(BuildInterruptCommand());
+        app.AddGlobalCommand(BuildFocusPreviousCommand(app));
 
         if (_focusOnAttach is not { } focusTarget)
             return;

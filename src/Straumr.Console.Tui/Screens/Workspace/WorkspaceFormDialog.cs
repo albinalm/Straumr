@@ -38,29 +38,16 @@ internal sealed class WorkspaceFormDialog
     {
         _submit = submit;
         _defaultLocation = defaultLocation;
-        _nameInput = new FormTextBox
-        {
-            AutoFocus = true,
-            Placeholder = "workspace name",
-            HorizontalAlignment = Align.Stretch
-        };
-        _nameInput.SetStyle(StraumrStyles.TextBox);
+        _nameInput = FormTextBox.Create("workspace name");
+        _nameInput.AutoFocus = true;
         _nameInput.PendingEcho = openingGesture;
-        _nameInput.RemoveCommand("TextEditor.Undo");
-        _nameInput.RemoveCommand("TextEditor.Redo");
 
         // The placeholder is a short hint rather than the path itself. A TextBox has no trimming
         // control, so a long path filled the field head-first and cut the tail — the half that says
         // which folder it is. The resolved location goes on its own line below, trimmed from the
         // front so the tail survives.
-        _locationInput = new FormTextBox
-        {
-            Placeholder = defaultLocation is null ? "workspace directory" : "default location",
-            HorizontalAlignment = Align.Stretch
-        };
-        _locationInput.SetStyle(StraumrStyles.TextBox);
-        _locationInput.RemoveCommand("TextEditor.Undo");
-        _locationInput.RemoveCommand("TextEditor.Redo");
+        _locationInput = FormTextBox.Create(
+            defaultLocation is null ? "workspace directory" : "default location");
         _locationInput.Changed = () => _locationText.Value = _locationInput.Text ?? string.Empty;
 
         var browseButton = new Button("Browse");
@@ -181,7 +168,7 @@ internal sealed class WorkspaceFormDialog
     /// <summary>Writes the field and the state it is mirrored into together, so neither leads.</summary>
     private void SetLocation(string path)
     {
-        _locationInput.Text = path;
+        _locationInput.SetText(path);
         _locationText.Value = path;
     }
 
@@ -231,32 +218,6 @@ internal sealed class WorkspaceFormDialog
         _submit(new WorkspaceFormSubmission(name, ResolvedLocation));
     }
 
-    private sealed class FormTextBox : TextBox
-    {
-        public char? PendingEcho { get; set; }
-
-        public Action? Changed { get; set; }
-
-        protected override void OnTextInput(TextInputEventArgs e)
-        {
-            bool isEcho = PendingEcho is { } echo && e.Text == echo.ToString();
-            PendingEcho = null;
-
-            if (isEcho)
-            {
-                e.Handled = true;
-                return;
-            }
-
-            base.OnTextInput(e);
-        }
-
-        protected override void OnDocumentChanged(TextDocumentChangedEventArgs e)
-        {
-            base.OnDocumentChanged(e);
-            Changed?.Invoke();
-        }
-    }
 }
 
 internal sealed record WorkspaceFormSubmission(string Name, string? OutputDirectory);

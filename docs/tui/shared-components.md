@@ -172,6 +172,117 @@ show — the screen, or for a view of one resource, that resource.
 `StraumrSurfaces.RowInset` and `ResourceScreenLayout.PaneInset` are the two paddings
 involved, shared so a full-screen view lands its rows where a panel lands them.
 
+## The resource editor
+
+`Visuals/Shared/Editor/` is how a resource is created and changed. It knows nothing about
+requests, auths or secrets: a screen supplies the pages and the fields on them and gets a
+full-screen editor back. That split is the point — the CLI's request, auth and secret flows
+are the same program three times, and auth is what decides whether the abstraction holds,
+since OAuth2 alone has eleven fields and Custom contains a whole request.
+
+`EditorField` is one labelled value. Its kinds are the complete set those three flows use:
+`TextField` (masked when it holds a credential, and revealed while it has focus, since a field
+masked as it is typed into cannot be checked without saving and reopening), `ChoiceField<T>`,
+`ToggleField`, `KeyValueField`, `ContentField`, and `MessageField` for what a page says when a
+discriminator has left it nothing to fill in. `ChoiceField<T>` drives a `Select` over labels and
+keeps the values beside them, because a choice reads as `Form URL Encoded` and not as
+`FormUrlEncoded`, and an auth reads by its name and not by its id. `SelectKeys` gives a dropdown
+`j`/`k`/`g`/`G` in both of its states: closed, where a value is usually changed, and open, reached
+through the style's popup factory because that is the only hook into a list `Select` builds itself. A field owns its control for the life of the
+form and writes straight into the editor state it was given. `Visible` is how a discriminator —
+an auth type, a body type, an OAuth2 grant — hides the fields its other values own rather than
+showing them inert, because an inert field is indistinguishable from an empty one. `OnCommit`
+is for a value the field keeps in a shape of its own until asked, so a body of any size is
+marshalled once per save instead of once per keystroke.
+
+A field's label fills with the focus chip while that field holds focus. It is the one place two
+chips show at once: the one on the rule says which page, this one says which field on it. Fields
+are filled through `FormTextBox.SetText` and never through `Text`, which is what leaves the caret
+after the value rather than in front of it.
+
+`EditorForm` is one page of fields. Its label column is sized from the labels rather than by a
+grid, because a hidden field has to take no height at all and a grid row cannot be asked to
+disappear. At most one field wanting the leftover height is visible at a time; where several
+declare it, a discriminator keeps all but one hidden and they stack in the one cell.
+Validation runs on submission rather than per keystroke, and skips hidden fields — a field
+that does not apply cannot be wrong.
+
+`ResourceEditorView` is the screen they sit on, built from the pieces the full-screen response
+is built from: the identity header naming the resource, a three-row bar, the page titles
+notched into the rule that closes it, a pane, and the one-row footer. Its bar carries whatever
+the caller says identifies the resource — for a request, its live method and URL — opposite an
+unsaved marker, and keeps its three rows either way. `Ctrl+S` saves and `Escape` closes,
+asking first when there is work to lose. A save that succeeds closes the view and is reported
+on the screen behind it, where the reader is looking and where the saved resource is now
+selected; a save Core refuses keeps the view open and says why on its own footer, because a
+refusal is about a field that has to be corrected here.
+
+`KeyValueField` is headers, query parameters, form fields and multipart parts, which are all
+the same thing. It is a `ResourceList` rather than a grid of its own, so selection, hover,
+focus response, scrolling and `j`/`k`/`g`/`G` arrive with the list and a pair reads as a
+resource does: its name on the first line, what it holds on the second, amber when populated
+and inert when empty. `a`, `e` and `d` add, change and remove through `KeyValuePairDialog`. A
+multipart part may be a file instead of text, chosen through `FileBrowserDialog` and stored as
+`@` plus its path, which is the encoding Core already reads and the CLI already writes; the
+path is checked when it is chosen rather than at send time, and a part whose file has since
+gone reads red as any unusable resource does. Duplicate names are judged by the map's own
+comparer, since headers are case-insensitive and parameters are not.
+
+`ContentField` is a body. It shows the document and gives the writing of it to the reader's own
+editor: `Enter` or `Ctrl+E` opens it in `$EDITOR`, under the extension its content type implies,
+and what is saved comes back into the field. That handover is the point of the field. A body is
+written in JSON, XML or nothing in particular, and the editor the reader already has highlights
+those languages, indents them, closes their brackets and quotes, and is configured the way they
+configured it; an editor built into this form would be a worse one of those. What the field
+itself owns is the reading: the same scrollable list of styled lines the request and response
+previews use, so `j`/`k`/`g`/`G` scroll a body exactly as they scroll everything else.
+
+What it opens on is a `ContentFormat`, which the caller supplies per content type: the extension,
+and what to hand over given what the field holds. A body that does not exist yet is handed the
+document it is about to become rather than an empty file, and one-line JSON is laid out over lines
+on the way out. The document carries a caret position too — where the writing starts in a
+scaffold, and the end of the line a reader would carry on from in a body that already exists,
+which for JSON is the line above the closing brace. `ExternalEditor` turns that into whatever flag
+the configured editor understands, or into nothing at all for one it does not know. A document
+that comes back exactly as it went out is not an edit, so none of this can change a request nobody
+typed into.
+
+Launching another program means putting the terminal down, which is not something a field can do
+from inside a keystroke. `ContentField` therefore asks rather than launches: an
+`ExternalContentEdit` — the text, the extension, and the way back in — travels out to the screen,
+which owns the suspend, the run and the resume. `ResourceEditorView.Suspend` closes the view
+before the app ends and `Update` shows it again on the app that follows, because a shown window
+stays parented to the app that showed it and one still parented to a finished app is refused by
+the next. The state being edited belongs to the screen and never goes anywhere, so the reader
+comes back to the page they left with everything they had typed still on it, and to the field they
+left rather than to the page's entry point.
+`ResourceEditorView.Report` is how the outcome reaches them: the shell's message line is behind
+the view they are looking at.
+
+## Paged panes
+
+`PagedPane` owns the rule-as-tab-strip idiom: page titles notched into the rule above a pane,
+the selected one carrying the focus chip while the pane owns focus, and a click or a gesture to
+change page. Whether its pages hold anything focusable is a parameter, and it changes both keys.
+
+On a read-only view the pages hold nothing focusable, so the titles are the only thing on the
+rule that can be stepped to: `Tab` changes page and keeps its one meaning, with a bare `t`
+beside it. In an editor both of those are wrong. `Tab` belongs to the fields, and a bare letter
+on `PagedPane.Root` is an ancestor of every field on every page — commands are collected up
+the focus chain, so `t` fired while a name was being typed into the form. The gesture there is
+`Ctrl+T` instead, delivered as the control character a terminal actually sends.
+
+That is the general rule, and it has now caught this codebase twice: **a character gesture must
+not sit on an ancestor of a focusable text field.** `BrowserDialog` learned it when its dialog-level
+`n`/`r`/`d` fired while its path editor had focus, and moved them down onto the list, which is a
+sibling of that editor rather than an ancestor of it. Where there is no sibling to move to, the
+gesture stops being a character. A quick way to check a new surface: list every `AddCommand`
+between a text field and the window root; each one with a printable gesture is a bug waiting for
+someone to type that letter.
+
+`PreviewPane`'s on-rule form is built on `PagedPane`; its tab-strip form still uses the
+framework's `TabControl`.
+
 ## Field lists
 
 `FieldList.Create` builds a detail pane's label/value grid. Use `FieldList.Count`

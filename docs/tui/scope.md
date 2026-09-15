@@ -16,8 +16,12 @@ for framework behavior.
 
 ## Non-Goals
 
-- Do not build an in-terminal JSON editor. Structured editing continues through
-  the configured external editor.
+- Do not build an in-terminal JSON editor. A resource is edited through a form over
+  typed fields, which is the opposite thing: nobody should have to balance braces to
+  add a header. The configured external editor stays as the route to the file itself —
+  for a field the form does not offer, a bulk edit easier made as text, and a file too
+  broken to load into fields at all. A body is what the form does own outright, because
+  a body has no fields to offer: it is one document, edited as one.
 - Do not move terminal concerns into Core.
 - Do not call CLI commands from the TUI.
 - Do not recreate framework controls through manual measurement, rendering,

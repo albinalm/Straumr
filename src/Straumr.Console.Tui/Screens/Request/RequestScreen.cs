@@ -4,6 +4,7 @@ using Straumr.Console.Shared.Models;
 using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Visuals.Shared;
+using Straumr.Console.Tui.Visuals.Shared.Editor;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
@@ -53,6 +54,25 @@ public sealed class RequestScreen : ITuiScreen
     private Guid? _pendingSend;
     private CancellationTokenSource? _sendCancellation;
     private RequestResponseView? _responseView;
+    private RequestEditor? _editorView;
+
+    /// <summary>
+    /// What an external body edit has to say, held until the editor screen is back on the terminal
+    /// to say it on. It is set off the update loop, while the app is not running at all.
+    /// </summary>
+    private string? _editorNotice;
+
+    /// <summary>
+    /// The save an open editor has asked for, run on the next update pass. Core calls belong there,
+    /// where every other one in this screen runs, rather than inside the keystroke that asked.
+    /// </summary>
+    private Func<CancellationToken, Task<TuiCommandResult>>? _pendingSave;
+
+    /// <summary>
+    /// The workspace's auths, for the editor's Auth field. Loaded with the requests rather than when
+    /// the editor opens, because opening a form is not a moment to spend on disk.
+    /// </summary>
+    private IReadOnlyList<StraumrAuth> _workspaceAuths = [];
     private bool _savePaneLayout;
 
     public RequestScreen(IStraumrOptionsService options, IStraumrWorkspaceService workspaces,
@@ -76,7 +96,17 @@ public sealed class RequestScreen : ITuiScreen
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => _requestPreview.FocusTarget.App?.Focus(_requestPreview.FocusTarget);
         _filter = new ResourceFilter("filter requests", ApplyFilter, () => _list);
+        _list.AddCommand(ActionCommand("New", 'c', () => OpenEditor(null, 'c'), () => _workspace is not null));
+        // `e` is one key with two meanings because it is one intent. A request that parses is edited
+        // in the form; one that does not cannot be loaded into fields at all, so the same key opens
+        // the text that needs repairing, which is what the broken row already tells the reader to do.
         _list.AddCommand(ActionCommand("Edit", 'e', RequestEdit, () => SelectedItem is not null));
+        _list.AddCommand(ActionCommand("Copy", 'y', () => OpenEditor(SelectedItem, 'y'),
+            () => SelectedItem is { IsBroken: false }));
+        foreach (Command command in ControlCommands("Request.EditJson", "Edit JSON", 'e',
+                     () => { if (SelectedItem is { } item) EditAsJson(item); },
+                     () => SelectedItem is not null))
+            _list.AddCommand(command);
         _list.AddCommand(ActionCommand("Send fullscreen", 's', QueueSend, () => SelectedItem is { IsBroken: false }));
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
         Visual responsePane = ResourceScreenLayout.Pane(_responsePreview.Root);
@@ -105,6 +135,7 @@ public sealed class RequestScreen : ITuiScreen
                 ArgumentValues = () => _items.Select(item => item.Name),
                 OpensTransientScreen = true
             },
+            new TuiCommand("json", EditJsonAsync) { ArgumentValues = () => _items.Select(item => item.Name) },
             new TuiCommand("refresh", RefreshAsync)
         ];
     }
@@ -133,6 +164,7 @@ public sealed class RequestScreen : ITuiScreen
             _workspace = _options.Options.CurrentWorkspace;
             ActiveWorkspaceName = null;
             _items = [];
+            _workspaceAuths = [];
             if (_workspace is null)
             {
                 _emptyMessage.Value = "No active workspace. Use :workspace to choose one.";
@@ -154,6 +186,7 @@ public sealed class RequestScreen : ITuiScreen
             }
             _items = _items.OrderByDescending(item => item.Request?.LastAccessed ?? DateTimeOffset.MinValue)
                 .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            _workspaceAuths = await LoadAuthsAsync(cancellationToken);
             if (previousWorkspace != _workspace.Id)
             {
                 selected = null;
@@ -188,9 +221,51 @@ public sealed class RequestScreen : ITuiScreen
         }
     }
 
+    /// <remarks>
+    /// An unreadable auth file scopes its failure to the Auth field rather than to the screen: the
+    /// requests themselves are readable, and a workspace with one broken auth is still one whose
+    /// requests can be edited. The field then offers what could be read.
+    /// </remarks>
+    private async Task<IReadOnlyList<StraumrAuth>> LoadAuthsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return (await _auths.ListAsync(_workspace!, cancellationToken))
+                .OrderBy(auth => auth.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return [];
+        }
+    }
+
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
         _responseView?.Update();
+        _editorView?.Update();
+        // After the editor screen is back, not before: a message put on a view that is still
+        // suspended would be said to a screen nobody is looking at, and expire unread.
+        if (_editorNotice is { } notice)
+        {
+            _editorNotice = null;
+            _editorView?.Report(notice, error: true);
+        }
+
+        if (_pendingSave is { } save)
+        {
+            _pendingSave = null;
+            TuiCommandResult result = await save(cancellationToken);
+            if (result.IsError)
+            {
+                _editorView?.Failed(result.Message!);
+            }
+            else
+            {
+                _editorView?.Saved();
+                NotificationRequested?.Invoke(result);
+            }
+        }
         if (_savePaneLayout)
         {
             _savePaneLayout = false;
@@ -347,6 +422,31 @@ public sealed class RequestScreen : ITuiScreen
         return TuiCommandResult.None;
     }
 
+    /// <summary>
+    /// Opens a request's file in the configured editor. The form is how a request is normally
+    /// changed; this is the way to the JSON itself, for a field the form does not offer or an edit
+    /// easier to make as text. Named for what it gives you rather than for the program it runs, since
+    /// which program that is comes from the environment.
+    /// </summary>
+    private Task<TuiCommandResult> EditJsonAsync(string argument, CancellationToken cancellationToken)
+    {
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return Task.FromResult(TuiCommandResult.Failed(error!));
+
+        if (name.Length > 0)
+        {
+            TuiCommandResult selection = SelectRequest(name);
+            if (selection.IsError)
+                return Task.FromResult(selection);
+        }
+
+        if (SelectedItem is not { } item)
+            return Task.FromResult(TuiCommandResult.Failed("no request selected"));
+
+        EditAsJson(item);
+        return Task.FromResult(TuiCommandResult.None);
+    }
+
     private async Task<TuiCommandResult> RefreshAsync(string argument, CancellationToken cancellationToken)
     {
         if (argument.Length > 0)
@@ -458,9 +558,132 @@ public sealed class RequestScreen : ITuiScreen
         }
     }
 
+    /// <summary>
+    /// Opens the request editor: on nothing for a new request, on the selection for a change or a
+    /// copy. A copy opens with its source's name cleared rather than pre-filled with a variation of
+    /// it, because the one thing a copy must be given is a name of its own.
+    /// </summary>
+    private void OpenEditor(RequestScreenItem? source, char openingGesture)
+    {
+        if (_workspace is null || _editorView is not null)
+            return;
+
+        bool isNew = source is null || openingGesture == 'y';
+        RequestEditorState state = source?.Request is { } request
+            ? RequestEditorState.FromRequest(request)
+            : RequestEditorState.CreateNew();
+        if (isNew && source is not null)
+            state.Name = string.Empty;
+
+        Guid? editing = isNew ? null : source!.Id;
+        var editor = new RequestEditor(state, _workspaceAuths, ActiveWorkspaceName, isNew, openingGesture,
+            () => _pendingSave = token => SaveEditAsync(state, editing, token),
+            () =>
+            {
+                _editorView = null;
+                _list.App?.Focus(_list);
+                TransientScreenClosed?.Invoke();
+            },
+            EditContentExternally);
+        _editorView = editor;
+        editor.Show();
+    }
+
+    /// <summary>
+    /// Writes a body in the reader's own editor. The editor screen is put down first and picked up
+    /// again afterwards, because the other program needs the terminal this one is drawing on.
+    /// </summary>
+    /// <remarks>
+    /// The outcome is reported on the editor screen rather than through the shell: the shell's
+    /// message line is behind the view the reader is looking at. The action itself therefore returns
+    /// nothing to say, and a failure is held until the view is back to say it on.
+    /// </remarks>
+    private void EditContentExternally(ExternalContentEdit edit)
+    {
+        if (_editorView is not { } view)
+            return;
+
+        if (!_editor.IsConfigured)
+        {
+            view.Report("no default editor is configured; set EDITOR to write a body", error: true);
+            return;
+        }
+
+        view.Suspend();
+        ExternalActionRequested?.Invoke(new TuiExternalAction(async token =>
+        {
+            try
+            {
+                edit.Apply(await _editor.EditAsync(edit.Document, edit.Extension, token));
+            }
+            catch (Exception exception) when (IsRecoverable(exception) || exception is ExternalEditorException)
+            {
+                _editorNotice = $"edit failed: {exception.Message}";
+            }
+
+            return TuiCommandResult.None;
+        }, _list));
+    }
+
+    /// <remarks>
+    /// Create and save are one path with one difference, which is whether Core is being given a
+    /// request it has never seen. The editor state is the same either way, and an edit applies onto
+    /// the request as loaded so fields the form does not show — its group, its access times — survive
+    /// being edited by a form that never mentions them.
+    /// </remarks>
+    private async Task<TuiCommandResult> SaveEditAsync(
+        RequestEditorState state, Guid? editing, CancellationToken cancellationToken)
+    {
+        if (_workspace is not { } workspace)
+            return TuiCommandResult.Failed("no active workspace");
+
+        try
+        {
+            StraumrRequest saved;
+            if (editing is { } id)
+            {
+                StraumrRequest existing = await _requests.GetAsync(workspace, id, updateLastAccessed: false, cancellationToken);
+                state.ApplyTo(existing);
+                saved = await _requests.SaveAsync(workspace, existing, cancellationToken);
+                _responses.Remove((workspace.Id, id));
+            }
+            else
+            {
+                saved = await _requests.CreateAsync(workspace, state.ToRequest(), cancellationToken);
+            }
+
+            await LoadAsync(cancellationToken);
+            ApplyFilter(_filter.Text, saved.Id);
+            return TuiCommandResult.Ok(editing is null
+                ? $"created request {saved.Name}"
+                : $"updated request {saved.Name}");
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return TuiCommandResult.Failed(exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// A request that parses is edited in the form; one that does not cannot be loaded into fields
+    /// at all, so the same key opens the text that needs repairing.
+    /// </summary>
     private void RequestEdit()
     {
-        if (SelectedItem is not { } item || _workspace is not { } workspace)
+        if (SelectedItem is not { } item)
+            return;
+        if (!item.IsBroken)
+        {
+            OpenEditor(item, 'e');
+            return;
+        }
+
+        EditAsJson(item);
+    }
+
+    private void EditAsJson(RequestScreenItem item)
+    {
+        if (_workspace is not { } workspace)
             return;
         if (!_editor.IsConfigured)
         {
@@ -509,6 +732,34 @@ public sealed class RequestScreen : ITuiScreen
 
     internal static bool IsRecoverable(Exception exception) =>
         exception is StraumrException or IOException or UnauthorizedAccessException or JsonException;
+
+    /// <summary>
+    /// A <c>Ctrl</c>-plus-letter action, for something that has to stay reachable without taking one
+    /// of the plain letters the screen's own actions use. Secondary, so it yields on a crowded footer
+    /// row to the actions most requests are about.
+    /// </summary>
+    /// <remarks>
+    /// A terminal sends <c>Ctrl</c> and a letter as the single C0 byte the letter maps to, so the
+    /// gesture has to carry that control character. The letter-and-modifier form is registered beside
+    /// it, unpresented, for a host that reports the two separately.
+    /// </remarks>
+    private static IEnumerable<Command> ControlCommands(
+        string id, string label, char letter, Action execute, Func<bool> available)
+    {
+        yield return ControlCommand(id, label, (char)(char.ToUpperInvariant(letter) & 0x1F),
+            CommandPresentation.CommandBar, execute, available);
+        yield return ControlCommand($"{id}.Letter", label, letter,
+            CommandPresentation.None, execute, available);
+    }
+
+    private static Command ControlCommand(string id, string label, char gestureChar,
+        CommandPresentation presentation, Action execute, Func<bool> available) => new()
+    {
+        Id = id, LabelMarkup = label, Gesture = new KeyGesture(gestureChar, TerminalModifiers.Ctrl),
+        Importance = CommandImportance.Secondary, Presentation = presentation,
+        IsVisible = _ => available(), CanExecute = _ => available(),
+        ConsumesGestureWhenUnavailable = false, Execute = _ => execute()
+    };
 
     private static Command ActionCommand(string label, char key, Action execute, Func<bool> available) => new()
     {

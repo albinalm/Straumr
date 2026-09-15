@@ -93,6 +93,19 @@ framework behavior.
   one: it attaches only the selected child, so the others have no `App` and cannot
   be focused. A visual the app has to focus also cannot be rebuilt by a
   `ComputedVisual` each frame.
+- A binding is re-evaluated when something it read changes, and only the framework's own
+  bindable values are read through the binding graph. A function bound over a plain
+  object — the state a form is editing, say — is therefore evaluated once and never again:
+  the editor's Body page went on saying the request sent no body after a type had been
+  chosen for it, and its bar went on saying `GET` after the method had been changed.
+  Two ways out, and which one depends on what is stale. Visibility, and anything else the
+  focus pass depends on, is assigned outright from the update pass — `PagedPane` with its
+  pages, `EditorForm.Sync` with its fields. Everything else is mirrored into a `State<T>`
+  once per pass and left bound as normal, which is what the editor's bar and header do.
+- A style given as a function is not a binding at all: it is stored in the visual's style
+  environment and invoked by `GetStyle` during render, so it re-evaluates every frame no
+  matter what it reads. A dynamic text provider is a binding. The two disagreeing over the
+  same plain value is what made the stale bar read as `GET` in `PUT`'s colour.
 - Focus is revoked from a visual that is not visible when the focus pass runs, and
   a `[Bindable]` computed only takes effect during that pass. So a visual that
   takes focus the moment it appears has to set its own `IsVisible` imperatively
@@ -106,6 +119,13 @@ framework behavior.
   A title bound to a focusable control's `HasFocusWithin` therefore goes dark exactly
   when that control is focused. `FocusScope.Owns` is `HasFocus || HasFocusWithin` and is
   what every focus predicate asks.
+- One update pass may not both read and write the same bindable value: doing so throws
+  `Cannot read and then write X within a same tracking context` out of `RunComputedProperties`.
+  A computed `IsTabStop` over an ancestor's `IsVisible` is a read of it, so that ancestor's
+  visibility cannot also be computed — it has to be assigned. The rule to follow is that the
+  visibility of a subtree holding a focusable is assigned and never bound, which is what
+  `PagedPane`, `EditorForm.Sync` and `KeyValuePairDialog` all do. Binding the visibility of text
+  stays fine, since nothing reads it back.
 - Tab traversal tests the candidate's own `IsVisible` and not its ancestors', so a
   focusable inside a subtree hidden by its root stays in the rotation. `IsVisible = false`
   on the inactive screen's root did not take its list out of the Tab cycle, and neither
@@ -113,6 +133,10 @@ framework behavior.
   ancestor has to compute its own `IsTabStop` from the whole chain, which
   `FocusScope.IsReachable` does; reading each ancestor's `IsVisible` registers them all
   with the binding graph, so the computed value updates when a screen is shown or hidden.
+  This applies to every focusable and not only to the app's own components: a framework
+  `TextBox`, `Select` or `Switch` used raw is a Tab stop wherever it sits, so the editor's
+  hidden pages answered Tab with a caret in the middle of the visible page and swallowed
+  everything typed into it. `FormTextBox`, `ChoiceField` and `ToggleField` now compute it.
 - `TabControl` is focusable, so its tab strip is a Tab stop separate from the content it
   selects. One titled region then answered two Tabs, and `IsTabStop(false)` on the strip
   is what puts one stop back in each titled region; it stays focusable for the pointer.
@@ -128,6 +152,30 @@ framework behavior.
   does not handle falls through to `Tab` traversal, focus leaves, and a surface that
   closes on lost focus disappears — which is what `Tab` on a prompt with no
   completion candidate did.
+
+## Dropdowns
+
+- A `Select<T>` has two states and the framework gives both only the arrows. They have to
+  be given the Vim keys separately: the closed control directly, since it is an ordinary
+  visual, and the open list through `SelectStyle.PopupTemplateFactory`. Both are
+  `SelectKeys`.
+- `Select<T>` builds the popup's `ListBox<T>` itself and exposes it nowhere else. That
+  factory is the one place it can be reached: it is handed the list before the popup is
+  shown, so keys can be attached there and the framework's own frame still returned
+  around it. A factory that forgets to call the default one silently drops the border.
+- The keys are handled from the `KeyDown` event rather than registered as gestures, for
+  the reason every other list in this app handles them there: gesture routing matches a
+  character case-insensitively while `KeyGesture` equality does not, so a routed `g`
+  claims `G` with it. Assigning `SelectedIndex` is the whole of the movement — the list
+  scrolls to what becomes selected, and the popup's selection is bound back to the
+  dropdown, so these keys change the value exactly as the arrows do.
+
+- The framework turns an unhandled `Tab` into focus traversal itself, forwards or backwards on
+  `Shift`, and exposes neither direction as a method. An app that wants a second gesture for
+  "go back" has to walk the tree for itself: the window holding focus is the scope, and every
+  visual that is focusable, visible, enabled and a tab stop is a stop, in tree order.
+  `Visual.EnumerateVisualsDepthFirst` takes a parent before its children where the framework's own
+  walk takes children first; the two agree unless a focusable contains a focusable.
 
 ## The prompt editor
 
@@ -176,3 +224,14 @@ framework behavior.
   registered for each new instance, and focus restoration has to happen after the
   retained tree attaches to that instance. Holding a visual as the restoration target
   is safe; trying to focus it between runs is not, because `Visual.App` is null then.
+- Nothing in the `EDITOR` convention says where an editor should open. Only the program is
+  agreed on; a caret position is per-editor syntax — `+L,C`, `+L`, `+L:C`, `-l`/`-c`, or the
+  position appended to the path — and an editor that does not take one treats the argument as
+  another file to create or exits on it. So a position is only ever offered to an editor whose
+  syntax is known, and every other one is launched exactly as before.
+- A dialog shown with `Dialog.Show` is added to that run's window layer and stays
+  parented to it when the run ends; only the app's root is detached on teardown. A
+  dialog that has to survive an external program therefore has to be closed before the
+  loop stops and shown again on the run that follows, or the next `ShowWindow` refuses
+  it as already part of a UI tree. Closing it costs nothing that matters: the state
+  being edited belongs to the screen, and the retained pages come back as they were.

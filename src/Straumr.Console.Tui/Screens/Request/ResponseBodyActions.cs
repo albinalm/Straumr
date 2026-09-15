@@ -1,5 +1,4 @@
-using System.Text;
-using System.Text.Json;
+using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Visuals.Shared;
 using XenoAtom.Terminal.UI.Commands;
@@ -44,21 +43,16 @@ internal sealed class ResponseBodyActions
 
     private void ToggleFormat()
     {
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(_body!);
-            using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = !_pretty }))
-                document.WriteTo(writer);
-            _body = Encoding.UTF8.GetString(stream.ToArray());
-            _pretty = !_pretty;
-            UpdatePreview();
-            _notify(_pretty ? "JSON beautified" : "JSON minified", false);
-        }
-        catch (JsonException)
+        if (!RequestEditingHelpers.TryFormatJson(_body, indented: !_pretty, out string? formatted))
         {
             _notify("This body is not valid JSON; formatting is unavailable.", true);
+            return;
         }
+
+        _body = formatted;
+        _pretty = !_pretty;
+        UpdatePreview();
+        _notify(_pretty ? "JSON beautified" : "JSON minified", false);
     }
 
     private void Copy()

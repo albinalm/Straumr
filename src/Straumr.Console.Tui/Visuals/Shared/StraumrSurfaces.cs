@@ -61,12 +61,20 @@ internal static class StraumrSurfaces
     public static Rule TitledDivider(string title, Func<bool>? isFocused = null)
     {
         Rule rule = HorizontalDivider();
-        rule.StartLabel = new TextBlock(() => FocusLabel(title, isFocused))
+        rule.StartLabel = FocusTitle(title, isFocused);
+        return rule;
+    }
+
+    /// <summary>
+    /// A title that fills with the focus chip while what it names owns focus, and is inert grey
+    /// otherwise. It is how this app says where focus is wherever it says it: on the rule over a
+    /// region, and on the label beside a field.
+    /// </summary>
+    public static TextBlock FocusTitle(string title, Func<bool>? isFocused) =>
+        new TextBlock(() => FocusLabel(title, isFocused))
             .Style(() => isFocused?.Invoke() is true
                 ? StraumrStyles.FocusChip
                 : StraumrStyles.MutedText);
-        return rule;
-    }
 
     /// <summary>
     /// Pads a title so the focus chip has a cell of fill on each side of the text. The unfocused

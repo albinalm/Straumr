@@ -7,6 +7,7 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Console.Cli.Infrastructure;
 using Straumr.Console.Cli.Models;
+using Straumr.Console.Shared.Helpers;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -472,18 +473,10 @@ public class RequestSendCommand(
             return string.Empty;
         }
 
-        try
+        if (RequestEditingHelpers.TryFormatJson(content, indented: true, out string? formatted))
         {
-            using JsonDocument doc = JsonDocument.Parse(content);
-            using MemoryStream stream = new MemoryStream();
-            using (Utf8JsonWriter writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
-            {
-                doc.WriteTo(writer);
-            }
-
-            return Encoding.UTF8.GetString(stream.ToArray());
+            return formatted;
         }
-        catch (JsonException) { }
 
         try
         {

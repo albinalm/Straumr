@@ -46,6 +46,7 @@ Straumr.Console.Tui/
       RequestResponseView.cs      fullscreen send activity, response tabs and network metrics
       ResponseBodyActions.cs      body-scoped JSON formatting and full-text clipboard actions
       RequestAuthentication.cs    auth metadata and secret-reference availability
+      RequestEditor.cs            a request's editor pages and fields, over the shared kit
   Visuals/
     Shared/
       FocusScope.cs               the two focus questions Visual answers only about itself
@@ -54,17 +55,27 @@ Straumr.Console.Tui/
       ResourceList.cs             one- to three-line list with selection, hover and scrolling
       ResourceRow.cs              presentation model for one list row
       ScrollableContent.cs        focusable read-only content with Vim scrolling
+      PagedPane.cs                page titles notched into a rule over one pane at a time
       PreviewPane.cs              retained, styled tabs over scrollable text previews
       FieldList.cs                label/value grid for detail panes
+      FormTextBox.cs              the single-line field every form is built from
       BrowserDialog.cs            shared filesystem browser behavior
       FolderBrowserDialog.cs      folder-selection specialization
       FileBrowserDialog.cs        filtered-file selection specialization
       PathCompletion.cs           filesystem completion for browser path entry
       TextPromptDialog.cs         a modal asking for one line of text
+      ConfirmDialog.cs            a modal asking one irreversible question
       StraumrDialog.cs            shared modal construction and cancellation
       StraumrHeader.cs            the screen header bar
       StraumrSurfaces.cs          dividers, bars, insets
       StraumrStyles.cs            the palette and every control style
+    Shared/Editor/
+      EditorField.cs              one labelled value, and the field kinds resources are made of
+      EditorForm.cs               one page of fields, its layout and its validation
+      KeyValueField.cs            a name/value map edited as a list
+      KeyValuePairDialog.cs       adding or changing one pair, text or a file
+      ContentField.cs             a body, shown here and written in $EDITOR
+      ResourceEditorView.cs       the full-screen editor a resource is created and changed on
   Formatting/
     TimestampFormatting.cs        relative and absolute timestamps
     CountFormatting.cs            pluralised counts

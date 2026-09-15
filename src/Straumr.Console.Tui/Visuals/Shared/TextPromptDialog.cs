@@ -3,7 +3,6 @@ using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
-using XenoAtom.Terminal.UI.Text;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
 
@@ -17,7 +16,7 @@ internal sealed class TextPromptDialog
     private const int DialogWidth = 56;
 
     private readonly Dialog _dialog;
-    private readonly PromptTextBox _input;
+    private readonly FormTextBox _input;
     private readonly ValidationPresenter _field;
     private readonly Func<string, string?> _validate;
     private readonly Action<string> _submit;
@@ -37,16 +36,10 @@ internal sealed class TextPromptDialog
         _validate = validate;
         _submit = submit;
 
-        _input = new PromptTextBox
-        {
-            AutoFocus = true,
-            Text = initialValue,
-            CaretIndex = initialValue.Length,
-            HorizontalAlignment = Align.Stretch
-        };
-        _input.SetStyle(StraumrStyles.TextBox);
-        _input.RemoveCommand("TextEditor.Undo");
-        _input.RemoveCommand("TextEditor.Redo");
+        _input = FormTextBox.Create();
+        _input.AutoFocus = true;
+        _input.SetText(initialValue);
+        _input.CaretIndex = initialValue.Length;
         _field = new ValidationPresenter(_input)
         {
             Placement = ValidationPlacement.Below
@@ -113,36 +106,5 @@ internal sealed class TextPromptDialog
 
         _dialog.Close();
         _submit(value);
-    }
-
-    private sealed class PromptTextBox : TextBox
-    {
-        public char? PendingEcho { get; set; }
-
-        public Action? Changed { get; set; }
-
-        /// <remarks>
-        /// A printable gesture arrives as a key event and an independent text event, so the key opens
-        /// and focuses this field and the pair's text event then types itself into it.
-        /// </remarks>
-        protected override void OnTextInput(TextInputEventArgs e)
-        {
-            bool isEcho = PendingEcho is { } echo && e.Text == echo.ToString();
-            PendingEcho = null;
-
-            if (isEcho)
-            {
-                e.Handled = true;
-                return;
-            }
-
-            base.OnTextInput(e);
-        }
-
-        protected override void OnDocumentChanged(TextDocumentChangedEventArgs e)
-        {
-            base.OnDocumentChanged(e);
-            Changed?.Invoke();
-        }
     }
 }

@@ -14,21 +14,12 @@ internal static class HttpCommandHelpers
             validate: value => IsValidAbsoluteUrl(value) ? null : "Please enter a valid absolute URL.");
     }
 
-    internal static bool IsValidAbsoluteUrl(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        string normalized = SecretHelpers.SecretPattern.Replace(value, "secret");
-        return Uri.TryCreate(normalized, UriKind.Absolute, out _);
-    }
+    internal static bool IsValidAbsoluteUrl(string value) =>
+        RequestEditingHelpers.IsValidAbsoluteUrl(value);
 
     internal static string? PromptMethod(IInteractiveConsole console)
     {
-        return console.Select("Method",
-            ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"]);
+        return console.Select("Method", RequestEditingHelpers.HttpMethods);
     }
 
     internal static void EditKeyValuePairs(
@@ -493,27 +484,8 @@ internal static class HttpCommandHelpers
             $"{RequestEditingHelpers.EscapeFormFieldComponent(kv.Key)}={RequestEditingHelpers.EscapeFormFieldComponent(kv.Value)}"));
     }
 
-    private static void SyncContentTypeHeader(IDictionary<string, string> headers, BodyType type)
-    {
-        string? contentType = type switch
-        {
-            BodyType.Json => "application/json",
-            BodyType.Xml => "application/xml",
-            BodyType.Text => "text/plain",
-            BodyType.FormUrlEncoded => "application/x-www-form-urlencoded",
-            BodyType.MultipartForm => "multipart/form-data",
-            _ => null
-        };
-
-        if (contentType is not null)
-        {
-            headers["Content-Type"] = contentType;
-        }
-        else
-        {
-            headers.Remove("Content-Type");
-        }
-    }
+    private static void SyncContentTypeHeader(IDictionary<string, string> headers, BodyType type) =>
+        RequestEditingHelpers.SyncContentTypeHeader(headers, type);
 
     internal static string BodyTypeDisplayName(BodyType type) => RequestEditingHelpers.BodyTypeDisplayName(type);
 }

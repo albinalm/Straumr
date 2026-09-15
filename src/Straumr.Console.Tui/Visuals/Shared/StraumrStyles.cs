@@ -1,6 +1,8 @@
 using System.Text;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
+using XenoAtom.Terminal.UI.Input;
 using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
@@ -214,6 +216,43 @@ internal static class StraumrStyles
         ForegroundBrush = Brush.Solid(TextBright),
         BackgroundBrush = Brush.Solid(Background),
         Placeholder = Muted
+    };
+
+    /// <summary>
+    /// The dropdown a form picks a fixed value with. It borrows the text field's frame so a row of
+    /// mixed fields reads as one column of inputs rather than as two kinds of control.
+    /// </summary>
+    public static readonly SelectStyle Select = SelectStyle.Default with
+    {
+        Padding = new Thickness(1, 0, 1, 0),
+        NormalStyle = Style.None.WithForeground(TextBright).WithBackground(Background),
+        HoverStyle = Style.None.WithForeground(TextBright).WithBackground(Hover),
+        FocusedStyle = Style.None.WithForeground(TextBright).WithBackground(Selection),
+        DisabledStyle = Style.None.WithForeground(Muted).WithBackground(Background),
+        PopupTemplateFactory = OpenedSelect
+    };
+
+    /// <summary>
+    /// The list a dropdown opens. The control builds it itself and hands it here to be framed,
+    /// which is the only point at which it can be reached at all; the frame around it is still the
+    /// framework's own, and the keys it is given are <see cref="SelectKeys"/>'s.
+    /// </summary>
+    private static Visual? OpenedSelect(Visual popup)
+    {
+        if (popup is ListBox<string> list)
+            SelectKeys.AttachTo(list);
+
+        return SelectStyle.Default.PopupTemplateFactory?.Invoke(popup) ?? popup;
+    }
+
+    public static readonly SwitchStyle Switch = SwitchStyle.Round with
+    {
+        TrackOff = Style.None.WithForeground(Muted).WithBackground(Background),
+        TrackOn = Style.None.WithForeground(Accent).WithBackground(Background),
+        TrackFocused = Style.None.WithForeground(TextBright).WithBackground(Selection),
+        TrackHovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
+        ThumbOff = Style.None.WithForeground(MutedBright).WithBackground(Background),
+        ThumbOn = Style.None.WithForeground(Green).WithBackground(Background)
     };
 
     public static readonly ValidationStyle Validation = ValidationStyle.Default with

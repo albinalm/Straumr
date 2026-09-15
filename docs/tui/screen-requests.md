@@ -62,18 +62,61 @@ implements, what evidence exists, and where to resume.
   ones on the rule and `t` keeps working beside it, both named in the one hint. Scrolling
   retains the shared native/Vim controls in both, though the full-screen view does not
   spend footer row on advertising them.
-- `e` on the list uses the existing external-editor host handoff. A valid edit saves
-  through Core; invalid request JSON or identity is written back for repair rather
-  than discarded. Editing clears that request's cached response and reloads selection.
+- `c` creates a request, `e` edits the selected one, and `y` copies it, all through the
+  shared resource editor: a full-screen form with Request, Headers, Params and Body notched
+  into the rule, `Tab` between fields, `Ctrl+T` or a click to change page, `Ctrl+S` to save and
+  `Escape` to close — asking first when there are edits to lose. Every gesture that reaches
+  across the form carries `Ctrl`, because a bare letter belongs to whichever field has focus. The bar shows the method and
+  URL as the fields change them, with the parameters folded in, opposite an unsaved marker.
+  A copy opens with its source's name cleared rather than pre-filled, because a name of its
+  own is the one thing it has to be given. Saving reloads and selects the result and reports
+  on the list's footer; a save Core refuses keeps the form open holding the work.
+  Name and URL are checked before the save is attempted, and a name containing a double quote
+  is refused here rather than by Core, since Core would refuse it anyway.
+  An auth the workspace no longer holds, and a method the list does not offer, both stay
+  selected rather than being quietly replaced.
+- Each body type keeps its own content, so switching type puts away what the editor held and
+  fetches what the new type left behind. Choosing a type writes `Content-Type` and the Headers
+  page re-reads it. Form and multipart bodies are edited as the fields they are; a multipart
+  part may be text or a file chosen through the shared file browser, stored as `@` plus its
+  path, checked when chosen, and shown red once the file is gone. Everything else is one
+  document, shown on the page the way the previews show one and written in `$EDITOR`: `Enter`
+  or `Ctrl+E` opens it there under the extension its type implies, and what is saved comes
+  back byte for byte. A body that does not exist yet opens on the document it is about to be —
+  `{`, an indented line, `}` for JSON, the declaration line for XML — and JSON kept on one line
+  opens laid out over lines; a body returned unchanged leaves the request unchanged. The form gives up the terminal for the run and takes it back afterwards
+  on the page it left, with the rest of the form untouched; without `EDITOR` set it says so
+  rather than offering an editor of its own, as the CLI has always done for the same work.
+- `Ctrl+E` on the list, and `:json [name]`, open the request's file in the configured editor.
+  That is the advanced route, for a field the form does not offer or an edit easier made as
+  text; it is secondary in the footer because the form is how a request is normally changed.
+  `e` on a request that cannot be read opens the same editor, since a file that does not parse
+  cannot be loaded into fields at all. A valid edit saves through Core; invalid request JSON
+  or identity is written back for repair rather than discarded. Editing either way clears that
+  request's cached response and reloads selection.
 - The three movable divider shares load from and save to the `Requests` entry in
   `StraumrOptions.PaneLayouts`. Invalid persisted shares are clamped to the layout's
   supported range.
 - Startup opens Requests when options contain a valid active workspace; with no active
   workspace it continues to open Workspaces.
-- Create/copy/delete request forms, request import/export and separate Auths/Secrets
-  screens are not implemented by this checkpoint. No inert hints advertise them.
+- Deleting a request, request import/export and separate Auths/Secrets screens are not
+  implemented by this checkpoint. No inert hints advertise them.
 
 ## Evidence and resume points
+
+- The resource editor builds in Debug and Release across the solution and in the Release
+  CLI-only configuration, all without warnings, and CLI `--help` still runs after the shared
+  helpers moved. Nothing about it has been seen in a terminal. No probe was built for it: the
+  first `c` answers more in one keystroke than a snapshot checker would, and the developer
+  asked for that trade. What needs their check, in rough order of how likely it is to be
+  wrong: the form's layout at 120x30, 80x24 and a short terminal; whether `Ctrl+S` reaches the
+  app or is eaten as XOFF; the `Select` dropdown popups over a full-screen dialog; the code
+  editor taking `Tab` as field movement rather than indentation; the file browser opening from
+  inside the multipart dialog, which is a modal over a modal over a modal; and the unsaved
+  confirm on `Escape`.
+- Not yet done, and deliberately: `:new` and `:edit <name>` command forms, a delete gesture,
+  and any use of the kit outside Requests. The kit was written for auths and secrets but has
+  only ever been driven by one resource, so treat its shape as unproven until A1 uses it.
 
 - Focus and footer hints were taken from a running in-memory app (`.tmp/response-focus`),
   since a snapshot renders the unfocused state and a `CommandBar` renders empty without one:

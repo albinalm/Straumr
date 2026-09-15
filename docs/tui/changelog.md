@@ -3,6 +3,196 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-15: The editor's chrome went stale: the bar still said `GET` after the method was changed
+  to `PUT`, the URL beside it never moved, and the header kept the old name while a new one was
+  typed. All three read the state being edited, which is a plain object the binding graph knows
+  nothing about — the same root as the Body page's discriminator, in a place that only looks
+  different. What made it strange to look at is that the method's colour did follow: a style given
+  as a function is a factory the renderer calls every frame, while a visual's dynamic text is a
+  binding re-read only when something it read changes. The three values are now mirrored into
+  `State<T>` once per update pass, by `RequestEditor.SyncSummary` and by the view for the header, so
+  every binding over them works normally again. Copying into tracked state is the general answer
+  where assigning outright is not: the bar and the header hold no focus, so there is no reason to
+  hand-write what the bindings already do well.
+
+- 2026-09-15: The Vim keys now work on a dropdown that is closed, not only on the list it opens.
+  The developer found it on the multipart part's kind picker, and it was true of every dropdown in
+  the app: the earlier change reached the popup through the style's factory, which is the only hook
+  into a list `Select` builds itself, and left the closed control answering to the arrows alone —
+  which is where a value is usually changed, since a two-choice picker is not worth opening. Both
+  states are now `SelectKeys`, which also takes the popup half out of `StraumrStyles`, where a
+  key handler had no business being.
+- 2026-09-15: `Ctrl+Tab` steps focus backwards, as a global command so it means the same thing on
+  every screen and in every dialog. The framework handles `Shift+Tab` itself and exposes no way to
+  ask for the same move, so `FocusScope.FocusPrevious` walks the window holding focus — the active
+  modal when one is focused, the screen otherwise — collects what traversal would collect, and
+  steps back through it. It is unpresented for the reason `Ctrl+Enter` is: many terminals send
+  `Ctrl` with `Tab` as a bare `Tab`, and several keep the combination for their own tab switching
+  and never pass it on. Where it does not arrive, `Shift+Tab` is unaffected.
+
+- 2026-09-15: Fixed a crash the developer hit on a multipart part: choose File or Text, press a key,
+  and the app died with `Cannot read and then write FormTextBox.IsVisible within a same tracking
+  context`. One update pass may not both read and write the same bindable value, and the pair
+  dialog had arranged exactly that — the value box and the file picker swapped on a bound
+  `IsVisible`, while the text fields inside them compute their own `IsTabStop` from their ancestors'
+  visibility, which was the day's earlier fix for `Tab` reaching hidden pages. The dialog now
+  assigns those two visibilities outright, the same rule the editor's pages already follow, and
+  `FocusScope.IsReachable` starts its walk at the parent: a visual's own visibility is the half tab
+  traversal already tests, so reading it was redundant and only created a property that was both
+  read and written. Nothing in the app now binds the visibility of a subtree that holds a
+  focusable; an audit of the remaining bound `IsVisible` calls found only text.
+
+- 2026-09-15: `a` on a header, parameter or multipart part opened the pair dialog with the entry
+  already named `a`, and `e` appended an `e` to the name it was editing. The third time this
+  framework behaviour has bitten — a printable keystroke arrives as a key event and an independent
+  text event, and handling the key does not suppress the text — and the first two times were fixed
+  by arming the field that takes focus with the keystroke to discard. `KeyValuePairDialog` already
+  had the `PendingEcho` property for it; `KeyValueField` simply never set it. The command helper now
+  hands its own letter to the action it runs, so an action that opens something typed into has the
+  keystroke without naming its gesture twice, and forgetting it again means leaving an unused
+  parameter rather than writing nothing. Activation by `Enter` or a double-click passes none, since
+  neither types anything.
+
+- 2026-09-15: Coming back from the editor now lands on the field the reader left, not on the
+  page's entry point. The view is shown again on the app that follows the external program, and a
+  view being shown asks for focus the way it does when it first opens — which is the first field
+  that applies, so editing a body handed focus back to the type above it. `Suspend` now remembers
+  the focused visual and `FocusPage` prefers it: holding a visual across the two apps is safe, and
+  only asking it for focus between them is not. The developer confirmed the rest of the editor
+  works.
+
+- 2026-09-15: Three from the developer, all about where the caret and the eye go. A field entered
+  by `Tab` now has its caret after its value instead of in front of it. The first attempt did this
+  from `OnDocumentChanged` and did nothing at all, which the developer's next screenshot showed:
+  `TextBox.Text` is a plain bindable property that the document reads through to on demand, so the
+  document raises a change for text the reader typed and none for text the form assigned — there is
+  no event to hang it off. It is therefore done at the point of writing, by `FormTextBox.SetText`,
+  with every field in the app filled through that instead of through `Text`. A pointer click still
+  places the caret where it was clicked, and a field the reader returns to holds the place they
+  left. The label beside the focused field now fills with the focus chip — blue ground, bright text
+  — on the developer's reading that the field being written into is worth saying loudly. It is the
+  one place in the app where two chips show at once: the page title on the rule names the page and
+  the label names the field inside it, which are different questions at different levels. Nothing
+  moves as a label lights, because the label column is already the longest label plus the gap and
+  that is exactly what the chip's cell of fill on each side needs.
+  And the caret position now applies to a body that already exists, not only to a scaffold: it
+  opens at the end of the line the reader would carry on from, which for JSON is the line above the
+  closing brace, since the end of that brace is the one place in the document nothing can be added.
+
+- 2026-09-15: Opened the editor with the caret where the writing starts, as far as that can be
+  asked for. It cannot be asked for universally — nothing in the `EDITOR` convention covers a
+  position, so every editor that can be told has invented a flag of its own and the rest cannot be
+  told at all. `ExternalEditor` therefore carries a table of the documented syntaxes: `+L,C` for
+  nano, `+L` for the vim family, `+L:C` for emacs, micro and kakoune, `-l`/`-c` for kate,
+  `-n`/`-c` for Notepad++, and the position on the path itself for helix, Sublime and VS Code's
+  `--goto`. An editor not in the table is opened with no extra argument at all, because an argument
+  it does not understand is either a second file it would create or an error it would exit on; it
+  opens at the top, which is where it would have opened anyway. The position only ever applies to a
+  scaffold — line 2, column 3 for JSON, under the declaration for XML — since an existing body opens
+  at its first character, which needs nothing said about it. The caret travels with the text as
+  `EditorDocument`, so the shape is there for the CLI's own editor flows to use later.
+
+- 2026-09-15: Gave the external editor something to open on. An empty file is a poor thing to be
+  handed, so a body that does not exist yet arrives as the document it is about to become: `{`, an
+  indented blank line, `}` for JSON, and the declaration line for XML. A body that already exists
+  arrives as it is, with one exception — JSON kept on a single line is laid out over lines first,
+  because a one-line body is one a program wrote and opening an editor is the moment to make it
+  readable; a body that already has lines is never reformatted, since its layout is then someone's
+  decision. Opening a document and closing it again is not an edit either way: what comes back
+  identical to what went out leaves the field holding exactly what it held, so looking at an empty
+  body does not give the request a `{}` nobody asked for. The JSON formatter behind it is now one
+  method, `RequestEditingHelpers.TryFormatJson`, with the response pane's beautify/minify toggle
+  and the CLI's `--beautify` repointed at it rather than a third copy of the same six lines.
+  Debug, Release and CLI-only builds pass without warnings and CLI `send --help` renders.
+
+- 2026-09-15: Fixed two bugs the developer found on the Body page, both about hidden things.
+  The page went on saying the request sent no body after JSON had been chosen for it: a field's
+  `Visible` reads the state being edited, which is a plain object, so the function bound over it
+  was evaluated once when the form was built and never again — nothing it read is in the binding
+  graph. `EditorForm.Sync` now assigns each field's visibility outright, from the update pass and
+  whenever a field changes, which is what `PagedPane` already does with its pages. The second was
+  stranger to see: a blinking caret in the middle of the Body page that accepted typing nothing
+  showed. Tab traversal tests a candidate's own `IsVisible` and not its ancestors' — a rule this
+  app already knew and `FocusScope.IsReachable` already answers, but only `ResourceList` and
+  `ScrollableContent` were asking it. A framework `TextBox`, `Select` or `Switch` used raw is a
+  Tab stop wherever it sits, so `Tab` on the Body page walked into the hidden Request page and
+  landed on Name, which lays out over the `Type` row, and on URL, which lays out just under
+  `Content`. `FormTextBox`, `ChoiceField` and `ToggleField` now compute `IsTabStop` from the whole
+  ancestor chain. That second bug is very likely the original report of invisible body text as
+  well: the caret was never in the body at all, it was in the URL box of a page that was not
+  being drawn. The body still moved to `$EDITOR`, which was a direction and not a repair.
+
+- 2026-09-15: Gave the body to `$EDITOR` and the dropdowns the movement keys, both from the
+  developer's report of the editor in a terminal: the method list could not be moved through
+  with `j`/`k`, and the text of a JSON body being typed into was invisible while the caret moved
+  through it. The body's answer is not a repair. Writing a body in the reader's own editor is
+  what this app is for — the editor they have already highlights JSON, indents it and closes its
+  brackets and quotes, which is the third thing they asked for and not something worth
+  reimplementing here — so the framework's `CodeEditor` is out of the form altogether, with
+  `JsonLineHighlighter` and the palette entries that served it. `ContentField` now shows the
+  document as the request and response previews show one, a scrollable list of styled lines that
+  `j`/`k`/`g`/`G` move through, and `Enter` or `Ctrl+E` opens it in `$EDITOR` under the extension
+  its content type implies — `.json`, `.xml`, `.txt` — so the editor knows what it was handed.
+  What comes back is taken byte for byte, a trailing newline included, because that is a real
+  change to a body that will be sent as it stands. Running another program means giving up the
+  terminal, so the field asks rather than launches: an `ExternalContentEdit` travels out to the
+  screen, which suspends the view, runs the edit through the same external-action path `e` on a
+  workspace already uses, and shows the view again on the app that follows — a dialog stays
+  parented to the app that showed it, so one that is not closed first is refused by the next
+  run. The reader comes back to the Body page with everything they had typed still on it, and a
+  failed edit is reported on the editor's own footer rather than on the shell's line behind it.
+  A body can no longer be written without `EDITOR` set; the field says so, and the CLI has
+  always required it for the same work. The dropdowns were the other half: `Select` builds its
+  popup list itself and exposes it only to `SelectStyle.PopupTemplateFactory`, so the style now
+  attaches `j`/`k`/`g`/`G` there, handled from the key event for the same reason every other
+  list in the app handles them there, and framed by the framework's own factory afterwards.
+  Every dropdown in the app gets them, not just the method list. Debug, Release and CLI-only
+  builds pass without warnings. None of it has been seen in a terminal: the suspend and resume
+  around `$EDITOR` and the keys inside an open dropdown are the two things to check first.
+
+- 2026-09-15: Fixed the editor firing commands while a field was being typed into, reported by
+  the developer on the name box. `PagedPane` registered its page-cycling `t` on `Root`, which is
+  an ancestor of every field on every page; commands are collected up the focus chain and run
+  before the focused control sees the key, so typing a name containing a `t` changed page. In
+  its editor form the gesture is now `Ctrl+T` as a control byte. An audit of every other
+  ancestor between a field and the window root found nothing else: the framework's
+  `ScrollViewer`, `Select`, `Switch` and `Dialog` register no commands of their own, and the
+  editor's `Escape` and `Ctrl+S` are not printable. The general rule is recorded in
+  [decisions.md](./decisions.md) — it is the second time this has come up, after
+  `BrowserDialog`'s `n`/`r`/`d` firing over its path editor. Still open and worth a check: the
+  app's global Ctrl+C interrupt is ungated and a text field binds Ctrl+C to Copy, so which one
+  wins inside the editor is unverified; it matters more now that a form can hold unsaved work.
+
+- 2026-09-15: Added the resource editor, and with it the shared kit every editable resource
+  will use. `c` creates a request, `e` edits one, `y` copies one, all through one full-screen
+  form built from the shell's own pieces: the header naming the request, a three-row bar
+  carrying the live method and URL opposite an unsaved marker, and Request / Headers / Params
+  / Body notched into the rule that closes it. `Tab` moves between fields, `t` and the titles
+  change page, `Ctrl+S` saves and `Escape` closes, asking first when there are edits to lose.
+  The kit is `Visuals/Shared/Editor/`: `EditorField` and its kinds — text, secret text,
+  choice, toggle, key-value map, document, and a message for a page a discriminator has
+  emptied — plus `EditorForm` for one page of them, `KeyValuePairDialog` for adding a pair,
+  and `ResourceEditorView` for the screen. `Screens/Request/RequestEditor.cs` is the whole of
+  what a resource has to supply, and is the size an auth or a secret will be. Headers,
+  parameters, form fields and multipart parts are one `KeyValueField` over a `ResourceList`,
+  so selection, hover, scrolling and `j`/`k`/`g`/`G` arrive with the list. A multipart part
+  can be text or a file, chosen through the existing `FileBrowserDialog` and stored as the
+  `@path` Core already reads; a part whose file has gone reads red as any unusable resource
+  does. The body is the framework's `CodeEditor` with a JSON line highlighter written against
+  the palette, and each body type keeps its own content, so choosing XML to look at it no
+  longer overwrites the JSON. Choosing a type writes `Content-Type`, and the Headers page
+  re-reads it. `:json` keeps the external editor reachable for a request that parses; `e` on
+  a broken one still opens the text to repair, unchanged. Extracted along the way:
+  `PagedPane` now owns the rule-as-tab-strip idiom that was welded into `PreviewPane`, with
+  `Tab`-cycles-pages as a parameter; `FormTextBox` is the one echo-discarding text field the
+  three dialogs were each declaring privately; `ConfirmDialog` is what `WorkspaceDeleteDialog`
+  now is; and `RequestEditingHelpers` gained the URL check, the method list, the body-type
+  list and the `Content-Type` mapping the CLI had privately, with the CLI repointed at them so
+  the two cannot drift. Debug and Release solution builds and the Release CLI-only build pass
+  without warnings, and CLI `--help` still runs. Nothing here has been seen in a terminal yet:
+  the layout at real sizes, `Ctrl+S` surviving flow control, the dropdown popups, the body
+  editor and the file picker all need the developer's check.
+
 - 2026-09-15: Screen navigation no longer participates in unique-prefix resolution.
   `workspace` / `ws` and `request` / `rq` are the only accepted navigation spellings,
   so `:w` in Requests now reports an unknown command instead of opening Workspaces.
