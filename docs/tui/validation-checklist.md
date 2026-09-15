@@ -157,8 +157,9 @@ For each Workspaces milestone, run the smallest applicable subset:
       solution and Release with `-p:IncludeTui=false`, all without warnings, and CLI `--help`
       still runs after the URL check, method list, body-type list and `Content-Type` mapping
       moved from the CLI's private helpers into `RequestEditingHelpers`
-- [ ] verify the editor in a terminal, which nothing above covers — no probe was built for it
-      by request. In rough order of how likely each is to be wrong:
+- [x] verify the editor in a terminal, which nothing above covers — no probe was built for it
+      by request. Done over a long interactive session; every fault it found is fixed and listed in
+      [changelog.md](./changelog.md). In rough order of how likely each is to be wrong:
       the form's layout at 120x30, 80x24 and a short terminal;
       whether `Ctrl+S` reaches the app or is swallowed as XOFF, and `Ctrl+E` beside it;
       the `Select` dropdown popups opening over a full-screen dialog;
@@ -172,7 +173,8 @@ For each Workspaces milestone, run the smallest applicable subset:
       edit one that has a `Group` set and confirm the form did not drop it
 - [ ] verify each body type keeps its own content: type JSON, switch to XML and back, and
       confirm the JSON survived; confirm `Content-Type` follows the type and shows on Headers
-- [ ] verify writing a body in `$EDITOR` from inside the form: press `Enter` on the Body page,
+- [x] verify writing a body in `$EDITOR` from inside the form (developer-confirmed, including the
+      second run in a row and the return to the field they left): press `Enter` on the Body page,
       confirm the editor opens on a file named with the type's extension, save and quit, and
       confirm the app comes back to the Body page of the same form with the text in the preview,
       the unsaved marker set, focus back on the body rather than on the type above it, and
@@ -184,10 +186,10 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify `j`/`k`/`g`/`G` move through an open dropdown — the method list is the one that was
       reported, but the Auth and body-type lists take the same keys now — and confirm the frame
       around the popup is unchanged, since the style now supplies that factory itself
-- [ ] verify the Body page follows its type: choose JSON and confirm the "sends no body" message
+- [x] verify the Body page follows its type (developer-confirmed): choose JSON and confirm the "sends no body" message
       is replaced by the content preview in the same keystroke, choose None and confirm it comes
       back, and choose Form URL Encoded and Multipart and confirm each shows its own fields
-- [ ] verify `Tab` on every page stops only on what is on that page: no caret on a row that
+- [x] verify `Tab` on every page stops only on what is on that page (developer-confirmed): no caret on a row that
       belongs to another page, and nothing typed into a field that is not being drawn. Worth
       checking on the pair dialog too, where the value box and the file picker swap
 - [ ] verify what the editor opens on: an empty JSON body arrives as `{`, an indented blank line
@@ -199,28 +201,34 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify the caret lands between the braces on an empty JSON body in the developer's own
       editor (nano: `+2,3`), and that an editor outside the table — or one reached through a
       wrapper script — still opens normally with no stray argument and no second file created
-- [ ] verify the caret sits after the value in every pre-filled field the form opens with, that a
+- [x] verify the caret sits after the value in every pre-filled field the form opens with
+      (developer-confirmed after the first attempt did nothing), that a
       pointer click still places it where it was clicked, and that leaving a field mid-word and
       coming back keeps the place rather than jumping to the end
-- [ ] verify the label of the focused field fills with the chip and every other label stays inert,
+- [x] verify the label of the focused field fills with the chip (developer-confirmed; they chose
+      the chip over the accent-text version) and every other label stays inert,
       on both the one-row fields and the one that fills the page, and that nothing shifts as focus
       moves — the longest label on a page is the one to watch, since its chip exactly fills the
       label column
 - [ ] verify an existing JSON body opens on the line above its closing brace, at the end of it,
       and a text body on the end of its last line
-- [ ] verify `a` and `e` on a header, parameter, form field and multipart part open the pair dialog
+- [x] verify `a` and `e` on a header, parameter, form field and multipart part open the pair dialog
+      (developer-confirmed)
       with the name empty and with the existing name unchanged, rather than with the keystroke that
       opened it typed into them
-- [ ] verify a multipart part survives the kind picker: open one, switch between Text and File both
+- [x] verify a multipart part survives the kind picker (developer-confirmed; this is the crash
+      they hit and it is gone): open one, switch between Text and File both
       ways, type in each, and move the selection afterwards, which is where a bound visibility over
       a subtree holding a text field used to throw
-- [ ] verify `j`/`k`/`g`/`G` move a dropdown both closed and open — the method, auth and body type
+- [x] verify `j`/`k`/`g`/`G` move a dropdown both closed and open (developer-confirmed on the
+      multipart kind picker, which is where the closed-state gap was found) — the method, auth and body type
       fields and the multipart kind picker — and that a letter typed into a text field beside one
       still reaches the field
 - [ ] verify `Ctrl+Tab` steps focus backwards, and find out whether this terminal delivers it at
       all: several keep the combination for their own tab switching. `Shift+Tab` must keep working
       either way, on a screen and inside a dialog
-- [ ] verify the editor's chrome follows the fields: change the method and watch the bar's token
+- [x] verify the editor's chrome follows the fields (developer-confirmed on the method, the URL
+      and the header): change the method and watch the bar's token
       change text as well as colour, edit the URL and watch the bar follow, and type a name and
       watch the header follow
 - [ ] verify the unsaved marker comes back: change a field and watch it turn amber, change it back
@@ -237,12 +245,13 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify a created request is only created once: `c`, fill it in, `Ctrl+S` twice, and confirm
       the list holds one request and the second save updated it. Then edit a field and confirm the
       marker goes back to unsaved
-- [ ] verify focus cannot fall through to the screen behind: on Requests, press `t` in the Request
+- [x] verify focus cannot fall through to the screen behind (developer-confirmed by both routes,
+      key and pointer, with no flicker in between): on Requests, press `t` in the Request
       pane and confirm the page changes with the title still lit, the footer still showing this
       screen's commands and this page's `j`/`k` hints, and nothing flickering in between; then click
       the blank strip above the first row and confirm the same. The footer naming another screen's
       commands, or losing the scroll hints for a frame, is the tell
-- [ ] verify the hint rows wrap rather than clip at a narrow width: shrink the terminal until the
+- [x] verify the hint rows wrap rather than clip at a narrow width (developer-confirmed): shrink the terminal until the
       footer needs two rows on the list, the editor and the full-screen response, and confirm every
       hint is still readable and the content above shrank to make room
 

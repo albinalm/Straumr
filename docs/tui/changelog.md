@@ -3,6 +3,17 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-15: The developer accepted the Requests screen. R1 is complete; A1, the Auths screen, is
+  next and not started. Worth knowing before it begins: almost everything R1 grew in its last day is
+  shared, so an auth should be `RequestEditor.cs`-sized over the same kit — the editor's fields and
+  pages, `PreviewPane` and `PagedPane`, the `$EDITOR` handoff with its scaffolds and caret, the
+  secrets region, and `SecretFormatting`. Two decisions are worth re-reading rather than
+  rediscovering: visibility that hides a focusable is assigned and never bound, and anything the
+  chrome reads out of a plain state object is mirrored into a `State<T>` once per pass. Four checks
+  outlive the acceptance and are still open in the checklist: `Ctrl+C` against a real in-flight send,
+  the AOT binary's TUI in Alacritty, whether this terminal delivers `Ctrl+Tab`, and a populated
+  round trip through the multipart body.
+
 - 2026-09-15: The hint rows wrap instead of clipping. A bar held to one row drops the hints that do
   not fit, and it drops them from the end — which is where the less-used actions sit, and where a
   reader looks when they do not already know the key. `CommandBar.MultiLine` is the framework's own
