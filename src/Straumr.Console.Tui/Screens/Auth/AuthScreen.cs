@@ -127,8 +127,6 @@ public sealed class AuthScreen : ITuiScreen
             // One hint for one action under two keys, as on Requests: the bar renders one keycap per
             // hint, so `e` rides in the label painted in the bar's own key colour.
             activateLabel: $"{StraumrStyles.KeyMarkup("/e")} Edit");
-        // Claimed only while this screen is the one on show; see FocusScope.
-        _list.AutoFocus(_list.IsReachable);
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => AuthEdit();
         _filter = new ResourceFilter("filter auths", ApplyFilter, () => _list);
@@ -829,6 +827,9 @@ public sealed class AuthScreen : ITuiScreen
             };
 
         _editingId = isNew ? null : source!.Id;
+        // A copy is the one opening that clears the name it was given, so it is the one that has to
+        // keep saying which name that was.
+        string? sourceName = isNew && source is not null ? source.Name : null;
         var editor = new AuthEditor(state, ActiveWorkspaceName, isNew, openingGesture,
             () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
@@ -838,7 +839,8 @@ public sealed class AuthScreen : ITuiScreen
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
-            EditContentExternally);
+            EditContentExternally,
+            sourceName);
         _editorView = editor;
         editor.Show();
         TransientScreenOpened?.Invoke();

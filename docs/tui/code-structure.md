@@ -36,6 +36,11 @@ Straumr.Console.Tui/
     TuiCommand.cs                 one typed command and its result
     TuiCommandSet.cs              the command table: resolution and completion
   Screens/
+    Secret/
+      SecretScreen.cs             global store, masked inspection, commands and editor handoff
+      SecretScreenItem.cs         readable/broken secret presentation model
+      SecretEditor.cs             Name and Value over the shared editor kit
+      KnownSecretReferences.cs    non-stamping, cross-workspace reference index and scan coverage
     Workspace/
       WorkspaceScreen.cs          data loading and the parts unique to Workspaces
       WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry

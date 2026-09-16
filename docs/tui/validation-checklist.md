@@ -3,6 +3,41 @@
 Part of the [TUI implementation guide](./README.md). Run the smallest applicable
 subset for the milestone in hand, and tick items here in the same change.
 
+## S1 checkpoint
+
+- [x] Reference-scan regression: absent workspace files do not count as failures; a stale-only
+      registry produces no warning, while existing corrupt workspaces and unreadable resources
+      still count. The developer's reported four entries were verified absent through read-only inspection.
+- [x] Debug, Release and Release CLI-only builds pass without warnings; CLI secret help renders.
+- [x] Isolated fixture: global secrets load without an active workspace or with a broken one;
+      corrupt and missing entries remain present; reads do not change stored files.
+- [x] Known references span registered workspaces, match case-insensitively with trimmed names,
+      deduplicate within a field, exclude cached auth results, and report incomplete scans.
+- [x] Shared snapshots show the fixed mask, amber palette and rule junctions; neither the screen
+      nor the unfocused editor exposes fixture credential values.
+- [x] Completion includes quoted secret names before visiting Secrets with no active workspace;
+      the `rq`, `au` and `ws` namespaces remain registered; namespace navigation is exact-only.
+- [x] Form save path creates once, updates on subsequent saves, preserves value whitespace and
+      access timestamps, and rejects duplicate names; missing registry entries can be deleted.
+- [ ] Terminal-check that `y` on Requests, Auths and Secrets shows `Source <original name>` on the
+      editor bar, that it survives changing page and saving, and that an edit or a create shows none.
+- [x] Focus survives a delete: the shell assigns `AutoFocus` to the screen on show and returns
+      stray focus to it each pass, so no hidden screen's list can catch it. Debug and Release
+      build without warnings; the behaviour itself needs the terminal check below.
+- [ ] Terminal-check that after confirming a delete on Secrets the list is focused again — the
+      `Secrets` title carries the focus chip and the footer shows Secrets' keys, not Workspaces'
+      `Use`/`Import`/`Export`. Repeat on Requests, Auths and Workspaces, and after a `:refresh`
+      and a save, including deleting the last row.
+- [ ] Terminal-check S1 focus, scrolling, narrow/short resizing, divider persistence and filtering.
+- [ ] Terminal-check create/edit/copy, mask/reveal/remask, repeated `Ctrl+S`, and unsaved cancellation.
+- [ ] Terminal-check delete confirmation/cancel with dependents and partial reference coverage.
+- [ ] Terminal-check `Ctrl+E` / `:sc json`, broken/missing-file repair and invalid JSON/ID rejection.
+- [ ] Terminal-check commands in both directions: `:rq edit <request>` from Secrets, `:sc edit
+      <secret>` from Requests/Auths/Workspaces, returning to the caller on form close; create/copy,
+      delete modality, quoted-name completion, and `:ws use <workspace>` from Secrets.
+
+## Earlier milestones
+
 - [x] Every screen action as a namespaced command builds in Debug, Release and the
       Release CLI-isolated configuration with no warnings.
 - [x] Terminal-check the new commands from another screen: `:rq edit <request>` and

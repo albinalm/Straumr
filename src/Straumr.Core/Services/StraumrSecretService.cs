@@ -57,6 +57,7 @@ public class StraumrSecretService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateName(secret.Name);
         string fullPath = SecretPath(secret.Id);
         await EnsureNoConflictAsync(secret.Name, fullPath, cancellationToken: cancellationToken);
 
@@ -76,6 +77,7 @@ public class StraumrSecretService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateName(secret.Name);
         StraumrSecretEntry entry = GetSecretEntry(secret.Id);
         string fullPath = entry.Path;
 
@@ -98,6 +100,15 @@ public class StraumrSecretService(
         RemoveSecretFile(entry.Path);
         optionsService.Options.Secrets.Remove(entry);
         await optionsService.SaveAsync(cancellationToken);
+    }
+
+    // Names must remain representable as a single quoted command argument, as request and auth names do.
+    private static void ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new StraumrException("Secret names cannot be empty", StraumrError.InvalidEntry);
+        if (name.Contains('"'))
+            throw new StraumrException("Secret names cannot contain double quotes", StraumrError.InvalidEntry);
     }
 
     private string SecretPath(Guid id)

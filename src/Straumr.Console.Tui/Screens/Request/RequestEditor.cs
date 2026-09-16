@@ -70,7 +70,8 @@ internal sealed class RequestEditor
         char? openingGesture,
         Action save,
         Action closed,
-        Action<ExternalContentEdit> editContent)
+        Action<ExternalContentEdit> editContent,
+        string? sourceName = null)
     {
         _state = state;
         _opened = state.Copy();
@@ -141,7 +142,8 @@ internal sealed class RequestEditor
             ],
             save,
             closed,
-            () => !_state.Matches(_opened));
+            () => !_state.Matches(_opened),
+            sourceName);
     }
 
     public void Show() => _view.Show();

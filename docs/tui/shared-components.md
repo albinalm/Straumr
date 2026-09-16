@@ -217,7 +217,10 @@ notched into the rule that closes it, a pane, and the one-row footer. The unsave
 fields hold still differs from what was opened, and the view re-asks after every edit, so a value
 typed and typed back reads as saved again and closing stops asking about it. Its bar carries whatever
 the caller says identifies the resource — for a request, its live method and URL — opposite an
-unsaved marker, and keeps its three rows either way. `Ctrl+S` saves and `Escape` closes,
+unsaved marker, and keeps its three rows either way. A copy names its source beside that marker,
+because a copy opens with its name cleared and the name a reader wants to base the new one on is
+the one they just left; it sits on the bar rather than in a field, since it is not editable and
+has to survive moving to another page. `WorkspaceFormDialog` labels the same thing `Source`. `Ctrl+S` saves and `Escape` closes,
 asking first when there is work to lose. A save that succeeds keeps the view open and turns the marker green for a
 second before it settles to grey on `saved`, because editing and saving is something done more
 than once per visit; a save Core refuses keeps it open too and says why on its own footer. Both

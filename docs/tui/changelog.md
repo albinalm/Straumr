@@ -3,6 +3,53 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: A copy now says what it was copied from. Copying clears the name, and the reader had
+  to leave the editor to go and read the original again. `ResourceEditorView` takes the source name
+  and puts `Source <name>` on its bar beside the unsaved marker, so Requests, Auths and Secrets all
+  show it, on every page of a multi-page editor and after the copy has been saved. The wording and
+  the position follow the workspace copy dialog, which already carried a `Source` row. Only a copy
+  passes a name — an edit and a create pass none and the bar is unchanged.
+
+- 2026-09-16: Fixed focus falling off the screen after a delete. Confirming a delete on Secrets
+  left no region titled and put Workspaces' keys — `Use`, `Import`, `Export` — on the footer:
+  focus had not been lost but re-homed onto the hidden Workspaces list. Each screen claimed
+  `AutoFocus` through a binding over `FocusScope.IsReachable`, which answers for the tree the
+  visual is in; every reload swaps the list out for the loading message, and evaluated detached
+  that binding walks no ancestors, answers true and registers nothing that can ever invalidate
+  it, so a hidden screen's list became a standing claim on every stray focus in the app. The
+  shell now assigns `AutoFocus` beside `IsVisible` when it shows or hides a screen, since which
+  screen is on show is its own fact, and holds the invariant on every pass: focus that is not
+  inside the visible screen, a modal or the prompt is put back on the screen's focus target.
+  That covers the same loss on Requests, Auths and Workspaces, and after any operation that
+  reloads a list, not deletion alone. Debug and Release builds pass without warnings; terminal
+  acceptance is pending.
+
+- 2026-09-16: Fixed the Secrets reference scan counting removed workspaces as unreadable.
+  The developer reported four failures; read-only inspection found exactly four registry
+  entries whose files were absent, alongside three readable workspaces. The scan now skips
+  absent workspace files using the same rule as Workspaces. Existing corrupt workspaces and
+  unreadable resources still warn. An isolated regression check covers stale-only entries
+  producing no warning and a mixed scan preserving its actual corruption/resource warnings.
+
+- 2026-09-16: Implemented S1, the global Secrets screen. It uses the shared resource layout,
+  two-line list, filter, scrollable details and independent pane shares. The Secret pane masks
+  values with a fixed-length mask and shows timestamps and storage; Known references names the
+  request/auth, workspace and field, plus the literal placeholder. The index loads through Core
+  without stamping access times and reports partial coverage instead of silently dropping errors.
+  Broken and missing secrets remain visible for repair or deletion.
+  Create, edit and copy use the shared editor's Name and masked Value fields, unsaved confirmation,
+  save flash and repeated-save lifecycle. Delete confirms the number of directly referencing
+  resources across registered workspaces. `Ctrl+E` / `:json` open the external editor, and `e`
+  uses it for broken files; valid edits preserve the registered ID and go through Core.
+  Every action is available through `:secret` / `:sc`, with quoted name completion and the
+  existing transient return stack. All three earlier namespaces remain available on Secrets.
+  Hidden screens are now primed on startup even with no active workspace, so global secret
+  completion works there too. Core rejects blank and double-quoted secret names on create/save.
+  Debug, Release and Release CLI-only builds pass without warnings and CLI secret help renders.
+  `.tmp/s1-check` verifies masked snapshots, junctions/amber, non-stamping inspection, reference
+  matching across workspaces, partial coverage, quoted completion, repeated save and missing-entry
+  deletion against isolated storage. No input harness; terminal acceptance remains pending.
+
 - 2026-09-16: Every action each screen offers under a key is now a typed command in that
   screen's namespace, so all of them cross a screen boundary rather than the four that
   happened to have been needed. Requests gained `:create`/`:new`, `:edit`, `:copy`,

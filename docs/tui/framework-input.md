@@ -152,7 +152,25 @@ framework behavior.
   and that search is ancestor-blind too. A screen waiting in the shell's `ZStack` therefore
   caught every stray focus in the app — focus lost to a page hidden under the caret, or to
   a click landing on nothing — and took the footer's commands with it while staying
-  invisible. A screen's main region claims `AutoFocus` through `FocusScope.IsReachable`.
+  invisible.
+- But a screen's main region must **not** claim it through a binding over
+  `FocusScope.IsReachable`, which is what it did until a deleted secret landed the reader on
+  Secrets with the Workspaces list focused. That binding answers for the tree the visual is in,
+  and a screen's list leaves the tree on every reload: it lives in the `ComputedVisual` that
+  swaps in the loading message. Evaluated while detached, the walk starts at a null parent,
+  reads nothing, answers `true` and registers no dependency — so the value can never be
+  invalidated again and a hidden screen's list becomes a permanent claim. Which screen is on
+  show is the shell's own fact: `StraumrTuiApp.SetOnShow` assigns `FocusTarget.AutoFocus`
+  beside `Root.IsVisible`, the way the docs above say anything the focus pass depends on is
+  assigned and not bound.
+- `AutoFocus` re-homes focus the framework has seen go **null**. It does nothing for focus
+  stranded on a visual that left the tree, and nothing during the window where the only
+  claimant is itself detached — which is exactly the window a delete opens, losing focus once
+  when the confirm dialog closes and again when the reload that follows detaches the list.
+  `StraumrTuiApp.RestoreStrayFocus` therefore holds the invariant on every pass: unless a
+  modal or the command prompt has it, focus that is not inside the visible screen's root goes
+  back to that screen's `FocusTarget`. It is held once in the shell rather than by each screen
+  re-focusing itself after each delete, save and refresh.
 - A control that hides the page focus is on must take focus with it, in the same keystroke.
   The framework revokes focus from what is no longer visible and re-homes it to whatever
   claims `AutoFocus`, and a single frame of that is visible: the screen appears to flicker

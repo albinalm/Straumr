@@ -108,8 +108,6 @@ public sealed class RequestScreen : ITuiScreen
             // the gesture, so `e` rides in the label painted in the bar's own key colour — the
             // same way `Tab /t Next tab` carries the letter that also changes page.
             activateLabel: $"{StraumrStyles.KeyMarkup("/e")} Edit");
-        // Claimed only while this screen is the one on show; see FocusScope.
-        _list.AutoFocus(_list.IsReachable);
         _list.BindSelectedIndex(_selectedIndex);
         // Enter opens the editor, exactly as `e` does. Activating a row means doing the thing the
         // row is for, and moving focus into a read-only preview is not that: `Tab` already reaches
@@ -720,6 +718,9 @@ public sealed class RequestScreen : ITuiScreen
             state.Name = string.Empty;
 
         _editingId = isNew ? null : source!.Id;
+        // A copy is the one opening that clears the name it was given, so it is the one that has to
+        // keep saying which name that was.
+        string? sourceName = isNew && source is not null ? source.Name : null;
         var editor = new RequestEditor(state, _workspaceAuths, ActiveWorkspaceName, isNew, openingGesture,
             () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
@@ -729,7 +730,8 @@ public sealed class RequestScreen : ITuiScreen
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
-            EditContentExternally);
+            EditContentExternally,
+            sourceName);
         _editorView = editor;
         editor.Show();
         TransientScreenOpened?.Invoke();

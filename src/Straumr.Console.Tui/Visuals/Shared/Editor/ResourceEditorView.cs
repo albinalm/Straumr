@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Straumr.Console.Tui.Formatting;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Animation;
@@ -85,6 +86,12 @@ internal sealed class ResourceEditorView
     /// Asked for, not performed. Core calls belong on the screen's update loop, where every other one
     /// in this app runs; the screen answers through <see cref="Saved"/> or <see cref="Failed"/>.
     /// </param>
+    /// <param name="sourceName">
+    /// What a copy was copied from, or <see langword="null"/> for anything that is not a copy. A copy
+    /// opens with its name cleared, because the one thing it must be given is a name of its own — and
+    /// the name a reader wants to base that on is the one they just left. It goes on the bar rather
+    /// than into a field: it is not editable, and it has to survive moving to another page.
+    /// </param>
     public ResourceEditorView(
         Func<string> name,
         Func<string?> workspaceName,
@@ -93,7 +100,8 @@ internal sealed class ResourceEditorView
         EditorForm[] pages,
         Action save,
         Action closed,
-        Func<bool> hasChanges)
+        Func<bool> hasChanges,
+        string? sourceName = null)
     {
         _forms = pages;
         _save = save;
@@ -130,7 +138,7 @@ internal sealed class ResourceEditorView
                 new RowDefinition { Height = GridLength.Auto })
             .Cell(StraumrHeader.Create(() => _headerName.Value, workspaceName), 0, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 1, 0)
-            .Cell(BuildBar(summary), 2, 0)
+            .Cell(BuildBar(summary, sourceName), 2, 0)
             .Cell(_pages.TabRule, 3, 0)
             .Cell(ResourceScreenLayout.Pane(_pages.Root), 4, 0)
             .Cell(StraumrSurfaces.HorizontalDivider(), 5, 0)
@@ -331,7 +339,7 @@ internal sealed class ResourceEditorView
     /// without taking a row or needing to be dismissed, and what it fades to is the same "saved"
     /// the marker would have read anyway.
     /// </remarks>
-    private Visual BuildBar(Visual summary)
+    private Visual BuildBar(Visual summary, string? sourceName)
     {
         Visual status = new HStack(
                 new TextBlock(() => _saving.Value ? "●" : _dirty.Value ? "●" : "○")
@@ -356,8 +364,21 @@ internal sealed class ResourceEditorView
             .Spacing(1);
 
         _flash = new SavedFlash(status, _justSaved);
+
+        // Beside the marker rather than left of the summary: both are facts about this editing
+        // session rather than about the resource, and the summary's half is the one that has to give
+        // way on a narrow terminal. It is labelled the way the workspace copy dialog labels the same
+        // thing, so a copy says `Source` wherever it is made.
+        Visual right = sourceName is null
+            ? _flash
+            : new HStack(
+                    new TextBlock("Source").Style(StraumrStyles.MutedText),
+                    new TextBlock(SecretFormatting.Display(sourceName)).Style(StraumrStyles.PrimaryText),
+                    _flash)
+                .Spacing(2);
+
         return StraumrSurfaces.Inset(
-            StraumrSurfaces.Bar(summary, _flash),
+            StraumrSurfaces.Bar(summary, right),
             ResourceScreenLayout.PaneInset);
     }
 

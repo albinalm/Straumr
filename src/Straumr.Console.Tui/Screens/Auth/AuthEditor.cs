@@ -85,7 +85,8 @@ internal sealed class AuthEditor
         char? openingGesture,
         Action save,
         Action closed,
-        Action<ExternalContentEdit> editContent)
+        Action<ExternalContentEdit> editContent,
+        string? sourceName = null)
     {
         _state = state;
         _opened = Fingerprint(state);
@@ -255,7 +256,8 @@ internal sealed class AuthEditor
             ],
             save,
             closed,
-            () => Fingerprint(_state) != _opened);
+            () => Fingerprint(_state) != _opened,
+            sourceName);
     }
 
     /// <summary>

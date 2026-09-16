@@ -5,6 +5,7 @@ using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Screens.Auth;
 using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Screens.Request;
+using Straumr.Console.Tui.Screens.Secret;
 using Straumr.Core.Extensions;
 using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal;
@@ -27,6 +28,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.TryAddSingleton<WorkspaceScreen>();
         services.TryAddSingleton<RequestScreen>();
         services.TryAddSingleton<AuthScreen>();
+        services.TryAddSingleton<SecretScreen>();
         services.TryAddSingleton<StraumrTuiApp>();
     }
 

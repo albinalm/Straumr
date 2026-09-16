@@ -1,6 +1,7 @@
 using Straumr.Console.Tui.Screens.Auth;
 using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Screens.Request;
+using Straumr.Console.Tui.Screens.Secret;
 using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal;
@@ -31,6 +32,7 @@ public sealed class StraumrTuiApp
     private readonly Stack<TuiScreen> _returnScreens = new();
     private DateTimeOffset _messageExpiry;
     private bool _initialized;
+    private bool _workspaceContextLoaded;
     private bool _transientOpened;
     private TerminalApp? _app;
     private TuiExternalAction? _pendingExternalAction;
@@ -47,9 +49,10 @@ public sealed class StraumrTuiApp
         WorkspaceScreen workspaceScreen,
         RequestScreen requestScreen,
         AuthScreen authScreen,
+        SecretScreen secretScreen,
         IStraumrOptionsService optionsService)
     {
-        _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen }
+        _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen, secretScreen }
             .ToDictionary(screen => screen.Kind);
         TuiScreen initialScreen = optionsService.Options.CurrentWorkspace is null
             ? TuiScreen.Workspaces
@@ -62,7 +65,7 @@ public sealed class StraumrTuiApp
             screen.ExternalActionRequested += RequestExternalAction;
             screen.TransientScreenOpened += () => _transientOpened = true;
             screen.TransientScreenClosed += ReturnFromTransientScreen;
-            screen.Root.IsVisible = ReferenceEquals(screen, _screen);
+            SetOnShow(screen, ReferenceEquals(screen, _screen));
         }
         SetCommands();
 
@@ -153,6 +156,58 @@ public sealed class StraumrTuiApp
             _focusAfterNavigation = false;
             app.Focus(_screen.FocusTarget);
         }
+
+        RestoreStrayFocus(app);
+    }
+
+    /// <summary>
+    /// Shows or hides a screen, and with it the claim its main region makes on stray focus.
+    /// </summary>
+    /// <remarks>
+    /// Both are assigned outright rather than bound. <c>AutoFocus</c> was a binding over
+    /// <see cref="FocusScope.IsReachable"/> on each screen's list, which answers the right question
+    /// only while the list is in the tree: every reload swaps it out for the loading message, and a
+    /// binding evaluated on a detached visual walks no ancestors, so it answers <see langword="true"/>
+    /// and registers nothing that could ever invalidate it again. A hidden screen's list then stayed
+    /// a standing claim on every stray focus in the app — which is how deleting a secret left the
+    /// reader on Secrets with the Workspaces list focused, no region titled and Workspaces' keys in
+    /// the footer. Which screen is on show is the shell's own fact and needs no binding to track it.
+    /// </remarks>
+    private static void SetOnShow(ITuiScreen screen, bool onShow)
+    {
+        screen.Root.IsVisible = onShow;
+        screen.FocusTarget.AutoFocus = onShow;
+    }
+
+    /// <summary>
+    /// Holds the invariant that focus belongs to the screen the reader is looking at, unless a modal
+    /// or the command prompt has taken it.
+    /// </summary>
+    /// <remarks>
+    /// Focus is lost whenever what holds it leaves the tree, and an operation run from a dialog
+    /// loses it twice: once when the dialog closes, and again when the reload that follows detaches
+    /// the list behind it. Left to <c>AutoFocus</c> alone there is a window with no claimant at all,
+    /// and focus that lands on a visual which is then stranded is never re-homed, because the
+    /// framework only re-homes focus it has seen go null. Rather than have every screen re-focus
+    /// itself after every operation — which each delete, save and refresh would have to remember —
+    /// the shell restores it once, here, for all of them.
+    /// </remarks>
+    private void RestoreStrayFocus(TerminalApp app)
+    {
+        // A detached focus target is a screen still loading; it is focusable again on the pass its
+        // list comes back, and this runs on every pass.
+        if (_prompt.IsOpen || IsModalOpen || _screen.FocusTarget.App != app)
+            return;
+
+        for (Visual? node = app.FocusedElement; node is not null; node = node.Parent)
+            if (ReferenceEquals(node, _screen.Root))
+                return;
+
+        // Asked last because it walks the whole tree, and only a pass on which focus is already
+        // astray pays for it. It is still owed: a dialog shown this pass holds no focus yet, so the
+        // focus chain cannot see it, and taking focus to the screen behind it would strand it.
+        if (!IsModalShown(app))
+            app.Focus(_screen.FocusTarget);
     }
 
     private async Task NavigatePendingAsync(CancellationToken cancellationToken)
@@ -175,9 +230,9 @@ public sealed class StraumrTuiApp
 
         if (_screen.Kind != pending.Screen)
         {
-            _screen.Root.IsVisible = false;
+            SetOnShow(_screen, false);
             _screen = _screens[pending.Screen];
-            _screen.Root.IsVisible = true;
+            SetOnShow(_screen, true);
             _currentScreen.Value = pending.Screen;
             _message.Value = TuiCommandResult.None;
             SetCommands();
@@ -207,6 +262,7 @@ public sealed class StraumrTuiApp
         _commands.Add(NavigationCommand(TuiScreen.Requests, "request", "rq"));
         _commands.Add(NavigationCommand(TuiScreen.Workspaces, "workspace", "ws"));
         _commands.Add(NavigationCommand(TuiScreen.Auths, "auth", "au"));
+        _commands.Add(NavigationCommand(TuiScreen.Secrets, "secret", "sc"));
         foreach (TuiCommand command in _screen.PromptCommands)
             _commands.Add(command);
     }
@@ -245,17 +301,16 @@ public sealed class StraumrTuiApp
 
     private async Task SetActiveWorkspaceAsync(string? name, CancellationToken cancellationToken)
     {
-        if (_activeWorkspaceName.Value == name)
+        if (_workspaceContextLoaded && _activeWorkspaceName.Value == name)
             return;
 
+        _workspaceContextLoaded = true;
         _activeWorkspaceName.Value = name;
-        if (name is null)
-            return;
 
         // Completion is synchronous while the prompt is open. Whenever the shared workspace
         // context changes, preload every hidden screen so its namespace commands can complete
-        // against current data before the user visits it. This scales with added screens and also
-        // prepares request-name completion after activating a workspace from Workspaces.
+        // against current data before the user visits it. Prime on startup even without an active
+        // workspace: global secrets are still available, and their names must complete there too.
         foreach (ITuiScreen screen in _screens.Values.Where(screen => !ReferenceEquals(screen, _screen)))
             await screen.LoadAsync(cancellationToken);
     }
