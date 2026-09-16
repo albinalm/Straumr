@@ -104,27 +104,30 @@ internal static class ResourceScreenLayout
         bool Editing() => filter.Root.HasFocusWithin;
         bool Stacked() => splits.HasStack && detailPanel.HasFocusWithin && !Editing();
 
-        layout.AddCommand(ResizeCommand("Left", 'H', () => Horizontal().Move(-1), () => !Editing()));
-        layout.AddCommand(ResizeCommand("Right", 'L', () => Horizontal().Move(1), () => !Editing(),
-            CommandPresentation.CommandBar));
+        layout.AddCommand(ResizeCommand("Left", 'H', () => Horizontal().Move(-1), () => !Editing(),
+            CommandPresentation.CommandBar, $"{StraumrStyles.KeyMarkup("Ctrl+L")} Resize panes"));
+        layout.AddCommand(ResizeCommand("Right", 'L', () => Horizontal().Move(1), () => !Editing()));
         layout.AddCommand(ResizeCommand("Up", 'K', () => splits.Stack.Move(-1), Stacked));
         layout.AddCommand(ResizeCommand("Down", 'J', () => splits.Stack.Move(1), Stacked));
     }
 
     /// <remarks>
-    /// One of the four is presented and the rest are silent: the footer is a single row already
-    /// carrying the screen's own actions, and four hints for one family of keys would crowd them out.
+    /// One hint carries the pair that is always available: its keycap is <c>Ctrl+H</c> and its label
+    /// names <c>Ctrl+L</c>, so the row says the panes shrink as well as grow without spending a
+    /// second hint on it. The stacked pair stays silent — the footer is a single row already carrying
+    /// the screen's own actions, and it only moves a divider the detail panel may not have.
     /// </remarks>
     private static Command ResizeCommand(
         string direction,
         char key,
         Action execute,
         Func<bool> available,
-        CommandPresentation presentation = CommandPresentation.None) =>
+        CommandPresentation presentation = CommandPresentation.None,
+        string label = "Resize panes") =>
         new()
         {
             Id = $"ResourceScreen.Resize{direction}",
-            LabelMarkup = "Resize panes",
+            LabelMarkup = label,
             Gesture = new KeyGesture((char)(key & 0x1f), TerminalModifiers.Ctrl),
             Importance = CommandImportance.Tertiary,
             Presentation = presentation,

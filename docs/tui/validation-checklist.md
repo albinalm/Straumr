@@ -28,6 +28,8 @@ subset for the milestone in hand, and tick items here in the same change.
       `Secrets` title carries the focus chip and the footer shows Secrets' keys, not Workspaces'
       `Use`/`Import`/`Export`. Repeat on Requests, Auths and Workspaces, and after a `:refresh`
       and a save, including deleting the last row.
+- [ ] Terminal-check that the footer reads `Ctrl+H Ctrl+L Resize panes` on every resource screen and
+      that both keys move the divider the focused panel sits against.
 - [ ] Terminal-check S1 focus, scrolling, narrow/short resizing, divider persistence and filtering.
 - [ ] Terminal-check create/edit/copy, mask/reveal/remask, repeated `Ctrl+S`, and unsaved cancellation.
 - [ ] Terminal-check delete confirmation/cancel with dependents and partial reference coverage.
@@ -73,7 +75,7 @@ subset for the milestone in hand, and tick items here in the same change.
       `Shift+Tab` with focus following the page, and offers `s Send again` when it is not
       sending: verified on a running in-memory app, which also showed the bar and footer
       returning to `IN FLIGHT` and `Escape Cancel` on a re-send, and the footer reading
-      `b`, `y`, `Escape Back`, `s Send again`, `Tab /t Next tab` at 120 columns, with both
+      `b`, `y`, `Escape Back`, `s Send again`, `Tab t Next tab` at 120 columns, with both
       `Tab` and `/t` in the key colour and only the label grey (checked against the emitted
       colour codes, since a `CommandBar` renders nothing without a running app).
 - [x] Full-screen response reads as a screen: header, three-row bar, titles on the rule,
@@ -318,7 +320,7 @@ For each Workspaces milestone, run the smallest applicable subset:
       `No saved response. Press s to send the request.` on Body
 - [ ] verify `Enter` on a request opens the editor exactly as `e` does, including a broken request
       opening as JSON, that `e` still works though it has no hint of its own, and that the footer
-      reads one `Enter /e Edit` with both `Enter` and `/e` in the key colour and only `Edit` grey
+      reads one `Enter e Edit` with both `Enter` and `e` in the key colour and only `Edit` grey
 
 - [ ] verify the Auths screen's four regions at 120x30 and on a short terminal: Configuration,
       Credential, Secrets and Used by all present with their rules meeting at `┬` and `┼`, `Tab`
@@ -340,7 +342,7 @@ For each Workspaces milestone, run the smallest applicable subset:
       pointing at an auth that is gone
 - [ ] verify a broken auth: one whose JSON does not parse stays on the list as a red row named after
       its file, is refused for Copy and Fetch, opens as text on `e`, and saves back for repair
-- [ ] verify the Extract page's help: on a Custom auth's Extract page the footer reads `h /F1 Help`
+- [ ] verify the Extract page's help: on a Custom auth's Extract page the footer reads `h F1 Help`
       with both keys in the key colour, `h` opens the dialog while the Source dropdown has focus,
       and `F1` opens it from inside the Expression, Apply to and Template boxes — where `h` should
       type an `h` instead, which is the behaviour, not a bug. Then confirm the hint is absent on the

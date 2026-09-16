@@ -397,11 +397,12 @@ internal sealed class StraumrStyleSet
         Style.None.WithForeground(Green).WithBackground(background);
 
     /// <summary>
-    /// Text in the command bar's key colour, for a hint that has to name a second key its one
-    /// keycap cannot show. The bar parses a label as markup, so this is the one place a colour is
-    /// written into text rather than taken from a style; it still comes from the palette.
+    /// Text in the command bar's key colour and weight, for a hint that has to name a second key its
+    /// one keycap cannot show. The bar parses a label as markup, so this is the one place a colour is
+    /// written into text rather than taken from a style; it still comes from the palette. The bold
+    /// is what the bar draws its own keycaps with, so the two keys of one hint read as one pair.
     /// </summary>
-    public string KeyMarkup(string text) => $"[{MarkupToken(Accent)}]{text}[/]";
+    public string KeyMarkup(string text) => $"[{MarkupToken(Accent)}][bold]{text}[/][/]";
 
     /// <summary>
     /// Names a colour in the markup parser's own vocabulary, by kind.

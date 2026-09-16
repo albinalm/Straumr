@@ -3,6 +3,17 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: The pane-resize hint names both keys. The footer advertised `Ctrl+L Resize panes` and
+  nothing else, so the row read as a key that only grows a pane — the developer's report. All four
+  Vim-direction keys were already bound; only one was presented. The hint now carries `Ctrl+H` as its
+  keycap and `Ctrl+L` in its label, the same two-keys-one-label shape the tab hint uses, so the row
+  says the divider moves both ways. The stacked pair stays silent. A key named in a label is bold
+  now as well as coloured — the bar draws its own keycaps bold, and the pair read as two different
+  things side by side; every other alternate key matches its keycap with it. The slash those keys
+  carried is gone with it — `Enter e Edit`, `Tab t Next tab`, `h F1 Help` — because a hint that now
+  styles its second key the way the bar styles the first does not also need a separator to say the
+  key is a key, and two hint shapes for one idea is not a design language.
+
 - 2026-09-16: Stored resources are JSONC, and comments in them survive. Workspace manifests,
   requests, auths and secrets now accept `//` and `/* */` comments and trailing commas, and the
   files carry `.jsonc` so an editor knows it. Keeping a comment is the whole point and was the hard

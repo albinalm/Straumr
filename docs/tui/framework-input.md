@@ -79,8 +79,8 @@ framework behavior.
   gesture is not rendered at all — measured, it simply vanishes from the row. A hint that
   has to name a second key therefore carries it in the label, which is parsed as ANSI
   markup (`[#RRGGBB]…[/]`, `[bold]`, `[/]` closing the last tag). `StraumrStyles.KeyMarkup`
-  paints such a key in the bar's own key colour, so `Tab /t Next tab` reads as two keys and
-  one label. The keycap's padding still separates them by a space; it belongs to every hint
+  paints such a key in the bar's own key colour and bold, which is what the bar draws a keycap
+  with, so `Tab t Next tab` reads as two keys and one label rather than as a key and a word. The keycap's padding still separates them by a space; it belongs to every hint
   in the app through `CommandBarStyle`, not to this one.
 
 ## Focus and modality

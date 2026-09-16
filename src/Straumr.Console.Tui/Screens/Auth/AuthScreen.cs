@@ -128,7 +128,7 @@ public sealed class AuthScreen : ITuiScreen
                     .Wrap(true).Trimming(TextTrimming.EndEllipsis)),
             // One hint for one action under two keys, as on Requests: the bar renders one keycap per
             // hint, so `e` rides in the label painted in the bar's own key colour.
-            activateLabel: $"{StraumrStyles.KeyMarkup("/e")} Edit");
+            activateLabel: $"{StraumrStyles.KeyMarkup("e")} Edit");
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => AuthEdit();
         _filter = new ResourceFilter("filter auths", ApplyFilter, () => _list);

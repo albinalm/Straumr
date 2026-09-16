@@ -158,7 +158,7 @@ carries the focus chip while the pane owns focus, a title is a clickable chip th
 focus to the page it selects rather than keeping it, and `Tab` and `Shift+Tab` step
 between them — nothing else on that rule can be stepped to, so `Tab` keeps meaning "move
 the chip along the rule" (`t` still works, and the hint names both keys, the second one
-painted in the bar's key colour through `StraumrStyles.KeyMarkup`, because a bar renders
+painted in the bar's key colour and weight through `StraumrStyles.KeyMarkup`, because a bar renders
 one gesture per hint and nothing at all for a gestureless one). Only the selected page is
 visible, and visibility is set outright rather than bound, because focus is revoked from a
 visual that is invisible during the focus pass. Such a pane also builds its

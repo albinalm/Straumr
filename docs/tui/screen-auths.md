@@ -53,7 +53,7 @@ implements, what evidence exists, and where to resume.
   but not from the three text boxes, which is where a reader wondering about the syntax is
   standing. `Ctrl+H` is not the pairing, because a terminal sends it as the C0 byte for Backspace
   and it would delete a character rather than explain one. One hint carries both keys, as
-  `Enter /e Edit` does on the Requests list. The commands sit on the Extract page's own root, so
+  `Enter e Edit` does on the Requests list. The commands sit on the Extract page's own root, so
   they are offered there and on no other page.
 - The help describes `StraumrAuthService`'s three extractors and is written against them: the JSON
   path is a dotted walk with bare numbers indexing arrays and is deliberately not JSONPath, so the
@@ -122,7 +122,7 @@ implements, what evidence exists, and where to resume.
   actually renders.
 - No input harness was built, by standing request. What needs the developer's terminal, in
   rough order of how likely it is to be wrong: `h` opening the help from the Source dropdown and
-  `F1` opening it from inside the Expression box, with one hint reading `h /F1 Help`; the four regions at 120x30 and on a short
+  `F1` opening it from inside the Expression box, with one hint reading `h F1 Help`; the four regions at 120x30 and on a short
   terminal, `Tab` reaching all four and the chip landing on each; `f` against a real token
   endpoint, its pulse animating and `Escape` cancelling it; the editor's pages appearing and
   disappearing as the type changes, and `Ctrl+T` skipping the ones that do not apply; the

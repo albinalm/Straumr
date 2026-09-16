@@ -55,7 +55,7 @@ internal sealed class PagedPane
 
         if (tabCyclesPages)
         {
-            Root.AddCommand(CycleCommand("NextTab", $"{StraumrStyles.KeyMarkup("/t")} Next tab",
+            Root.AddCommand(CycleCommand("NextTab", $"{StraumrStyles.KeyMarkup("t")} Next tab",
                 new KeyGesture(TerminalKey.Tab), CommandPresentation.CommandBar, 1));
             Root.AddCommand(CycleCommand("PreviousTab", "Previous tab",
                 new KeyGesture(TerminalKey.Tab, TerminalModifiers.Shift), CommandPresentation.None, -1));

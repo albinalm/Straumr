@@ -46,9 +46,9 @@ implements, what evidence exists, and where to resume.
 - `Enter` on a row opens the editor, the same as `e`, down to a broken request opening as JSON.
   Activating a row does what the row is for; it does not move focus into the read-only preview,
   which `Tab` reaches anyway and which is beside the list rather than behind it. The two keys
-  share one hint, `Enter /e Edit`, with both keys in the bar's key colour: the bar renders one
+  share one hint, `Enter e Edit`, with both keys in the bar's key colour: the bar renders one
   keycap per hint from the gesture, so `e` rides in the label and its own command is
-  unpresented. It is the `Tab /t Next tab` pattern.
+  unpresented. It is the `Tab t Next tab` pattern.
 - The request summary shows method, URL including configured parameters, and shortened
   request ID.
 - Authentication displays the configured source, type, injected header and token/cache

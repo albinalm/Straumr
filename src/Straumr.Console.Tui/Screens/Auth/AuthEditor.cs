@@ -233,7 +233,7 @@ internal sealed class AuthEditor
         // page stays attached whether or not it is the one on show.
         extractPage.Root.AddCommand(HelpCommand(
             "Auth.ExtractHelp", new KeyGesture(HelpLetter),
-            $"{StraumrStyles.KeyMarkup("/F1")} Help", CommandPresentation.CommandBar));
+            $"{StraumrStyles.KeyMarkup("F1")} Help", CommandPresentation.CommandBar));
         extractPage.Root.AddCommand(HelpCommand(
             "Auth.ExtractHelp.Function", new KeyGesture(TerminalKey.F1),
             "Help", CommandPresentation.None));

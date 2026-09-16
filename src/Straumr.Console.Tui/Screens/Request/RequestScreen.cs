@@ -108,7 +108,7 @@ public sealed class RequestScreen : ITuiScreen
             // One hint for one action under two keys. The bar renders one keycap per hint, from
             // the gesture, so `e` rides in the label painted in the bar's own key colour — the
             // same way `Tab /t Next tab` carries the letter that also changes page.
-            activateLabel: $"{StraumrStyles.KeyMarkup("/e")} Edit");
+            activateLabel: $"{StraumrStyles.KeyMarkup("e")} Edit");
         _list.BindSelectedIndex(_selectedIndex);
         // Enter opens the editor, exactly as `e` does. Activating a row means doing the thing the
         // row is for, and moving focus into a read-only preview is not that: `Tab` already reaches

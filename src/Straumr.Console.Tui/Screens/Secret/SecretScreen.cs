@@ -60,7 +60,7 @@ public sealed class SecretScreen : ITuiScreen
                 new TextBlock(() => _emptyMessage.Value)
                     .Style(() => _loadError.Value ? StraumrStyles.RedText : StraumrStyles.MutedText)
                     .Wrap(true).Trimming(TextTrimming.EndEllipsis)),
-            activateLabel: $"{StraumrStyles.KeyMarkup("/e")} Edit");
+            activateLabel: $"{StraumrStyles.KeyMarkup("e")} Edit");
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => EditSelected();
         _filter = new ResourceFilter("filter secrets", ApplyFilter, () => _list);
