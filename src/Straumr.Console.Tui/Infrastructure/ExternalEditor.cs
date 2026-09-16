@@ -9,8 +9,38 @@ public sealed class ExternalEditor
 {
     public bool IsConfigured => !string.IsNullOrWhiteSpace(EditorCommand);
 
+    /// <summary>
+    /// Opens the file where the editor would have opened it anyway. <c>AtStart</c> is line 1,
+    /// column 1, which <c>HasPosition</c> reports as no position, so no editor-specific caret
+    /// argument is passed — which is what a file the reader is returning to should do.
+    /// </summary>
+    private static readonly EditorDocument NoPosition = EditorDocument.AtStart(string.Empty);
+
     public Task<string> EditJsonAsync(string json, CancellationToken cancellationToken) =>
         EditAsync(EditorDocument.AtStart(json), ".json", cancellationToken);
+
+    /// <summary>
+    /// Opens a file that already exists on disk, in place, and returns what the editor saved.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="EditAsync"/> this hands over the real path rather than a temporary copy.
+    /// It is for a file the reader owns and knows where to find — their settings — so their editor's
+    /// history, marks and per-path configuration apply to it, and so a file they already had open
+    /// is the same file. Nothing is written back: the editor saved it, and a save that this then
+    /// overwrote would be the edit being thrown away.
+    /// </remarks>
+    public async Task<string> EditFileAsync(string path, CancellationToken cancellationToken)
+    {
+        string editor = EditorCommand ??
+                        throw new ExternalEditorException("no default editor is configured");
+
+        using Process process = Start(editor, path, NoPosition);
+        await process.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode != 0)
+            throw new ExternalEditorException($"editor exited with code {process.ExitCode}");
+
+        return await File.ReadAllTextAsync(path, cancellationToken);
+    }
 
     /// <summary>
     /// Opens <paramref name="document"/> in the configured editor and returns what it saved.

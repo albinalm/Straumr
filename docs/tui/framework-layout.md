@@ -27,9 +27,26 @@ visuals, layout or palette. For keys, focus, commands and hosting see
 
 ## Palette and styling
 
-- Use the approved Straumr palette through shared control styles, declared as hex
-  literals in `Visuals/Shared/StraumrStyles.cs`. Avoid ad hoc colors outside the
-  shared palette except for semantic mappings such as HTTP methods.
+- Read every colour through `Visuals/Shared/StraumrStyles.cs`, which is a facade over
+  the style set the current theme built. Avoid ad hoc colors outside it except for
+  semantic mappings such as HTTP methods. Do not write a hex literal into a visual:
+  the palette is data now, and a literal is a colour no theme can change.
+- A style is a value, not a binding. Every framework style is handed to a control when
+  it is constructed and captured there, so changing the palette cannot repaint a
+  retained tree — the host rebuilds the shell instead. That is why `StraumrStyles.Apply`
+  is only ever called before a visual tree is built.
+- A new colour means a new role in `StraumrPalette`, and a new role means every theme
+  file in existence is missing a key. Add one only when the design contract gains a
+  distinction the existing eighteen cannot express, and give it to both built-ins.
+- `TextStyle.Invert` is how a surface is painted in the terminal's own colours without naming
+  them. It composes: the attribute survives under text drawn over the band, and it fills a
+  `TextBlockStyle`'s padding. Anything landing on an inverted surface must leave its foreground
+  at the terminal's default, or the swap produces two tones instead of one.
+- A colour may be `Color.Default` or a `Color.Basic16` palette slot, not only RGB.
+  Two framework calls do not accept those: `Brush.Solid` throws on `Color.Default`,
+  and `Color.ToHexString()` answers a palette colour with a hardcoded xterm
+  approximation and the default with black. Neither may be used on a palette colour
+  without handling the kind — see `StraumrStyleSet.SolidOrNull` and `MarkupToken`.
 - Style every framework control that paints chrome of its own. `ScrollViewer`
   defaults to a bright grey track and thumb that does not belong to the palette.
 
@@ -38,12 +55,24 @@ visuals, layout or palette. For keys, focus, commands and hosting see
 - `Visual.Invalidate` is obsolete. Drive every visual state change through a
   `[Bindable]` partial property so the app invalidates on its own; the framework's
   own `TreeView.HoveredIndex` is the pattern for pointer state.
-- `Theme` is immutable and can only be built by `Theme.FromScheme` from a
-  16-color `ColorScheme`, so the palette is applied per control style rather than
-  through the theme. Unstyled filler cells therefore keep the framework theme's
-  near-white foreground; it is invisible on blank cells, but a Straumr
-  `ColorScheme` is the eventual fix and any new visible text must be styled
-  explicitly until then.
+- `Theme` is set through the keyed style system, not through a property: there is no
+  `Theme` setter on `Visual`, `TerminalApp` or `TerminalRunOptions`, but
+  `visual.SetStyle(Theme.Key, theme)` works and inherits down the tree. It is easy to
+  miss — the setter is the generic `SetStyle(StyleKey<T>, T)` — and missing it is why
+  the first terminal theme rendered as a solid dark rectangle.
+- The framework theme decides what every cell no Straumr style reaches is painted with,
+  the ground behind the whole app included. `Theme.Default`'s background is `#0f1d27`,
+  and it is painted whether or not anything asked for it. `Theme.Terminal`'s background
+  and foreground are **null**, which makes the renderer emit no colour for those cells
+  at all — that is the only way a transparent terminal stays transparent.
+- Straumr sets it on `app.Root` in `StraumrTuiApp.AttachTo`, not on its own tree, because
+  dialogs and popups are hosted in layers that are siblings of the shell rather than
+  children of it. `StraumrStyles.FrameworkTheme` chooses: `Theme.Terminal` for a palette
+  whose background is the terminal's own, `Theme.Default` otherwise, where the window
+  group covers the surface anyway.
+- A per-control style still carries the palette. Setting the framework theme fixes the
+  ground and the filler cells; it does not restyle the controls, so any new visible text
+  must still be styled explicitly.
 - Introduce a custom `Visual` only after confirming that composition, templating,
   or styling cannot express the requirement.
 - Version 3.9.0 has no vertical rule control, so the column divider is painted

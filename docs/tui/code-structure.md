@@ -29,6 +29,7 @@ Straumr.Console.Tui/
     TuiConsoleIntegration.cs      host: DI registration, Terminal.RunAsync, exit code
   Infrastructure/
     StraumrTuiApp.cs              shell, retained screen navigation, commands, footer
+    ThemeSelection.cs             applies the settings' theme; says when a rebuild is owed
     ITuiScreen.cs                 shared contract implemented by every screen
     SecretReferences.cs           which secrets a resource refers to, and which of them exist
     TuiScreen.cs                  screen enum; its name renders in the header
@@ -79,7 +80,8 @@ Straumr.Console.Tui/
       StraumrDialog.cs            shared modal construction and cancellation
       StraumrHeader.cs            the screen header bar
       StraumrSurfaces.cs          dividers, bars, insets
-      StraumrStyles.cs            the palette and every control style
+      StraumrStyles.cs            the facade every colour is read through
+      StraumrStyleSet.cs          every control style, built from one palette
       SecretList.cs               the Secrets region: references and their availability
       InFlightPulse.cs            the pulse and ticking duration a bar shows while waiting
     Shared/Editor/
@@ -90,11 +92,18 @@ Straumr.Console.Tui/
       ContentField.cs             a body, shown here and written in $EDITOR
       BodyFields.cs               the fields a body page is made of, for anything that has one
       ResourceEditorView.cs       the full-screen editor a resource is created and changed on
+    Theming/
+      StraumrPalette.cs           the eighteen colour roles a theme names
+      StraumrTheme.cs             a resolved theme: its name, palette and warnings
+      StraumrThemes.cs            resolving a built-in name or a theme file
+      BuiltInThemes.cs            `terminal` and `deepocean`, as the TOML they ship as
+      ThemeDocument.cs            a theme file as it is written
+      ThemeColor.cs               `#rrggbb`, `default`, a palette name, `indexed:N`
   Formatting/
     TimestampFormatting.cs        relative and absolute timestamps
     CountFormatting.cs            pluralised counts
     PathFormatting.cs             home-shortened paths
-    HttpMethodFormatting.cs       semantic colour per HTTP method
+    HttpMethodFormatting.cs       looks each method's colour up in the theme
     AuthFormatting.cs             how an auth reads: its type, its meta line, its status
     ContentFormatting.cs          bounded JSON/text previews, headers and response sizes
 ```
@@ -109,8 +118,12 @@ screens.
 
 `TuiConsoleIntegration` should remain a thin host:
 
-- register the TUI's dependencies
-- construct the application root
+- register the TUI's dependencies — the shell and its screens scoped, everything they
+  depend on singleton, so a theme change can replace one scope and keep the rest
+- read the settings and apply the theme before the shell is constructed, because every
+  visual is handed its colours as it is built
+- construct the application root, and rebuild it in a fresh scope when the shell reports
+  that the palette changed, resuming on the screen the reader was on
 - run it with `Terminal.RunAsync` and hand the loop's `TerminalApp` to the root, which
   needs it for global commands and focus
 - translate application exit into the process exit code

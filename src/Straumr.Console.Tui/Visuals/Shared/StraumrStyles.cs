@@ -1,339 +1,115 @@
-using System.Text;
+using Straumr.Console.Tui.Visuals.Theming;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
-using XenoAtom.Terminal.UI.Geometry;
-using XenoAtom.Terminal.UI.Input;
 using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
 
+/// <summary>
+/// The palette and every control style, as the rest of the app reads them.
+/// </summary>
+/// <remarks>
+/// A facade over the <see cref="StraumrStyleSet"/> the current theme built, so the hundreds of
+/// references to <c>StraumrStyles.MutedText</c> across the screens say nothing about which theme is
+/// applied and need not change when one is. A style read here is a value, not a binding: whatever
+/// read it holds that colour until it is rebuilt, which is why <see cref="Apply"/> is only ever
+/// called before a visual tree is constructed.
+/// </remarks>
 internal static class StraumrStyles
 {
-    /// <summary>
-    /// The mockup's surfaces sit near hue 202, which reads as teal in a terminal; this ramp rotates to
-    /// hue 222 for a deeper blue and carries higher chroma on the foregrounds so the screen reads as
-    /// live rather than flat. Every pairing below stays at or above 4.5:1 for text and 3:1 for glyphs.
-    /// </summary>
-    /// <remarks>
-    /// The whole app shares one background. Regions are told apart by dividers alone, so there is no
-    /// panel tint to step against, and the dark ground is what makes the accents carry.
-    /// </remarks>
-    public static readonly Color Background = Hex(0x090D15);
+    private static StraumrStyleSet _set = Build(StraumrThemes.DefaultReference);
 
-    /// <summary>The only surface raised above the background, used by an identifier badge.</summary>
-    public static readonly Color Raised = Hex(0x1B2438);
-    public static readonly Color Selection = Hex(0x21418F);
-    public static readonly Color SelectionInactive = Hex(0x2C3D68);
-    public static readonly Color Hover = Hex(0x151E33);
-    public static readonly Color Border = Hex(0x364670);
-
-    /// <summary>Scroll bar chrome, kept below the dividers so it never competes with content.</summary>
-    public static readonly Color ScrollTrack = Hex(0x1E2740);
-    public static readonly Color ScrollThumb = Hex(0x43567E);
-    public static readonly Color Text = Hex(0xD9E0F0);
-    public static readonly Color TextBright = Hex(0xEFF4FF);
-    public static readonly Color Muted = Hex(0x8FA0C4);
-    public static readonly Color MutedBright = Hex(0xB9C6E0);
-    public static readonly Color Accent = Hex(0x3B9EFF);
-    public static readonly Color Amber = Hex(0xFFC857);
-    public static readonly Color Green = Hex(0x3DDC97);
-    public static readonly Color Red = Hex(0xFF6B7A);
+    /// <summary>The theme in force, for the footer and for a screen that wants to name it.</summary>
+    public static string ThemeName { get; private set; } = "Terminal";
 
     /// <summary>
-    /// Red for text sitting on the selection band, where the base red falls under 4.5:1. It plays the
-    /// part <see cref="TextBright"/> plays for a selected row's ordinary text.
+    /// Replaces the palette every style is built from. It must be called before the visual tree is
+    /// built; controls already holding a style keep the colours they were given.
     /// </summary>
-    public static readonly Color RedBright = Hex(0xFF9BA6);
-    public static readonly Color Purple = Hex(0xB79CFF);
-
-    public static readonly TextBlockStyle PrimaryText =
-        TextBlockStyle.Default with
-        {
-            Foreground = Text,
-            TextStyle = TextStyle.None
-        };
-
-    public static readonly TextBlockStyle MutedText =
-        PrimaryText with { Foreground = Muted };
-
-    public static readonly TextBlockStyle BrightText =
-        PrimaryText with { Foreground = TextBright };
-
-    public static readonly TextBlockStyle MutedBrightText =
-        PrimaryText with { Foreground = MutedBright };
-
-    public static readonly TextBlockStyle AccentText =
-        PrimaryText with { Foreground = Accent };
-
-    public static readonly TextBlockStyle GreenText =
-        PrimaryText with { Foreground = Green };
-
-    /// <summary>
-    /// The only filled accent surface on screen: it marks the region that owns focus. It carries the
-    /// selection band's blue so a blue fill means "here" on a rule exactly as it does on a row.
-    /// </summary>
-    public static readonly TextBlockStyle FocusChip =
-        PrimaryText with
-        {
-            Foreground = TextBright,
-            Background = Selection,
-            FillBackground = true
-        };
-
-    /// <summary>A raised badge for a quantity or a technical identifier.</summary>
-    public static readonly TextBlockStyle TokenChip =
-        PrimaryText with
-        {
-            Foreground = MutedBright,
-            Background = Raised,
-            FillBackground = true
-        };
-
-    public static readonly TextBlockStyle AmberText =
-        PrimaryText with { Foreground = Amber };
-
-    public static readonly TextBlockStyle RedText =
-        PrimaryText with { Foreground = Red };
-
-    public static readonly TextBlockStyle RedBrightText =
-        PrimaryText with { Foreground = RedBright };
-
-    public static readonly TextBlockStyle PurpleText =
-        PrimaryText with { Foreground = Purple };
-
-
-    /// <summary>
-    /// Text in the command bar's key colour, for a hint that has to name a second key its one
-    /// keycap cannot show. The bar parses a label as markup, so this is the one place a colour is
-    /// written into text rather than taken from a style; it still comes from the palette.
-    /// </summary>
-    public static string KeyMarkup(string text) => $"[{Accent.ToHexString()}]{text}[/]";
-
-    public static readonly CommandBarStyle CommandBar =
-        CommandBarStyle.Default with
-        {
-            Background = Background,
-            Foreground = Muted,
-            KeyForeground = Accent,
-            KeyBackground = Background,
-            Separator = "   ",
-            KeycapOpen = new Rune(' '),
-            KeycapClose = new Rune(' ')
-        };
-
-    public static readonly TabControlStyle PreviewTabs = TabControlStyle.NoBorder with
+    public static void Apply(StraumrTheme theme)
     {
-        TabPadding = new Thickness(1, 0, 1, 0),
-        StripStyle = Style.None.WithForeground(Muted).WithBackground(Background),
-        TabStyle = Style.None.WithForeground(Muted).WithBackground(Background),
-        TabHoveredStyle = Style.None.WithForeground(TextBright).WithBackground(Hover),
-        TabPressedStyle = Style.None.WithForeground(Accent).WithBackground(Hover),
-        TabSelectedStyle = Style.None.WithForeground(Accent).WithBackground(Background),
-        BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
-        FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
-        OverflowButtonStyle = Style.None.WithForeground(Muted).WithBackground(Background),
-        OverflowButtonHoveredStyle = Style.None.WithForeground(Accent).WithBackground(Hover),
-        OverflowButtonPressedStyle = Style.None.WithForeground(Accent).WithBackground(Hover)
-    };
-
-    public static readonly Style CommandPromptText = Style.None.WithForeground(TextBright);
-
-    public static readonly PromptEditorStyle CommandPrompt = PromptEditorStyle.Default with
-    {
-        Padding = new Thickness(0),
-        Background = Background,
-        PromptSidebarBackground = Background,
-        PromptForeground = Accent,
-        GhostForeground = Muted,
-        PlaceholderForeground = Muted,
-        Selection = Selection,
-        ShowPromptSeparator = false
-    };
-
-    public static readonly ButtonStyle Button = ButtonStyle.Default with
-    {
-        Padding = new Thickness(1, 0, 1, 0),
-        ShowBorder = false,
-        Normal = Style.None.WithForeground(MutedBright).WithBackground(Background),
-        Hovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
-        Pressed = Style.None.WithForeground(TextBright).WithBackground(SelectionInactive),
-        Focused = Style.None.WithForeground(TextBright).WithBackground(Selection),
-        Disabled = Style.None.WithForeground(Muted).WithBackground(Background)
-    };
-
-    public static readonly ButtonStyle DangerButton = Button with
-    {
-        Normal = Style.None.WithForeground(Red).WithBackground(Background),
-        Hovered = Style.None.WithForeground(Red).WithBackground(Hover)
-    };
-
-    public static readonly ButtonStyle PrimaryButton = Button with
-    {
-        Normal = Style.None.WithForeground(Accent).WithBackground(Background),
-        Hovered = Style.None.WithForeground(Accent).WithBackground(Hover)
-    };
-
-    /// <summary>
-    /// A page title notched into the rule above a pane, for a region whose pages are its whole
-    /// content. It is a button rather than a label so a page stays one click away where the
-    /// framework's own tab strip would have been, and it never takes focus of its own: the pane
-    /// below it owns the focus the chip reports.
-    /// </summary>
-    public static readonly ButtonStyle RuleTab = Button with
-    {
-        Normal = Style.None.WithForeground(Muted).WithBackground(Background),
-        Hovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
-        Pressed = Style.None.WithForeground(Accent).WithBackground(Hover),
-        Focused = Style.None.WithForeground(Muted).WithBackground(Background),
-        Disabled = Style.None.WithForeground(Muted).WithBackground(Background)
-    };
-
-    /// <summary>The selected page while its pane is not the region that owns focus.</summary>
-    public static readonly ButtonStyle RuleTabSelected = RuleTab with
-    {
-        Normal = Style.None.WithForeground(Accent).WithBackground(Background),
-        Focused = Style.None.WithForeground(Accent).WithBackground(Background)
-    };
-
-    /// <summary>
-    /// The selected page while its pane owns focus. It carries the focus chip's fill, so a
-    /// full-screen view answers "where am I" with the one filled blue title every screen has.
-    /// </summary>
-    public static readonly ButtonStyle RuleTabFocused = RuleTab with
-    {
-        Normal = Style.None.WithForeground(TextBright).WithBackground(Selection),
-        Hovered = Style.None.WithForeground(TextBright).WithBackground(Selection),
-        Focused = Style.None.WithForeground(TextBright).WithBackground(Selection)
-    };
-
-    public static readonly TextBoxStyle TextBox = TextBoxStyle.Default with
-    {
-        Padding = new Thickness(1, 0, 1, 0),
-        Border = Border,
-        FocusBorder = Accent,
-        Selection = Selection,
-        Background = Background,
-        ForegroundBrush = Brush.Solid(TextBright),
-        BackgroundBrush = Brush.Solid(Background),
-        Placeholder = Muted
-    };
-
-    /// <summary>
-    /// The dropdown a form picks a fixed value with. It borrows the text field's frame so a row of
-    /// mixed fields reads as one column of inputs rather than as two kinds of control.
-    /// </summary>
-    public static readonly SelectStyle Select = SelectStyle.Default with
-    {
-        Padding = new Thickness(1, 0, 1, 0),
-        NormalStyle = Style.None.WithForeground(TextBright).WithBackground(Background),
-        HoverStyle = Style.None.WithForeground(TextBright).WithBackground(Hover),
-        FocusedStyle = Style.None.WithForeground(TextBright).WithBackground(Selection),
-        DisabledStyle = Style.None.WithForeground(Muted).WithBackground(Background),
-        PopupTemplateFactory = OpenedSelect
-    };
-
-    /// <summary>
-    /// The list a dropdown opens. The control builds it itself and hands it here to be framed,
-    /// which is the only point at which it can be reached at all; the frame around it is still the
-    /// framework's own, and the keys it is given are <see cref="SelectKeys"/>'s.
-    /// </summary>
-    private static Visual? OpenedSelect(Visual popup)
-    {
-        if (popup is ListBox<string> list)
-            SelectKeys.AttachTo(list);
-
-        return SelectStyle.Default.PopupTemplateFactory?.Invoke(popup) ?? popup;
+        _set = new StraumrStyleSet(theme.Palette);
+        ThemeName = theme.Name;
     }
 
-    public static readonly SwitchStyle Switch = SwitchStyle.Round with
+    private static StraumrStyleSet Build(string reference)
     {
-        TrackOff = Style.None.WithForeground(Muted).WithBackground(Background),
-        TrackOn = Style.None.WithForeground(Accent).WithBackground(Background),
-        TrackFocused = Style.None.WithForeground(TextBright).WithBackground(Selection),
-        TrackHovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
-        ThumbOff = Style.None.WithForeground(MutedBright).WithBackground(Background),
-        ThumbOn = Style.None.WithForeground(Green).WithBackground(Background)
-    };
-
-    public static readonly ValidationStyle Validation = ValidationStyle.Default with
-    {
-        Padding = new Thickness(0),
-        ErrorGlyph = null,
-        ErrorStyle = Style.None.WithForeground(Red).WithBackground(Background)
-    };
-
-    public static readonly DialogStyle Dialog = DialogStyle.Single with
-    {
-        SurfaceStyle = Style.None.WithBackground(Background),
-        BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
-        FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
-        LabelBackgroundStyle = Style.None.WithBackground(Background)
-    };
-
-    public static readonly GroupStyle WindowGroup = GroupStyle.Single with
-    {
-        BorderCellStyle = Style.None.WithForeground(Border),
-        FocusedBorderCellStyle = Style.None.WithForeground(Border),
-        LabelBackgroundStyle = Style.None.WithBackground(Background),
-        BackgroundStyle = Style.None.WithBackground(Background)
-    };
-
-    public static readonly SpinnerStyle RequestPulse = new("RequestPulse", TimeSpan.FromMilliseconds(80),
-        ["●···········", "·●··········", "··●·········", "···●········", "····●·······", "·····●······",
-         "······●·····", "·······●····", "········●···", "·········●··", "··········●·", "···········●",
-         "··········●·", "·········●··", "········●···", "·······●····", "······●·····", "·····●······",
-         "····●·······", "···●········", "··●·········", "·●··········"])
-    { Foreground = Accent };
-
-    public static readonly ScrollViewerStyle ListScrollViewer = ScrollViewerStyle.Default with
-    {
-        TrackStyle = Style.None.WithForeground(ScrollTrack).WithBackground(Background),
-        ThumbStyle = Style.None.WithForeground(ScrollThumb).WithBackground(Background)
-    };
-
-    public static readonly RuleStyle Divider = RuleStyle.Default with
-    {
-        LineStyle = Style.None.WithForeground(Border)
-    };
-
-    public static readonly Style DividerCell = Style.None.WithForeground(Border);
-
-    public static readonly Style ScrollTrackCell = Style.None
-        .WithForeground(ScrollTrack)
-        .WithBackground(Background);
-
-    public static readonly Style ScrollThumbCell = Style.None
-        .WithForeground(ScrollThumb)
-        .WithBackground(Background);
-
-    public static readonly Style SelectedItem = Style.None
-        .WithForeground(TextBright)
-        .WithBackground(Selection);
-
-    public static readonly Style SelectedItemInactive = Style.None
-        .WithForeground(Text)
-        .WithBackground(SelectionInactive);
-
-    public static readonly Style SelectionMarker = Style.None
-        .WithForeground(Accent)
-        .WithBackground(Selection);
-
-    public static readonly Style SelectionMarkerInactive = Style.None
-        .WithForeground(Muted)
-        .WithBackground(SelectionInactive);
+        StraumrThemes.TryResolve(reference, string.Empty, out StraumrTheme theme, out _);
+        return new StraumrStyleSet(theme.Palette);
+    }
 
     /// <summary>
-    /// The dot marking the current resource in a list, painted over whatever band its row already
-    /// carries so it survives selection and hover instead of competing with them. Green is reserved
-    /// for the active workspace, so this is the only place it appears outside the header.
+    /// The framework theme the shell must be hosted under for this palette. Applied to the running
+    /// app's root, not to Straumr's own tree, because it governs the cells no Straumr style reaches.
     /// </summary>
-    public static Style CurrentMarker(Color background) =>
-        Style.None.WithForeground(Green).WithBackground(background);
+    public static Theme FrameworkTheme => _set.FrameworkTheme;
 
-    public static readonly Style HoveredItem = Style.None
-        .WithForeground(Text)
-        .WithBackground(Hover);
+    public static Color Background => _set.Background;
+    public static Color Raised => _set.Raised;
+    public static Color Selection => _set.Selection;
+    public static Color SelectionInactive => _set.SelectionInactive;
+    public static Color Hover => _set.Hover;
+    public static Color Border => _set.Border;
+    public static Color ScrollTrack => _set.ScrollTrack;
+    public static Color ScrollThumb => _set.ScrollThumb;
+    public static Color Text => _set.Text;
+    public static Color TextBright => _set.TextBright;
+    public static Color Muted => _set.Muted;
+    public static Color MutedBright => _set.MutedBright;
+    public static Color Accent => _set.Accent;
+    public static Color Amber => _set.Amber;
+    public static Color Green => _set.Green;
+    public static Color Red => _set.Red;
+    public static Color RedBright => _set.RedBright;
+    public static Color Purple => _set.Purple;
+    public static Color Brand => _set.Brand;
 
-    private static Color Hex(uint rgb) =>
-        Color.Rgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+    public static TextBlockStyle PrimaryText => _set.PrimaryText;
+    public static TextBlockStyle MutedText => _set.MutedText;
+    public static TextBlockStyle BrightText => _set.BrightText;
+    public static TextBlockStyle MutedBrightText => _set.MutedBrightText;
+    public static TextBlockStyle AccentText => _set.AccentText;
+    public static TextBlockStyle GreenText => _set.GreenText;
+    public static TextBlockStyle FocusChip => _set.FocusChip;
+    public static TextBlockStyle TokenChip => _set.TokenChip;
+    public static TextBlockStyle AmberText => _set.AmberText;
+    public static TextBlockStyle RedText => _set.RedText;
+    public static TextBlockStyle RedBrightText => _set.RedBrightText;
+    public static TextBlockStyle PurpleText => _set.PurpleText;
+    public static TextBlockStyle BrandText => _set.BrandText;
+
+    public static TextBlockStyle MethodText(string method) => _set.MethodText(method);
+
+    public static CommandBarStyle CommandBar => _set.CommandBar;
+    public static TabControlStyle PreviewTabs => _set.PreviewTabs;
+    public static Style CommandPromptText => _set.CommandPromptText;
+    public static PromptEditorStyle CommandPrompt => _set.CommandPrompt;
+    public static ButtonStyle Button => _set.Button;
+    public static ButtonStyle DangerButton => _set.DangerButton;
+    public static ButtonStyle PrimaryButton => _set.PrimaryButton;
+    public static ButtonStyle RuleTab => _set.RuleTab;
+    public static ButtonStyle RuleTabSelected => _set.RuleTabSelected;
+    public static ButtonStyle RuleTabFocused => _set.RuleTabFocused;
+    public static TextBoxStyle TextBox => _set.TextBox;
+    public static SelectStyle Select => _set.Select;
+    public static SwitchStyle Switch => _set.Switch;
+    public static ValidationStyle Validation => _set.Validation;
+    public static DialogStyle Dialog => _set.Dialog;
+    public static GroupStyle WindowGroup => _set.WindowGroup;
+    public static SpinnerStyle RequestPulse => _set.RequestPulse;
+    public static ScrollViewerStyle ListScrollViewer => _set.ListScrollViewer;
+    public static RuleStyle Divider => _set.Divider;
+
+    public static Style DividerCell => _set.DividerCell;
+    public static Style ScrollTrackCell => _set.ScrollTrackCell;
+    public static Style ScrollThumbCell => _set.ScrollThumbCell;
+    public static Style SelectedItem => _set.SelectedItem;
+    public static Style SelectedItemInactive => _set.SelectedItemInactive;
+    public static Style SelectionMarker => _set.SelectionMarker;
+    public static Style SelectionMarkerInactive => _set.SelectionMarkerInactive;
+    public static Style HoveredItem => _set.HoveredItem;
+
+    public static Style CurrentMarker(Color background) => _set.CurrentMarker(background);
+
+    public static string KeyMarkup(string text) => _set.KeyMarkup(text);
 }

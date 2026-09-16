@@ -2,7 +2,9 @@ using Straumr.Console.Tui.Screens.Auth;
 using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Screens.Request;
 using Straumr.Console.Tui.Screens.Secret;
+using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Visuals.Shared;
+using Straumr.Console.Tui.Visuals.Theming;
 using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -10,6 +12,7 @@ using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
 using XenoAtom.Terminal.UI.Input;
+using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Infrastructure;
 
@@ -37,6 +40,7 @@ public sealed class StraumrTuiApp
     private TerminalApp? _app;
     private TuiExternalAction? _pendingExternalAction;
     private Visual? _focusOnAttach;
+    private TuiCommandResult? _pendingAnnouncement;
 
     /// <summary>
     /// Cancelled by the Ctrl+C global command. Linked into every <see cref="UpdateAsync"/> call so
@@ -45,13 +49,23 @@ public sealed class StraumrTuiApp
     /// </summary>
     private readonly CancellationTokenSource _interruptSource = new();
 
+    private readonly IStraumrSettingsService _settingsService;
+    private readonly ThemeSelection _themeSelection;
+    private readonly ExternalEditor _editor;
+
     public StraumrTuiApp(
         WorkspaceScreen workspaceScreen,
         RequestScreen requestScreen,
         AuthScreen authScreen,
         SecretScreen secretScreen,
-        IStraumrOptionsService optionsService)
+        IStraumrOptionsService optionsService,
+        IStraumrSettingsService settingsService,
+        ThemeSelection themeSelection,
+        ExternalEditor editor)
     {
+        _settingsService = settingsService;
+        _themeSelection = themeSelection;
+        _editor = editor;
         _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen, secretScreen }
             .ToDictionary(screen => screen.Kind);
         TuiScreen initialScreen = optionsService.Options.CurrentWorkspace is null
@@ -124,6 +138,38 @@ public sealed class StraumrTuiApp
 
     public bool HasPendingExternalAction => _pendingExternalAction is not null;
 
+    /// <summary>
+    /// Set when the applied palette changed under this shell. The host answers it by building a new
+    /// shell, because a control cannot be handed a style twice: every visual in the tree was given
+    /// its colours when it was constructed. See <see cref="Visuals.Shared.StraumrStyleSet"/>.
+    /// </summary>
+    public bool RestartRequested { get; private set; }
+
+    public TuiScreen CurrentScreen => _currentScreen.Value;
+
+    /// <summary>What the footer is currently saying, for a rebuild to carry across.</summary>
+    public TuiCommandResult Message => _message.Value;
+
+    /// <summary>
+    /// Opens a rebuilt shell on the screen its predecessor was on and still saying what it was
+    /// saying, so changing the theme neither moves the reader nor swallows the answer to what they
+    /// just typed. The command that caused the rebuild reported into a footer that is being thrown
+    /// away, which is the one thing a rebuild cannot simply inherit.
+    /// </summary>
+    /// <remarks>
+    /// The screen is queued as a navigation so it takes the path every other screen change takes,
+    /// including the load and the focus that follow it.
+    /// </remarks>
+    public void ResumeOn(TuiScreen screen, TuiCommandResult message)
+    {
+        if (screen != _screen.Kind)
+            _pendingNavigation = new PendingNavigation(screen, string.Empty, false, null);
+
+        // Held rather than said now: a queued navigation clears the footer when it runs, which is
+        // after this returns.
+        _pendingAnnouncement = message.Message is null ? null : message;
+    }
+
     public async Task UpdateAsync(TerminalApp app, CancellationToken cancellationToken)
     {
         AttachTo(app);
@@ -149,6 +195,7 @@ public sealed class StraumrTuiApp
         if (ExitRequested)
             return;
         await NavigatePendingAsync(token);
+        AnnouncePending();
         await _screen.UpdateAsync(token);
         await SetActiveWorkspaceAsync(_screen.ActiveWorkspaceName, token);
         if (_focusAfterNavigation && !IsModalOpen && !IsModalShown(app) && _screen.FocusTarget.App == app)
@@ -263,8 +310,114 @@ public sealed class StraumrTuiApp
         _commands.Add(NavigationCommand(TuiScreen.Workspaces, "workspace", "ws"));
         _commands.Add(NavigationCommand(TuiScreen.Auths, "auth", "au"));
         _commands.Add(NavigationCommand(TuiScreen.Secrets, "secret", "sc"));
+        _commands.Add(new TuiCommand("settings", (argument, _) => OpenSettings(argument))
+        {
+            Aliases = ["set"],
+            AllowPrefixMatch = false
+        });
+        _commands.Add(new TuiCommand("theme", ThemeAsync)
+        {
+            AllowPrefixMatch = false,
+            CompleteArgument = CompleteTheme
+        });
         foreach (TuiCommand command in _screen.PromptCommands)
             _commands.Add(command);
+    }
+
+    /// <summary>
+    /// Hands the settings file to the reader's own editor, and reads it back when they are done.
+    /// </summary>
+    /// <remarks>
+    /// The file itself is opened rather than a copy, because it is the reader's file: it lives at a
+    /// path they know, they may have it open already, and their editor's own history for it should
+    /// be the history of the file and not of a succession of temporary ones. Nothing is written back
+    /// here — the editor already saved it — so a file left unparsable is simply reported and the
+    /// previous settings stand until it is fixed.
+    /// </remarks>
+    private Task<TuiCommandResult> OpenSettings(string argument)
+    {
+        if (argument.Length > 0)
+            return Task.FromResult(TuiCommandResult.Failed("usage: settings"));
+        if (!_editor.IsConfigured)
+            return Task.FromResult(TuiCommandResult.Failed("settings: no default editor is configured"));
+
+        RequestExternalAction(new TuiExternalAction(EditSettingsAsync, _screen.FocusTarget));
+        return Task.FromResult(TuiCommandResult.None);
+    }
+
+    private async Task<TuiCommandResult> EditSettingsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            string path = await _settingsService.EnsureFileAsync(cancellationToken);
+            await _editor.EditFileAsync(path, cancellationToken);
+        }
+        catch (ExternalEditorException exception)
+        {
+            return TuiCommandResult.Failed($"settings: {exception.Message}");
+        }
+
+        await _settingsService.LoadAsync(cancellationToken);
+        bool changed = _themeSelection.Apply();
+        RestartRequested = changed;
+
+        if (_themeSelection.Message is { } problem)
+            return TuiCommandResult.Failed(problem);
+
+        return changed
+            ? TuiCommandResult.Ok($"theme {StraumrStyles.ThemeName}")
+            : TuiCommandResult.None;
+    }
+
+    /// <summary>
+    /// Reports the theme in force, and writes a built-in out as a file to start a custom one from.
+    /// Choosing a theme is the settings file's job; this is only what that job needs alongside it.
+    /// </summary>
+    private Task<TuiCommandResult> ThemeAsync(string argument, CancellationToken cancellationToken)
+    {
+        string text = argument.Trim();
+        if (text.Length == 0)
+        {
+            return Task.FromResult(TuiCommandResult.Ok(
+                $"theme {StraumrStyles.ThemeName}; change it with :settings"));
+        }
+
+        string[] parts = text.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (parts is not ["export", var name, ..])
+            return Task.FromResult(TuiCommandResult.Failed("usage: theme, or theme export <name> [path]"));
+
+        if (StraumrThemes.BuiltInSource(name) is not { } source)
+        {
+            return Task.FromResult(TuiCommandResult.Failed(
+                $"no built-in theme {name}; there is {string.Join(", ", StraumrThemes.BuiltInNames)}"));
+        }
+
+        string target = parts.Length > 2
+            ? parts[2]
+            : Path.Combine(_settingsService.SettingsDirectory, "themes", $"{name.ToLowerInvariant()}.toml");
+
+        try
+        {
+            if (File.Exists(target))
+                return Task.FromResult(TuiCommandResult.Failed($"{PathFormatting.Display(target)} already exists"));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.WriteAllText(target, source);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(TuiCommandResult.Failed($"export failed: {exception.Message}"));
+        }
+
+        return Task.FromResult(TuiCommandResult.Ok($"wrote {PathFormatting.Display(target)}"));
+    }
+
+    private static TuiCommandCompletion CompleteTheme(string argument, int caret)
+    {
+        string text = argument[..Math.Clamp(caret, 0, argument.Length)];
+        return text.StartsWith("export ", StringComparison.Ordinal)
+            ? TuiCommandSet.Match(StraumrThemes.BuiltInNames, text["export ".Length..], "export ".Length)
+            : TuiCommandSet.Match(["export"], text, 0);
     }
 
     private TuiCommand NavigationCommand(TuiScreen screen, string name, string shortAlias) =>
@@ -380,6 +533,12 @@ public sealed class StraumrTuiApp
             return;
 
         _app = app;
+
+        // On the running app's own root rather than on Straumr's tree, because it governs every
+        // cell no Straumr style reaches — the ground behind the shell, and the layers dialogs and
+        // popups are hosted in, which are siblings of this shell rather than children of it.
+        app.Root.SetStyle(Theme.Key, StraumrStyles.FrameworkTheme);
+
         app.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId);
         foreach (Command command in BuildOpenPromptCommands())
             app.AddGlobalCommand(command);
@@ -483,6 +642,19 @@ public sealed class StraumrTuiApp
     {
         while (_submitted.Count > 0)
             Notify(await _commands.ExecuteAsync(_submitted.Dequeue(), cancellationToken));
+    }
+
+    /// <summary>
+    /// Says what the shell this one replaced was saying, once the navigation that would have
+    /// cleared it has run.
+    /// </summary>
+    private void AnnouncePending()
+    {
+        if (_pendingAnnouncement is not { } announcement)
+            return;
+
+        _pendingAnnouncement = null;
+        Notify(announcement);
     }
 
     private void Notify(TuiCommandResult result)

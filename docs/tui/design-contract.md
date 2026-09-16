@@ -15,9 +15,12 @@ Shared screen shell:
 - The whole app shares one background. Regions are told apart by dividers alone.
   Panel tints were tried twice and removed both times: a wide step made a boundary
   read as clipped, and a narrow one was not worth the seam it still produced.
-- The background is dark enough that the accents carry it. A badge is the only
-  surface allowed to sit above it, and scroll bar chrome is kept below the
-  dividers so it never competes with content.
+- The background is whatever the theme says, and the accents are chosen to carry it.
+  A badge is the only surface allowed to sit above it, and scroll bar chrome is kept
+  below the dividers so it never competes with content. The contract below describes
+  relationships between roles — brighter, fainter, inert, vivid — not particular
+  colours; a theme supplies the colours and is judged on whether it keeps the
+  relationships.
 - A single line of text only reads as vertically centred in an odd-height band, so
   a bar is one row or three, never two. Choose by what closes the bar: the screen
   header is bounded by the window frame above and a plain rule below, so one row is
@@ -46,7 +49,17 @@ Shared screen shell:
   Nothing is hard-clipped mid-word.
 - Colour carries meaning rather than decoration. A populated count is amber and an
   empty one is inert; the selected row lifts to the bright foregrounds; the active
-  workspace is the only green on screen.
+  workspace is the only green on screen. The names are roles, not instructions: a
+  theme answers "amber" with whatever its scheme uses for a value that is present.
+- Structure and meaning are separate decisions. Rules, bands, keys and markers may be
+  colourless — the terminal theme's are — but anything that tells the reader something
+  keeps its colour, and the methods keep five distinct ones. A theme drawing those from
+  the terminal's own palette slots imposes nothing, because the slots are the reader's.
+- The default theme paints with the terminal's own colours, so the shell must read
+  on a scheme it cannot see. Two consequences bind the contract. Nothing may assume
+  the background is dark, and the three row levels are only guaranteed where a theme
+  names its own background — with the terminal's sixteen there is no tint of an
+  unknown ground, so the pointer-hover band is the level that goes.
 - The shell responds to focus and pointer. A list owns three row levels, distinct
   from each other: hover is the faintest, a selected row in an unfocused list is
   stronger and drops its accent marker to a neutral one, and a selected row in a

@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IStraumrFileService, StraumrFileService>();
         services.TryAddSingleton<IStraumrOptionsService, StraumrOptionsService>();
+        services.TryAddSingleton<IStraumrSettingsService, StraumrSettingsService>();
         services.TryAddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.TryAddSingleton<IStraumrAuthService, StraumrAuthService>();
         services.TryAddSingleton<IStraumrRequestService, StraumrRequestService>();

@@ -44,8 +44,14 @@ These are the rules most often broken; the routed documents give the reasons.
   code, not a pattern.
 - No I/O in render, measure, arrange or per-frame update paths. Load on entry; refresh
   only after an operation or an explicit `:refresh`.
-- Colours come from `Visuals/Shared/StraumrStyles.cs`. No ad hoc colours outside it
-  except semantic mappings such as HTTP methods.
+- Colours come from `Visuals/Shared/StraumrStyles.cs`, which the current theme fills.
+  No ad hoc colours and no hex literals outside `Visuals/Theming/` — HTTP methods are no
+  longer an exception, they are a `[methods]` table in the theme. A colour may be a
+  terminal default or a palette slot, not only RGB, so never call `Brush.Solid` or
+  `ToHexString` on one unchecked.
+- A role carries one meaning. Before reusing an existing role for something new, check it
+  is the same thing: `accent`, the wordmark and POST shared a colour until a theme wanted
+  colourless chrome, and two of the three disappeared.
 - `Visual.Invalidate` is obsolete — drive state through `[Bindable]` partial properties.
 - Verify a framework API against the pinned 3.9.0 package, not against upstream `main`.
 - Ask the developer for a quick terminal check rather than building an input harness

@@ -29,7 +29,7 @@ internal static class StraumrHeader
         Func<string?> activeWorkspaceName)
     {
         var identity = new HStack(
-                new TextBlock("{straumr}").Style(StraumrStyles.AccentText),
+                new TextBlock("{straumr}").Style(StraumrStyles.BrandText),
                 new TextBlock("·").Style(StraumrStyles.MutedText),
                 new TextBlock(screenName).Style(StraumrStyles.PrimaryText))
             .Spacing(1);

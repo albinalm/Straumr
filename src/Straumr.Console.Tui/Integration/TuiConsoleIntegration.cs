@@ -21,15 +21,23 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public bool IsDefault => true;
     public bool OnlyRunOnEntrypoint => true;
 
+    /// <remarks>
+    /// The shell and its screens are scoped rather than singletons. A theme change rebuilds them —
+    /// framework styles are values handed to a control at construction, so a palette cannot be
+    /// swapped under a tree that already exists — and a scope is what lets the old shell and every
+    /// screen under it be dropped together for a new set. Everything they depend on stays a
+    /// singleton, so the workspace registry, the options and the applied theme outlive the rebuild.
+    /// </remarks>
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddStraumrCore();
         services.TryAddSingleton<ExternalEditor>();
-        services.TryAddSingleton<WorkspaceScreen>();
-        services.TryAddSingleton<RequestScreen>();
-        services.TryAddSingleton<AuthScreen>();
-        services.TryAddSingleton<SecretScreen>();
-        services.TryAddSingleton<StraumrTuiApp>();
+        services.TryAddSingleton<ThemeSelection>();
+        services.TryAddScoped<WorkspaceScreen>();
+        services.TryAddScoped<RequestScreen>();
+        services.TryAddScoped<AuthScreen>();
+        services.TryAddScoped<SecretScreen>();
+        services.TryAddScoped<StraumrTuiApp>();
     }
 
     public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args,
@@ -49,7 +57,27 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             // The initial screen needs options before construction. Its normal load repeats this
             // inside the shell, where the existing screen-level error state can explain a failure.
         }
-        var app = serviceProvider.GetRequiredService<StraumrTuiApp>();
+        // Settings are read and the theme applied before the shell is constructed, because every
+        // visual in it is handed its colours as it is built.
+        IStraumrSettingsService settingsService = serviceProvider.GetRequiredService<IStraumrSettingsService>();
+        try
+        {
+            await settingsService.LoadAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // A settings file that cannot be read leaves the defaults standing, which is a themed
+            // app rather than no app.
+        }
+
+        serviceProvider.GetRequiredService<ThemeSelection>().Apply();
+
+        IServiceScope scope = serviceProvider.CreateScope();
+        var app = scope.ServiceProvider.GetRequiredService<StraumrTuiApp>();
 
         try
         {
@@ -72,6 +100,18 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
 
                 await terminal.StopInputAsync(cancellationToken);
                 await app.RunPendingExternalActionAsync(cancellationToken);
+
+                if (!app.RestartRequested)
+                    continue;
+
+                // The palette changed under this shell. Build a new one on the screen the reader
+                // was on, and let the old scope take the whole retained tree with it.
+                TuiScreen resumeOn = app.CurrentScreen;
+                TuiCommandResult said = app.Message;
+                scope.Dispose();
+                scope = serviceProvider.CreateScope();
+                app = scope.ServiceProvider.GetRequiredService<StraumrTuiApp>();
+                app.ResumeOn(resumeOn, said);
             }
         }
         catch (OperationCanceledException) when (app.ExitRequested)
@@ -79,6 +119,10 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             // Ctrl+C cancels StraumrTuiApp's own interrupt source to unwind an in-flight load or
             // operation immediately rather than waiting for it to finish on its own, which surfaces
             // here as a cancellation of whatever Core call was in flight when it was pressed.
+        }
+        finally
+        {
+            scope.Dispose();
         }
 
         return 0;

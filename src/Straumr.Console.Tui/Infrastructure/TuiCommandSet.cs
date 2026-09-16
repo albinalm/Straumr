@@ -78,7 +78,12 @@ public sealed class TuiCommandSet
                 command.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static TuiCommandCompletion Match(IEnumerable<string> values, string typed, int start)
+    /// <summary>
+    /// The candidates for a partially typed value, quoted as the prompt expects them. Public so a
+    /// command completing a fixed list of its own words offers them the way every other list is
+    /// offered, rather than reimplementing the prefix and quoting rules beside it.
+    /// </summary>
+    public static TuiCommandCompletion Match(IEnumerable<string> values, string typed, int start)
     {
         string match = UnquotePartial(typed);
         string[] candidates = values

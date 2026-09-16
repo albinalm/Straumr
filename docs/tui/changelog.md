@@ -3,6 +3,55 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: Gave the identity mark and the HTTP methods colours of their own. `accent` had been
+  doing three jobs — the footer's key colour, the `{straumr}` wordmark and POST — so making it
+  colourless for the chrome took the other two with it and the default theme came out white. There
+  is now a `brand` role and a `[methods]` table, both optional and both falling back to exactly what
+  the app did before them, which is why DeepOcean declares neither and still renders identically.
+  The terminal theme declares both, in palette slots: green, blue, yellow, magenta and red for the
+  methods and cyan for the wordmark, so every colour is the reader's own rather than one chosen
+  here. The chrome stays colourless; the rule is now about what a colour is for rather than how
+  much of it there is.
+
+- 2026-09-16: Fixed the default theme painting a solid dark rectangle over a transparent terminal,
+  and took the hue out of its chrome. The palette was right and the ground was wrong: the framework
+  clears every cell it owns with its own theme background, `Theme.Default`'s is `#0f1d27`, and an
+  earlier reading of the framework recorded that the theme could not be set at all — it can, through
+  the generic `SetStyle(Theme.Key, theme)` rather than a property. `StraumrStyles.FrameworkTheme`
+  now chooses `Theme.Terminal`, whose background and foreground are null, for any palette whose
+  background is the terminal's own, and the shell applies it to `app.Root` so the layers holding
+  dialogs and popups get it too. Verified by rendering the shell's ground: the terminal theme emits
+  no background sequence on any cell. The terminal palette also lost its cyan accent and its blue
+  bands. Chrome — keys, markers, rules, badges — is now the terminal's own foreground dimmed or
+  brightened, the unfocused selection band is gone along with hover for the same reason (no tint of
+  an unknown ground can be named), and the selected row of a focused list is now marked by
+  inverting the terminal's own two colours rather than by any colour this repository chose —
+  `selection = "invert"`, a theme value that is not a colour. That was the developer's question:
+  the scheme cannot be read, but it can be swapped. The hues that remain are the ones that carry
+  meaning. DeepOcean is
+  unaffected: it keeps `Theme.Default` and its styles still dump identical to the pre-theming
+  palette.
+
+- 2026-09-16: Replaced the hardcoded blue palette with themes read from files, and made the
+  terminal's own colours the default. `StraumrStyles` keeps the surface every screen already reads
+  — all ~250 references are unchanged — but is now a facade over a `StraumrStyleSet` built from an
+  18-role `StraumrPalette`. Two themes ship in the binary as TOML text: `terminal`, which paints
+  with `Color.Default` and the terminal's sixteen palette slots so the app inherits whatever scheme
+  the reader configured, and `deepocean`, which is the previous palette exactly. A reader names one
+  in `~/.straumr/settings.toml`, by built-in name or by a path to a theme file of their own; that
+  file is opened in `$EDITOR` with `:settings` and read back when they close it. `:theme` reports
+  what is applied and `:theme export <name>` writes a built-in out as a starting point. Changing
+  the palette rebuilds the shell — framework styles are values handed to a control when it is
+  built, so they cannot be swapped underneath one — which is why the shell and its screens became
+  scoped rather than singleton registrations; the reader comes back to the screen they were on.
+  Bad settings, an unresolvable theme, a missing or misspelled colour and an unparsable file all
+  report on the footer and leave the previous palette standing, because a typo in a hand-edited
+  dotfile must not be a refusal to start. A theme whose roles collide — accent equal to selection,
+  say — still applies, and says which cue it has made invisible. Proved by dumping all 59 members
+  of `StraumrStyles` before and after: `deepocean` is byte-identical to the old palette. Debug,
+  Release and CLI-only builds pass without warnings, and both projects are clean under the
+  trim/AOT analysers. Terminal acceptance of the two themes is pending.
+
 - 2026-09-16: A copy now says what it was copied from. Copying clears the name, and the reader had
   to leave the editor to go and read the original again. `ResourceEditorView` takes the source name
   and puts `Source <name>` on its bar beside the unsaved marker, so Requests, Auths and Secrets all

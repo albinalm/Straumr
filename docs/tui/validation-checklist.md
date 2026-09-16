@@ -348,3 +348,65 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify the help dialog itself: the three example columns line up, the regex examples show
       their square brackets, `j`/`k` scroll it on a terminal too short to hold it, `Escape` and the
       Close button both dismiss it, and closing returns focus to the field it was opened from
+
+## Theming
+
+Added 2026-09-16 with the theme selector. The palette is data now, so what a snapshot can
+prove is that the values are right; what it cannot prove is whether a scheme it has never
+seen reads well, which is the whole question for the default theme.
+
+- [x] `deepocean` is byte-identical to the palette that was hardcoded before it: all 59
+      public members of `StraumrStyles` dumped before and after the refactor, diff empty
+      but for the new `ThemeName`
+- [x] both built-in themes resolve, and neither reports a role collision
+- [x] an unknown theme name, a theme file that is absent, a theme file that is not TOML, a
+      missing colour, an unknown colour key and a bad colour value each report on the
+      footer and leave a usable palette standing
+- [x] the applied palette is compared rather than the name that produced it, so editing a
+      theme file in place rebuilds and re-saving it unchanged does not
+- [x] the colour value language: `#rrggbb`, `#rgb`, `default`, palette names with and
+      without `bright-`, `purple` as an alias for `magenta`, underscores and casing in
+      keys, `indexed:N`, a bare index, and the four malformed forms that are rejected
+- [x] the shipped settings template parses and names `terminal`
+- [x] Debug, Release and CLI-only builds pass without warnings; Core and the TUI are clean
+      under `IsAotCompatible`
+
+- [x] the `terminal` theme emits no background sequence on any cell it does not deliberately
+      band, so a transparent terminal stays transparent. Proved by rendering the shell's
+      ground and the chrome samples: every line comes back foreground-only
+- [ ] verify the `terminal` theme in the developer's own terminal: transparency intact, the
+      rules and muted second lines readable against their scheme, and the selected row of a
+      focused list clearly marked. This is the one thing no snapshot can answer
+- [ ] verify the same on a light terminal profile. The chrome is colourless and the band is an
+      inversion, so both should hold on either polarity — which is the claim to test
+- [ ] verify the inverted band fills the whole row, not just the part carrying text. The snapshot
+      dumper does not show styling on trailing blank cells, so this is the one part of the band
+      that could not be proved headlessly; a row whose highlight stops at the end of its name is
+      the failure to look for
+- [x] `brand` and `[methods]` are optional and fall back to the roles they replaced; a named
+      brand, a methods table, an unknown method key and a bad value in either are all handled
+- [x] both built-in themes re-resolve from disk after `:theme export`, so an exported file is a
+      working starting point rather than only a readable one
+- [ ] verify the methods read distinctly in the developer's scheme: five requests of different
+      methods in one list, told apart without reading the words
+- [ ] verify inversion on the other surfaces it now covers: the focus chip on a rule, a focused
+      button in a dialog, the focused dropdown, and the Switch track
+- [ ] verify `:settings` end to end: it opens `~/.straumr/settings.toml` in `$EDITOR`,
+      the file is the real one rather than a copy, and closing the editor applies what was
+      saved. Then confirm saving it unchanged does *not* flicker the shell
+- [ ] verify the rebuild: change `theme` from `terminal` to `deepocean` and back, and
+      confirm the reader lands on the screen they were on, with a region focused and its
+      title carrying the chip, the footer showing that screen's keys, and the workspace
+      still active. The rebuild drops and reconstructs every screen, so selection and
+      filter state resetting is expected; focus landing nowhere is not
+- [ ] verify `:theme` and `:theme export deepocean`: the report names the applied theme,
+      the export writes `~/.straumr/themes/deepocean.toml`, refuses to overwrite it the
+      second time, and the written file can be pointed at and applied unchanged
+- [x] a theme cannot be changed out from under a full-screen editor or a dialog: both are
+      modal, and the `:` prompt is already unavailable while a modal is up, so `:settings`
+      cannot be reached from one and a rebuild can never discard unsaved work
+- [ ] confirm that suppression in the terminal — open a request editor, press `:`, and see
+      that nothing opens — since it is what makes the rebuild safe
+- [ ] verify the AOT single-file publish once the local `vswhere` toolchain problem is
+      fixed. The managed compile, the analysers and the ILCompiler analysis all pass; only
+      the native link step is unproven, and it fails identically on a clean tree

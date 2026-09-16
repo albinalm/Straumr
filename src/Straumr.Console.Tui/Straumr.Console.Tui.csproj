@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="XenoAtom.Terminal.UI" Version="3.9.0" />
+        <PackageReference Include="Tomlyn" Version="2.10.1" />
     </ItemGroup>
 
     <ItemGroup>

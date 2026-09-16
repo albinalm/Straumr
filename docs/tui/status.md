@@ -7,6 +7,23 @@ Update it in the same change that completes or advances a milestone.
 ## Current Status
 
 - Phase: implementation
+- Theming landed on 2026-09-16, ahead of the beta. The hardcoded blue palette is now one
+  theme among others: `terminal` follows the reader's own terminal colours and is the
+  default, `deepocean` is the previous palette unchanged. A theme is named in
+  `~/.straumr/settings.toml`, by built-in name or by a path to a theme file; `:settings`
+  opens that file in `$EDITOR` and applies what it says on close, rebuilding the shell
+  when the palette actually changed. `:theme` reports the applied theme and
+  `:theme export <name>` writes a built-in out to start a custom one from. Proved
+  headlessly: `deepocean` is byte-identical to the old palette across all 59 members of
+  `StraumrStyles`, and the resolver's error, fallback, rebuild-detection and
+  role-collision paths are covered. Debug, Release and CLI-only builds pass without
+  warnings and both projects are clean under the trim/AOT analysers. **Needs a terminal
+  check**: how the `terminal` theme actually reads in the developer's scheme, whether
+  `:settings` round-trips through their editor, and whether the rebuild lands them back
+  where they were with focus intact. See the theming section of
+  [validation-checklist.md](./validation-checklist.md).
+- The settings file is deliberately minimal — the theme key and nothing else. Growing its
+  key surface is the next piece of work, not a gap in this one.
 - Active screen: S1, Secrets. Implemented on 2026-09-16; terminal acceptance is pending.
   A1 remains complete and accepted. See [screen-secrets.md](./screen-secrets.md).
 - The developer reports S1 works, but the reference scan warned about four unreadable
