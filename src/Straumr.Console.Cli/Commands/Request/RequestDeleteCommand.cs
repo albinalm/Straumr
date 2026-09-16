@@ -12,7 +12,7 @@ using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
 namespace Straumr.Console.Cli.Commands.Request;
 
 public class RequestDeleteCommand(
-    IStraumrOptionsService optionsService,
+    IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService)
     : AsyncCommand<RequestDeleteCommand.Settings>
@@ -20,7 +20,7 @@ public class RequestDeleteCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+        StraumrWorkspaceEntry? workspaceEntry = stateService.State.CurrentWorkspace;
 
         if (settings.Workspace is not null)
         {

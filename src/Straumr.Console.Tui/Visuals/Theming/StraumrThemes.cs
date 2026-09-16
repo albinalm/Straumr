@@ -41,7 +41,10 @@ public static class StraumrThemes
 
         if (Sources.TryGetValue(value, out string? builtIn))
         {
-            if (!TryParse(builtIn, out theme, out error))
+            StraumrPalette? under = value.Equals(BuiltInThemes.TerminalName, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : TerminalPalette;
+            if (!TryParse(builtIn, under, out theme, out error))
                 throw new InvalidOperationException($"the built-in theme '{value}' is malformed: {error}");
             return true;
         }
@@ -65,7 +68,7 @@ public static class StraumrThemes
             return false;
         }
 
-        if (!TryParse(text, out theme, out string? problem))
+        if (!TryParse(text, TerminalPalette, out theme, out string? problem))
         {
             error = $"theme '{value}': {problem}";
             return false;
@@ -87,7 +90,26 @@ public static class StraumrThemes
         return Path.IsPathRooted(path) ? path : Path.Combine(baseDirectory, path);
     }
 
-    private static bool TryParse(string text, out StraumrTheme theme, out string? error)
+    /// <summary>
+    /// The palette every other theme is measured against. Parsed from the terminal built-in, which
+    /// is the one file that has to name every role because there is nothing under it.
+    /// </summary>
+    private static StraumrPalette TerminalPalette => field ??= ParseRoot();
+
+    private static StraumrPalette ParseRoot()
+    {
+        if (!TryParse(BuiltInThemes.Terminal, null, out StraumrTheme theme, out string? error))
+            throw new InvalidOperationException($"the terminal theme is malformed: {error}");
+
+        return theme.Palette;
+    }
+
+    /// <param name="fallback">
+    /// What a role the file does not mention takes. <see langword="null"/> only for the terminal
+    /// theme itself, where every role is required instead.
+    /// </param>
+    private static bool TryParse(
+        string text, StraumrPalette? fallback, out StraumrTheme theme, out string? error)
     {
         theme = null!;
         error = null;
@@ -110,29 +132,36 @@ public static class StraumrThemes
 
         // `selection = "invert"` is not a colour, so it is taken out before the colours are read.
         // The role keeps a colour all the same: a text selection inside a field is drawn by us and
-        // has nothing to invert against, so it falls back to the raised surface.
-        bool inverts = colors.TryGetValue("selection", out string? band) &&
-                       band.Trim().Equals("invert", StringComparison.OrdinalIgnoreCase);
-        if (inverts)
+        // has nothing to invert against, so it falls back to the raised surface. A file that does
+        // not mention selection at all inherits whichever of the two the theme under it used.
+        bool mentioned = colors.TryGetValue("selection", out string? band);
+        bool inverts = mentioned
+            ? band!.Trim().Equals("invert", StringComparison.OrdinalIgnoreCase)
+            : fallback?.SelectionInverts ?? false;
+        if (mentioned && inverts)
             colors["selection"] = colors.GetValueOrDefault("raised", "default");
 
         List<string> missing = [];
         Dictionary<string, Color> resolved = new(StringComparer.Ordinal);
-        foreach (string role in Roles)
+        for (int index = 0; index < Roles.Length; index++)
         {
-            if (!colors.Remove(role, out string? written))
+            string role = Roles[index];
+            if (colors.Remove(role, out string? written))
             {
-                missing.Add(role);
+                if (!ThemeColor.TryParse(written, out Color color, out string? problem))
+                {
+                    error = $"{Display(role)} {problem}";
+                    return false;
+                }
+
+                resolved[role] = color;
                 continue;
             }
 
-            if (!ThemeColor.TryParse(written, out Color color, out string? problem))
-            {
-                error = $"{Display(role)} {problem}";
-                return false;
-            }
-
-            resolved[role] = color;
+            if (fallback is null)
+                missing.Add(role);
+            else
+                resolved[role] = Inherited[index](fallback);
         }
 
         if (missing.Count > 0)
@@ -141,22 +170,23 @@ public static class StraumrThemes
             return false;
         }
 
-        // Optional roles. They default to what the app used before they existed, so a theme file
-        // that predates them is complete rather than broken — which is the only kind of extension a
-        // format people keep in a dotfile repo can afford.
-        if (!TryOptional(colors, "brand", resolved["accent"], out Color brand, out error))
+        if (!TryOptional(colors, "brand", fallback?.Brand ?? resolved["accent"], out Color brand, out error))
             return false;
 
         Dictionary<string, string> methods = new(StringComparer.Ordinal);
         foreach ((string key, string value) in document.Methods)
             methods[Normalize(key)] = value;
 
-        Color[] methodColors = new Color[MethodRoles.Length];
+        MethodPalette inheritedMethods = fallback?.Methods ?? new MethodPalette(
+            resolved["green"], resolved["accent"], resolved["amber"],
+            resolved["purple"], resolved["red"], resolved["mutedbright"]);
         Color[] methodDefaults =
         [
-            resolved["green"], resolved["accent"], resolved["amber"],
-            resolved["purple"], resolved["red"], resolved["mutedbright"]
+            inheritedMethods.Get, inheritedMethods.Post, inheritedMethods.Put,
+            inheritedMethods.Patch, inheritedMethods.Delete, inheritedMethods.Other
         ];
+
+        Color[] methodColors = new Color[MethodRoles.Length];
         for (int index = 0; index < MethodRoles.Length; index++)
         {
             if (!TryOptional(methods, MethodRoles[index], methodDefaults[index], out methodColors[index], out error))
@@ -209,6 +239,15 @@ public static class StraumrThemes
         return true;
     }
 
+    /// <summary>Reads each role out of the theme a file is layered over, in <see cref="Roles"/> order.</summary>
+    private static readonly Func<StraumrPalette, Color>[] Inherited =
+    [
+        p => p.Background, p => p.Raised, p => p.Selection, p => p.SelectionInactive,
+        p => p.Hover, p => p.Border, p => p.ScrollTrack, p => p.ScrollThumb,
+        p => p.Text, p => p.TextBright, p => p.Muted, p => p.MutedBright,
+        p => p.Accent, p => p.Amber, p => p.Green, p => p.Red, p => p.RedBright, p => p.Purple
+    ];
+
     /// <summary>
     /// The pairs the shell paints one on top of the other. Equal colours there do not fail the
     /// theme, they only make a cue invisible — and an invisible cue is far harder to diagnose from
@@ -218,6 +257,17 @@ public static class StraumrThemes
     private static IReadOnlyList<string> Collisions(StraumrPalette palette)
     {
         List<string> warnings = [];
+
+        // The trap a theme that writes only its differences can fall into: fixing the ground while
+        // leaving the text inherited. `text` defers to the terminal, which may be dark or light, so
+        // a named background it was never measured against can swallow it whole. Naming one without
+        // the other is worth a word before the reader concludes the app is broken.
+        if (palette.Background.Kind != ColorKind.Default && palette.Text.Kind == ColorKind.Default)
+        {
+            warnings.Add("background names a colour but text is still the terminal's own, " +
+                         "which may not read on it");
+        }
+
         Check(palette.Muted, palette.Background, "muted", "background", "every second line");
         Check(palette.Muted, palette.Hover, "muted", "hover", "a hovered row's second line");
         if (!palette.SelectionInverts)
@@ -277,6 +327,10 @@ public static class StraumrThemes
     private static readonly string[] MethodRoles =
         ["get", "post", "put", "patch", "delete", "other"];
 
+    /// <summary>
+    /// Every colour role. Required of the terminal theme and optional of every other, which layers
+    /// over it. The order is <see cref="Inherited"/>'s and the two must be kept in step.
+    /// </summary>
     private static readonly string[] Roles =
     [
         "background", "raised", "selection", "selectioninactive", "hover", "border",

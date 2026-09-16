@@ -142,8 +142,8 @@ internal sealed class AutocompleteEngine(IServiceProvider services)
         string partial,
         CancellationToken cancellationToken)
     {
-        IStraumrOptionsService optionsService = services.GetRequiredService<IStraumrOptionsService>();
-        StraumrWorkspaceEntry? workspace = optionsService.Options.CurrentWorkspace;
+        IStraumrStateService stateService = services.GetRequiredService<IStraumrStateService>();
+        StraumrWorkspaceEntry? workspace = stateService.State.CurrentWorkspace;
         if (workspace is null)
         {
             return [];
@@ -167,8 +167,8 @@ internal sealed class AutocompleteEngine(IServiceProvider services)
         string partial,
         CancellationToken cancellationToken)
     {
-        IStraumrOptionsService optionsService = services.GetRequiredService<IStraumrOptionsService>();
-        StraumrWorkspaceEntry? workspace = optionsService.Options.CurrentWorkspace;
+        IStraumrStateService stateService = services.GetRequiredService<IStraumrStateService>();
+        StraumrWorkspaceEntry? workspace = stateService.State.CurrentWorkspace;
         if (workspace is null)
         {
             return [];

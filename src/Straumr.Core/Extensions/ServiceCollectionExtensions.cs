@@ -11,7 +11,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddStraumrCore(this IServiceCollection services)
     {
         services.TryAddSingleton<IStraumrFileService, StraumrFileService>();
-        services.TryAddSingleton<IStraumrOptionsService, StraumrOptionsService>();
+        services.TryAddSingleton<IStraumrStateService, StraumrStateService>();
         services.TryAddSingleton<IStraumrSettingsService, StraumrSettingsService>();
         services.TryAddSingleton<IStraumrWorkspaceService, StraumrWorkspaceService>();
         services.TryAddSingleton<IStraumrAuthService, StraumrAuthService>();

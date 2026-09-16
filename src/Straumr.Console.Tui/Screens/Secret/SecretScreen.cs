@@ -17,7 +17,7 @@ namespace Straumr.Console.Tui.Screens.Secret;
 public sealed class SecretScreen : ITuiScreen
 {
     private const string PaneLayoutKey = nameof(TuiScreen.Secrets);
-    private readonly IStraumrOptionsService _options;
+    private readonly IStraumrStateService _state;
     private readonly IStraumrWorkspaceService _workspaces;
     private readonly IStraumrRequestService _requests;
     private readonly IStraumrAuthService _auths;
@@ -45,13 +45,13 @@ public sealed class SecretScreen : ITuiScreen
     private Func<CancellationToken, Task<TuiCommandResult>>? _pendingSave;
     private bool _savePaneLayout;
 
-    public SecretScreen(IStraumrOptionsService options, IStraumrWorkspaceService workspaces,
+    public SecretScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
         ExternalEditor editor)
     {
-        (_options, _workspaces, _requests, _auths, _secrets, _editor) =
-            (options, workspaces, requests, auths, secrets, editor);
-        var layout = options.Options.PaneLayouts.GetValueOrDefault(PaneLayoutKey) ?? new StraumrPaneLayout();
+        (_state, _workspaces, _requests, _auths, _secrets, _editor) =
+            (state, workspaces, requests, auths, secrets, editor);
+        var layout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey) ?? new StraumrPaneLayout();
         _splits = new PaneSplits(layout.Panels, layout.Sections, layout.Stack);
         _splits.Changed += QueuePaneLayoutSave;
 
@@ -129,10 +129,10 @@ public sealed class SecretScreen : ITuiScreen
         _references.Value = new KnownSecretReferences();
         try
         {
-            await _options.LoadAsync(cancellationToken);
+            await _state.LoadAsync(cancellationToken);
             // Workspace context is only a header on this screen. A missing or broken active
             // workspace must not prevent access to the global secret store.
-            if (_options.Options.CurrentWorkspace is { } active)
+            if (_state.State.CurrentWorkspace is { } active)
             {
                 try
                 {
@@ -143,7 +143,7 @@ public sealed class SecretScreen : ITuiScreen
                 catch (Exception exception) when (IsRecoverable(exception)) { }
             }
 
-            foreach (var entry in _options.Options.Secrets)
+            foreach (var entry in _state.State.Secrets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
@@ -162,7 +162,7 @@ public sealed class SecretScreen : ITuiScreen
 
             _items = _items.OrderByDescending(item => item.Secret?.LastAccessed ?? DateTimeOffset.MinValue)
                 .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
-            _references.Value = await KnownSecretReferences.LoadAsync(_options.Options.Workspaces,
+            _references.Value = await KnownSecretReferences.LoadAsync(_state.State.Workspaces,
                 _workspaces, _requests, _auths, cancellationToken);
             ApplyFilter(_filter.Text, selected);
         }
@@ -199,7 +199,7 @@ public sealed class SecretScreen : ITuiScreen
         if (_savePaneLayout)
         {
             _savePaneLayout = false;
-            try { await _options.SaveAsync(cancellationToken); }
+            try { await _state.SaveAsync(cancellationToken); }
             catch (Exception exception) when (IsRecoverable(exception))
             {
                 NotificationRequested?.Invoke(TuiCommandResult.Failed($"cannot save pane layout: {exception.Message}"));
@@ -543,7 +543,7 @@ public sealed class SecretScreen : ITuiScreen
 
     private void QueuePaneLayoutSave()
     {
-        _options.Options.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
+        _state.State.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
         {
             Panels = _splits.Panels.Share, Sections = _splits.Sections.Share, Stack = _splits.Stack.Share
         };

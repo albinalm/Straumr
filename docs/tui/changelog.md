@@ -3,6 +3,56 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: Fixed focused buttons picking up the colour of whatever was behind the dialog. The
+  inverted selection surface carried no foreground of its own, and inversion swaps whatever colour a
+  cell already holds: a dialog's surface fill sets a background but leaves foregrounds alone, so
+  Browse rendered green over a "last used" line, Create grey, and Cancel correctly because nothing
+  lay under it. A foreground cannot be reset to the terminal's own — `Color.Default` is the same
+  value as "unset" and overwrites nothing — so the inverted surface now pins one. Proved by drawing a
+  focused button over three different backdrops and getting the same cells back each time.
+
+- 2026-09-16: `:theme <name>` now changes the theme, and buttons got their colour back. The theme
+  command sets as well as reports: it writes the one key into `settings.toml` through the TOML
+  syntax tree, which round-trips the document exactly, so every comment survives — and then rebuilds
+  the shell the way saving the file by hand already did. The shell restarts on a palette change even
+  when no external editor was involved, which the loop previously only noticed after an external
+  action. `:theme` on its own reports the applied theme and nothing else; naming the file to edit was
+  documentation living in a footer that expires after five seconds.
+  The fix behind all this: `text-bright` and `muted-bright` were `default` in the terminal theme, to
+  keep the inverted selection band one tone. Those roles are also every button label, the dropdown,
+  the text in a field and the badge, so all of them lost their foreground entirely and rendered as
+  bare `[bold]` — which is what a stray grey character in a dialog turned out to be. Both are real
+  colours again.
+
+- 2026-09-16: The create/copy workspace form says "No default location" and stops there. It used to
+  add "Choose one with Browse.", which named a button sitting two rows above it on the same dialog —
+  a sentence spent telling the reader something the screen was already showing them.
+
+- 2026-09-16: Split configuration from state properly. `options.json` is now `state.json` — the old
+  name was a synonym of "settings" and told nobody which of the two files held the workspace
+  registry — and `StraumrOptions`, its service and its `Options` property became `StraumrState` to
+  match. The old file is read once if the new one is absent, rewritten under the new name and
+  removed. The two keys in it that were never state, the default workspace and secret paths, are
+  `[paths]` in `settings.toml` now, expanded for `~` and environment variables through a shared
+  helper the theme resolver also uses. What is left in `state.json` is only what the program itself
+  writes. `straumr config workspace-path` reports the value and names the file to set it in rather
+  than writing it, since writing would strip the comments out of a hand-edited file. No migration:
+  this is early access, so the rename is a rename and an existing `options.json` is stale rather
+  than read. Writing the migration did surface a real gap, which is fixed — a settings file that
+  would not parse, or a theme that would not resolve, used to start the app silently in the default
+  colours, because the host applied the theme before there was a footer to complain on.
+
+- 2026-09-16: A theme file now carries only what it changes. Every colour role became optional and
+  is inherited from the terminal theme, which is the one palette whose roles all defer to the
+  reader's scheme and so the only one it is safe to land on unasked; the terminal theme itself
+  stays the file that names them all. A whole theme can now be three lines. No `extends` key —
+  starting from the dark palette is `:theme export deepocean` and editing the copy, which is also
+  what gives export a job. DeepOcean now names its own `brand` and `[methods]` rather than
+  inheriting them, as any theme fixing its own background must, and still renders identically. A
+  theme that names a background but leaves `text` inherited now says so on the footer, since that
+  is the one way the new default can leave a reader with text they cannot see. `:theme` also stops
+  reporting a stale name when a new theme happens to carry the same colours as the old one.
+
 - 2026-09-16: Gave the identity mark and the HTTP methods colours of their own. `accent` had been
   doing three jobs — the footer's key colour, the `{straumr}` wordmark and POST — so making it
   colourless for the chrome took the other two with it and the default theme came out white. There

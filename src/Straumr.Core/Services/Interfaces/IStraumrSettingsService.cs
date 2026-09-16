@@ -13,6 +13,15 @@ public interface IStraumrSettingsService
     string SettingsDirectory { get; }
 
     /// <summary>
+    /// Where a new workspace is offered, expanded, or <see langword="null"/> when the reader has
+    /// named nowhere and the app should not suggest one.
+    /// </summary>
+    string? DefaultWorkspacePath { get; }
+
+    /// <summary>Where the global secret store lives, expanded. Always a path.</summary>
+    string DefaultSecretPath { get; }
+
+    /// <summary>
     /// Reads the file, or the template's defaults if it cannot be parsed. Never throws for bad TOML:
     /// <paramref name="problem"/> carries what was wrong so the caller can say so and carry on with
     /// the defaults, because a mistyped settings file must not be a refusal to start.
@@ -23,4 +32,15 @@ public interface IStraumrSettingsService
 
     /// <summary>Writes the template if the file does not exist, and returns its path.</summary>
     Task<string> EnsureFileAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Changes the one setting the app offers a command for, leaving the rest of the file exactly
+    /// as the reader wrote it — comments, ordering and spacing included.
+    /// </summary>
+    /// <remarks>
+    /// The only value the program writes into a file that is otherwise the reader's. It is done
+    /// through the TOML syntax tree rather than by serialising the model, because serialising would
+    /// return a bare two-line file and throw away everything around it.
+    /// </remarks>
+    Task SetThemeAsync(string reference, CancellationToken cancellationToken = default);
 }

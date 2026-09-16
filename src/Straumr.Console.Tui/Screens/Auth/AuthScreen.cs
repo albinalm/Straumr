@@ -33,7 +33,7 @@ public sealed class AuthScreen : ITuiScreen
 {
     private const string PaneLayoutKey = nameof(TuiScreen.Auths);
 
-    private readonly IStraumrOptionsService _options;
+    private readonly IStraumrStateService _state;
     private readonly IStraumrWorkspaceService _workspaces;
     private readonly IStraumrAuthService _auths;
     private readonly IStraumrRequestService _requestService;
@@ -102,20 +102,20 @@ public sealed class AuthScreen : ITuiScreen
     private bool _savePaneLayout;
 
     public AuthScreen(
-        IStraumrOptionsService options,
+        IStraumrStateService state,
         IStraumrWorkspaceService workspaces,
         IStraumrAuthService auths,
         IStraumrRequestService requests,
         IStraumrSecretService secrets,
         ExternalEditor editor)
     {
-        (_options, _workspaces, _auths, _requestService, _secrets, _editor) =
-            (options, workspaces, auths, requests, secrets, editor);
+        (_state, _workspaces, _auths, _requestService, _secrets, _editor) =
+            (state, workspaces, auths, requests, secrets, editor);
 
         // The upper regions open with a larger share than the even split the other screens use.
         // Configuration and Credential carry up to seven rows each; Secrets and Used by are usually
         // two, and an even split spent the room on the half that had least to say.
-        StraumrPaneLayout paneLayout = options.Options.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
+        StraumrPaneLayout paneLayout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
             ?? new StraumrPaneLayout { Stack = 65 };
         _splits = new PaneSplits(paneLayout.Panels, paneLayout.Sections, paneLayout.Stack);
         _splits.Changed += QueuePaneLayoutSave;
@@ -234,8 +234,8 @@ public sealed class AuthScreen : ITuiScreen
         _usedBy.Value = [];
         try
         {
-            await _options.LoadAsync(cancellationToken);
-            _workspace = _options.Options.CurrentWorkspace;
+            await _state.LoadAsync(cancellationToken);
+            _workspace = _state.State.CurrentWorkspace;
             ActiveWorkspaceName = null;
             _items = [];
             _workspaceRequests = [];
@@ -356,7 +356,7 @@ public sealed class AuthScreen : ITuiScreen
             _savePaneLayout = false;
             try
             {
-                await _options.SaveAsync(cancellationToken);
+                await _state.SaveAsync(cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -1126,7 +1126,7 @@ public sealed class AuthScreen : ITuiScreen
 
     private void QueuePaneLayoutSave()
     {
-        _options.Options.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
+        _state.State.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
         {
             Panels = _splits.Panels.Share,
             Sections = _splits.Sections.Share,

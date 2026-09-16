@@ -15,7 +15,7 @@ using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
 namespace Straumr.Console.Cli.Commands.Request;
 
 public class RequestCopyCommand(
-    IStraumrOptionsService optionsService,
+    IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService)
     : AsyncCommand<RequestCopyCommand.Settings>
@@ -23,7 +23,7 @@ public class RequestCopyCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+        StraumrWorkspaceEntry? workspaceEntry = stateService.State.CurrentWorkspace;
 
         if (settings.Workspace is not null)
         {

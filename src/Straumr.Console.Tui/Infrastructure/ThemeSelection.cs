@@ -52,11 +52,12 @@ public sealed class ThemeSelection(IStraumrSettingsService settings)
             Message = $"{theme.Name}: {theme.Warnings[0]}";
         }
 
-        if (theme.Palette == _applied)
-            return false;
-
+        // Applied every time, because the name is reported even when the colours did not move: two
+        // theme files can carry the same palette under different names, and `:theme` would go on
+        // naming the one before it. Only the palette decides whether the shell has to be rebuilt.
+        bool changed = theme.Palette != _applied;
         _applied = theme.Palette;
         StraumrStyles.Apply(theme);
-        return true;
+        return changed;
     }
 }

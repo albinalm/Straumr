@@ -38,10 +38,12 @@ visuals, layout or palette. For keys, focus, commands and hosting see
 - A new colour means a new role in `StraumrPalette`, and a new role means every theme
   file in existence is missing a key. Add one only when the design contract gains a
   distinction the existing eighteen cannot express, and give it to both built-ins.
-- `TextStyle.Invert` is how a surface is painted in the terminal's own colours without naming
-  them. It composes: the attribute survives under text drawn over the band, and it fills a
-  `TextBlockStyle`'s padding. Anything landing on an inverted surface must leave its foreground
-  at the terminal's default, or the swap produces two tones instead of one.
+- `TextStyle.Invert` paints a surface in the terminal's own colours without naming them, and
+  composes: the attribute survives under text drawn over the band and fills a `TextBlockStyle`'s
+  padding. It must always be paired with an explicit foreground. A `Style` cannot reset a
+  foreground — `Color.Default` is the same value as "unset" — and a surface fill sets only a
+  background, so an inverted style with no foreground inherits whatever colour the cell already
+  carried and inverts that instead.
 - A colour may be `Color.Default` or a `Color.Basic16` palette slot, not only RGB.
   Two framework calls do not accept those: `Brush.Solid` throws on `Color.Default`,
   and `Color.ToHexString()` answers a palette colour with a hardcoded xterm

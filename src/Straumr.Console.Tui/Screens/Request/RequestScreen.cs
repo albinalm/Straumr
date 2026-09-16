@@ -22,7 +22,7 @@ public sealed class RequestScreen : ITuiScreen
 {
     private const string PaneLayoutKey = nameof(TuiScreen.Requests);
 
-    private readonly IStraumrOptionsService _options;
+    private readonly IStraumrStateService _state;
     private readonly IStraumrWorkspaceService _workspaces;
     private readonly IStraumrRequestService _requests;
     private readonly IStraumrAuthService _auths;
@@ -86,17 +86,17 @@ public sealed class RequestScreen : ITuiScreen
     private IReadOnlyList<StraumrAuth> _workspaceAuths = [];
     private bool _savePaneLayout;
 
-    public RequestScreen(IStraumrOptionsService options, IStraumrWorkspaceService workspaces,
+    public RequestScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
         ExternalEditor editor)
     {
-        (_options, _workspaces, _requests, _auths, _secrets, _editor) =
-            (options, workspaces, requests, auths, secrets, editor);
+        (_state, _workspaces, _requests, _auths, _secrets, _editor) =
+            (state, workspaces, requests, auths, secrets, editor);
         _responseBody = new ResponseBodyActions(_responsePreview, (message, failed) =>
             NotificationRequested?.Invoke(failed ? TuiCommandResult.Failed(message) : TuiCommandResult.Ok(message)));
         _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", 'v', OpenResponse,
             () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item && _responses.ContainsKey((workspace.Id, item.Id))));
-        StraumrPaneLayout paneLayout = options.Options.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
+        StraumrPaneLayout paneLayout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
             ?? new StraumrPaneLayout();
         _splits = new PaneSplits(paneLayout.Panels, paneLayout.Sections, paneLayout.Stack);
         _splits.Changed += QueuePaneLayoutSave;
@@ -215,8 +215,8 @@ public sealed class RequestScreen : ITuiScreen
         _authentication.Value = null;
         try
         {
-            await _options.LoadAsync(cancellationToken);
-            _workspace = _options.Options.CurrentWorkspace;
+            await _state.LoadAsync(cancellationToken);
+            _workspace = _state.State.CurrentWorkspace;
             ActiveWorkspaceName = null;
             _items = [];
             _workspaceAuths = [];
@@ -334,7 +334,7 @@ public sealed class RequestScreen : ITuiScreen
             _savePaneLayout = false;
             try
             {
-                await _options.SaveAsync(cancellationToken);
+                await _state.SaveAsync(cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -988,7 +988,7 @@ public sealed class RequestScreen : ITuiScreen
 
     private void QueuePaneLayoutSave()
     {
-        _options.Options.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
+        _state.State.PaneLayouts[PaneLayoutKey] = new StraumrPaneLayout
         {
             Panels = _splits.Panels.Share,
             Sections = _splits.Sections.Share,

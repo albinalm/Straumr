@@ -18,7 +18,7 @@ using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 namespace Straumr.Console.Cli.Commands.Auth;
 
 public class AuthEditCommand(
-    IStraumrOptionsService optionsService,
+    IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrAuthService authService,
     IInteractiveConsole interactiveConsole) : AsyncCommand<AuthEditCommand.Settings>
@@ -32,7 +32,7 @@ public class AuthEditCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+        StraumrWorkspaceEntry? workspaceEntry = stateService.State.CurrentWorkspace;
 
         if (settings.Workspace is not null)
         {

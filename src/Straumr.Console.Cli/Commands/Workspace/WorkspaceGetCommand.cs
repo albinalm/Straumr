@@ -12,7 +12,7 @@ using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
 
 namespace Straumr.Console.Cli.Commands.Workspace;
 
-public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumrWorkspaceService workspaceService)
+public class WorkspaceGetCommand(IStraumrStateService stateService, IStraumrWorkspaceService workspaceService)
     : AsyncCommand<WorkspaceGetCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -22,12 +22,12 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
 
         if (Guid.TryParse(settings.Identifier, out Guid guid))
         {
-            entry = optionsService.Options.Workspaces.FirstOrDefault(x => x.Id == guid);
+            entry = stateService.State.Workspaces.FirstOrDefault(x => x.Id == guid);
         }
 
         if (entry is null)
         {
-            foreach (StraumrWorkspaceEntry candidate in optionsService.Options.Workspaces)
+            foreach (StraumrWorkspaceEntry candidate in stateService.State.Workspaces)
             {
                 try
                 {
@@ -72,7 +72,7 @@ public class WorkspaceGetCommand(IStraumrOptionsService optionsService, IStraumr
         try
         {
             workspace = await workspaceService.GetAsync(entry.Id, cancellationToken: cancellation);
-            bool isCurrent = optionsService.Options.CurrentWorkspace?.Id == workspace.Id;
+            bool isCurrent = stateService.State.CurrentWorkspace?.Id == workspace.Id;
             status = isCurrent ? "[blue]Current[/]" : "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

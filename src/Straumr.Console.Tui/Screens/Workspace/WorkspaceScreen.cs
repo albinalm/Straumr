@@ -17,7 +17,8 @@ namespace Straumr.Console.Tui.Screens.Workspace;
 
 public sealed class WorkspaceScreen : ITuiScreen
 {
-    private readonly IStraumrOptionsService _optionsService;
+    private readonly IStraumrStateService _stateService;
+    private readonly IStraumrSettingsService _settingsService;
     private readonly IStraumrWorkspaceService _workspaceService;
     private readonly IStraumrRequestService _requestService;
     private readonly ExternalEditor _externalEditor;
@@ -50,12 +51,14 @@ public sealed class WorkspaceScreen : ITuiScreen
     private WorkspaceExportSubmission? _pendingExport;
 
     public WorkspaceScreen(
-        IStraumrOptionsService optionsService,
+        IStraumrStateService stateService,
+        IStraumrSettingsService settingsService,
         IStraumrWorkspaceService workspaceService,
         IStraumrRequestService requestService,
         ExternalEditor externalEditor)
     {
-        _optionsService = optionsService;
+        _stateService = stateService;
+        _settingsService = settingsService;
         _workspaceService = workspaceService;
         _requestService = requestService;
         _externalEditor = externalEditor;
@@ -271,11 +274,11 @@ public sealed class WorkspaceScreen : ITuiScreen
 
         try
         {
-            await _optionsService.LoadAsync(cancellationToken);
-            _currentWorkspaceId.Value = _optionsService.Options.CurrentWorkspace?.Id;
+            await _stateService.LoadAsync(cancellationToken);
+            _currentWorkspaceId.Value = _stateService.State.CurrentWorkspace?.Id;
 
             List<WorkspaceScreenItem> items = [];
-            foreach (StraumrWorkspaceEntry entry in _optionsService.Options.Workspaces)
+            foreach (StraumrWorkspaceEntry entry in _stateService.State.Workspaces)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -665,7 +668,7 @@ public sealed class WorkspaceScreen : ITuiScreen
             "Create workspace",
             "Create",
             null,
-            _optionsService.Options.DefaultWorkspacePath,
+            _settingsService.DefaultWorkspacePath,
             'c',
             submission => _pendingCreate = submission)
         .Show();
@@ -682,7 +685,7 @@ public sealed class WorkspaceScreen : ITuiScreen
             "Copy workspace",
             "Copy",
             item.Name,
-            item.ContainingDirectory ?? _optionsService.Options.DefaultWorkspacePath,
+            item.ContainingDirectory ?? _settingsService.DefaultWorkspacePath,
             'y',
             submission => _pendingCopy = new WorkspaceCopySubmission(
                 item.Id,

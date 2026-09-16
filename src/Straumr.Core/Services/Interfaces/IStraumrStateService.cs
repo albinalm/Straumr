@@ -2,9 +2,10 @@ using Straumr.Core.Models;
 
 namespace Straumr.Core.Services.Interfaces;
 
-public interface IStraumrOptionsService
+public interface IStraumrStateService
 {
-    StraumrOptions Options { get; }
+    StraumrState State { get; }
+
     Task LoadAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(CancellationToken cancellationToken = default);
 }

@@ -12,13 +12,13 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Cli.Commands.Workspace;
 
-public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraumrWorkspaceService workspaceService)
+public class WorkspaceListCommand(IStraumrStateService stateService, IStraumrWorkspaceService workspaceService)
     : AsyncCommand<WorkspaceListCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        List<StraumrWorkspaceEntry> workspaceEntries = optionsService.Options.Workspaces;
+        List<StraumrWorkspaceEntry> workspaceEntries = stateService.State.Workspaces;
 
         List<WorkspaceListEntry> workspaceListItems = [];
 
@@ -105,7 +105,7 @@ public class WorkspaceListCommand(IStraumrOptionsService optionsService, IStraum
             Entry = entry,
             Status = status,
             LastAccessed = workspace?.LastAccessed,
-            IsCurrent = optionsService.Options.CurrentWorkspace?.Id == entry.Id
+            IsCurrent = stateService.State.CurrentWorkspace?.Id == entry.Id
         };
     }
 

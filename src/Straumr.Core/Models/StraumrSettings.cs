@@ -6,7 +6,7 @@ namespace Straumr.Core.Models;
 /// The settings a reader writes by hand, in <c>~/.straumr/settings.toml</c>.
 /// </summary>
 /// <remarks>
-/// Deliberately separate from <see cref="StraumrOptions"/>. Options are the app's own state — the
+/// Deliberately separate from <see cref="StraumrState"/>. Options are the app's own state — the
 /// workspace registry, which workspace is current, where panes were dragged to — written by the
 /// program and never meant to be typed. Settings are the reader's, written in their editor and only
 /// read here. Keeping them in one file would mean rewriting a commented dotfile every time a pane
@@ -20,6 +20,10 @@ public sealed class StraumrSettings
     /// </summary>
     [TomlPropertyName("theme")]
     public string? Theme { get; set; }
+
+    /// <summary>Where the app puts what it creates when nothing says otherwise.</summary>
+    [TomlPropertyName("paths")]
+    public StraumrPathSettings Paths { get; set; } = new();
 
     /// <summary>
     /// What the file says when there is none. Written on first read so the reader has something to
@@ -39,8 +43,43 @@ public sealed class StraumrSettings
         #
         #   theme = "themes/mine.toml"
         #
-        # `:theme export deepocean` writes a built-in out as a file to start from.
+        # A theme file carries only what it wants to be different; everything it leaves out follows
+        # the terminal. A whole theme can be three lines:
+        #
+        #   name = "Mine"
+        #   [colors]
+        #   brand = "magenta"
+        #
+        # To start from the dark palette instead, `:theme export deepocean` writes it out as a file
+        # to copy and change.
         theme = "terminal"
 
+        [paths]
+        # Where a new workspace is offered. Unset, the app suggests nowhere and you pick each time.
+        # A leading ~ and environment variables are expanded.
+        #
+        #   workspaces = "~/code/apis"
+
+        # Where the global secret store lives. Defaults to ~/.straumr/secrets.
+        #
+        #   secrets = "~/.straumr/secrets"
+
         """;
+}
+
+/// <summary>
+/// The directories the app writes into when the reader has not named one. They live here rather
+/// than beside the workspace registry because they are a preference typed by hand, not a fact the
+/// program discovered — and because a file the program rewrites on every pane drag is no place to
+/// keep something with a comment above it.
+/// </summary>
+public sealed class StraumrPathSettings
+{
+    /// <summary>Where a new workspace is offered. Unset means the app does not suggest one.</summary>
+    [TomlPropertyName("workspaces")]
+    public string? Workspaces { get; set; }
+
+    /// <summary>Where the global secret store lives. Unset means <c>~/.straumr/secrets</c>.</summary>
+    [TomlPropertyName("secrets")]
+    public string? Secrets { get; set; }
 }

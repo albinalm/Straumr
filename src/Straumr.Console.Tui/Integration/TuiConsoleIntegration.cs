@@ -43,10 +43,10 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
     public async Task<int> RunAsync(IServiceProvider serviceProvider, string[] args,
         CancellationToken cancellationToken)
     {
-        IStraumrOptionsService optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
+        IStraumrStateService stateService = serviceProvider.GetRequiredService<IStraumrStateService>();
         try
         {
-            await optionsService.LoadAsync(cancellationToken);
+            await stateService.LoadAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -74,10 +74,18 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
             // app rather than no app.
         }
 
-        serviceProvider.GetRequiredService<ThemeSelection>().Apply();
+        var themeSelection = serviceProvider.GetRequiredService<ThemeSelection>();
+        themeSelection.Apply();
+
+        // Whatever went wrong before the shell existed is owed a footer once one does. Without this
+        // a settings file that would not parse, or a theme that would not resolve, simply started
+        // the app in the default colours and said nothing.
+        string? startupNotice = themeSelection.Message;
 
         IServiceScope scope = serviceProvider.CreateScope();
         var app = scope.ServiceProvider.GetRequiredService<StraumrTuiApp>();
+        if (startupNotice is not null)
+            app.Announce(TuiCommandResult.Failed(startupNotice));
 
         try
         {
@@ -88,18 +96,23 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
                     async context =>
                     {
                         await app.UpdateAsync(context.App, cancellationToken);
-                        return app.ExitRequested || app.HasPendingExternalAction
+                        return app.ExitRequested || app.HasPendingExternalAction || app.RestartRequested
                             ? TerminalLoopResult.Stop
                             : TerminalLoopResult.Continue;
                     },
                     new TerminalRunOptions(),
                     cancellationToken);
 
-                if (app.ExitRequested || !app.HasPendingExternalAction)
+                if (app.ExitRequested)
                     break;
 
-                await terminal.StopInputAsync(cancellationToken);
-                await app.RunPendingExternalActionAsync(cancellationToken);
+                // `:theme` changes the palette from inside the loop, with no editor to hand the
+                // terminal to; only an external action needs the input stream released first.
+                if (app.HasPendingExternalAction)
+                {
+                    await terminal.StopInputAsync(cancellationToken);
+                    await app.RunPendingExternalActionAsync(cancellationToken);
+                }
 
                 if (!app.RestartRequested)
                     continue;

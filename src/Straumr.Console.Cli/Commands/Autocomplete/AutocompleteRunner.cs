@@ -33,7 +33,7 @@ public static class AutocompleteRunner
         services.AddStraumrCore();
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        await provider.GetRequiredService<IStraumrOptionsService>().LoadAsync(cancellationToken);
+        await provider.GetRequiredService<IStraumrStateService>().LoadAsync(cancellationToken);
 
         AutocompleteEngine engine = new(provider);
         IReadOnlyList<string> completions = await engine.CompleteAsync(query, cancellationToken);

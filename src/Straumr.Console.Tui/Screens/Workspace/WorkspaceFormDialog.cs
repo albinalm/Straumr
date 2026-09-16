@@ -189,7 +189,7 @@ internal sealed class WorkspaceFormDialog
     private string ResolvedLocationText() =>
         ResolvedLocation is { } location
             ? PathFormatting.Display(location)
-            : "No default location. Choose one with Browse.";
+            : "No default location";
 
     private void AddSubmitCommand(Visual target, string actionLabel) =>
         target.AddCommand(new Command

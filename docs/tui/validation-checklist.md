@@ -349,6 +349,26 @@ For each Workspaces milestone, run the smallest applicable subset:
       their square brackets, `j`/`k` scroll it on a terminal too short to hold it, `Escape` and the
       Close button both dismiss it, and closing returns focus to the field it was opened from
 
+## Configuration and state
+
+Added 2026-09-16 with the settings/state split.
+
+- [x] `state.json` carries only Workspaces, Secrets, CurrentWorkspace and PaneLayouts; the two
+      path settings are gone from the model
+- [x] the settings template parses with its `[paths]` table, both entries commented out
+- [x] a settings file naming paths resolves them, expanding `~` and environment variables and
+      normalising the separators of a rooted path
+- [x] an old `options.json` still deserialises as state, the two keys that moved being ignored as
+      unknown members — which is what makes renaming the file by hand enough
+
+- [ ] rename `~/.straumr/options.json` to `state.json` by hand, then verify the app comes up with
+      the same workspaces, the same active workspace and the panes where they were. Nothing reads
+      the old name, so a forgotten rename looks like an empty registry rather than an error
+- [ ] verify `straumr config workspace-path` reports the value from settings, and that passing a
+      path refuses with the line to add rather than appearing to work
+- [ ] verify a startup notice appears at all: point `theme` at a name that does not exist and
+      confirm the footer says so on the first frame rather than starting silently
+
 ## Theming
 
 Added 2026-09-16 with the theme selector. The palette is data now, so what a snapshot can
@@ -383,10 +403,25 @@ seen reads well, which is the whole question for the default theme.
       dumper does not show styling on trailing blank cells, so this is the one part of the band
       that could not be proved headlessly; a row whose highlight stops at the end of its name is
       the failure to look for
-- [x] `brand` and `[methods]` are optional and fall back to the roles they replaced; a named
+- [x] a theme file carrying one key inherits every other role from the terminal theme, and a
+      theme naming a background but not its text is warned about
+- [x] `brand` and `[methods]` are optional like every other role; a named
       brand, a methods table, an unknown method key and a bad value in either are all handled
 - [x] both built-in themes re-resolve from disk after `:theme export`, so an exported file is a
       working starting point rather than only a readable one
+- [x] a button carries an explicit foreground under both themes; it rendered with none at all
+      while `muted-bright` was `default`
+- [x] writing the theme key keeps every comment in the shipped template, leaves `[paths]` intact,
+      and setting it back returns the file byte-for-byte
+
+- [x] a focused button renders identically over green, grey and empty backdrops; it used to take
+      the colour of whatever text lay under the dialog
+
+- [ ] verify the three buttons in the create-workspace dialog: Tab between Browse, Cancel and
+      Create and confirm all three highlight the same, wherever the dialog happens to sit
+- [ ] verify `:theme deepocean` then `:theme terminal` in the terminal: each applies at once, the
+      reader stays on the screen they were on, and `settings.toml` still has all its comments
+- [ ] verify `:theme` with a name that does not resolve refuses without writing anything
 - [ ] verify the methods read distinctly in the developer's scheme: five requests of different
       methods in one list, told apart without reading the words
 - [ ] verify inversion on the other surfaces it now covers: the focus chip on a rule, a focused

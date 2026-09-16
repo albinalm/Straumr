@@ -10,13 +10,16 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Core.Services;
 
-public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOptionsService optionsService)
+public class StraumrWorkspaceService(
+    IStraumrFileService fileService,
+    IStraumrStateService stateService,
+    IStraumrSettingsService settingsService)
     : IStraumrWorkspaceService
 {
     public async Task<IReadOnlyList<StraumrWorkspace>> ListAsync(CancellationToken cancellationToken = default)
     {
         List<StraumrWorkspace> workspaces = new List<StraumrWorkspace>();
-        foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
+        foreach (StraumrWorkspaceEntry entry in stateService.State.Workspaces)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -64,8 +67,8 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     {
         cancellationToken.ThrowIfCancellationRequested();
         StraumrWorkspaceEntry entry = GetEntry(id);
-        optionsService.Options.CurrentWorkspace = entry;
-        await optionsService.SaveAsync(cancellationToken);
+        stateService.State.CurrentWorkspace = entry;
+        await stateService.SaveAsync(cancellationToken);
         await fileService.StampAccessAsync(
             entry.Path, StraumrJsonContext.Default.StraumrWorkspace, cancellationToken);
     }
@@ -88,8 +91,8 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             Path = fullPath
         };
 
-        optionsService.Options.Workspaces.Add(entry);
-        await optionsService.SaveAsync(cancellationToken);
+        stateService.State.Workspaces.Add(entry);
+        await stateService.SaveAsync(cancellationToken);
         return workspace;
     }
 
@@ -149,13 +152,13 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             Directory.Delete(path, recursive: true);
         }
 
-        optionsService.Options.Workspaces.Remove(entry);
-        if (optionsService.Options.CurrentWorkspace != null && optionsService.Options.CurrentWorkspace.Id == entry.Id)
+        stateService.State.Workspaces.Remove(entry);
+        if (stateService.State.CurrentWorkspace != null && stateService.State.CurrentWorkspace.Id == entry.Id)
         {
-            optionsService.Options.CurrentWorkspace = null;
+            stateService.State.CurrentWorkspace = null;
         }
 
-        await optionsService.SaveAsync(cancellationToken);
+        await stateService.SaveAsync(cancellationToken);
     }
 
     public async Task<StraumrWorkspaceEntry> CopyAsync(
@@ -198,8 +201,8 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             newFullPath, newWorkspace, StraumrJsonContext.Default.StraumrWorkspace, cancellationToken);
 
         var newEntry = new StraumrWorkspaceEntry { Id = newWorkspace.Id, Path = newFullPath };
-        optionsService.Options.Workspaces.Add(newEntry);
-        await optionsService.SaveAsync(cancellationToken);
+        stateService.State.Workspaces.Add(newEntry);
+        await stateService.SaveAsync(cancellationToken);
         return newEntry;
     }
 
@@ -271,7 +274,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
     public StraumrWorkspaceEntry GetEntry(Guid id)
     {
         foreach (StraumrWorkspaceEntry entry in
-                 optionsService.Options.Workspaces.Where(entry => File.Exists(entry.Path)))
+                 stateService.State.Workspaces.Where(entry => File.Exists(entry.Path)))
         {
             if (entry.Id == id)
             {
@@ -288,7 +291,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         CancellationToken cancellationToken)
     {
         foreach (StraumrWorkspaceEntry entry in
-                 optionsService.Options.Workspaces.Where(entry => File.Exists(entry.Path)))
+                 stateService.State.Workspaces.Where(entry => File.Exists(entry.Path)))
         {
             try
             {
@@ -313,7 +316,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
         Guid excludeId = default,
         CancellationToken cancellationToken = default)
     {
-        foreach (StraumrWorkspaceEntry entry in optionsService.Options.Workspaces)
+        foreach (StraumrWorkspaceEntry entry in stateService.State.Workspaces)
         {
             if (entry.Id == excludeId || !File.Exists(entry.Path))
             {
@@ -358,10 +361,10 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             Path = WorkspacePath(workspaceId, workspaceName)
         };
 
-        optionsService.Options.Workspaces.RemoveAll(x => x.Id == workspaceId);
-        optionsService.Options.Workspaces.Add(entry);
+        stateService.State.Workspaces.RemoveAll(x => x.Id == workspaceId);
+        stateService.State.Workspaces.Add(entry);
 
-        await optionsService.SaveAsync(cancellationToken);
+        await stateService.SaveAsync(cancellationToken);
         return entry;
     }
 
@@ -426,7 +429,7 @@ public class StraumrWorkspaceService(IStraumrFileService fileService, IStraumrOp
             return outputDir;
         }
 
-        return optionsService.Options.DefaultWorkspacePath
+        return settingsService.DefaultWorkspacePath
                ?? throw new StraumrException(
                    "No default workspace path configured. Use '-o <path>' to specify an output directory or 'config workspace-path <path>'",
                    StraumrError.MissingEntry);

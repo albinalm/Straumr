@@ -23,6 +23,10 @@ internal static class BuiltInThemes
         """
         # Straumr's default theme: follow the terminal's own colours.
         #
+        # Also the theme every other one is layered over. A theme file writes only the roles it
+        # wants to change and inherits the rest from here, which is why this file is the one that
+        # has to name them all.
+        #
         # Values here are palette slots rather than hex, so they change with the reader's scheme.
         #   default        the terminal's own foreground or background, painted as nothing at all
         #   blue, red, …   black red green yellow blue magenta cyan white, each with a bright- form
@@ -64,9 +68,15 @@ internal static class BuiltInThemes
         # that read on it.
         selection          = "invert"
 
-        text-bright        = "default"
+        # Both are real colours rather than `default`, because they are not only the text that lands
+        # on the selection band — they are every button label, the dropdown, the text a field is
+        # typed into and the badge. Leaving them at the terminal's own foreground gave all of those
+        # no colour at all, which reads as bold nothing. The cost is that a selected row is very
+        # slightly two-toned, since inversion swaps whatever colour a cell carries: on a dark scheme
+        # white and the terminal's own foreground are near enough that it does not show.
+        text-bright        = "bright-white"
         muted              = "bright-black"
-        muted-bright       = "default"
+        muted-bright       = "white"
 
         raised             = "bright-black"
         border             = "bright-black"
@@ -112,6 +122,10 @@ internal static class BuiltInThemes
         """
         # The dark blue Straumr palette. Fixed colours: this theme ignores the terminal's scheme.
         #
+        # It names every role, which a theme need not do — anything left out is inherited from the
+        # terminal theme. A palette that fixes its own background has to name them all, because
+        # inheriting a colour meant for an unknown ground would land it on this one.
+        #
         # The surfaces sit near hue 222 and carry higher chroma on the foregrounds, so the screen
         # reads as live rather than flat. The whole app shares one background; regions are told
         # apart by dividers alone, and the dark ground is what makes the accents carry.
@@ -146,10 +160,16 @@ internal static class BuiltInThemes
         red-bright         = "#FF9BA6"
         purple             = "#B79CFF"
 
-        # No `brand` and no `[methods]` table on purpose. Both are optional and fall back to the
-        # roles these colours have always been borrowed from — accent for the wordmark, and green,
-        # accent, amber, purple and red for the methods — so this file is exactly the palette that
-        # was hardcoded before themes existed, and the fallback is exercised by a shipped theme
-        # rather than only by a test.
+        # A fixed palette names its own brand and methods rather than inheriting the terminal's,
+        # which is what an unwritten role falls back to.
+        brand              = "#3B9EFF"
+
+        [methods]
+        get                = "#3DDC97"
+        post               = "#3B9EFF"
+        put                = "#FFC857"
+        patch              = "#B79CFF"
+        delete             = "#FF6B7A"
+        other              = "#B9C6E0"
         """;
 }

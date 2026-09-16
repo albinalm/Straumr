@@ -122,8 +122,8 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
         if (_commandApp is null || _typeRegistrar is null)
             throw new InvalidOperationException("CLI integration has not been initialized.");
 
-        IStraumrOptionsService optionsService = serviceProvider.GetRequiredService<IStraumrOptionsService>();
-        await optionsService.LoadAsync();
+        IStraumrStateService stateService = serviceProvider.GetRequiredService<IStraumrStateService>();
+        await stateService.LoadAsync();
 
         _typeRegistrar.UseServiceProvider(serviceProvider);
 

@@ -1,7 +1,10 @@
 using Straumr.Core.Configuration;
+using Straumr.Core.Helpers;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using Tomlyn;
+using Tomlyn.Parsing;
+using Tomlyn.Syntax;
 
 namespace Straumr.Core.Services;
 
@@ -13,6 +16,11 @@ public class StraumrSettingsService : IStraumrSettingsService
     public string SettingsPath { get; } = Path.Combine(StraumrDir, "settings.toml");
 
     public string SettingsDirectory => StraumrDir;
+
+    public string? DefaultWorkspacePath => StraumrPaths.ExpandOrNull(Settings.Paths.Workspaces);
+
+    public string DefaultSecretPath =>
+        StraumrPaths.ExpandOrNull(Settings.Paths.Secrets) ?? Path.Combine(StraumrDir, "secrets");
 
     public StraumrSettings Settings { get; private set; } = new();
 
@@ -58,6 +66,28 @@ public class StraumrSettingsService : IStraumrSettingsService
 
         return SettingsPath;
     }
+
+    public async Task SetThemeAsync(string reference, CancellationToken cancellationToken = default)
+    {
+        string path = await EnsureFileAsync(cancellationToken);
+        string text = await File.ReadAllTextAsync(path, cancellationToken);
+
+        DocumentSyntax document = SyntaxParser.Parse(text, path, false);
+        if (document.HasErrors)
+            throw new TomlException($"settings.toml: {FirstLine(document.Diagnostics.ToString() ?? "unparsable")}");
+
+        var value = new StringValueSyntax(reference);
+        if (document.KeyValues.FirstOrDefault(Names("theme")) is { } existing)
+            existing.Value = value;
+        else
+            document.KeyValues.Add(new KeyValueSyntax("theme", value));
+
+        await File.WriteAllTextAsync(path, document.ToString(), cancellationToken);
+        await LoadAsync(cancellationToken);
+    }
+
+    private static Func<KeyValueSyntax, bool> Names(string key) =>
+        candidate => string.Equals(candidate.Key?.ToString()?.Trim(), key, StringComparison.Ordinal);
 
     /// <summary>
     /// Tomlyn reports every diagnostic it collected. The footer is one row, so it gets the first.

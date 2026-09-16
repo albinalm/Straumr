@@ -13,14 +13,14 @@ using Straumr.Core.Services.Interfaces;
 namespace Straumr.Console.Cli.Commands.Secret;
 
 public class SecretListCommand(
-    IStraumrOptionsService optionsService,
+    IStraumrStateService stateService,
     IStraumrSecretService secretService)
     : AsyncCommand<SecretListCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        IEnumerable<StraumrSecretEntry> entries = optionsService.Options.Secrets;
+        IEnumerable<StraumrSecretEntry> entries = stateService.State.Secrets;
 
         if (!string.IsNullOrEmpty(settings.Filter))
         {

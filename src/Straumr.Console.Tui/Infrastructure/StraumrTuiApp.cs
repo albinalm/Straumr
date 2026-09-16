@@ -6,6 +6,7 @@ using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Console.Tui.Visuals.Theming;
 using Straumr.Core.Services.Interfaces;
+using Tomlyn;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
@@ -58,7 +59,7 @@ public sealed class StraumrTuiApp
         RequestScreen requestScreen,
         AuthScreen authScreen,
         SecretScreen secretScreen,
-        IStraumrOptionsService optionsService,
+        IStraumrStateService stateService,
         IStraumrSettingsService settingsService,
         ThemeSelection themeSelection,
         ExternalEditor editor)
@@ -68,7 +69,7 @@ public sealed class StraumrTuiApp
         _editor = editor;
         _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen, secretScreen }
             .ToDictionary(screen => screen.Kind);
-        TuiScreen initialScreen = optionsService.Options.CurrentWorkspace is null
+        TuiScreen initialScreen = stateService.State.CurrentWorkspace is null
             ? TuiScreen.Workspaces
             : TuiScreen.Requests;
         _currentScreen = new State<TuiScreen>(initialScreen);
@@ -160,6 +161,17 @@ public sealed class StraumrTuiApp
     /// The screen is queued as a navigation so it takes the path every other screen change takes,
     /// including the load and the focus that follow it.
     /// </remarks>
+    /// <summary>
+    /// Says something on the footer as soon as the shell has a footer to say it on. Used for what
+    /// the host learned before this existed — a settings file that would not parse, a theme that
+    /// would not resolve, a state file carrying a setting that has moved.
+    /// </summary>
+    public void Announce(TuiCommandResult message)
+    {
+        if (message.Message is not null)
+            _pendingAnnouncement = message;
+    }
+
     public void ResumeOn(TuiScreen screen, TuiCommandResult message)
     {
         if (screen != _screen.Kind)
@@ -182,6 +194,7 @@ public sealed class StraumrTuiApp
         {
             _initialized = true;
             await _screen.LoadAsync(token);
+            AnnouncePending();
             await SetActiveWorkspaceAsync(_screen.ActiveWorkspaceName, token);
             return;
         }
@@ -373,43 +386,81 @@ public sealed class StraumrTuiApp
     /// Reports the theme in force, and writes a built-in out as a file to start a custom one from.
     /// Choosing a theme is the settings file's job; this is only what that job needs alongside it.
     /// </summary>
-    private Task<TuiCommandResult> ThemeAsync(string argument, CancellationToken cancellationToken)
+    /// <summary>
+    /// Reports the theme, changes it, or writes a built-in out as a file to start one from.
+    /// </summary>
+    /// <remarks>
+    /// Changing it writes the one key into the settings file through the TOML syntax tree, so the
+    /// reader's comments survive, and then rebuilds the shell the same way saving the file by hand
+    /// does. Naming the file in the reply would be telling someone who just typed a command where
+    /// the command wrote; that belongs in documentation, not in a footer that expires in seconds.
+    /// </remarks>
+    private async Task<TuiCommandResult> ThemeAsync(string argument, CancellationToken cancellationToken)
     {
         string text = argument.Trim();
         if (text.Length == 0)
-        {
-            return Task.FromResult(TuiCommandResult.Ok(
-                $"theme {StraumrStyles.ThemeName}; change it with :settings"));
-        }
+            return TuiCommandResult.Ok($"theme {StraumrStyles.ThemeName}");
 
         string[] parts = text.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
-        if (parts is not ["export", var name, ..])
-            return Task.FromResult(TuiCommandResult.Failed("usage: theme, or theme export <name> [path]"));
+        if (parts is ["export", var name, ..])
+            return Export(name, parts.Length > 2 ? parts[2] : null);
 
-        if (StraumrThemes.BuiltInSource(name) is not { } source)
+        if (!TuiCommandArguments.TryParseSingle(text, out string reference, out string? problem))
+            return TuiCommandResult.Failed($"theme: {problem}");
+
+        if (!StraumrThemes.TryResolve(reference, _settingsService.SettingsDirectory, out _, out string? error))
+            return TuiCommandResult.Failed(error!);
+
+        try
         {
-            return Task.FromResult(TuiCommandResult.Failed(
-                $"no built-in theme {name}; there is {string.Join(", ", StraumrThemes.BuiltInNames)}"));
+            await _settingsService.SetThemeAsync(reference, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or TomlException)
+        {
+            return TuiCommandResult.Failed($"theme not saved: {FirstLine(exception.Message)}");
         }
 
-        string target = parts.Length > 2
-            ? parts[2]
-            : Path.Combine(_settingsService.SettingsDirectory, "themes", $"{name.ToLowerInvariant()}.toml");
+        if (!_themeSelection.Apply())
+            return TuiCommandResult.Ok($"theme {StraumrStyles.ThemeName}");
+
+        RestartRequested = true;
+        return _themeSelection.Message is { } notice
+            ? TuiCommandResult.Failed(notice)
+            : TuiCommandResult.Ok($"theme {StraumrStyles.ThemeName}");
+    }
+
+    private TuiCommandResult Export(string name, string? path)
+    {
+        if (StraumrThemes.BuiltInSource(name) is not { } source)
+        {
+            return TuiCommandResult.Failed(
+                $"no built-in theme {name}; there is {string.Join(", ", StraumrThemes.BuiltInNames)}");
+        }
+
+        string target = path ?? Path.Combine(
+            _settingsService.SettingsDirectory, "themes", $"{name.ToLowerInvariant()}.toml");
 
         try
         {
             if (File.Exists(target))
-                return Task.FromResult(TuiCommandResult.Failed($"{PathFormatting.Display(target)} already exists"));
+                return TuiCommandResult.Failed($"{PathFormatting.Display(target)} already exists");
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.WriteAllText(target, source);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Task.FromResult(TuiCommandResult.Failed($"export failed: {exception.Message}"));
+            return TuiCommandResult.Failed($"export failed: {exception.Message}");
         }
 
-        return Task.FromResult(TuiCommandResult.Ok($"wrote {PathFormatting.Display(target)}"));
+        return TuiCommandResult.Ok($"wrote {PathFormatting.Display(target)}");
+    }
+
+    /// <summary>The footer is one row, so a multi-line failure gets its first line.</summary>
+    private static string FirstLine(string message)
+    {
+        int end = message.IndexOfAny(['\r', '\n']);
+        return end < 0 ? message : message[..end];
     }
 
     private static TuiCommandCompletion CompleteTheme(string argument, int caret)
@@ -417,7 +468,7 @@ public sealed class StraumrTuiApp
         string text = argument[..Math.Clamp(caret, 0, argument.Length)];
         return text.StartsWith("export ", StringComparison.Ordinal)
             ? TuiCommandSet.Match(StraumrThemes.BuiltInNames, text["export ".Length..], "export ".Length)
-            : TuiCommandSet.Match(["export"], text, 0);
+            : TuiCommandSet.Match([..StraumrThemes.BuiltInNames, "export"], text, 0);
     }
 
     private TuiCommand NavigationCommand(TuiScreen screen, string name, string shortAlias) =>

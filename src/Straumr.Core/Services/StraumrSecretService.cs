@@ -9,12 +9,13 @@ namespace Straumr.Core.Services;
 
 public class StraumrSecretService(
     IStraumrFileService fileService,
-    IStraumrOptionsService optionsService) : IStraumrSecretService
+    IStraumrStateService stateService,
+    IStraumrSettingsService settingsService) : IStraumrSecretService
 {
     public async Task<IReadOnlyList<StraumrSecret>> ListAsync(CancellationToken cancellationToken = default)
     {
         List<StraumrSecret> secrets = new List<StraumrSecret>();
-        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets)
+        foreach (StraumrSecretEntry entry in stateService.State.Secrets)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -63,12 +64,12 @@ public class StraumrSecretService(
 
         await fileService.WriteStraumrModelAsync(
             fullPath, secret, StraumrJsonContext.Default.StraumrSecret, cancellationToken);
-        optionsService.Options.Secrets.Add(new StraumrSecretEntry
+        stateService.State.Secrets.Add(new StraumrSecretEntry
         {
             Id = secret.Id,
             Path = fullPath
         });
-        await optionsService.SaveAsync(cancellationToken);
+        await stateService.SaveAsync(cancellationToken);
         return secret;
     }
 
@@ -98,8 +99,8 @@ public class StraumrSecretService(
         cancellationToken.ThrowIfCancellationRequested();
         StraumrSecretEntry entry = GetSecretEntry(id);
         RemoveSecretFile(entry.Path);
-        optionsService.Options.Secrets.Remove(entry);
-        await optionsService.SaveAsync(cancellationToken);
+        stateService.State.Secrets.Remove(entry);
+        await stateService.SaveAsync(cancellationToken);
     }
 
     // Names must remain representable as a single quoted command argument, as request and auth names do.
@@ -113,7 +114,7 @@ public class StraumrSecretService(
 
     private string SecretPath(Guid id)
     {
-        return Path.Combine(optionsService.Options.DefaultSecretPath, id.ToString(), $"{id}.secret.json");
+        return Path.Combine(settingsService.DefaultSecretPath, id.ToString(), $"{id}.secret.json");
     }
 
     private void RemoveSecretFile(string path)
@@ -150,7 +151,7 @@ public class StraumrSecretService(
 
     private StraumrSecretEntry GetSecretEntry(Guid id)
     {
-        StraumrSecretEntry? entry = optionsService.Options.Secrets.FirstOrDefault(entry => entry.Id == id);
+        StraumrSecretEntry? entry = stateService.State.Secrets.FirstOrDefault(entry => entry.Id == id);
         return entry ?? throw new StraumrException(
             $"No secret found with the identifier: {id}", StraumrError.EntryNotFound);
     }
@@ -161,7 +162,7 @@ public class StraumrSecretService(
         Guid excludeId = default,
         CancellationToken cancellationToken = default)
     {
-        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
+        foreach (StraumrSecretEntry entry in stateService.State.Secrets.Where(entry => File.Exists(entry.Path)))
         {
             if (entry.Id == excludeId)
             {
@@ -192,7 +193,7 @@ public class StraumrSecretService(
         string name,
         CancellationToken cancellationToken)
     {
-        foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
+        foreach (StraumrSecretEntry entry in stateService.State.Secrets.Where(entry => File.Exists(entry.Path)))
         {
             try
             {

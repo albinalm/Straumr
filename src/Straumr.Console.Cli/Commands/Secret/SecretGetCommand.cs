@@ -13,7 +13,7 @@ using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
 namespace Straumr.Console.Cli.Commands.Secret;
 
 public class SecretGetCommand(
-    IStraumrOptionsService optionsService,
+    IStraumrStateService stateService,
     IStraumrSecretService secretService)
     : AsyncCommand<SecretGetCommand.Settings>
 {
@@ -22,14 +22,14 @@ public class SecretGetCommand(
     {
         Guid? foundId = null;
 
-        if (Guid.TryParse(settings.Identifier, out Guid guid) && optionsService.Options.Secrets.Any(x => x.Id == guid))
+        if (Guid.TryParse(settings.Identifier, out Guid guid) && stateService.State.Secrets.Any(x => x.Id == guid))
         {
             foundId = guid;
         }
 
         if (foundId is null)
         {
-            foreach (StraumrSecretEntry entry in optionsService.Options.Secrets.Where(entry => File.Exists(entry.Path)))
+            foreach (StraumrSecretEntry entry in stateService.State.Secrets.Where(entry => File.Exists(entry.Path)))
             {
                 try
                 {

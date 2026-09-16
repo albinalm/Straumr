@@ -8,6 +8,11 @@ deciding where something lives, or wiring a screen into the host.
 - Match the feature-oriented structure used by `Straumr.Console.Cli`.
 - Inject Core interfaces instead of resolving services throughout the visual
   tree.
+- `~/.straumr` holds two files and they are not interchangeable. `state.json` is the
+  program's: the registries, the current workspace, pane layouts, rewritten whenever any
+  of it moves. `settings.toml` is the reader's: written by hand, read here and never
+  written back, so nothing may serialise over it. A new value belongs in whichever file
+  matches who writes it.
 - Keep integration setup in `Integration`.
 - Keep navigation and shared application state in `Infrastructure`.
 - Keep each screen and its screen-specific presentation models together.

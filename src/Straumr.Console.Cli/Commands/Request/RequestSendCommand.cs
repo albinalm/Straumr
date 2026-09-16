@@ -20,7 +20,7 @@ using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 namespace Straumr.Console.Cli.Commands.Request;
 
 public class RequestSendCommand(
-    IStraumrOptionsService optionsService,
+    IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService)
@@ -29,7 +29,7 @@ public class RequestSendCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
     {
-        StraumrWorkspaceEntry? workspaceEntry = optionsService.Options.CurrentWorkspace;
+        StraumrWorkspaceEntry? workspaceEntry = stateService.State.CurrentWorkspace;
 
         if (settings.Workspace is not null)
         {

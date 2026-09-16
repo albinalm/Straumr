@@ -363,15 +363,17 @@ internal sealed class StraumrStyleSet
     /// colours swapped where the theme asked to inherit them.
     /// </summary>
     /// <remarks>
-    /// The inverted form deliberately drops <paramref name="foreground"/>. Inversion swaps whatever
-    /// colours the cell has, so a foreground of its own would invert into a second background and
-    /// leave the band two-toned — the name line one shade and the meta line under it another. A
-    /// theme that inverts therefore leaves every role that lands on the band at the terminal's
-    /// default, and the band comes out as one block.
+    /// The inverted form keeps <paramref name="foreground"/> even though inversion would work
+    /// without it, and must. A style cannot reset a foreground to the terminal's own — `Color.Default`
+    /// is indistinguishable from "unset", so it overwrites nothing — and inversion swaps whatever
+    /// colour the cell already carries. An inverted surface with no foreground of its own therefore
+    /// inherits one: over a dialog, whose surface fill sets a background but leaves foregrounds
+    /// alone, a focused button came out in the colour of whatever text of the screen behind happened
+    /// to sit under it. Pinning the foreground makes the band that colour deterministically instead.
     /// </remarks>
     private Style SelectedSurface(Color foreground) =>
         _selectionInverts
-            ? Style.None.WithTextStyle(TextStyle.Invert)
+            ? Style.None.WithForeground(foreground).WithTextStyle(TextStyle.Invert)
             : Style.None.WithForeground(foreground).WithBackground(Selection);
 
     /// <summary>
