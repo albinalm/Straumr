@@ -31,9 +31,11 @@ nothing here is a rule. Read the most recent entries when resuming work.
   up. Workspaces raises neither transient event on purpose — its dialogs are not screens —
   so `:ws delete` from Requests leaves the reader on Workspaces, looking at what it did,
   while `:rq edit` from Auths comes back to Auths when the editor closes.
-  Debug, Release and Release CLI-only builds pass with no warnings. Nothing has been seen
-  in a terminal: the new commands, the dialogs opened across a screen boundary and the
-  returns want the developer's keyboard.
+  Debug, Release and Release CLI-only builds pass with no warnings. The developer then
+  took the set to a terminal, reported that it works, and accepted A1 with it, which
+  completes the Auths milestone. Their pass did not single out the no-workspace wording,
+  completion inside the new namespaces, or a dialog opened across a screen boundary
+  holding the keyboard, so those stay on the checklist.
 
 - 2026-09-16: The Extract page got help on `h`. The page asks for one expression whose meaning
   changes completely with the source chosen above it — `data.token` walks a JSON body, `X-Auth-Token`
