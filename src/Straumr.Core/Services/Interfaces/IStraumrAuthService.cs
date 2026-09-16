@@ -4,6 +4,8 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrAuthService
 {
+    string PathFor(StraumrWorkspaceEntry workspace, Guid id);
+
     Task<IReadOnlyList<StraumrAuth>> ListAsync(
         StraumrWorkspaceEntry workspace,
         CancellationToken cancellationToken = default);

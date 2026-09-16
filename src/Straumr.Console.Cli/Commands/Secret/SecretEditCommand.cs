@@ -15,7 +15,9 @@ using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Console.Cli.Commands.Secret;
 
-public class SecretEditCommand(IStraumrSecretService secretService) : AsyncCommand<SecretEditCommand.Settings>
+public class SecretEditCommand(
+    IStraumrSecretService secretService,
+    IStraumrFileService fileService) : AsyncCommand<SecretEditCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
         CancellationToken cancellation)
@@ -33,7 +35,8 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
             secret = await GetSecretAsync(
                 secretService, settings.Identifier, cancellationToken: cancellation);
             tempPath = await CreateEditorFileAsync(
-                secret, StraumrJsonContext.Default.StraumrSecret, cancellation);
+                secret, StraumrJsonContext.Default.StraumrSecret, cancellation,
+                secretService.PathFor(secret.Id));
         }
         catch (StraumrException ex)
         {
@@ -81,6 +84,7 @@ public class SecretEditCommand(IStraumrSecretService secretService) : AsyncComma
 
             try
             {
+                fileService.CarryCommentsFrom(secretService.PathFor(deserialized.Id), editedJson);
                 await secretService.SaveAsync(deserialized, cancellation);
                 if (settings.Json)
                 {

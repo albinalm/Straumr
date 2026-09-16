@@ -17,7 +17,7 @@ public sealed class ExternalEditor
     private static readonly EditorDocument NoPosition = EditorDocument.AtStart(string.Empty);
 
     public Task<string> EditJsonAsync(string json, CancellationToken cancellationToken) =>
-        EditAsync(EditorDocument.AtStart(json), ".json", cancellationToken);
+        EditAsync(EditorDocument.AtStart(json), ".jsonc", cancellationToken);
 
     /// <summary>
     /// Opens a file that already exists on disk, in place, and returns what the editor saved.

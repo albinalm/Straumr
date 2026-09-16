@@ -4,6 +4,8 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrSecretService
 {
+    string PathFor(Guid id);
+
     Task<IReadOnlyList<StraumrSecret>> ListAsync(CancellationToken cancellationToken = default);
 
     Task<StraumrSecret> GetAsync(

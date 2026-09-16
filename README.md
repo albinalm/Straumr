@@ -41,6 +41,10 @@ Straumr supports four auth types you can configure as reusable templates:
 
 Attach an auth template to a request and it's applied automatically on send. OAuth tokens that expire get refreshed without you having to do anything.
 
+**Editable on disk**
+
+Workspaces, requests, auths, and secrets are stored as JSONC, so you can open one in your editor and annotate it: `//` and `/* */` comments and trailing commas are all accepted. Your comments stay put — Straumr carries them across its own rewrites rather than flattening the file the next time it touches it.
+
 **Secrets**
 
 Store API keys, tokens, and other sensitive values as named secrets. Reference them in request URLs, headers, body, or auth templates using `{{secret:<name>}}`. Secrets are global across all workspaces.

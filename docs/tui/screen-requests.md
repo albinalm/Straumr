@@ -9,7 +9,7 @@ implements, what evidence exists, and where to resume.
   stamping access times, sorts by last access, and preserves selection where possible.
   A missing active workspace points back to Workspaces. Missing request files are
   skipped; unreadable requests remain as broken rows with an editor repair path.
-  Request files are `{id}.json` beside the workspace's `.straumr` file.
+  Request files are `{id}.jsonc` beside the workspace's `.straumr` file.
 - The shared list shows method and name. Filtering matches name, method and URL;
   `:select <name>`/`:r <name>` resolves exact names or unique prefixes and clears
   a filter to reach the selection.

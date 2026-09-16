@@ -249,10 +249,12 @@ public class StraumrRequestService(
         }
     }
 
+    public string PathFor(StraumrWorkspaceEntry workspace, Guid id) => RequestPath(id, workspace);
+
     private static string RequestPath(Guid id, StraumrWorkspaceEntry entry)
     {
         string? directory = Path.GetDirectoryName(entry.Path);
-        return Path.Combine(directory!, id + ".json");
+        return Path.Combine(directory!, id + ".jsonc");
     }
 
     private async Task<StraumrWorkspace> LoadWorkspaceAsync(

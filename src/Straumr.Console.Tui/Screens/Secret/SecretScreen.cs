@@ -22,6 +22,7 @@ public sealed class SecretScreen : ITuiScreen
     private readonly IStraumrRequestService _requests;
     private readonly IStraumrAuthService _auths;
     private readonly IStraumrSecretService _secrets;
+    private readonly IStraumrFileService _files;
     private readonly ExternalEditor _editor;
     private readonly State<int> _selectedIndex = new(-1);
     private readonly State<int> _count = new(0);
@@ -47,10 +48,10 @@ public sealed class SecretScreen : ITuiScreen
 
     public SecretScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
-        ExternalEditor editor)
+        IStraumrFileService files, ExternalEditor editor)
     {
-        (_state, _workspaces, _requests, _auths, _secrets, _editor) =
-            (state, workspaces, requests, auths, secrets, editor);
+        (_state, _workspaces, _requests, _auths, _secrets, _files, _editor) =
+            (state, workspaces, requests, auths, secrets, files, editor);
         var layout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey) ?? new StraumrPaneLayout();
         _splits = new PaneSplits(layout.Panels, layout.Sections, layout.Stack);
         _splits.Changed += QueuePaneLayoutSave;
@@ -452,6 +453,7 @@ public sealed class SecretScreen : ITuiScreen
                 Directory.CreateDirectory(Path.GetDirectoryName(item.Path)!);
                 await File.WriteAllTextAsync(item.Path, original, cancellationToken);
             }
+            _files.CarryCommentsFrom(item.Path, edited);
             try { await _secrets.SaveAsync(secret!, cancellationToken); }
             catch
             {

@@ -21,6 +21,7 @@ public class AuthEditCommand(
     IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrAuthService authService,
+    IStraumrFileService fileService,
     IInteractiveConsole interactiveConsole) : AsyncCommand<AuthEditCommand.Settings>
 {
     private const string ActionSave = "Save";
@@ -128,7 +129,8 @@ public class AuthEditCommand(
             auth = await GetAuthAsync(
                 authService, workspaceEntry, identifier, cancellationToken: cancellation);
             tempPath = await CreateEditorFileAsync(
-                auth, StraumrJsonContext.Default.StraumrAuth, cancellation);
+                auth, StraumrJsonContext.Default.StraumrAuth, cancellation,
+                authService.PathFor(workspaceEntry, auth.Id));
         }
         catch (StraumrException ex)
         {
@@ -176,6 +178,8 @@ public class AuthEditCommand(
 
             try
             {
+                fileService.CarryCommentsFrom(
+                    authService.PathFor(workspaceEntry, deserialized.Id), editedJson);
                 await authService.SaveAsync(workspaceEntry, deserialized, cancellation);
                 if (json)
                 {

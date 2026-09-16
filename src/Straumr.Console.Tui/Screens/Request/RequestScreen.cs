@@ -27,6 +27,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly IStraumrRequestService _requests;
     private readonly IStraumrAuthService _auths;
     private readonly IStraumrSecretService _secrets;
+    private readonly IStraumrFileService _files;
     private readonly ExternalEditor _editor;
     private readonly State<int> _selectedIndex = new(-1);
     private readonly State<int> _count = new(0);
@@ -88,10 +89,10 @@ public sealed class RequestScreen : ITuiScreen
 
     public RequestScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
-        ExternalEditor editor)
+        IStraumrFileService files, ExternalEditor editor)
     {
-        (_state, _workspaces, _requests, _auths, _secrets, _editor) =
-            (state, workspaces, requests, auths, secrets, editor);
+        (_state, _workspaces, _requests, _auths, _secrets, _files, _editor) =
+            (state, workspaces, requests, auths, secrets, files, editor);
         _responseBody = new ResponseBodyActions(_responsePreview, (message, failed) =>
             NotificationRequested?.Invoke(failed ? TuiCommandResult.Failed(message) : TuiCommandResult.Ok(message)));
         _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", 'v', OpenResponse,
@@ -234,7 +235,7 @@ public sealed class RequestScreen : ITuiScreen
             foreach (Guid id in workspace.Requests)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string path = Path.Combine(Path.GetDirectoryName(_workspace.Path)!, $"{id}.json");
+                string path = Path.Combine(Path.GetDirectoryName(_workspace.Path)!, $"{id}.jsonc");
                 if (!File.Exists(path))
                     continue;
                 _items.Add(await LoadItemAsync(id, path, cancellationToken));
@@ -915,7 +916,10 @@ public sealed class RequestScreen : ITuiScreen
             if (problem is not null)
                 await File.WriteAllTextAsync(item.Path, edited, cancellationToken);
             else
+            {
+                _files.CarryCommentsFrom(item.Path, edited);
                 await _requests.SaveAsync(workspace, request!, cancellationToken);
+            }
             _responses.Remove((workspace.Id, item.Id));
             await LoadAsync(cancellationToken);
             ApplyFilter(_filter.Text, item.Id);

@@ -118,22 +118,23 @@ Low-level file persistence helper.
 
 Responsibilities:
 
-- serialize and deserialize JSON with source-generated metadata
+- serialize and deserialize JSONC with source-generated metadata
+- carry the previous file's comments into every model write
 - ensure parent directories exist
 - update `Modified` on write
 - update `LastAccessed` on read or explicit stamp
 
 This service is intentionally generic. It does not understand workspace semantics.
 
-### `StraumrOptionsService`
+### `StraumrStateService`
 
-Owns `~/.straumr/options.json`.
+Owns `~/.straumr/state.json`.
 
 Responsibilities:
 
 - create the `~/.straumr` directory on first run
-- load options at process start
-- persist option mutations
+- load state at process start
+- persist state mutations
 
 ### `StraumrWorkspaceService`
 

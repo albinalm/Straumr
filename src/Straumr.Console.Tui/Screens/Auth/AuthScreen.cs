@@ -38,6 +38,7 @@ public sealed class AuthScreen : ITuiScreen
     private readonly IStraumrAuthService _auths;
     private readonly IStraumrRequestService _requestService;
     private readonly IStraumrSecretService _secrets;
+    private readonly IStraumrFileService _files;
     private readonly ExternalEditor _editor;
     private readonly State<int> _selectedIndex = new(-1);
     private readonly State<int> _count = new(0);
@@ -107,10 +108,11 @@ public sealed class AuthScreen : ITuiScreen
         IStraumrAuthService auths,
         IStraumrRequestService requests,
         IStraumrSecretService secrets,
+        IStraumrFileService files,
         ExternalEditor editor)
     {
-        (_state, _workspaces, _auths, _requestService, _secrets, _editor) =
-            (state, workspaces, auths, requests, secrets, editor);
+        (_state, _workspaces, _auths, _requestService, _secrets, _files, _editor) =
+            (state, workspaces, auths, requests, secrets, files, editor);
 
         // The upper regions open with a larger share than the even split the other screens use.
         // Configuration and Credential carry up to seven rows each; Secrets and Used by are usually
@@ -255,7 +257,7 @@ public sealed class AuthScreen : ITuiScreen
             foreach (Guid id in workspace.Auths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string path = Path.Combine(Path.GetDirectoryName(_workspace.Path)!, $"{id}.json");
+                string path = Path.Combine(Path.GetDirectoryName(_workspace.Path)!, $"{id}.jsonc");
                 if (!File.Exists(path))
                     continue;
                 _items.Add(await LoadItemAsync(id, path, cancellationToken));
@@ -977,7 +979,10 @@ public sealed class AuthScreen : ITuiScreen
             if (problem is not null)
                 await File.WriteAllTextAsync(item.Path, edited, cancellationToken);
             else
+            {
+                _files.CarryCommentsFrom(item.Path, edited);
                 await _auths.SaveAsync(workspace, auth!, cancellationToken);
+            }
             await LoadAsync(cancellationToken);
             ApplyFilter(_filter.Text, item.Id);
             return problem is null

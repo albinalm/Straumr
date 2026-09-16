@@ -1,9 +1,13 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Straumr.Core.Models;
 
 namespace Straumr.Core.Configuration;
 
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSourceGenerationOptions(
+    WriteIndented = true,
+    AllowTrailingCommas = true,
+    ReadCommentHandling = JsonCommentHandling.Skip)]
 [JsonSerializable(typeof(StraumrWorkspace))]
 [JsonSerializable(typeof(StraumrRequest))]
 [JsonSerializable(typeof(StraumrSecret))]

@@ -23,6 +23,7 @@ public class RequestCreateCommand(
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService,
+    IStraumrFileService fileService,
     IInteractiveConsole interactiveConsole)
     : AsyncCommand<RequestCreateCommand.Settings>
 {
@@ -121,7 +122,7 @@ public class RequestCreateCommand(
             throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
         }
 
-        string tempPath = Path.GetTempFileName();
+        string tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".jsonc");
         try
         {
             StraumrRequest request = new StraumrRequest
@@ -161,6 +162,8 @@ public class RequestCreateCommand(
 
             try
             {
+                fileService.CarryCommentsFrom(
+                    requestService.PathFor(workspaceEntry, deserializedJson.Id), editedJson);
                 await requestService.CreateAsync(workspaceEntry, deserializedJson, cancellation);
                 AnsiConsole.MarkupLine(
                     $"[green]Created request[/] [bold]{deserializedJson.Name}[/] ({deserializedJson.Id})");

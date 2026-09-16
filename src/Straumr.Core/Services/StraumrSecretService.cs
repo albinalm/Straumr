@@ -112,9 +112,11 @@ public class StraumrSecretService(
             throw new StraumrException("Secret names cannot contain double quotes", StraumrError.InvalidEntry);
     }
 
+    public string PathFor(Guid id) => SecretPath(id);
+
     private string SecretPath(Guid id)
     {
-        return Path.Combine(settingsService.DefaultSecretPath, id.ToString(), $"{id}.secret.json");
+        return Path.Combine(settingsService.DefaultSecretPath, id.ToString(), $"{id}.secret.jsonc");
     }
 
     private void RemoveSecretFile(string path)

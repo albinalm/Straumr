@@ -2,6 +2,25 @@
 
 This document explains how Straumr persists state on disk and how that state is interpreted at runtime.
 
+## On-Disk Format
+
+Workspace manifests, requests, auths and secrets are stored as **JSONC**: JSON that also accepts
+`//` line comments, `/* */` block comments, and trailing commas. They are meant to be opened in an
+editor and changed by hand, and the extension is what tells that editor so.
+
+Comments survive. Straumr rewrites a resource file on nearly every operation — reading one stamps
+`LastAccessed` — so a comment that merely parsed would be gone within seconds of being written. On
+each write the comments are lifted off the previous file, anchored to the member they sit against,
+and put back into the freshly serialised text. A comment whose member the rewrite removed is
+dropped with it.
+
+Anchoring covers the four places a comment can sit: above a member, on the same line after its
+value, at the foot of a container below its last member, and below the closing brace. Ordering and
+indentation are reproduced; blank lines between members are not.
+
+`~/.straumr/state.json` is the exception. It is the program's own registry, never hand-written, and
+stays plain JSON.
+
 ## Storage Layout
 
 Straumr has two storage roots:
@@ -13,21 +32,22 @@ Example layout:
 
 ```text
 ~/.straumr/
-  options.json
+  settings.toml
+  state.json
   secrets/
     <secret-id>/
-      <secret-id>.secret.json
+      <secret-id>.secret.jsonc
 
 <workspace-root>/
   demo/
     <workspace-id>.straumr
-    <request-or-auth-id>.json
-    <request-or-auth-id>.json
+    <request-or-auth-id>.jsonc
+    <request-or-auth-id>.jsonc
 ```
 
-## Global Options File
+## Global State File
 
-`~/.straumr/options.json` stores:
+`~/.straumr/state.json` stores:
 
 - `DefaultWorkspacePath`
 - `DefaultSecretPath`
@@ -70,7 +90,7 @@ Example:
 
 ## Workspace Manifest
 
-Each workspace is persisted as a `.straumr` JSON file.
+Each workspace is persisted as a `.straumr` file. The extension is Straumr's own; the content is JSONC.
 
 Example:
 
@@ -95,7 +115,7 @@ Notes:
 
 ## Request Files
 
-Requests are stored as `<id>.json` in the active workspace directory.
+Requests are stored as `<id>.jsonc` in the active workspace directory.
 
 Example:
 
@@ -129,11 +149,11 @@ Important serialization details (on-disk format):
 - `BodyType` is serialized as the enum numeric value.
 - `Bodies` uses enum names such as `Json` as object keys.
 
-Note: `get request --json` does **not** return this raw format. It returns a normalized DTO where `Method` is a plain string and `BodyType` is the enum name. Only `edit request --editor` exposes the raw on-disk format directly.
+Note: `get request --json` does **not** return this raw format. It returns a normalized DTO where `Method` is a plain string and `BodyType` is the enum name. Only `edit request --editor` exposes the raw on-disk format directly, and it hands over the file's own text, comments included.
 
 ## Secret Files
 
-Secrets are stored globally as `<secret-id>.secret.json`.
+Secrets are stored globally as `<secret-id>.secret.jsonc`.
 
 Example:
 
@@ -149,9 +169,9 @@ Example:
 
 ## Auth Files
 
-Auths are stored as `<id>.json` in the workspace directory, alongside request files.
+Auths are stored as `<id>.jsonc` in the workspace directory, alongside request files.
 
-The workspace manifest determines whether a given GUID-backed JSON file is interpreted as a request or an auth.
+The workspace manifest determines whether a given GUID-backed file is interpreted as a request or an auth.
 
 Auth config is polymorphic and uses an `authType` discriminator. The concrete config classes are:
 
@@ -241,7 +261,7 @@ Straumr exports workspaces as `.straumrpak` zip archives.
 Archive contents:
 
 - `.pak`: two-line metadata file containing workspace ID then workspace name
-- one workspace directory containing the `.straumr` manifest and any `.json` member files
+- one workspace directory containing the `.straumr` manifest and any `.jsonc` member files
 
 Import validation rules:
 

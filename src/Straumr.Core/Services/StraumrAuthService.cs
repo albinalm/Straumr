@@ -604,10 +604,12 @@ public class StraumrAuthService(
         }
     }
 
+    public string PathFor(StraumrWorkspaceEntry workspace, Guid id) => AuthPath(id, workspace);
+
     private static string AuthPath(Guid id, StraumrWorkspaceEntry entry)
     {
         string? directory = Path.GetDirectoryName(entry.Path);
-        return Path.Combine(directory!, $"{id}.json");
+        return Path.Combine(directory!, $"{id}.jsonc");
     }
 
     private async Task<StraumrAuth> ReadByIdAsync(

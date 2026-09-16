@@ -15,7 +15,9 @@ using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
 
 namespace Straumr.Console.Cli.Commands.Workspace;
 
-public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
+public class WorkspaceEditCommand(
+    IStraumrWorkspaceService workspaceService,
+    IStraumrFileService fileService)
     : AsyncCommand<WorkspaceEditCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings,
@@ -34,7 +36,8 @@ public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
             original = await GetWorkspaceAsync(
                 workspaceService, settings.Identifier, cancellationToken: cancellation);
             tempPath = await CreateEditorFileAsync(
-                original, StraumrJsonContext.Default.StraumrWorkspace, cancellation);
+                original, StraumrJsonContext.Default.StraumrWorkspace, cancellation,
+                workspaceService.GetEntry(original.Id).Path);
         }
         catch (StraumrException ex)
         {
@@ -72,6 +75,8 @@ public class WorkspaceEditCommand(IStraumrWorkspaceService workspaceService)
                     return 1;
                 }
 
+                fileService.CarryCommentsFrom(
+                    workspaceService.GetEntry(workspace.Id).Path, editedJson);
                 await workspaceService.SaveAsync(workspace, cancellation);
 
                 if (settings.Json)

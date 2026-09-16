@@ -97,10 +97,13 @@ internal static class RequestCommandHelpers
     internal static async Task<string> CreateEditorFileAsync<T>(
         T value,
         JsonTypeInfo<T> jsonTypeInfo,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? sourcePath = null)
     {
-        string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
-        string json = JsonSerializer.Serialize(value, jsonTypeInfo);
+        string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".jsonc");
+        string json = sourcePath is not null && File.Exists(sourcePath)
+            ? await File.ReadAllTextAsync(sourcePath, cancellationToken)
+            : JsonSerializer.Serialize(value, jsonTypeInfo);
         await File.WriteAllTextAsync(path, json, cancellationToken);
         return path;
     }

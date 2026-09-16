@@ -3,6 +3,17 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: Stored resources are JSONC, and comments in them survive. Workspace manifests,
+  requests, auths and secrets now accept `//` and `/* */` comments and trailing commas, and the
+  files carry `.jsonc` so an editor knows it. Keeping a comment is the whole point and was the hard
+  part: reading a resource stamps `LastAccessed`, so anything the app merely tolerated would have
+  been erased on the next keystroke elsewhere. `JsoncComments` lifts the comments off the old text,
+  anchors each to the member it sits against, and puts them back after serialisation, so a comment
+  outlives every stamp, send and save. The screens' `:json` editors hand over the file's own text
+  rather than a re-serialisation, and hand it back through `CarryCommentsFrom`, so a comment written
+  inside the editor session survives too. No migration: existing `.json` resources are stale, as the
+  early-access decision below already provides for.
+
 - 2026-09-16: Fixed focused buttons picking up the colour of whatever was behind the dialog. The
   inverted selection surface carried no foreground of its own, and inversion swaps whatever colour a
   cell already holds: a dialog's surface fill sets a background but leaves foregrounds alone, so

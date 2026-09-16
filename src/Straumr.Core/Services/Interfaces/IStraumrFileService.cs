@@ -5,6 +5,8 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrFileService
 {
+    void CarryCommentsFrom(string path, string jsonc);
+
     Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken = default) where T : StraumrModelBase;
 

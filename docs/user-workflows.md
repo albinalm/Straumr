@@ -32,7 +32,7 @@ Before creating a workspace without `-o`, set the default workspace root:
 straumr config workspace-path /path/to/workspaces
 ```
 
-That path is persisted in `~/.straumr/options.json`. Add `--json` to get a machine-readable result:
+That path is persisted in `~/.straumr/settings.toml`. Add `--json` to get a machine-readable result:
 
 ```sh
 straumr config workspace-path ~/api-workspaces --json
@@ -98,7 +98,7 @@ Workspace editing is file-based only:
 EDITOR=nvim straumr edit workspace myapi
 ```
 
-Straumr copies the manifest to a temp file, launches `$EDITOR`, and replaces the original if the editor exits cleanly.
+Straumr copies the manifest to a temp `.jsonc` file, launches `$EDITOR`, and replaces the original if the editor exits cleanly. Comments in the manifest are handed to the editor and carried back.
 
 ### Copy, Export, Import, Delete
 
@@ -247,7 +247,7 @@ Interactive auth editing lets you:
 - fetch an OAuth token or custom auth value immediately
 - toggle auto-renew behavior
 
-Editor mode writes raw auth JSON to a temp file. Auth IDs may not be changed during edit.
+Editor mode writes the auth's own `.jsonc` text to a temp file, comments included. Auth IDs may not be changed during edit.
 
 ### Non-Interactive Auth Creation
 

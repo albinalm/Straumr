@@ -9,7 +9,7 @@ implements, what evidence exists, and where to resume.
   stamping access times, sort by last access, and preserve selection where possible.
   A missing active workspace points back to Workspaces. Missing auth files are skipped;
   unreadable auths remain as broken rows with an editor repair path. Auth files are
-  `{id}.json` beside the workspace's `.straumr` file, as request files are.
+  `{id}.jsonc` beside the workspace's `.straumr` file, as request files are.
 - The shared list shows the name and, on the second line, what kind of auth it is and the
   one choice within that kind that changes what it does: `OAuth 2.0 · Client Credentials`,
   `Custom · JSON path`, `Bearer`, `Basic`. A row reads amber when the auth holds something

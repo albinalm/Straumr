@@ -23,6 +23,7 @@ public class RequestEditCommand(
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
     IStraumrAuthService authService,
+    IStraumrFileService fileService,
     IInteractiveConsole interactiveConsole)
     : AsyncCommand<RequestEditCommand.Settings>
 {
@@ -433,7 +434,8 @@ public class RequestEditCommand(
             request = await GetRequestAsync(
                 requestService, workspaceEntry, identifier, cancellationToken: cancellation);
             tempPath = await CreateEditorFileAsync(
-                request, StraumrJsonContext.Default.StraumrRequest, cancellation);
+                request, StraumrJsonContext.Default.StraumrRequest, cancellation,
+                requestService.PathFor(workspaceEntry, request.Id));
         }
         catch (StraumrException ex)
         {
@@ -481,6 +483,8 @@ public class RequestEditCommand(
 
             try
             {
+                fileService.CarryCommentsFrom(
+                    requestService.PathFor(workspaceEntry, deserializedJson.Id), editedJson);
                 await requestService.SaveAsync(workspaceEntry, deserializedJson, cancellation);
                 if (json)
                 {

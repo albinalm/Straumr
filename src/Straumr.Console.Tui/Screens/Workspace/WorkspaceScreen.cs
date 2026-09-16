@@ -21,6 +21,7 @@ public sealed class WorkspaceScreen : ITuiScreen
     private readonly IStraumrSettingsService _settingsService;
     private readonly IStraumrWorkspaceService _workspaceService;
     private readonly IStraumrRequestService _requestService;
+    private readonly IStraumrFileService _fileService;
     private readonly ExternalEditor _externalEditor;
     private readonly State<WorkspaceLoadState> _loadState = new(WorkspaceLoadState.Loading);
     private readonly State<RequestPreviewLoadState> _requestLoadState = new(RequestPreviewLoadState.Idle);
@@ -55,12 +56,14 @@ public sealed class WorkspaceScreen : ITuiScreen
         IStraumrSettingsService settingsService,
         IStraumrWorkspaceService workspaceService,
         IStraumrRequestService requestService,
+        IStraumrFileService fileService,
         ExternalEditor externalEditor)
     {
         _stateService = stateService;
         _settingsService = settingsService;
         _workspaceService = workspaceService;
         _requestService = requestService;
+        _fileService = fileService;
         _externalEditor = externalEditor;
 
         _workspaceList = new ResourceList(
@@ -599,22 +602,18 @@ public sealed class WorkspaceScreen : ITuiScreen
     }
 
     /// <remarks>
-    /// A workspace that still parses is re-read through Core so the editor opens on what is on disk
-    /// rather than on what the screen loaded. One that does not parse has nothing for Core to return,
-    /// and its file as it stands is exactly what has to be edited.
+    /// The editor opens the file itself rather than a re-serialisation of what Core returned, so the
+    /// reader gets their own comments and spacing back. A workspace that still parses is put through
+    /// Core first, so an edit is not offered on something Core has since stopped being able to read.
     /// </remarks>
     private async Task<string> ReadForEditingAsync(
         WorkspaceScreenItem item,
         CancellationToken cancellationToken)
     {
-        if (item.IsCorrupt)
-            return await File.ReadAllTextAsync(item.Entry.Path, cancellationToken);
+        if (!item.IsCorrupt)
+            await _workspaceService.GetAsync(item.Id, updateLastAccessed: false, cancellationToken);
 
-        StraumrWorkspace workspace = await _workspaceService.GetAsync(
-            item.Id,
-            updateLastAccessed: false,
-            cancellationToken);
-        return JsonSerializer.Serialize(workspace, StraumrJsonContext.Default.StraumrWorkspace);
+        return await File.ReadAllTextAsync(item.Entry.Path, cancellationToken);
     }
 
     /// <remarks>
@@ -646,6 +645,7 @@ public sealed class WorkspaceScreen : ITuiScreen
             return TuiCommandResult.Failed($"saved {item.Name}, but {problem}; press e to fix it");
         }
 
+        _fileService.CarryCommentsFrom(item.Entry.Path, edited);
         await _workspaceService.SaveAsync(workspace!, cancellationToken);
         await ReloadAndSelectAsync(item.Id, cancellationToken);
         return TuiCommandResult.Ok($"updated workspace {workspace!.Name}");

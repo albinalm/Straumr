@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Models;
@@ -9,6 +10,13 @@ namespace Straumr.Core.Services;
 
 public class StraumrFileService : IStraumrFileService
 {
+    private (string Path, string Jsonc)? _handoff;
+
+    public void CarryCommentsFrom(string path, string jsonc)
+    {
+        _handoff = (Path.GetFullPath(path), jsonc);
+    }
+
     public async Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken = default) where T : StraumrModelBase
     {
@@ -93,8 +101,33 @@ public class StraumrFileService : IStraumrFileService
             value.Modified = DateTimeOffset.UtcNow;
         }
 
+        string previous = await CommentSourceAsync(path, cancellationToken);
         string json = JsonSerializer.Serialize(value, typeInfo);
-        await WriteTextAtomicAsync(path, json, cancellationToken);
+        await WriteTextAtomicAsync(path, JsoncComments.Carry(previous, json), cancellationToken);
+    }
+
+    private async Task<string> CommentSourceAsync(string path, CancellationToken cancellationToken)
+    {
+        if (_handoff is { } handoff &&
+            string.Equals(handoff.Path, Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase))
+        {
+            _handoff = null;
+            return handoff.Jsonc;
+        }
+
+        if (!File.Exists(path))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return await File.ReadAllTextAsync(path, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
     }
 
     private void EnsureDirectoryExists(string path)
