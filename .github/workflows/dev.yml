@@ -45,13 +45,13 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore ${{ env.SOLUTION }}
+        run: dotnet restore ${{ env.SOLUTION }} -p:IncludeTui=true
 
       - name: Build
-        run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore
+        run: dotnet build ${{ env.SOLUTION }} -c Release --no-restore -p:IncludeTui=true
 
       - name: Test
-        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build --verbosity normal
+        run: dotnet test ${{ env.SOLUTION }} -c Release --no-build --verbosity normal -p:IncludeTui=true
 
       - name: Publish (Linux)
         if: runner.os == 'Linux'
@@ -60,6 +60,7 @@ jobs:
           dotnet publish "${APP_PROJECT}" \
             -c Release -r ${{ matrix.rid }} \
             -o artifacts/${{ matrix.rid }} \
+            -p:IncludeTui=true \
             /p:Version=${VERSION%-dev} \
             /p:FileVersion=${VERSION%-dev} \
             /p:InformationalVersion=${VERSION}
@@ -75,6 +76,7 @@ jobs:
           dotnet publish $env:APP_PROJECT `
             -c Release -r ${{ matrix.rid }} `
             -o artifacts/${{ matrix.rid }} `
+            -p:IncludeTui=true `
             /p:Version=$fileVersion `
             /p:FileVersion=$fileVersion `
             /p:InformationalVersion=${env:VERSION}

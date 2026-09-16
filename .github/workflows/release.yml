@@ -51,6 +51,7 @@ jobs:
           dotnet publish "${APP_PROJECT}" \
             -c Release -r ${{ matrix.rid }} \
             -o artifacts/${{ matrix.rid }} \
+            -p:IncludeTui=true \
             /p:Version=${VERSION} \
             /p:FileVersion=${VERSION} \
             /p:InformationalVersion=${VERSION}
@@ -75,6 +76,7 @@ jobs:
           dotnet publish $env:APP_PROJECT `
             -c Release -r ${{ matrix.rid }} `
             -o artifacts/${{ matrix.rid }} `
+            -p:IncludeTui=true `
             /p:Version=${env:VERSION} `
             /p:FileVersion=${env:VERSION} `
             /p:InformationalVersion=${env:VERSION}

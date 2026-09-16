@@ -10,6 +10,7 @@ This directory documents Straumr from three angles:
 
 - [User Workflows](./user-workflows.md): setup, workspace lifecycle, requests, auth, secrets, and request sending.
 - [Command Reference](./command-reference.md): command groups, aliases, notable flags, and exit-code behavior.
+- [Themes](./theme.md): choose, create, and customize terminal UI colour themes.
 - [AI Agent Guide](./agents-doc.md): machine-readable usage patterns, filtering, JSON envelopes, and automation-safe workflows.
 - [Data Model](./data-model.md): file layout, JSON shapes, serialization details, and resolution rules.
 - [Architecture](./architecture.md): solution structure, service responsibilities, and runtime flow through the app.
@@ -25,7 +26,8 @@ If you are new to Straumr, read:
 
 1. [User Workflows](./user-workflows.md)
 2. [Command Reference](./command-reference.md)
-3. [Data Model](./data-model.md)
+3. [Themes](./theme.md)
+4. [Data Model](./data-model.md)
 
 If you are changing the codebase, read:
 
