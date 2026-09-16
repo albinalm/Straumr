@@ -26,7 +26,8 @@ loading all of it wastes the budget the work needs.
 | A key, gesture, focus, modality, command bar, `:` prompt, fullscreen hosting | `framework-input.md` |
 | Adding a new screen | `adding-a-screen.md`, `shared-components.md`, `code-structure.md` |
 | Changing the Workspaces screen | `screen-workspaces.md`, `shared-components.md` |
-| Changing the Requests screen (active milestone) | `screen-requests.md`, `shared-components.md` |
+| Changing the Requests screen | `screen-requests.md`, `shared-components.md` |
+| Changing the Auths screen (active milestone) | `screen-auths.md`, `shared-components.md` |
 | Adding a file, or deciding where code lives | `code-structure.md` |
 | Wiring the host, DI, exit codes, screen navigation | `code-structure.md` (Runtime Boundaries) |
 | Proving a change without the developer's terminal | `headless-verification.md` |

@@ -94,6 +94,17 @@ internal sealed class TextField : EditorField
 
     public override Visual FocusTarget => _input;
 
+    /// <summary>
+    /// The hint shown while the field is empty, for a field whose hint another field decides: a
+    /// custom auth's extraction expression means something different under each extraction source,
+    /// and nothing else on that page says which.
+    /// </summary>
+    public string? Placeholder
+    {
+        get => _input.Placeholder;
+        set => _input.Placeholder = value;
+    }
+
     /// <summary>Arms the field to discard the keystroke that opened the form it leads.</summary>
     public char? PendingEcho
     {

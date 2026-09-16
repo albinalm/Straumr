@@ -77,6 +77,7 @@ public class StraumrAuthService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateName(auth.Name);
         string fullPath = AuthPath(auth.Id, workspace);
 
         if (File.Exists(fullPath))
@@ -101,6 +102,7 @@ public class StraumrAuthService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateName(auth.Name);
         string fullPath = AuthPath(auth.Id, workspace);
 
         if (!File.Exists(fullPath))
@@ -583,6 +585,22 @@ public class StraumrAuthService(
                 }
             }
             catch (StraumrException ex) when (ex.Reason is StraumrError.CorruptEntry or StraumrError.EntryNotFound) { }
+        }
+    }
+
+    /// <remarks>
+    /// The same rule request names carry. A name is one quoted argument in the TUI's command
+    /// prompt, and a literal double quote inside one would need a second escaping language across
+    /// the prompt, the CLI and the persisted name. Refusing it here keeps every auth name
+    /// representable wherever it is typed.
+    /// </remarks>
+    private static void ValidateName(string name)
+    {
+        if (name.Contains('"'))
+        {
+            throw new StraumrException(
+                "Auth names cannot contain double quotes",
+                StraumrError.InvalidEntry);
         }
     }
 

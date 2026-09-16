@@ -3,6 +3,66 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: The Extract page got help on `h`. The page asks for one expression whose meaning
+  changes completely with the source chosen above it — `data.token` walks a JSON body, `X-Auth-Token`
+  names a header, `"token":"([^"]+)"` is matched against the body as text — and the field's
+  placeholder has room for one example of the three. The dialog gives each source what it does, how
+  its expression is written, and worked examples: three for the JSON path, which is the one most
+  likely to be guessed wrong. It is deliberately not JSONPath — a dotted walk with bare numbers
+  indexing arrays, no `$`, no bracketed index, no wildcards — so the help says that outright rather
+  than leaving a reader to try `$.access_token` and read a "property not found" back.
+  It takes two keys for one action, which needs explaining. Every letter is a character a focused
+  field swallows, which is the rule the editor's `Ctrl+S` was built around; a bare `h` therefore
+  reaches the help from the Source dropdown and from nowhere else on a page whose other three fields
+  are text boxes — which is exactly where a reader wondering about the syntax is standing. `F1` is
+  not a character and works in all four. `Ctrl+H` looks like the obvious pairing and is unusable: a
+  terminal sends it as the C0 byte for Backspace, so it would delete a character rather than explain
+  one. The two share one hint, `h /F1 Help`, the shape `Enter /e Edit` already has. Both commands sit
+  on the Extract page's own root rather than on the editor, so they are offered on that page alone —
+  every page stays attached, and commands are collected from the focus chain.
+  The text is written against `StraumrAuthService`'s three extractors and says what they actually do,
+  including the parts that would otherwise be found out by failing: the header lookup falls through to
+  the content headers and ignores case, and the regex takes the first match, preferring group 1 when
+  the pattern has one and the whole match when it does not. Section titles come from
+  `ExtractionSourceDisplayName`, so the help and the dropdown cannot drift apart. A layout capture
+  confirms the columns and the wrapping; Debug, Release and CLI-only builds pass without warnings.
+  The keys themselves want a terminal.
+
+- 2026-09-16: Added the Auths screen, A1. An auth answers four questions rather than two, so its
+  detail panel has four regions instead of the pair every other screen uses: Configuration is how it
+  is set up, Credential is what it is holding and what the next send will do with it, Secrets is
+  every reference it makes with whether the store can supply it, and Used by is the requests that
+  send with it. Nothing on the screen prints credential material. A value that is a secret reference
+  is named, because the name is the point of using one and is not itself the secret; everything else
+  reads `set` or `not set`. That a token is not shown needs no line of its own, which is the rule the
+  Requests screen's Authentication pane already follows.
+  Status is said in colour rather than in a word of its own — amber when the auth holds something it
+  could authenticate with right now, inert grey when it does not, red for the reason the next send
+  will fail. Green was not available: it belongs to the active workspace alone, so an expired token
+  that will renew itself reads amber rather than green. The wording and the colour both come from
+  `AuthFormatting`, which the Requests screen now uses for the same auth, so the two screens cannot
+  describe one resource differently.
+  `f` fetches an OAuth2 token or a custom auth's extracted value and saves the result, which is the
+  difference between fetching here and a send fetching one for itself — an auth holds its token. It
+  is registered on the list and on the container the detail regions share, so it works from wherever
+  the reader is, the lesson `s` on Requests had to be taught twice. It is not offered for Bearer or
+  Basic, which *are* the credential they carry. The editor's pages are decided by the type — Bearer
+  and Basic have only Auth, OAuth2 adds Grant, Custom adds the four that describe its request — and a
+  page that does not apply is neither titled nor reachable, which is the field-level discriminator
+  one level up. Each shape is kept for the life of the form, so changing the type puts away what the
+  old one held rather than throwing it out, the rule a body type already follows. `d` names how many
+  requests still point at the auth, because deleting it does not change them, as deleting one from
+  the CLI does not, and this screen is the only place that knows which they are.
+  R1 predicted an auth would be a file the size of `RequestEditor.cs`. It is not: `AuthEditor.cs` is
+  364 lines to that file's 193, and `AuthScreen.cs` is 1086 to `RequestScreen.cs`'s 916. The shared
+  kit worked — no layout, scrolling, focus or selection was rewritten, and the refactors it needed
+  are byte-identical to `HEAD` on Requests by snapshot diff — but four configuration shapes across
+  two axes and four detail regions are simply more to describe than one request is. Core also now
+  refuses a double quote in an auth name, as it already did for a request, so every auth name has an
+  unambiguous quoted form in the prompt. Debug, Release and CLI-only builds pass with no warnings and
+  CLI `create auth --help` still renders after the shared helpers moved. None of it has been seen in
+  a terminal.
+
 - 2026-09-16: `Enter` on a request opens the editor instead of moving focus into the Request pane.
   The developer called the old behavior weird and it was: activating a row is meant to do the thing
   the row is for, and this row's thing is the request. Focusing a read-only preview was never that,

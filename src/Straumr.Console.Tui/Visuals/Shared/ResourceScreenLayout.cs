@@ -193,6 +193,49 @@ internal static class ResourceScreenLayout
     }
 
     /// <summary>
+    /// Four detail regions in two columns of two, titled on two rules that both run the full width.
+    /// </summary>
+    /// <remarks>
+    /// Requests stacks a second region in one column by nesting a rule inside that column's cell,
+    /// which leaves the rule stopping at the column divider with no junction glyph where it meets it.
+    /// Where both columns split, the lower rule is a row of the outer grid instead: it runs to both
+    /// frames, the divider carries <c>┼</c> at the crossing, and the four titles sit on two lines the
+    /// focus chip travels exactly as it travels the one line on a two-region screen.
+    /// The row split is <see cref="PaneSplits.Stack"/>, which is the same divider <c>Ctrl+J</c> and
+    /// <c>Ctrl+K</c> already move on Requests, so the keys mean the same thing on both screens.
+    /// </remarks>
+    public static Visual FourPaneSections(
+        PaneSplits splits,
+        (string Title, Visual Pane) leftTop,
+        (string Title, Visual Pane) rightTop,
+        (string Title, Visual Pane) leftBottom,
+        (string Title, Visual Pane) rightBottom)
+    {
+        splits.UseStack();
+
+        return PaneColumns(
+                splits.Sections,
+                new RowDefinition { Height = GridLength.Auto },
+                splits.Stack.FirstRow(),
+                new RowDefinition { Height = GridLength.Auto },
+                splits.Stack.SecondRow())
+            .Cell(StraumrSurfaces.TitledDivider(leftTop.Title, leftTop.Pane.Owns), 0, 0)
+            .Cell(StraumrSurfaces.VerticalDivider((0, new Rune('┬'))), 0, 1)
+            .Cell(StraumrSurfaces.TitledDivider(rightTop.Title, rightTop.Pane.Owns), 0, 2)
+            .Cell(leftTop.Pane, 1, 0)
+            .Cell(StraumrSurfaces.VerticalDivider(), 1, 1)
+            .Cell(rightTop.Pane, 1, 2)
+            .Cell(StraumrSurfaces.TitledDivider(leftBottom.Title, leftBottom.Pane.Owns), 2, 0)
+            .Cell(StraumrSurfaces.VerticalDivider((0, new Rune('┼'))), 2, 1)
+            .Cell(StraumrSurfaces.TitledDivider(rightBottom.Title, rightBottom.Pane.Owns), 2, 2)
+            .Cell(leftBottom.Pane, 3, 0)
+            .Cell(StraumrSurfaces.VerticalDivider(), 3, 1)
+            .Cell(rightBottom.Pane, 3, 2)
+            .HorizontalAlignment(Align.Stretch)
+            .VerticalAlignment(Align.Stretch);
+    }
+
+    /// <summary>
     /// A plain closing rule and nothing below it, for when no resource is selected. Section titles
     /// over an empty region read as unfinished, so they are omitted rather than shown bare.
     /// </summary>

@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Shared.Interfaces;
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
@@ -90,10 +91,8 @@ internal static class AuthCommandHelpers
         return $"[blue]OAuth 2.0 ({grantName})[/] {tokenStatus}";
     }
 
-    internal static bool SupportsAuthFetch(StraumrAuthConfig? auth)
-    {
-        return auth is OAuth2Config or CustomAuthConfig;
-    }
+    internal static bool SupportsAuthFetch(StraumrAuthConfig? auth) =>
+        AuthEditingHelpers.SupportsFetch(auth);
 
     internal static async Task<StraumrAuth?> SelectAuthAsync(
         IInteractiveConsole console,
@@ -503,17 +502,14 @@ internal static class AuthCommandHelpers
             case "Grant type":
             {
                 string? selected = console.Select("Select grant type",
-                    ["Client Credentials", "Authorization Code", "Resource Owner Password"]);
+                    AuthEditingHelpers.OAuth2Grants.Select(AuthEditingHelpers.GrantDisplayName).ToList());
 
                 if (selected is not null)
                 {
-                    config.GrantType = selected switch
-                    {
-                        "Client Credentials" => OAuth2GrantType.ClientCredentials,
-                        "Authorization Code" => OAuth2GrantType.AuthorizationCode,
-                        "Resource Owner Password" => OAuth2GrantType.ResourceOwnerPassword,
-                        _ => config.GrantType
-                    };
+                    config.GrantType = Array.Find(AuthEditingHelpers.OAuth2Grants,
+                            grant => AuthEditingHelpers.GrantDisplayName(grant) == selected) is { } grantType
+                        ? grantType
+                        : config.GrantType;
                 }
 
                 break;
@@ -641,13 +637,8 @@ internal static class AuthCommandHelpers
             string bodyDisplay = config.BodyType == BodyType.None
                 ? "[grey]none[/]"
                 : $"[blue]{BodyTypeDisplayName(config.BodyType)}[/]";
-            string sourceDisplay = config.Source switch
-            {
-                ExtractionSource.JsonPath => "[blue]JSON path[/]",
-                ExtractionSource.ResponseHeader => "[blue]Response header[/]",
-                ExtractionSource.Regex => "[blue]Regex[/]",
-                _ => "[grey]unknown[/]"
-            };
+            string sourceDisplay =
+                $"[blue]{AuthEditingHelpers.ExtractionSourceDisplayName(config.Source)}[/]";
             string expressionDisplay = string.IsNullOrWhiteSpace(config.ExtractionExpression)
                 ? "[grey]not set[/]"
                 : $"[blue]{Markup.Escape(config.ExtractionExpression)}[/]";
@@ -730,13 +721,7 @@ internal static class AuthCommandHelpers
                 }
                 case actionExpression:
                 {
-                    string hint = config.Source switch
-                    {
-                        ExtractionSource.JsonPath => "JSON path (e.g. access_token or data.token)",
-                        ExtractionSource.ResponseHeader => "Header name (e.g. X-Auth-Token)",
-                        ExtractionSource.Regex => "Regex with capture group (e.g. token\":\"([^\"]+)\")",
-                        _ => "Expression"
-                    };
+                    string hint = AuthEditingHelpers.ExtractionExpressionHint(config.Source);
                     string? value = console.TextInput(hint, config.ExtractionExpression,
                         validate: v => string.IsNullOrWhiteSpace(v) ? "Expression cannot be empty." : null);
                     if (value is not null)

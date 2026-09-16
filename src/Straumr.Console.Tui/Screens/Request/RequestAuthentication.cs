@@ -1,6 +1,8 @@
 using System.Text.Json;
+using Straumr.Console.Tui.Formatting;
+using Straumr.Console.Tui.Infrastructure;
+using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Configuration;
-using Straumr.Core.Helpers;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 
@@ -15,11 +17,12 @@ internal sealed record RequestAuthentication(
     string Source,
     string Type,
     string Injects,
-    string Status,
+    AuthStatus Status,
     IReadOnlyList<SecretReference> References,
     string? Problem)
 {
-    public static readonly RequestAuthentication Loading = new("Loading…", "", "", "", [], null);
+    public static readonly RequestAuthentication Loading =
+        new("Loading…", "", "", new AuthStatus("", StraumrStyles.MutedText), [], null);
 
     public static async Task<RequestAuthentication> LoadAsync(
         StraumrRequest request, StraumrWorkspaceEntry workspace,
@@ -40,43 +43,27 @@ internal sealed record RequestAuthentication(
             }
         }
 
-        string referenceText = JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest);
-        if (auth is not null)
-            referenceText += JsonSerializer.Serialize(auth, StraumrJsonContext.Default.StraumrAuth);
-        var references = new List<SecretReference>();
-        foreach (string name in SecretHelpers.SecretPattern.Matches(referenceText)
-                     .Select(match => match.Groups["name"].Value).Distinct(StringComparer.Ordinal))
+        // A request's references are its own and its auth's: both are substituted on the same send,
+        // so both have to resolve for it to reach the wire.
+        var documents = new List<string>
         {
-            try
-            {
-                await secretService.GetAsync(name, updateLastAccessed: false, cancellationToken);
-                references.Add(new SecretReference(name, Available: true));
-            }
-            catch (Exception exception) when (RequestScreen.IsRecoverable(exception))
-            {
-                references.Add(new SecretReference(name, Available: false));
-            }
-        }
+            JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest)
+        };
+        if (auth is not null)
+            documents.Add(JsonSerializer.Serialize(auth, StraumrJsonContext.Default.StraumrAuth));
+        IReadOnlyList<SecretReference> references = await SecretReferences.ResolveAsync(
+            secretService, documents, RequestScreen.IsRecoverable, cancellationToken);
 
         bool direct = request.Headers.Keys.Any(name => name.Equals("Authorization", StringComparison.OrdinalIgnoreCase));
         return new RequestAuthentication(
             auth?.Name ?? (request.AuthId.HasValue ? $"Missing auth {request.AuthId.ToString()![..8]}" : direct ? "Request header" : "None"),
-            auth?.Config.Type.ToString() ?? (direct ? "Direct" : "None"),
-            auth?.Config is CustomAuthConfig custom ? custom.ApplyHeaderName : auth is not null || direct ? "Authorization" : "None",
-            auth?.Config switch
-            {
-                OAuth2Config { Token: null } => auth.AutoRenewAuth ? "Token fetched on send" : "No token; auto-renew off",
-                OAuth2Config { Token.IsExpired: true } => auth.AutoRenewAuth ? "Expired; renews on send" : "Expired; auto-renew off",
-                OAuth2Config { Token.ExpiresAt: { } expiry } => $"Expires {expiry.ToLocalTime():g}",
-                OAuth2Config => "Token available; no expiry",
-                CustomAuthConfig { CachedValue: null } => "Fetched on send",
-                CustomAuthConfig => "Cached value available",
-                _ => auth is not null || direct ? "Configured" : "No authentication"
-            },
+            auth is not null ? AuthFormatting.TypeName(auth.Config) : direct ? "Direct" : "None",
+            auth is not null ? AuthFormatting.Injects(auth.Config) : direct ? "Authorization" : "None",
+            // Said in the Auths screen's words, because it is the same auth and the same question.
+            auth is not null
+                ? AuthFormatting.Status(auth)
+                : new AuthStatus(direct ? "Configured" : "No authentication", StraumrStyles.MutedText),
             references,
             problem);
     }
 }
-
-/// <summary>One <c>{{secret:name}}</c> a request depends on, and whether the store can supply it.</summary>
-internal sealed record SecretReference(string Name, bool Available);

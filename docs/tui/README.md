@@ -16,7 +16,8 @@ routes a task to the right files; this page is the plain map.
 | [shared-components.md](./shared-components.md) | `ResourceScreenLayout`, lists, filter, dividers, browsers, prompt | Writing any screen visual |
 | [adding-a-screen.md](./adding-a-screen.md) | The six-step procedure, and what Requests added | Starting a new screen |
 | [screen-workspaces.md](./screen-workspaces.md) | The accepted Workspaces screen and its definition of done | Changing Workspaces, or as a worked example |
-| [screen-requests.md](./screen-requests.md) | R1 behavior, evidence, resume points | Working the active milestone |
+| [screen-requests.md](./screen-requests.md) | R1 behavior, evidence, resume points | Changing Requests, or as a worked example |
+| [screen-auths.md](./screen-auths.md) | A1 behavior, evidence, resume points | Working the active milestone |
 | [validation-checklist.md](./validation-checklist.md) | What has been verified and what has not | Closing out a change |
 | [decisions.md](./decisions.md) | Dated decisions and their reasons | A rule looks arbitrary, or you want to reverse one |
 | [changelog.md](./changelog.md) | Dated history, newest first | Resuming after a break |

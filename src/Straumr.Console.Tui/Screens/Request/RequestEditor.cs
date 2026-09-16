@@ -34,20 +34,8 @@ internal sealed class RequestEditor
 
     private readonly ResourceEditorView _view;
 
-    /// <summary>
-    /// Each body type keeps its own content, so switching type has to put away what the editor was
-    /// holding and fetch what the new type left behind. Without it, choosing XML to look at it and
-    /// choosing JSON again would have overwritten the JSON with the XML.
-    /// </summary>
-    private readonly ContentField _bodyText;
-
-    private readonly Dictionary<string, string> _formFields;
-    private readonly Dictionary<string, string> _multipartFields;
-
     /// <summary>Held because choosing a body type writes into the headers behind this field's back.</summary>
     private readonly KeyValueField _headers;
-
-    private BodyType _bodyTextType;
 
     /// <summary>
     /// The bar's two halves, mirrored out of the state once per update pass.
@@ -90,14 +78,6 @@ internal sealed class RequestEditor
         _summaryUri = new State<string>(state.Uri.Length == 0
             ? string.Empty
             : SecretFormatting.Display(state.GetDisplayUri()));
-        _bodyTextType = RequestEditingHelpers.IsFieldBody(state.BodyType) || state.BodyType == BodyType.None
-            ? BodyType.Json
-            : state.BodyType;
-
-        _formFields = RequestEditingHelpers.ParseQueryString(
-            state.Bodies.GetValueOrDefault(BodyType.FormUrlEncoded), StringComparer.Ordinal);
-        _multipartFields = RequestEditingHelpers.ParseQueryString(
-            state.Bodies.GetValueOrDefault(BodyType.MultipartForm), StringComparer.Ordinal);
 
         var name = new TextField("Name", state.Name, value => state.Name = value,
             placeholder: "request name",
@@ -137,40 +117,16 @@ internal sealed class RequestEditor
         var auth = new ChoiceField<Guid?>("Auth", authLabels, authValues, state.AuthId,
             value => state.AuthId = value);
 
-        var bodyType = new ChoiceField<BodyType>("Type",
-            RequestEditingHelpers.BodyTypes.Select(RequestEditingHelpers.BodyTypeDisplayName).ToList(),
-            RequestEditingHelpers.BodyTypes,
-            state.BodyType,
-            SetBodyType);
-
-        _bodyText = new ContentField("Content",
-            state.Bodies.GetValueOrDefault(_bodyTextType, string.Empty),
-            value => StoreBodyText(value),
-            ContentFormatFor(_bodyTextType),
-            editContent)
-        {
-            Visible = () => IsTextBody(state.BodyType)
-        };
-
-        var formBody = new KeyValueField("Fields", "field", _formFields)
-        {
-            Visible = () => state.BodyType == BodyType.FormUrlEncoded,
-            OnCommit = () => Store(BodyType.FormUrlEncoded, _formFields)
-        };
-
-        var multipartBody = new KeyValueField("Parts", "part", _multipartFields, KeyValueValueKind.TextOrFile)
-        {
-            Visible = () => state.BodyType == BodyType.MultipartForm,
-            OnCommit = () => Store(BodyType.MultipartForm, _multipartFields)
-        };
-
-        var noBody = new MessageField("Content", "This request sends no body. Choose a type above to give it one.")
-        {
-            Visible = () => state.BodyType == BodyType.None
-        };
-
         name.PendingEcho = openingGesture;
         _headers = new KeyValueField("Headers", "header", state.Headers);
+        var body = new BodyFields(
+            () => state.BodyType,
+            value => state.BodyType = value,
+            state.Bodies,
+            state.Headers,
+            () => _headers.Reload(),
+            editContent,
+            "This request sends no body. Choose a type above to give it one.");
 
         _view = new ResourceEditorView(
             () => state.Name.Length == 0 ? "new request" : SecretFormatting.Display(state.Name),
@@ -181,7 +137,7 @@ internal sealed class RequestEditor
                 new EditorForm("Request", name, method, uri, auth),
                 new EditorForm("Headers", _headers),
                 new EditorForm("Params", new KeyValueField("Parameters", "parameter", state.Params)),
-                new EditorForm("Body", bodyType, _bodyText, formBody, multipartBody, noBody)
+                new EditorForm("Body", body.Fields)
             ],
             save,
             closed,
@@ -234,59 +190,4 @@ internal sealed class RequestEditor
                     .HorizontalAlignment(Align.Stretch))
             .Spacing(2)
             .HorizontalAlignment(Align.Stretch);
-
-    private static bool IsTextBody(BodyType type) =>
-        type != BodyType.None && !RequestEditingHelpers.IsFieldBody(type);
-
-    /// <remarks>
-    /// The header follows the type, as it does in the CLI: a body the server cannot identify is a
-    /// body the request did not really carry. It is written rather than offered, and the Headers page
-    /// is where it can be overridden afterwards.
-    /// </remarks>
-    private void SetBodyType(BodyType type)
-    {
-        if (IsTextBody(_state.BodyType))
-            StoreBodyText(_bodyText.Value);
-
-        _state.BodyType = type;
-        RequestEditingHelpers.SyncContentTypeHeader(_state.Headers, type);
-        _headers.Reload();
-
-        if (!IsTextBody(type))
-            return;
-
-        _bodyTextType = type;
-        _bodyText.Set(_state.Bodies.GetValueOrDefault(type, string.Empty));
-        _bodyText.UseFormat(ContentFormatFor(type));
-    }
-
-    /// <summary>
-    /// How a body of this type is handed to an external editor: under the extension that tells the
-    /// editor its language, and opened on something worth opening on rather than a blank file.
-    /// </summary>
-    private static ContentFormat ContentFormatFor(BodyType type) =>
-        new(RequestEditingHelpers.BodyTypeFileExtension(type),
-            body => RequestEditingHelpers.BodyEditingDocument(type, body));
-
-    private void StoreBodyText(string value)
-    {
-        if (!IsTextBody(_state.BodyType))
-            return;
-        Store(_bodyTextType, value);
-    }
-
-    private void Store(BodyType type, IReadOnlyDictionary<string, string> fields) =>
-        Store(type, RequestEditingHelpers.BuildQueryString(fields));
-
-    /// <remarks>
-    /// An empty body is an absent one. Leaving the key behind with an empty string would persist a
-    /// body the request does not have, and Core already treats a blank one as none.
-    /// </remarks>
-    private void Store(BodyType type, string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            _state.Bodies.Remove(type);
-        else
-            _state.Bodies[type] = value;
-    }
 }

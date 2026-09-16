@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Screens.Auth;
 using Straumr.Console.Tui.Screens.Workspace;
 using Straumr.Console.Tui.Screens.Request;
 using Straumr.Console.Tui.Visuals.Shared;
@@ -44,9 +45,11 @@ public sealed class StraumrTuiApp
     public StraumrTuiApp(
         WorkspaceScreen workspaceScreen,
         RequestScreen requestScreen,
+        AuthScreen authScreen,
         IStraumrOptionsService optionsService)
     {
-        _screens = new ITuiScreen[] { workspaceScreen, requestScreen }.ToDictionary(screen => screen.Kind);
+        _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen }
+            .ToDictionary(screen => screen.Kind);
         TuiScreen initialScreen = optionsService.Options.CurrentWorkspace is null
             ? TuiScreen.Workspaces
             : TuiScreen.Requests;
@@ -196,6 +199,7 @@ public sealed class StraumrTuiApp
         _commands.Add(new TuiCommand("quit", QuitAsync) { Aliases = ["q", "exit"] });
         _commands.Add(NavigationCommand(TuiScreen.Requests, "request", "rq"));
         _commands.Add(NavigationCommand(TuiScreen.Workspaces, "workspace", "ws"));
+        _commands.Add(NavigationCommand(TuiScreen.Auths, "auth", "au"));
         foreach (TuiCommand command in _screen.PromptCommands)
             _commands.Add(command);
     }

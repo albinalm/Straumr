@@ -393,7 +393,7 @@ public sealed class RequestScreen : ITuiScreen
             ("Source", FieldList.Wrapped(auth.Source)),
             ("Type", FieldList.Text(auth.Type)),
             ("Injects", FieldList.Wrapped(auth.Injects)),
-            ("Status", FieldList.Wrapped(auth.Status)));
+            ("Status", FieldList.Styled(auth.Status.Text, auth.Status.Style)));
         // No line saying the credential is hidden. That a request's token is not printed on screen
         // is what anyone would assume, so the line answered a question nobody asked while taking a
         // row of a pane that has better uses for it.
@@ -411,19 +411,7 @@ public sealed class RequestScreen : ITuiScreen
     {
         if (_authentication.Value is not { } auth)
             return new TextBlock("Unavailable.").Style(StraumrStyles.MutedText);
-        if (auth.References.Count == 0)
-            return new TextBlock("No secret references.").Style(StraumrStyles.MutedText).Wrap(true);
-
-        return new VStack(auth.References
-                .Select(reference => (Visual)new HStack(
-                        new TextBlock(reference.Name)
-                            .Style(StraumrStyles.PurpleText)
-                            .Trimming(TextTrimming.EndEllipsis),
-                        new TextBlock(reference.Available ? "· available" : "· unavailable")
-                            .Style(reference.Available ? StraumrStyles.MutedText : StraumrStyles.RedText))
-                    .Spacing(1))
-                .ToArray())
-            .HorizontalAlignment(Align.Stretch);
+        return SecretList.Create(auth.References);
     }
 
     private void SetRequestPreview(StraumrRequest request)

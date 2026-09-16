@@ -268,3 +268,32 @@ For each Workspaces milestone, run the smallest applicable subset:
 - [ ] verify `Enter` on a request opens the editor exactly as `e` does, including a broken request
       opening as JSON, that `e` still works though it has no hint of its own, and that the footer
       reads one `Enter /e Edit` with both `Enter` and `/e` in the key colour and only `Edit` grey
+
+- [ ] verify the Auths screen's four regions at 120x30 and on a short terminal: Configuration,
+      Credential, Secrets and Used by all present with their rules meeting at `┬` and `┼`, `Tab`
+      reaching each of the four, and the focus chip landing on each title in turn. The snapshot
+      renderer applies no focus and reflows nothing, so both the chip and real resizing are unproven
+- [ ] verify `f` against a real token endpoint: the summary bar swaps its identifier badge for the
+      pulse, the duration ticks rather than freezing as R1's first one did, the fetched token is
+      saved so the Credential region reads it back, and `Escape` cancels a fetch in flight. Then
+      confirm `f` is absent for a Bearer and a Basic auth, and that it works from a detail region and
+      not only from the list
+- [ ] verify the editor's pages appear and disappear with the type: start on Bearer with only Auth,
+      switch to OAuth2 and watch Grant arrive, switch to Custom and watch Headers, Params, Body and
+      Extract arrive, and confirm `Ctrl+T` steps over the pages that do not apply rather than landing
+      on an untitled one. Then switch back and confirm the old shape's values are still there
+- [ ] verify the `Grant` page for the authorization code grant, whose PKCE toggle reveals a field
+      below it — the shape most likely to catch the assigned-not-bound visibility rule
+- [ ] verify `d` on an auth that requests point at: the confirmation names how many, cancelling
+      changes nothing, confirming removes the auth and leaves those requests untouched and still
+      pointing at an auth that is gone
+- [ ] verify a broken auth: one whose JSON does not parse stays on the list as a red row named after
+      its file, is refused for Copy and Fetch, opens as text on `e`, and saves back for repair
+- [ ] verify the Extract page's help: on a Custom auth's Extract page the footer reads `h /F1 Help`
+      with both keys in the key colour, `h` opens the dialog while the Source dropdown has focus,
+      and `F1` opens it from inside the Expression, Apply to and Template boxes — where `h` should
+      type an `h` instead, which is the behaviour, not a bug. Then confirm the hint is absent on the
+      Auth, Grant, Headers, Params and Body pages
+- [ ] verify the help dialog itself: the three example columns line up, the regex examples show
+      their square brackets, `j`/`k` scroll it on a terminal too short to hold it, `Escape` and the
+      Close button both dismiss it, and closing returns focus to the field it was opened from

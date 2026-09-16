@@ -29,7 +29,8 @@ Straumr.Console.Tui/
     TuiConsoleIntegration.cs      host: DI registration, Terminal.RunAsync, exit code
   Infrastructure/
     StraumrTuiApp.cs              shell, retained screen navigation, commands, footer
-    ITuiScreen.cs                shared contract implemented by Workspaces and Requests
+    ITuiScreen.cs                 shared contract implemented by every screen
+    SecretReferences.cs           which secrets a resource refers to, and which of them exist
     TuiScreen.cs                  screen enum; its name renders in the header
     CommandPrompt.cs              the `:` prompt: open, close, focus, completion
     TuiCommand.cs                 one typed command and its result
@@ -40,6 +41,11 @@ Straumr.Console.Tui/
       WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry
       WorkspaceDeleteDialog.cs    destructive confirmation for workspace deletion
       WorkspaceFormDialog.cs      create/copy form and local validation
+    Auth/
+      AuthScreen.cs               loading, filtering, inspection, fetching and editor handoff
+      AuthScreenItem.cs           readable/broken auth presentation model
+      AuthEditor.cs               an auth's editor pages and fields, over the shared kit
+      ExtractionHelpDialog.cs     what the three extraction sources do, their syntax and examples
     Request/
       RequestScreen.cs            loading, filtering, inspection, sending and editor handoff
       RequestScreenItem.cs        readable/broken request presentation model
@@ -69,18 +75,22 @@ Straumr.Console.Tui/
       StraumrHeader.cs            the screen header bar
       StraumrSurfaces.cs          dividers, bars, insets
       StraumrStyles.cs            the palette and every control style
+      SecretList.cs               the Secrets region: references and their availability
+      InFlightPulse.cs            the pulse and ticking duration a bar shows while waiting
     Shared/Editor/
       EditorField.cs              one labelled value, and the field kinds resources are made of
       EditorForm.cs               one page of fields, its layout and its validation
       KeyValueField.cs            a name/value map edited as a list
       KeyValuePairDialog.cs       adding or changing one pair, text or a file
       ContentField.cs             a body, shown here and written in $EDITOR
+      BodyFields.cs               the fields a body page is made of, for anything that has one
       ResourceEditorView.cs       the full-screen editor a resource is created and changed on
   Formatting/
     TimestampFormatting.cs        relative and absolute timestamps
     CountFormatting.cs            pluralised counts
     PathFormatting.cs             home-shortened paths
     HttpMethodFormatting.cs       semantic colour per HTTP method
+    AuthFormatting.cs             how an auth reads: its type, its meta line, its status
     ContentFormatting.cs          bounded JSON/text previews, headers and response sizes
 ```
 

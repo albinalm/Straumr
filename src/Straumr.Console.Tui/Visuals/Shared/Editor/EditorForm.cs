@@ -129,6 +129,16 @@ internal sealed class EditorForm
 
     public Visual Root { get; }
 
+    /// <summary>
+    /// Whether the page applies at all given the rest of the resource. It is the field-level
+    /// discriminator one level up: an auth's type decides which of its pages exist, not merely which
+    /// rows on them do, and a page kept on the rule with nothing on it reads as one that failed to
+    /// load. Omitted for a page that always applies, which is every page a request has.
+    /// </summary>
+    public Func<bool>? Visible { get; init; }
+
+    public bool Applies => Visible?.Invoke() ?? true;
+
     /// <summary>Raised on every edit, so the view can mark the resource unsaved.</summary>
     public event Action? Changed;
 
@@ -149,6 +159,13 @@ internal sealed class EditorForm
         foreach (EditorField field in _fields)
         {
             field.ClearProblem();
+        }
+
+        // A page that does not apply cannot be wrong, for the reason a hidden field cannot: what it
+        // holds belongs to a branch of the discriminator the reader did not take.
+        if (!Applies)
+        {
+            return null;
         }
 
         foreach (EditorField field in _fields.Where(field => field.IsVisible))

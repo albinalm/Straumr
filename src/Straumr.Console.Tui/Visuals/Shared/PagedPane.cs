@@ -20,7 +20,7 @@ namespace Straumr.Console.Tui.Visuals.Shared;
 internal sealed class PagedPane
 {
     private readonly PagedPanePage[] _pages;
-    private readonly State<int> _page = new(0);
+    private readonly State<int> _page;
 
     /// <summary>The C0 control character a terminal sends for <c>Ctrl</c> plus a letter.</summary>
     private const char CycleLetter = 't';
@@ -35,18 +35,23 @@ internal sealed class PagedPane
     public PagedPane(bool tabCyclesPages, params PagedPanePage[] pages)
     {
         _pages = pages;
+        _page = new State<int>(FirstApplicable(0));
         // Visibility is set outright rather than bound because focus is revoked from a visual that is
         // invisible during the focus pass: the page being left has to stop being the visible one
         // before the page being entered is asked for focus.
         for (int index = 0; index < _pages.Length; index++)
-            _pages[index].Content.IsVisible = index == 0;
+            _pages[index].Content.IsVisible = index == SelectedPage;
 
         Root = new ZStack(_pages.Select(page => page.Content).ToArray())
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
         TabRule = StraumrSurfaces.HorizontalDivider();
-        TabRule.StartLabel(() => new HStack(_pages.Select(BuildTab).ToArray()).Spacing(0));
+        TabRule.StartLabel(() => new HStack(_pages
+                .Select(BuildTab)
+                .OfType<Visual>()
+                .ToArray())
+            .Spacing(0));
 
         if (tabCyclesPages)
         {
@@ -89,7 +94,7 @@ internal sealed class PagedPane
 
     public void Select(int index)
     {
-        if (index == _page.Value)
+        if (index == _page.Value || !_pages[index].Applies)
             return;
 
         bool owned = Root.Owns();
@@ -98,6 +103,32 @@ internal sealed class PagedPane
         _page.Value = index;
         if (owned)
             Focus();
+    }
+
+    /// <summary>
+    /// Applies the page-level discriminator: a page that does not apply shows no title and cannot be
+    /// stepped to, and the selection moves off it if it is the page currently showing.
+    /// </summary>
+    /// <remarks>
+    /// The same rule a field follows one level down. An auth's pages are decided by its type — a
+    /// bearer token has no grant flow and no request of its own — and a page kept on the rule with
+    /// nothing on it is indistinguishable from one that failed to load. Assigned rather than bound,
+    /// for the reason <c>EditorForm.Sync</c> is: what decides it is the resource being edited, which
+    /// is a plain object the binding graph knows nothing about.
+    /// </remarks>
+    public void Sync() => Select(FirstApplicable(_page.Value));
+
+    /// <summary>
+    /// <paramref name="preferred"/> when it applies, and otherwise the first page that does. There is
+    /// always one: a resource with no applicable page at all has nothing to edit.
+    /// </summary>
+    private int FirstApplicable(int preferred)
+    {
+        if ((uint)preferred < (uint)_pages.Length && _pages[preferred].Applies)
+            return preferred;
+
+        int index = Array.FindIndex(_pages, page => page.Applies);
+        return index < 0 ? 0 : index;
     }
 
     public void Focus()
@@ -119,11 +150,28 @@ internal sealed class PagedPane
             Gesture = gesture,
             Importance = CommandImportance.Secondary,
             Presentation = presentation,
-            Execute = _ => Select((SelectedPage + step + _pages.Length) % _pages.Length)
+            Execute = _ => Select(Step(step))
         };
 
-    private Visual BuildTab(PagedPanePage page, int index)
+    /// <summary>The next page in <paramref name="step"/>'s direction that currently applies.</summary>
+    private int Step(int step)
     {
+        int index = SelectedPage;
+        for (int moved = 0; moved < _pages.Length; moved++)
+        {
+            index = (index + step + _pages.Length) % _pages.Length;
+            if (_pages[index].Applies)
+                return index;
+        }
+
+        return SelectedPage;
+    }
+
+    private Visual? BuildTab(PagedPanePage page, int index)
+    {
+        if (!page.Applies)
+            return null;
+
         var tab = new Button(page.Title);
         tab.SetStyle(index == SelectedPage
             ? Root.Owns() ? StraumrStyles.RuleTabFocused : StraumrStyles.RuleTabSelected
@@ -144,4 +192,13 @@ internal sealed class PagedPane
 /// Asked for rather than held, because a page whose content is rebuilt — a form whose first visible
 /// field depends on another field's value — has no one visual that is permanently its entry point.
 /// </param>
-internal sealed record PagedPanePage(string Title, Visual Content, Func<Visual> FocusTarget);
+/// <param name="Visible">
+/// Whether the page applies at all given the rest of the resource. Omitted for a page that always
+/// does, which is every page a read-only view has.
+/// </param>
+internal sealed record PagedPanePage(string Title, Visual Content, Func<Visual> FocusTarget)
+{
+    public Func<bool>? Visible { get; init; }
+
+    public bool Applies => Visible?.Invoke() ?? true;
+}

@@ -1,5 +1,6 @@
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
+using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
 
@@ -51,6 +52,18 @@ internal static class FieldList
     public static Visual Problem(string value) =>
         new TextBlock(value)
             .Style(StraumrStyles.RedText)
+            .Wrap(true)
+            .Trimming(TextTrimming.EndEllipsis)
+            .HorizontalAlignment(Align.Stretch);
+
+    /// <summary>
+    /// A value whose colour carries part of its meaning, such as whether an auth can authenticate as
+    /// it stands. The style comes from the palette through the caller, since what a value means is
+    /// the caller's question and not this grid's.
+    /// </summary>
+    public static Visual Styled(string value, TextBlockStyle style) =>
+        new TextBlock(value)
+            .Style(style)
             .Wrap(true)
             .Trimming(TextTrimming.EndEllipsis)
             .HorizontalAlignment(Align.Stretch);

@@ -116,7 +116,10 @@ internal sealed class ResourceEditorView
         }
 
         _pages = new PagedPane(tabCyclesPages: false,
-            _forms.Select(form => new PagedPanePage(form.Title, form.Root, () => form.FocusTarget)).ToArray());
+            _forms.Select(form => new PagedPanePage(form.Title, form.Root, () => form.FocusTarget)
+            {
+                Visible = () => form.Applies
+            }).ToArray());
 
         var content = new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
@@ -163,8 +166,11 @@ internal sealed class ResourceEditorView
         _headerName.Value = _name();
         // Before the focus pass, and on every pass rather than only on a change: a discriminator is
         // read from the state being edited, which anything holding that state may have written to.
+        // The pages go with the fields, because the same discriminator can decide a whole page: an
+        // auth's type leaves a bearer token with no grant flow and no request of its own.
         foreach (EditorForm form in _forms)
             form.Sync();
+        _pages.Sync();
         FocusPage();
         if (_notice.Value.Length > 0 && DateTimeOffset.UtcNow >= _noticeUntil)
             _notice.Value = string.Empty;

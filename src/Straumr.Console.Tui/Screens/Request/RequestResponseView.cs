@@ -6,12 +6,9 @@ using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Models;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Animation;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
-using XenoAtom.Terminal.UI.Geometry;
 using XenoAtom.Terminal.UI.Input;
-using XenoAtom.Terminal.UI.Layout;
 
 namespace Straumr.Console.Tui.Screens.Request;
 
@@ -187,10 +184,7 @@ internal sealed class RequestResponseView
     /// </remarks>
     private Visual BuildBar(StraumrRequest request)
     {
-        var pulse = new HStack(
-                new Spinner().Style(StraumrStyles.RequestPulse),
-                new InFlightLabel(_clock))
-            .Spacing(2);
+        Visual pulse = InFlightPulse.Create("IN FLIGHT", _clock);
         Visual summary = new TextBlock(() => _summary.Value)
             .Style(() => _failed.Value ? StraumrStyles.RedText : StraumrStyles.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
@@ -240,38 +234,4 @@ internal sealed class RequestResponseView
         CanExecute = _ => available(), IsVisible = _ => available(),
         ConsumesGestureWhenUnavailable = false, Execute = _ => execute()
     });
-
-    // The animation scheduler keeps ticking while the screen update awaits the send.
-    private sealed class InFlightLabel : Visual, IAnimatedVisual
-    {
-        private readonly Stopwatch _clock;
-        private readonly TextBlock _label = new TextBlock($"IN FLIGHT · {0:0.0} s").Style(StraumrStyles.AccentText);
-        private long _nextTick;
-
-        public InFlightLabel(Stopwatch clock)
-        {
-            _clock = clock;
-            AttachChild(_label);
-        }
-
-        public string Text => _label.Text ?? string.Empty;
-        protected override int ChildrenCount => 1;
-        protected override Visual GetChild(int index) => index == 0 ? _label : throw new ArgumentOutOfRangeException(nameof(index));
-        protected override SizeHints MeasureCore(in LayoutConstraints constraints) => _label.Measure(constraints);
-        protected override void ArrangeCore(in Rectangle finalRect) => _label.Arrange(finalRect);
-
-        public long NextAnimationTick => _clock.IsRunning ? _nextTick : long.MaxValue;
-
-        public bool AdvanceAnimation(long timestamp)
-        {
-            if (!_clock.IsRunning || timestamp < _nextTick)
-                return false;
-            _nextTick = timestamp + Stopwatch.Frequency / 10;
-            string text = $"IN FLIGHT · {_clock.Elapsed.TotalSeconds:0.0} s";
-            if (Text == text)
-                return false;
-            _label.Text = text;
-            return true;
-        }
-    }
 }
