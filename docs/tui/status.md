@@ -9,8 +9,10 @@ Update it in the same change that completes or advances a milestone.
 - Shared pane resizing fixed on 2026-09-16: the outer list/detail split now uses
   `FlexiblePane`, so the filter and summary minimum widths cannot pin the divider.
   The filter's resize guard also includes focus on the editor itself. Debug and Release
-  builds pass without warnings, and 144 shared-layout geometry checks pass. A terminal
-  check of the keys from the leftmost list and filter remains pending.
+  builds pass without warnings, and 144 shared-layout geometry checks pass. The developer
+  confirmed resizing works. The shared footer now names `Ctrl+H Ctrl+J Ctrl+K Ctrl+L Resize`
+  where vertical resizing is available, and `Ctrl+H Ctrl+L Resize` elsewhere; terminal
+  acceptance of the updated hint and the filter's Backspace guard remains pending.
 - Phase: implementation
 - Theming landed on 2026-09-16, ahead of the beta. The hardcoded blue palette is now one
   theme among others: `terminal` follows the reader's own terminal colours and is the

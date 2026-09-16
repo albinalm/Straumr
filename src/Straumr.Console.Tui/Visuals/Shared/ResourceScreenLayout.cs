@@ -107,18 +107,20 @@ internal static class ResourceScreenLayout
         bool Editing() => filter.Root.Owns();
         bool Stacked() => splits.HasStack && detailPanel.HasFocusWithin && !Editing();
 
-        layout.AddCommand(ResizeCommand("Left", 'H', () => Horizontal().Move(-1), () => !Editing(),
-            CommandPresentation.CommandBar, $"{StraumrStyles.KeyMarkup("Ctrl+L")} Resize panes"));
+        // Mutually exclusive labels keep one hint, naming only the directions available here.
+        layout.AddCommand(ResizeCommand("Left", 'H', () => Horizontal().Move(-1), () => !Editing() && !Stacked(),
+            CommandPresentation.CommandBar, $"{StraumrStyles.KeyMarkup("Ctrl+L")} Resize"));
+        layout.AddCommand(ResizeCommand("LeftStacked", 'H', () => Horizontal().Move(-1), Stacked,
+            CommandPresentation.CommandBar,
+            $"{StraumrStyles.KeyMarkup("Ctrl+J")} {StraumrStyles.KeyMarkup("Ctrl+K")} {StraumrStyles.KeyMarkup("Ctrl+L")} Resize"));
         layout.AddCommand(ResizeCommand("Right", 'L', () => Horizontal().Move(1), () => !Editing()));
         layout.AddCommand(ResizeCommand("Up", 'K', () => splits.Stack.Move(-1), Stacked));
         layout.AddCommand(ResizeCommand("Down", 'J', () => splits.Stack.Move(1), Stacked));
     }
 
     /// <remarks>
-    /// One hint carries the pair that is always available: its keycap is <c>Ctrl+H</c> and its label
-    /// names <c>Ctrl+L</c>, so the row says the panes shrink as well as grow without spending a
-    /// second hint on it. The stacked pair stays silent — the footer is a single row already carrying
-    /// the screen's own actions, and it only moves a divider the detail panel may not have.
+    /// One hint names every available direction: its keycap is <c>Ctrl+H</c> and its label names
+    /// <c>Ctrl+L</c>, with <c>Ctrl+J</c> and <c>Ctrl+K</c> included when a stacked divider is available.
     /// </remarks>
     private static Command ResizeCommand(
         string direction,
@@ -126,7 +128,7 @@ internal static class ResourceScreenLayout
         Action execute,
         Func<bool> available,
         CommandPresentation presentation = CommandPresentation.None,
-        string label = "Resize panes") =>
+        string label = "Resize") =>
         new()
         {
             Id = $"ResourceScreen.Resize{direction}",

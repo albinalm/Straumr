@@ -3,6 +3,11 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: The developer confirmed the outer-panel resize fix works. The resize hint now
+  includes every available direction in one entry: `Ctrl+H Ctrl+J Ctrl+K Ctrl+L Resize` for
+  stacked detail panes, and `Ctrl+H Ctrl+L Resize` otherwise. Both variants use the same
+  availability checks as the resize actions and disappear while the filter is focused.
+
 - 2026-09-16: Fixed the leftmost panel refusing to shrink across resource screens. The outer
   list/detail grid now wraps both panels in the existing `FlexiblePane`, as the inner detail
   panes already did. Before the fix, a 120-column layout kept the list at 53 columns for shares

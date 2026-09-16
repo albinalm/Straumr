@@ -43,12 +43,13 @@ default for another screen when movable dividers are added there later.
 `Ctrl` with a Vim direction moves a divider that way. Which divider depends on where
 focus is: in the list panel the horizontal keys move the panel divider, in the detail
 panel they move the one between its two sections, and the vertical keys move the rule
-over a stacked pane, which only Requests has. The commands sit on the screen layout
+over a stacked pane on screens that have one. The commands sit on the screen layout
 rather than on the app, so a dialog's focus chain never reaches them, and they stand
 down while the filter is being typed into — a terminal sends `Ctrl+H` as the byte
 `Backspace` arrives on, so a live command there would eat the filter's own deletion.
-Only one of the four is presented in the footer, because that row already carries the
-screen's own actions and four hints for one family of keys would crowd them out.
+One footer hint names all available directions: `Ctrl+H Ctrl+J Ctrl+K Ctrl+L Resize`
+for stacked detail panes, and `Ctrl+H Ctrl+L Resize` elsewhere. Two mutually exclusive
+labels use the actions' availability checks, so changing focus keeps the hint accurate.
 
 `FlexiblePane` is what makes those weights mean anything. A `Star` weight is only a
 weight: a child reporting a large minimum width still takes what it asks for and its
