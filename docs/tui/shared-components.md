@@ -56,6 +56,8 @@ sibling shrinks to whatever it will accept. `TabControl` asks for the whole row,
 why the 48/52 authentication and request split rendered as roughly 17/83 and the
 authentication values wrapped four characters wide. `Pane` wraps every pane in one, so
 the content measures at the width it is given and the declared weights decide.
+The outer list and detail panels are wrapped too: otherwise the filter and summary can
+impose a minimum width that prevents the list/detail divider from following its share.
 
 ## Lists and filtering
 

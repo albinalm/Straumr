@@ -58,7 +58,10 @@ internal static class ResourceScreenLayout
         Func<Visual> detailHead,
         Func<Visual> detailSections)
     {
-        Visual detailPanel = BuildDetailPanel(detailHead, detailSections);
+        // The filter and summary can report wide minimums. Keep the outer split in charge,
+        // just as Pane does for the detail sections, or changing its share cannot shrink them.
+        Visual listPanel = new FlexiblePane(BuildListPanel(listTitle, listCount, filter, listContent));
+        Visual detailPanel = new FlexiblePane(BuildDetailPanel(detailHead, detailSections));
 
         var layout = new Grid()
             .Columns(
@@ -66,7 +69,7 @@ internal static class ResourceScreenLayout
                 new ColumnDefinition { Width = GridLength.Fixed(1) },
                 splits.Panels.SecondColumn())
             .Rows(new RowDefinition { Height = GridLength.Star() })
-            .Cell(BuildListPanel(listTitle, listCount, filter, listContent), 0, 0)
+            .Cell(listPanel, 0, 0)
             .Cell(
                 StraumrSurfaces.VerticalDivider((BarRuleRow, new Rune('┼'))),
                 0,
@@ -101,7 +104,7 @@ internal static class ResourceScreenLayout
         Visual detailPanel)
     {
         PaneSplit Horizontal() => detailPanel.HasFocusWithin ? splits.Sections : splits.Panels;
-        bool Editing() => filter.Root.HasFocusWithin;
+        bool Editing() => filter.Root.Owns();
         bool Stacked() => splits.HasStack && detailPanel.HasFocusWithin && !Editing();
 
         layout.AddCommand(ResizeCommand("Left", 'H', () => Horizontal().Move(-1), () => !Editing(),

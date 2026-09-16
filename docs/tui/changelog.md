@@ -3,6 +3,15 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: Fixed the leftmost panel refusing to shrink across resource screens. The outer
+  list/detail grid now wraps both panels in the existing `FlexiblePane`, as the inner detail
+  panes already did. Before the fix, a 120-column layout kept the list at 53 columns for shares
+  from 15% through 35%; afterwards it follows those shares, from 18 to 42 columns. The resize
+  guard now uses `Owns()` for the filter, since `HasFocusWithin` excludes the editor itself.
+  Debug and Release builds pass without warnings; 144 shared-layout geometry checks cover
+  four screen labels, empty/populated lists, three widths and six shares. Real key input
+  remains a terminal check. `Ctrl+J/K` still applies only to stacked detail panes.
+
 - 2026-09-16: The pane-resize hint names both keys. The footer advertised `Ctrl+L Resize panes` and
   nothing else, so the row read as a key that only grows a pane — the developer's report. All four
   Vim-direction keys were already bound; only one was presented. The hint now carries `Ctrl+H` as its

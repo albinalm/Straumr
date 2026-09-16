@@ -30,6 +30,12 @@ subset for the milestone in hand, and tick items here in the same change.
       and a save, including deleting the last row.
 - [ ] Terminal-check that the footer reads `Ctrl+H Ctrl+L Resize panes` on every resource screen and
       that both keys move the divider the focused panel sits against.
+- [x] Outer-split regression: 144 shared-layout geometry checks pass across four screen labels,
+      empty/populated lists, 70/120/180 columns and shares 15/27/31/35/55/85. The list follows
+      its requested share within one cell. Debug and Release builds pass without warnings.
+- [ ] Terminal-check `Ctrl+H/L` with the leftmost list focused on each resource screen, including
+      shrinking below its initial width. In the filter, Backspace must edit without resizing;
+      `Ctrl+J/K` continues to move a stacked divider only from a detail pane.
 - [ ] Terminal-check S1 focus, scrolling, narrow/short resizing, divider persistence and filtering.
 - [ ] Terminal-check create/edit/copy, mask/reveal/remask, repeated `Ctrl+S`, and unsaved cancellation.
 - [ ] Terminal-check delete confirmation/cancel with dependents and partial reference coverage.
