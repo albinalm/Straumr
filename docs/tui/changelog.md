@@ -3,6 +3,29 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: `Enter` on a request opens the editor instead of moving focus into the Request pane.
+  The developer called the old behavior weird and it was: activating a row is meant to do the thing
+  the row is for, and this row's thing is the request. Focusing a read-only preview was never that,
+  and it was work `Tab` already does — the preview sits beside the list, not behind it, so activation
+  had nothing to open. `Enter` now runs the same `RequestEdit` as `e`, so a broken request opens as
+  JSON to repair by either key, and the list's activate label went from `Inspect` to `Edit`. The
+  first cut of this showed `Enter Edit` beside `e Edit` and the developer was right that one action
+  should not take two hints: they now share one, `Enter /e Edit`, both keys in the bar's key colour.
+  The bar renders exactly one keycap per hint and renders no hint at all for a command with no
+  gesture, so the second key has to ride in the label as markup and its own command goes
+  unpresented — the same shape `Tab /t Next tab` already had, and the reason `ActionCommand` now
+  takes a presentation.
+
+- 2026-09-16: `s` sends from anywhere in the Requests detail, not only from the list. The developer
+  was reading a Response pane and pressing the key that sends did nothing, because the command sat
+  on the list alone. It is now also on the container the detail regions share, which routing reaches
+  from whichever pane or page holds focus; it is deliberately not on the screen root, where it would
+  claim the `s` being typed into the filter. The empty Response pane's line changed with it: it said
+  "No response yet. Press s on the request to send it.", which named a place the reader no longer has
+  to go, and "yet" described a session rather than the pane, which shows what this request has
+  stored. Every page now reads "No saved response.", with the Body page adding "Press s to send the
+  request." Builds clean; the key itself wants a terminal press from each pane.
+
 - 2026-09-15: Added deleting a request, which the screen had never had — the developer noticed it
   missing right after accepting the screen, and they were right: `c`, `e` and `y` were all there and
   the one key that removes anything was not. `d` asks through the shared `ConfirmDialog`, red and

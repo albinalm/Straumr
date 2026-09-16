@@ -121,6 +121,12 @@ Update it in the same change that completes or advances a milestone.
   produced the fixes listed in the entries above and in `changelog.md`. They then noticed the screen
   had never had a delete; `d` was added the same day, through the shared confirm modal and the
   update pass. R1 is complete, with that one check unticked.
+- Post-acceptance, 2026-09-16: `s` now sends from any detail region, not only from the list — the
+  developer pressed it while reading a Response pane and nothing happened. The command is registered
+  on the container the detail regions share as well as on the list, and the empty Response pane says
+  "No saved response." on every page instead of pointing back at the row. Builds clean; a terminal
+  press from each pane is unticked in the checklist. `Enter` on a row opens the editor in the same
+  pass, replacing the focus move into the Request pane that they called weird.
 - Next checkpoint: A1, the Auths screen, which is not started. Read `adding-a-screen.md` and
   `shared-components.md` first: the editor kit, `PreviewPane`, `PagedPane` and the secrets region all
   came out of R1 and an auth is meant to be a file the size of `RequestEditor.cs` over them. The
@@ -130,7 +136,7 @@ Update it in the same change that completes or advances a milestone.
   and the AOT-published binary's TUI in Alacritty. Neither has explicit confirmation yet.
 - Shared building blocks are in place; see [Shared Building Blocks](./shared-components.md)
   and [Adding a Screen](./adding-a-screen.md) before adding one
-- Last updated: 2026-09-15
+- Last updated: 2026-09-16
 
 ## Implementation Milestones
 

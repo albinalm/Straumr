@@ -20,8 +20,14 @@ implements, what evidence exists, and where to resume.
   preloaded from the registry so `Tab` completes the identifier even when Workspaces
   has never been visited. Other workspace commands navigate before running; bare
   `:workspace` / `:ws` shows Workspaces. There is no plural `:workspaces` command.
-- `Enter` inspects the selected request by focusing its content preview. The summary
-  shows method, URL including configured parameters, and shortened request ID.
+- `Enter` on a row opens the editor, the same as `e`, down to a broken request opening as JSON.
+  Activating a row does what the row is for; it does not move focus into the read-only preview,
+  which `Tab` reaches anyway and which is beside the list rather than behind it. The two keys
+  share one hint, `Enter /e Edit`, with both keys in the bar's key colour: the bar renders one
+  keycap per hint from the gesture, so `e` rides in the label and its own command is
+  unpresented. It is the `Tab /t Next tab` pattern.
+- The request summary shows method, URL including configured parameters, and shortened
+  request ID.
 - Authentication displays the configured source, type, injected header and token/cache
   status. It does not fetch credentials merely to inspect them, and says nothing about
   credential material: that a token is not printed on screen needs no line of its own.
@@ -38,7 +44,10 @@ implements, what evidence exists, and where to resume.
   status, duration, size, HTTP version, warnings and failures;
   no fictional network trace is shown. Inline text previews are bounded to 64 KiB.
   Responses are held in memory per workspace/request identity.
-- `s` on the list sends through Core using its existing default HTTP/auth behavior.
+- `s` sends through Core using its existing default HTTP/auth behavior. It is registered on
+  the list and on the container the detail regions share, so it works from the list and from
+  Authentication, Secrets, Request and Response alike, on whichever page of those panes is
+  showing. It is not registered on the screen root, which the filter's text field is under.
   A full-screen response view owns input and stays open after completion. It is built as a
   screen: the shell header naming the request, a three-row bar carrying
   the method and URL opposite an animated pulse and live elapsed time while the send is in
@@ -61,6 +70,8 @@ implements, what evidence exists, and where to resume.
   `Escape` cancels an active send, from a re-send as much as from the first one; afterward
   it returns to Requests. Timeouts, transport errors and cancellation remain visible.
   Ctrl+C retains cancellation/exit.
+- With no response stored, the inline Response pane reads `No saved response.` on every page,
+  the Body page adding `Press s to send the request.`
 - `v` on the inline response expands the cached result without sending again.
   With Body focused, `b` toggles JSON beautification/minification and `y` copies the
   entire body in its current formatting, including text beyond the inline preview.

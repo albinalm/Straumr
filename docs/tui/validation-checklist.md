@@ -259,3 +259,12 @@ For each Workspaces milestone, run the smallest applicable subset:
       was the last one — and the footer says what went (developer-confirmed on the ordinary path).
       Not yet tried: deleting a request that cannot be read, and one with a response cached
 
+- [ ] verify `s` sends from every detail region: Tab to Authentication, Secrets, the Request pane
+      and the Response pane, on more than one page of the tabbed ones, and confirm `s` opens the
+      full-screen send each time and that the footer offers it there. Then press `/`, type a name
+      containing an `s`, and confirm the letter reaches the filter rather than sending
+- [ ] verify the empty Response pane reads `No saved response.` on Headers and Network and
+      `No saved response. Press s to send the request.` on Body
+- [ ] verify `Enter` on a request opens the editor exactly as `e` does, including a broken request
+      opening as JSON, that `e` still works though it has no hint of its own, and that the footer
+      reads one `Enter /e Edit` with both `Enter` and `/e` in the key colour and only `Edit` grey

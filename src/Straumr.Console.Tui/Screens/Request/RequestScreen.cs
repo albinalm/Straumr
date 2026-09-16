@@ -103,17 +103,28 @@ public sealed class RequestScreen : ITuiScreen
         _list = new ResourceList([], ResourceScreenLayout.Message(
             new TextBlock(() => _emptyMessage.Value)
                 .Style(() => _loadError.Value ? StraumrStyles.RedText : StraumrStyles.MutedText)
-                .Wrap(true).Trimming(TextTrimming.EndEllipsis)), activateLabel: "Inspect");
+                .Wrap(true).Trimming(TextTrimming.EndEllipsis)),
+            // One hint for one action under two keys. The bar renders one keycap per hint, from
+            // the gesture, so `e` rides in the label painted in the bar's own key colour — the
+            // same way `Tab /t Next tab` carries the letter that also changes page.
+            activateLabel: $"{StraumrStyles.KeyMarkup("/e")} Edit");
         // Claimed only while this screen is the one on show; see FocusScope.
         _list.AutoFocus(_list.IsReachable);
         _list.BindSelectedIndex(_selectedIndex);
-        _list.ItemActivated += _ => _requestPreview.FocusTarget.App?.Focus(_requestPreview.FocusTarget);
+        // Enter opens the editor, exactly as `e` does. Activating a row means doing the thing the
+        // row is for, and moving focus into a read-only preview is not that: `Tab` already reaches
+        // the panes, and the preview is beside the list rather than behind it, so there was nothing
+        // to open. Broken requests fall through to the JSON the same way, since it is one method.
+        _list.ItemActivated += _ => RequestEdit();
         _filter = new ResourceFilter("filter requests", ApplyFilter, () => _list);
         _list.AddCommand(ActionCommand("New", 'c', () => OpenEditor(null, 'c'), () => _workspace is not null));
         // `e` is one key with two meanings because it is one intent. A request that parses is edited
         // in the form; one that does not cannot be loaded into fields at all, so the same key opens
         // the text that needs repairing, which is what the broken row already tells the reader to do.
-        _list.AddCommand(ActionCommand("Edit", 'e', RequestEdit, () => SelectedItem is not null));
+        // Unpresented: `Enter`'s hint names this key, and the row has no space for the same action
+        // twice.
+        _list.AddCommand(ActionCommand("Edit", 'e', RequestEdit, () => SelectedItem is not null,
+            CommandPresentation.None));
         _list.AddCommand(ActionCommand("Copy", 'y', () => OpenEditor(SelectedItem, 'y'),
             () => SelectedItem is { IsBroken: false }));
         // Offered for a broken request too, unlike Copy and Send: one that cannot be read is one a
@@ -123,7 +134,7 @@ public sealed class RequestScreen : ITuiScreen
                      () => { if (SelectedItem is { } item) EditAsJson(item); },
                      () => SelectedItem is not null))
             _list.AddCommand(command);
-        _list.AddCommand(ActionCommand("Send fullscreen", 's', QueueSend, () => SelectedItem is { IsBroken: false }));
+        _list.AddCommand(SendCommand());
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
         _secretsView = new ScrollableContent(new ComputedVisual(BuildSecrets));
         Visual responsePane = ResourceScreenLayout.Pane(_responsePreview.Root);
@@ -153,6 +164,11 @@ public sealed class RequestScreen : ITuiScreen
             ResourceScreenLayout.TwoPaneSections(_splits, "Authentication", authColumn,
                 "Request", ResourceScreenLayout.Pane(_requestPreview.Root), authPane.Owns),
             responseRule, responsePane);
+        // Sending is the screen's action, not the list's: a reader looking at the response of the
+        // last send wants the next one from where they are, not after a trip back to the row. The
+        // command goes on the container the detail regions share rather than on each of them, since
+        // routing walks the focus chain, and not on `Root`, which the filter's text field is under.
+        _sections.AddCommand(SendCommand());
         Visual listView = ResourceScreenLayout.Scrollable(_list);
         Root = ResourceScreenLayout.Create("Requests",
             () => _query.Value.Length == 0 ? _count.Value.ToString() : $"{_matchCount.Value}/{_count.Value}",
@@ -427,7 +443,11 @@ public sealed class RequestScreen : ITuiScreen
         {
             _responseBody.SetBody(null);
             _responseSummary.Value = "Not sent";
-            _responsePreview.SetText("No response yet. Press s on the request to send it.", "No response headers.", "No response yet.");
+            // "No saved response" rather than "no response yet": the pane is showing what this
+            // request has stored, and `s` is now offered from the pane itself, so the old line's
+            // instruction to go back to the row was also wrong.
+            _responsePreview.SetText("No saved response. Press s to send the request.",
+                "No saved response.", "No saved response.");
             return;
         }
         _responseFailed.Value = response.Exception is not null || (int?)response.StatusCode >= 400;
@@ -880,10 +900,18 @@ public sealed class RequestScreen : ITuiScreen
         ConsumesGestureWhenUnavailable = false, Execute = _ => execute()
     };
 
-    private static Command ActionCommand(string label, char key, Action execute, Func<bool> available) => new()
+    /// <summary>
+    /// A fresh <c>s</c> for each visual that offers it. One <see cref="Command"/> instance belongs to
+    /// the visual it is added to, so the list and the detail regions each get their own.
+    /// </summary>
+    private Command SendCommand() =>
+        ActionCommand("Send fullscreen", 's', QueueSend, () => SelectedItem is { IsBroken: false });
+
+    private static Command ActionCommand(string label, char key, Action execute, Func<bool> available,
+        CommandPresentation presentation = CommandPresentation.CommandBar) => new()
     {
         Id = $"Request.{label}", LabelMarkup = label, Gesture = new KeyGesture(key),
-        Importance = CommandImportance.Primary, Presentation = CommandPresentation.CommandBar,
+        Importance = CommandImportance.Primary, Presentation = presentation,
         IsVisible = _ => available(), CanExecute = _ => available(), Execute = _ => execute()
     };
 
