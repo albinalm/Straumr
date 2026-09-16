@@ -16,6 +16,7 @@ LicenseFile={#MyLicenseFile}
 OutputDir={#MyOutputDir}
 OutputBaseFilename=straumr-{#MyAppVersion}-win-x64-setup
 SetupIconFile={#MyIconFile}
+UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
@@ -33,7 +34,7 @@ Source: "{#MySourceDir}\straumr.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\{#MyAppExeName}"
 
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);
