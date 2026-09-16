@@ -109,6 +109,27 @@ may persist changes through the appropriate Core service.
   clears the filter and returns focus to the list.
 - `:select <name>` and `:use <name>` clear an active filter when necessary so a
   command can select any workspace, not only a visible match.
+- Every action the screen offers under a key is also a command, so another screen can
+  reach it through `:ws …` / `:workspace …`:
+
+  | Command | Key | Does |
+  | --- | --- | --- |
+  | `:select <name>` / `:w <name>` | — | Selects a workspace, clearing a filter to reach it |
+  | `:use [name]` / `:activate [name]` | `Enter` | Activates it; from another screen this runs in place |
+  | `:create` / `:new` | `c` | Opens the create form |
+  | `:edit [name]` | `e` | Opens the workspace file in `$EDITOR` |
+  | `:copy [name]` | `y` | Opens the copy form beside the source |
+  | `:delete [name]` | `d` | Asks the delete confirmation |
+  | `:import` | `i` | Opens the archive browser |
+  | `:export [name]` | `x` | Opens the folder browser |
+  | `:refresh` | — | Reloads the registry |
+
+  Each acts on the workspace it names and on the selection when it names none, which is
+  what the key does. `:copy` and `:export` refuse an unreadable workspace in the words the
+  command bar uses to withdraw them. A command sent here from another screen leaves the
+  reader on Workspaces: nothing this screen opens is a full-screen surface to come back
+  from, and what it did is what they are now looking at. `:use` is the exception that was
+  always the exception — it runs in place and never changes the visible screen.
 
 ## Unreadable Workspaces
 

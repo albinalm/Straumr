@@ -13,7 +13,9 @@ and what the Requests screen had to add beyond the Workspaces shell.
 5. Register the screen in `TuiConsoleIntegration.ConfigureServices` and navigate to
    it from `StraumrTuiApp`.
 6. Expose the screen's typed commands as `PromptCommands` so the shared prompt picks
-   them up.
+   them up. Every action the screen offers under a key gets one, named after the CLI's
+   verb for it, taking its subject by name and falling back to the selection: the
+   namespaces make those commands the way every other screen reaches this one.
 
 Nothing in steps 1-6 touches layout, palette, dividers or row styling. If a screen
 needs to, that is a signal to extend the shared piece rather than to hand-roll a
@@ -50,9 +52,11 @@ loads the hidden destination, executes that same command handler, and reloads th
 source instead of changing visibility. Use this only when the source has a meaningful
 refreshed view of the result; workspace activation from Requests is the current example.
 
-A command that opens a full-screen transient child marks that fact on its `TuiCommand`.
-When it is dispatched from another screen, the shell pushes the source onto a return
-stack. The child reports its close through `ITuiScreen.TransientScreenClosed`, and the
-shell reloads and returns to whatever screen was pushed. Neither the child nor the
+A screen that opens a full-screen transient child raises
+`ITuiScreen.TransientScreenOpened` where it shows it, and `TransientScreenClosed` where it
+closes it. When a command dispatched from another screen opens one, the shell pushes the
+source onto a return stack and returns to it on the close, so the two events keep the stack
+balanced no matter which way a command went. A screen whose actions are dialogs raises
+neither, and a command sent to it leaves the reader there. Neither the child nor the
 destination screen names Workspaces, so the same close-to-previous behavior composes
 with future screens and nested transient views.

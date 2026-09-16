@@ -276,10 +276,17 @@ internal abstract class BrowserDialog
 
     protected virtual bool IncludeFile(string path) => false;
 
+    /// <remarks>
+    /// Focus is taken here rather than left to <c>AutoFocus</c>, which the framework applies on the
+    /// render that follows and only while nothing else holds focus. A dialog opened by a typed
+    /// command is shown in the middle of an update pass that goes on to place focus itself, so one
+    /// not focused until the next render is one the keyboard can be left behind.
+    /// </remarks>
     public void Show()
     {
         LoadDirectory(_currentPath.Value);
         _dialog.Show();
+        _folderList.App?.Focus(_folderList);
     }
 
     /// <remarks>

@@ -342,11 +342,17 @@ visibility. Because completion itself is synchronous, a workspace-context change
 every hidden screen once before the next input. That primes both workspace names/IDs from
 Requests and request names from Workspaces without hardcoding either completion direction.
 
-Commands that open a full-screen transient child opt in through `OpensTransientScreen`.
-If one is dispatched from another screen, the shell records that source on a stack and
-returns to it when the owning `ITuiScreen` reports `TransientScreenClosed`. This is a
-navigation contract rather than a Send/Workspaces special case, so future screens can
-open the same kind of close-to-previous view.
+A screen that opens a full-screen surface of its own says so by raising
+`TransientScreenOpened` beside the `Show` that opened it. When a command dispatched from
+another screen does that, the shell records the source on a stack and returns to it when
+the same screen reports `TransientScreenClosed`. The report comes from the screen rather
+than from a flag on the command because only the screen knows what it did: `edit` opens
+the form for a resource that reads and the external editor for one that does not, and a
+command refused for want of a workspace opens nothing. Every push therefore has a close to
+pop it. This is a navigation contract rather than a Send/Workspaces special case, so future
+screens can open the same kind of close-to-previous view. A screen that owns no full-screen
+surface — Workspaces, whose create, copy, import and export are dialogs — raises neither
+event, and a command sent to it from elsewhere leaves the reader there.
 
 `StraumrTuiApp` registers the commands that belong to the whole app and appends what
 the current screen contributes through its `PromptCommands`.

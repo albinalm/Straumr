@@ -12,8 +12,6 @@ public sealed record TuiCommand(
 
     public bool RunsInPlaceFromOtherScreens { get; init; }
 
-    public bool OpensTransientScreen { get; init; }
-
     public bool AllowPrefixMatch { get; init; } = true;
 
     public bool Matches(string name) =>
@@ -72,6 +70,14 @@ public static class TuiCommandArguments
 public readonly record struct TuiCommandResult(string? Message, bool IsError)
 {
     public static readonly TuiCommandResult None = new(null, false);
+
+    /// <summary>
+    /// What a command answers when it needs a workspace and there is none. Every screen that works
+    /// inside a workspace says it in these words, so the reader is told the same thing and given
+    /// the same way out wherever they typed from.
+    /// </summary>
+    public static readonly TuiCommandResult NoWorkspace =
+        new("no active workspace; use :ws use <workspace> to choose one", true);
 
     public static TuiCommandResult Ok(string message) => new(message, false);
 

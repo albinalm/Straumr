@@ -145,7 +145,7 @@ public sealed class AuthScreen : ITuiScreen
         // reader is more likely to want rid of, not less.
         _list.AddCommand(ActionCommand("Delete", 'd', ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Auth.EditJson", "Edit JSON", 'e',
-                     () => { if (SelectedItem is { } item) EditAsJson(item); },
+                     () => { if (SelectedItem is { } item) NotifyIfFailed(EditAsJson(item)); },
                      () => SelectedItem is not null))
             _list.AddCommand(command);
         _list.AddCommand(FetchCommand());
@@ -187,14 +187,19 @@ public sealed class AuthScreen : ITuiScreen
             BuildHead,
             () => SelectedItem is null ? ResourceScreenLayout.EmptySections() : _sections);
 
+        // Every action the screen offers under a key is here under a name as well, because the
+        // prompt is how the other screens reach this one: `:au edit <auth>` from Requests is the
+        // same edit `e` is on the row. Each takes the auth to act on by name, and acts on the
+        // selection when given none, which is what the key does.
         PromptCommands =
         [
-            new TuiCommand("select", SelectAuthAsync)
-            {
-                Aliases = ["a"], ArgumentValues = () => _items.Select(item => item.Name)
-            },
-            new TuiCommand("fetch", FetchAuthAsync) { ArgumentValues = () => _items.Select(item => item.Name) },
-            new TuiCommand("json", EditJsonAsync) { ArgumentValues = () => _items.Select(item => item.Name) },
+            new TuiCommand("select", SelectAuthAsync) { Aliases = ["a"], ArgumentValues = AuthNames },
+            new TuiCommand("create", CreateAuthAsync) { Aliases = ["new"] },
+            new TuiCommand("edit", EditAuthAsync) { ArgumentValues = AuthNames },
+            new TuiCommand("copy", CopyAuthAsync) { ArgumentValues = AuthNames },
+            new TuiCommand("delete", DeleteAuthAsync) { ArgumentValues = AuthNames },
+            new TuiCommand("fetch", FetchAuthAsync) { ArgumentValues = AuthNames },
+            new TuiCommand("json", EditJsonAsync) { ArgumentValues = AuthNames },
             new TuiCommand("refresh", RefreshAsync)
         ];
     }
@@ -212,6 +217,8 @@ public sealed class AuthScreen : ITuiScreen
     public event Action<TuiCommandResult>? NotificationRequested;
 
     public event Action<TuiExternalAction>? ExternalActionRequested;
+
+    public event Action? TransientScreenOpened;
 
     public event Action? TransientScreenClosed;
 
@@ -621,13 +628,77 @@ public sealed class AuthScreen : ITuiScreen
                 : "No auths in this workspace. Press c to create one.";
     }
 
+    private IEnumerable<string> AuthNames() => _items.Select(item => item.Name);
+
     private Task<TuiCommandResult> SelectAuthAsync(string argument, CancellationToken cancellationToken)
     {
+        if (_workspace is null)
+            return Task.FromResult(TuiCommandResult.NoWorkspace);
         if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
             return Task.FromResult(TuiCommandResult.Failed(error!));
         if (name.Length == 0)
             return Task.FromResult(TuiCommandResult.Failed("usage: select <name>"));
         return Task.FromResult(SelectAuth(name));
+    }
+
+    /// <summary>
+    /// Runs a command against the auth it names, or against the selection when it names none,
+    /// having first said why it cannot run at all. Every command that acts on one auth goes through
+    /// here, so they take their argument, report a missing workspace and report a name that matches
+    /// nothing or too much in the same words.
+    /// </summary>
+    private TuiCommandResult OnSelected(string argument, Func<AuthScreenItem, TuiCommandResult> action)
+    {
+        if (_workspace is null)
+            return TuiCommandResult.NoWorkspace;
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return TuiCommandResult.Failed(error!);
+        if (name.Length > 0)
+        {
+            TuiCommandResult selection = SelectAuth(name);
+            if (selection.IsError)
+                return selection;
+        }
+
+        return SelectedItem is { } item ? action(item) : TuiCommandResult.Failed("no auth selected");
+    }
+
+    private Task<TuiCommandResult> CreateAuthAsync(string argument, CancellationToken cancellationToken)
+    {
+        if (_workspace is null)
+            return Task.FromResult(TuiCommandResult.NoWorkspace);
+        return Task.FromResult(argument.Length > 0
+            ? TuiCommandResult.Failed("usage: create")
+            : OpenEditorFor(null, 'c'));
+    }
+
+    private Task<TuiCommandResult> EditAuthAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item => item.IsBroken
+            ? EditAsJson(item)
+            : OpenEditorFor(item, 'e')));
+
+    private Task<TuiCommandResult> CopyAuthAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item => item.IsBroken
+            ? TuiCommandResult.Failed($"cannot copy {item.Name}: the auth cannot be read")
+            : OpenEditorFor(item, 'y')));
+
+    private Task<TuiCommandResult> DeleteAuthAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, _ =>
+        {
+            ShowDeleteDialog();
+            return TuiCommandResult.None;
+        }));
+
+    /// <remarks>
+    /// The guard the keystroke can leave unsaid: a key pressed while the editor is up never reaches
+    /// the screen behind it, but a command dispatched from another screen arrives without that.
+    /// </remarks>
+    private TuiCommandResult OpenEditorFor(AuthScreenItem? source, char openingGesture)
+    {
+        if (_editorView is not null)
+            return TuiCommandResult.Failed("the auth editor is already open");
+        OpenEditor(source, openingGesture);
+        return TuiCommandResult.None;
     }
 
     private TuiCommandResult SelectAuth(string name)
@@ -648,45 +719,19 @@ public sealed class AuthScreen : ITuiScreen
     {
         if (argument.Length > 0)
             return TuiCommandResult.Failed("usage: refresh");
+        if (_workspace is null)
+            return TuiCommandResult.NoWorkspace;
         await LoadAsync(cancellationToken);
         return _loadError.Value
             ? TuiCommandResult.Failed(_emptyMessage.Value)
             : TuiCommandResult.Ok($"reloaded {CountFormatting.Label(_items.Count, "auth")}");
     }
 
-    private Task<TuiCommandResult> FetchAuthAsync(string argument, CancellationToken cancellationToken)
-    {
-        if (_workspace is null)
-            return Task.FromResult(TuiCommandResult.Failed("no active workspace; use :ws use <workspace>"));
-        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
-            return Task.FromResult(TuiCommandResult.Failed(error!));
-        if (name.Length > 0)
-        {
-            TuiCommandResult selection = SelectAuth(name);
-            if (selection.IsError)
-                return Task.FromResult(selection);
-        }
+    private Task<TuiCommandResult> FetchAuthAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, _ => QueueFetch()));
 
-        return Task.FromResult(QueueFetch());
-    }
-
-    private Task<TuiCommandResult> EditJsonAsync(string argument, CancellationToken cancellationToken)
-    {
-        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
-            return Task.FromResult(TuiCommandResult.Failed(error!));
-        if (name.Length > 0)
-        {
-            TuiCommandResult selection = SelectAuth(name);
-            if (selection.IsError)
-                return Task.FromResult(selection);
-        }
-
-        if (SelectedItem is not { } item)
-            return Task.FromResult(TuiCommandResult.Failed("no auth selected"));
-
-        EditAsJson(item);
-        return Task.FromResult(TuiCommandResult.None);
-    }
+    private Task<TuiCommandResult> EditJsonAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, EditAsJson));
 
     /// <summary>
     /// Goes and gets what the auth is for: an OAuth2 token or a custom auth's extracted value. The
@@ -696,7 +741,7 @@ public sealed class AuthScreen : ITuiScreen
     private TuiCommandResult QueueFetch()
     {
         if (_workspace is null)
-            return TuiCommandResult.Failed("no active workspace");
+            return TuiCommandResult.NoWorkspace;
         if (SelectedItem is not { Auth: { } auth } item)
             return TuiCommandResult.Failed("no auth selected");
         if (!AuthEditingHelpers.SupportsFetch(auth.Config))
@@ -796,6 +841,7 @@ public sealed class AuthScreen : ITuiScreen
             EditContentExternally);
         _editorView = editor;
         editor.Show();
+        TransientScreenOpened?.Invoke();
     }
 
     /// <summary>
@@ -896,20 +942,23 @@ public sealed class AuthScreen : ITuiScreen
             return;
         }
 
-        EditAsJson(item);
+        NotifyIfFailed(EditAsJson(item));
     }
 
-    private void EditAsJson(AuthScreenItem item)
+    /// <remarks>
+    /// It answers rather than reports, because a command has to carry its own failure: a
+    /// notification raised while a command runs is replaced by the result that command returns.
+    /// The keys that call it report for themselves through <see cref="NotifyIfFailed"/>.
+    /// </remarks>
+    private TuiCommandResult EditAsJson(AuthScreenItem item)
     {
         if (_workspace is not { } workspace)
-            return;
+            return TuiCommandResult.NoWorkspace;
         if (!_editor.IsConfigured)
-        {
-            NotificationRequested?.Invoke(TuiCommandResult.Failed("edit failed: no default editor is configured"));
-            return;
-        }
+            return TuiCommandResult.Failed("edit failed: no default editor is configured");
 
         ExternalActionRequested?.Invoke(new TuiExternalAction(token => EditAsync(workspace, item, token), _list));
+        return TuiCommandResult.None;
     }
 
     private async Task<TuiCommandResult> EditAsync(

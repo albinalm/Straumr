@@ -85,6 +85,16 @@ framework behavior.
 
 ## Focus and modality
 
+- A dialog that leaves its initial focus to `AutoFocus` is not focused inside `Show`: the
+  framework applies `AutoFocus` on the render that follows. A keystroke can afford that,
+  because nothing else in that pass wants focus. A typed command cannot — it runs inside
+  the update pass, and anything that pass does with focus afterwards happens while the
+  modal is still unfocused. Every dialog that can be opened by a command therefore asks
+  for focus itself, right after `Show`, the way the full-screen views already did.
+- For the same reason, "is a modal up?" cannot be asked of the focus chain alone. Walking
+  up from `TerminalApp.FocusedElement` answers only once focus has reached the modal;
+  walking `TerminalApp.Root` for an `IModalVisual` answers from the moment it is shown.
+
 - `Visual.App` is null until the app is running, so anything that needs the
   `TerminalApp` (focus, global commands) has to happen from input or from the
   update loop, never from a constructor.

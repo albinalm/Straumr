@@ -12,8 +12,31 @@ implements, what evidence exists, and where to resume.
   Request files are `{id}.json` beside the workspace's `.straumr` file.
 - The shared list shows method and name. Filtering matches name, method and URL;
   `:select <name>`/`:r <name>` resolves exact names or unique prefixes and clears
-  a filter to reach the selection. `:send <name>` resolves through the same selection
-  path and opens the full-screen send view. `:refresh` reloads the current screen.
+  a filter to reach the selection.
+- Every action the screen offers under a key is also a command, so another screen can
+  reach it through `:rq …` / `:request …`:
+
+  | Command | Key | Does |
+  | --- | --- | --- |
+  | `:select <name>` / `:r <name>` | — | Selects a request, clearing a filter to reach it |
+  | `:create` / `:new` | `c` | Opens the editor on a new request |
+  | `:edit [name]` | `e`, `Enter` | Opens the editor; a request that cannot be read opens as JSON |
+  | `:copy [name]` | `y` | Opens the editor on a copy, its name cleared |
+  | `:delete [name]` | `d` | Asks the delete confirmation |
+  | `:send [name]` | `s` | Sends, in the full-screen response view |
+  | `:view [name]` / `:response [name]` | `v` | Opens the response already held, without sending |
+  | `:json [name]` | `Ctrl+E` | Opens the request file in `$EDITOR` |
+  | `:refresh` | — | Reloads the screen |
+
+  Each acts on the request it names and on the selection when it names none, which is
+  what the key does. A name that matches nothing, or more than one request, is reported
+  rather than guessed. Every one of them answers
+  `no active workspace; use :ws use <workspace> to choose one` when there is none, in
+  those words on every screen.
+- A command from another screen that opens a full-screen surface — `:rq edit`, `:rq send`,
+  `:rq view` — returns to the screen it was typed on when that surface closes. One that
+  opens a dialog or the external editor does not: it leaves the reader on Requests, where
+  what it did is what they are now looking at.
 - `:ws <command>` and `:workspace <command>` dispatch through Workspaces' command
   table. `:ws use linkz-identity` loads that table, activates the workspace, and reloads
   Requests in place: the visible screen never changes. Workspace names and IDs are

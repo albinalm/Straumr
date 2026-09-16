@@ -3,6 +3,38 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-16: Every action each screen offers under a key is now a typed command in that
+  screen's namespace, so all of them cross a screen boundary rather than the four that
+  happened to have been needed. Requests gained `:create`/`:new`, `:edit`, `:copy`,
+  `:delete` and `:view`/`:response`; Auths gained the same four; Workspaces gained
+  `:create`, `:edit`, `:copy`, `:delete`, `:import`, `:export` and `activate` as an alias
+  for `use`. The verbs are the CLI's own, so `:rq copy` and `straumr request copy` are one
+  vocabulary. Each takes its subject by name and acts on the selection when given none,
+  which is what the key does, and each answers
+  `no active workspace; use :ws use <workspace> to choose one` when there is none — the
+  one wording, on every screen, where before a screen with no workspace answered
+  `no request matches x` or did nothing at all. `:refresh` says it too rather than
+  reporting that it reloaded nothing. Those messages now survive: an editor path that
+  raised a notification while a command was running had it wiped by the result the command
+  returned, so `EditAsJson` and the workspace edit answer their caller instead, and the
+  keys that call them report for themselves.
+  Two things had to change underneath. The return stack — what brings a reader back to the
+  screen they typed on — was pushed by a flag on the command, which was a guess the moment
+  `:rq edit` could open either the form or the external editor depending on whether the
+  request reads. The screen now says what it actually did, through `TransientScreenOpened`
+  raised beside the `Show` that opened the surface, so every push has a close to pop it and
+  `OpensTransientScreen` is gone. And a dialog opened by a command is shown in the middle
+  of the update pass that restores focus after navigating, while `AutoFocus` does not place
+  focus until the render after that: `ConfirmDialog`, `WorkspaceFormDialog` and
+  `BrowserDialog` now take focus in their own `Show`, as the full-screen views already did,
+  and the shell asks the window layer rather than only the focus chain whether a modal is
+  up. Workspaces raises neither transient event on purpose — its dialogs are not screens —
+  so `:ws delete` from Requests leaves the reader on Workspaces, looking at what it did,
+  while `:rq edit` from Auths comes back to Auths when the editor closes.
+  Debug, Release and Release CLI-only builds pass with no warnings. Nothing has been seen
+  in a terminal: the new commands, the dialogs opened across a screen boundary and the
+  returns want the developer's keyboard.
+
 - 2026-09-16: The Extract page got help on `h`. The page asks for one expression whose meaning
   changes completely with the source chosen above it — `data.token` walks a JSON body, `X-Auth-Token`
   names a header, `"token":"([^"]+)"` is matched against the body as text — and the field's

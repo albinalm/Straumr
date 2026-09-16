@@ -3,6 +3,21 @@
 Part of the [TUI implementation guide](./README.md). Run the smallest applicable
 subset for the milestone in hand, and tick items here in the same change.
 
+- [x] Every screen action as a namespaced command builds in Debug, Release and the
+      Release CLI-isolated configuration with no warnings.
+- [ ] Terminal-check the new commands from another screen: `:rq edit <request>` and
+      `:au edit <auth>` open the editor and come back to the screen they were typed on;
+      `:rq create`, `:rq copy`, `:rq delete`, `:rq view`, and the Auths equivalents;
+      `:ws create`, `:ws copy <workspace>`, `:ws delete <workspace>`, `:ws import`,
+      `:ws export <workspace>` and `:ws edit <workspace>` from Requests. Check that a
+      dialog opened this way holds the keyboard — Cancel focused on a confirm, the Name
+      field on a form, the list in a browser — and that focus returns to the list when it
+      closes.
+- [ ] Terminal-check the no-workspace wording: with no active workspace, each of
+      `:rq edit`, `:rq send`, `:rq refresh`, `:au fetch` and `:au json` reports
+      `no active workspace; use :ws use <workspace> to choose one` in the footer.
+- [ ] Terminal-check completion in the new namespaces: `Tab` after `:rq ` lists the new
+      verbs, and after `:ws export ` completes workspace identifiers.
 - [x] Cross-screen typed-command implementation builds in Debug, Release, and the
       Release CLI-isolated configuration with no warnings.
 - [x] Navigation resolution is exact-only: a focused command-set probe returns no

@@ -131,7 +131,7 @@ public sealed class RequestScreen : ITuiScreen
         // reader is more likely to want rid of, not less.
         _list.AddCommand(ActionCommand("Delete", 'd', ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Request.EditJson", "Edit JSON", 'e',
-                     () => { if (SelectedItem is { } item) EditAsJson(item); },
+                     () => { if (SelectedItem is { } item) NotifyIfFailed(EditAsJson(item)); },
                      () => SelectedItem is not null))
             _list.AddCommand(command);
         _list.AddCommand(SendCommand());
@@ -178,15 +178,20 @@ public sealed class RequestScreen : ITuiScreen
                 new TextBlock("Loading requests…").Style(StraumrStyles.MutedText)).Spacing(1)) : listView,
             BuildHead,
             () => SelectedItem is null ? ResourceScreenLayout.EmptySections() : _sections);
+        // Every action the screen offers under a key is here under a name as well, because the
+        // prompt is how the other screens reach this one: `:rq edit <request>` from Auths is the
+        // same edit `e` is on the row. Each takes the request to act on by name, and acts on the
+        // selection when given none, which is what the key does.
         PromptCommands =
         [
-            new TuiCommand("select", SelectRequestAsync) { Aliases = ["r"], ArgumentValues = () => _items.Select(item => item.Name) },
-            new TuiCommand("send", SendRequestAsync)
-            {
-                ArgumentValues = () => _items.Select(item => item.Name),
-                OpensTransientScreen = true
-            },
-            new TuiCommand("json", EditJsonAsync) { ArgumentValues = () => _items.Select(item => item.Name) },
+            new TuiCommand("select", SelectRequestAsync) { Aliases = ["r"], ArgumentValues = RequestNames },
+            new TuiCommand("create", CreateRequestAsync) { Aliases = ["new"] },
+            new TuiCommand("edit", EditRequestAsync) { ArgumentValues = RequestNames },
+            new TuiCommand("copy", CopyRequestAsync) { ArgumentValues = RequestNames },
+            new TuiCommand("delete", DeleteRequestAsync) { ArgumentValues = RequestNames },
+            new TuiCommand("send", SendRequestAsync) { ArgumentValues = RequestNames },
+            new TuiCommand("view", ViewResponseAsync) { Aliases = ["response"], ArgumentValues = RequestNames },
+            new TuiCommand("json", EditJsonAsync) { ArgumentValues = RequestNames },
             new TuiCommand("refresh", RefreshAsync)
         ];
     }
@@ -198,6 +203,7 @@ public sealed class RequestScreen : ITuiScreen
     public IReadOnlyList<TuiCommand> PromptCommands { get; }
     public event Action<TuiCommandResult>? NotificationRequested;
     public event Action<TuiExternalAction>? ExternalActionRequested;
+    public event Action? TransientScreenOpened;
     public event Action? TransientScreenClosed;
     private RequestScreenItem? SelectedItem => (uint)_selectedIndex.Value < (uint)_visible.Value.Count ? _visible.Value[_selectedIndex.Value] : null;
 
@@ -473,13 +479,91 @@ public sealed class RequestScreen : ITuiScreen
             _emptyMessage.Value = _query.Value.Length > 0 ? "No requests match this filter." : "No requests in this workspace.";
     }
 
+    private IEnumerable<string> RequestNames() => _items.Select(item => item.Name);
+
     private Task<TuiCommandResult> SelectRequestAsync(string argument, CancellationToken cancellationToken)
     {
+        if (_workspace is null)
+            return Task.FromResult(TuiCommandResult.NoWorkspace);
         if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
             return Task.FromResult(TuiCommandResult.Failed(error!));
         if (name.Length == 0)
             return Task.FromResult(TuiCommandResult.Failed("usage: select <name>"));
         return Task.FromResult(SelectRequest(name));
+    }
+
+    /// <summary>
+    /// Runs a command against the request it names, or against the selection when it names none,
+    /// having first said why it cannot run at all. Every command that acts on one request goes
+    /// through here, so they take their argument, report a missing workspace and report a name that
+    /// matches nothing or too much in the same words.
+    /// </summary>
+    private TuiCommandResult OnSelected(string argument, Func<RequestScreenItem, TuiCommandResult> action)
+    {
+        if (_workspace is null)
+            return TuiCommandResult.NoWorkspace;
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return TuiCommandResult.Failed(error!);
+        if (name.Length > 0)
+        {
+            TuiCommandResult selection = SelectRequest(name);
+            if (selection.IsError)
+                return selection;
+        }
+
+        return SelectedItem is { } item ? action(item) : TuiCommandResult.Failed("no request selected");
+    }
+
+    private Task<TuiCommandResult> CreateRequestAsync(string argument, CancellationToken cancellationToken)
+    {
+        if (_workspace is null)
+            return Task.FromResult(TuiCommandResult.NoWorkspace);
+        return Task.FromResult(argument.Length > 0
+            ? TuiCommandResult.Failed("usage: create")
+            : OpenEditorFor(null, 'c'));
+    }
+
+    private Task<TuiCommandResult> EditRequestAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item => item.IsBroken
+            ? EditAsJson(item)
+            : OpenEditorFor(item, 'e')));
+
+    private Task<TuiCommandResult> CopyRequestAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item => item.IsBroken
+            ? TuiCommandResult.Failed($"cannot copy {item.Name}: the request cannot be read")
+            : OpenEditorFor(item, 'y')));
+
+    private Task<TuiCommandResult> DeleteRequestAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, _ =>
+        {
+            ShowDeleteDialog();
+            return TuiCommandResult.None;
+        }));
+
+    /// <summary>
+    /// Opens the response already held for a request, full screen — what <c>v</c> does on the
+    /// response pane. A request that has not been sent in this session has none to open; the
+    /// command says so rather than sending one, because sending is <c>:send</c>'s to do.
+    /// </summary>
+    private Task<TuiCommandResult> ViewResponseAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item =>
+        {
+            if (_workspace is not { } workspace || !_responses.ContainsKey((workspace.Id, item.Id)))
+                return TuiCommandResult.Failed($"{item.Name} has no response yet; send it first");
+            OpenResponse();
+            return TuiCommandResult.None;
+        }));
+
+    /// <remarks>
+    /// The guard the keystroke can leave unsaid: a key pressed while the editor is up never reaches
+    /// the screen behind it, but a command dispatched from another screen arrives without that.
+    /// </remarks>
+    private TuiCommandResult OpenEditorFor(RequestScreenItem? source, char openingGesture)
+    {
+        if (_editorView is not null)
+            return TuiCommandResult.Failed("the request editor is already open");
+        OpenEditor(source, openingGesture);
+        return TuiCommandResult.None;
     }
 
     private TuiCommandResult SelectRequest(string name)
@@ -501,56 +585,33 @@ public sealed class RequestScreen : ITuiScreen
     /// easier to make as text. Named for what it gives you rather than for the program it runs, since
     /// which program that is comes from the environment.
     /// </summary>
-    private Task<TuiCommandResult> EditJsonAsync(string argument, CancellationToken cancellationToken)
-    {
-        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
-            return Task.FromResult(TuiCommandResult.Failed(error!));
-
-        if (name.Length > 0)
-        {
-            TuiCommandResult selection = SelectRequest(name);
-            if (selection.IsError)
-                return Task.FromResult(selection);
-        }
-
-        if (SelectedItem is not { } item)
-            return Task.FromResult(TuiCommandResult.Failed("no request selected"));
-
-        EditAsJson(item);
-        return Task.FromResult(TuiCommandResult.None);
-    }
+    private Task<TuiCommandResult> EditJsonAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, EditAsJson));
 
     private async Task<TuiCommandResult> RefreshAsync(string argument, CancellationToken cancellationToken)
     {
         if (argument.Length > 0)
             return TuiCommandResult.Failed("usage: refresh");
+        if (_workspace is null)
+            return TuiCommandResult.NoWorkspace;
         await LoadAsync(cancellationToken);
         return _loadError.Value ? TuiCommandResult.Failed(_emptyMessage.Value) :
             TuiCommandResult.Ok($"reloaded {CountFormatting.Label(_items.Count, "request")}");
     }
 
-    private Task<TuiCommandResult> SendRequestAsync(string argument, CancellationToken cancellationToken)
-    {
-        if (_workspace is null)
-            return Task.FromResult(TuiCommandResult.Failed("no active workspace; use :ws use <workspace>"));
-        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
-            return Task.FromResult(TuiCommandResult.Failed(error!));
-        if (name.Length == 0)
-            return Task.FromResult(TuiCommandResult.Failed("usage: send <name>"));
+    private Task<TuiCommandResult> SendRequestAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item =>
+        {
+            if (item.Request is not { } request)
+                return TuiCommandResult.Failed($"cannot send {item.Name}: the request cannot be read");
+            if (_sendCancellation is not null)
+                return TuiCommandResult.Failed("a request is already being sent");
 
-        TuiCommandResult selection = SelectRequest(name);
-        if (selection.IsError)
-            return Task.FromResult(selection);
-        if (SelectedItem is not { Request: { } request } item)
-            return Task.FromResult(TuiCommandResult.Failed($"cannot send {name}: the request cannot be read"));
-        if (_sendCancellation is not null)
-            return Task.FromResult(TuiCommandResult.Failed("a request is already being sent"));
-
-        _responseView = BuildResponseView(item.Id, request, () => _list.App?.Focus(_list));
-        QueueSend(item.Id);
-        _responseView.Show();
-        return Task.FromResult(TuiCommandResult.None);
-    }
+            _responseView = BuildResponseView(item.Id, request, () => _list.App?.Focus(_list));
+            QueueSend(item.Id);
+            ShowResponseView();
+            return TuiCommandResult.None;
+        }));
 
     private void QueueSend()
     {
@@ -558,7 +619,7 @@ public sealed class RequestScreen : ITuiScreen
             return;
         _responseView = BuildResponseView(item.Id, item.Request!, () => _list.App?.Focus(_list));
         QueueSend(item.Id);
-        _responseView.Show();
+        ShowResponseView();
     }
 
     private void OpenResponse()
@@ -569,7 +630,17 @@ public sealed class RequestScreen : ITuiScreen
         _responseView = BuildResponseView(item.Id, request,
             () => _responsePreview.FocusTarget.App?.Focus(_responsePreview.FocusTarget));
         _responseView.Complete(response, cached: true);
-        _responseView.Show();
+        ShowResponseView();
+    }
+
+    /// <summary>
+    /// Puts the response on the terminal and tells the shell it is there, so a command that came
+    /// from another screen is returned to that screen when the view closes.
+    /// </summary>
+    private void ShowResponseView()
+    {
+        _responseView!.Show();
+        TransientScreenOpened?.Invoke();
     }
 
     /// <remarks>
@@ -661,6 +732,7 @@ public sealed class RequestScreen : ITuiScreen
             EditContentExternally);
         _editorView = editor;
         editor.Show();
+        TransientScreenOpened?.Invoke();
     }
 
     private void ShowDeleteDialog()
@@ -805,19 +877,28 @@ public sealed class RequestScreen : ITuiScreen
             return;
         }
 
-        EditAsJson(item);
+        NotifyIfFailed(EditAsJson(item));
     }
 
-    private void EditAsJson(RequestScreenItem item)
+    /// <remarks>
+    /// It answers rather than reports, because a command has to carry its own failure: a
+    /// notification raised while a command runs is replaced by the result that command returns.
+    /// The keys that call it report for themselves through <see cref="NotifyIfFailed"/>.
+    /// </remarks>
+    private TuiCommandResult EditAsJson(RequestScreenItem item)
     {
         if (_workspace is not { } workspace)
-            return;
+            return TuiCommandResult.NoWorkspace;
         if (!_editor.IsConfigured)
-        {
-            NotificationRequested?.Invoke(TuiCommandResult.Failed("edit failed: no default editor is configured"));
-            return;
-        }
+            return TuiCommandResult.Failed("edit failed: no default editor is configured");
         ExternalActionRequested?.Invoke(new TuiExternalAction(token => EditAsync(workspace, item, token), _list));
+        return TuiCommandResult.None;
+    }
+
+    private void NotifyIfFailed(TuiCommandResult result)
+    {
+        if (result.IsError)
+            NotificationRequested?.Invoke(result);
     }
 
     private async Task<TuiCommandResult> EditAsync(StraumrWorkspaceEntry workspace, RequestScreenItem item, CancellationToken cancellationToken)

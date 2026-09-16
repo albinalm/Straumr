@@ -146,6 +146,11 @@ public sealed class WorkspaceScreen : ITuiScreen
             BuildDetailHead,
             BuildDetailSections);
 
+        // Every action the screen offers under a key is here under a name as well, because the
+        // prompt is how the other screens reach this one: `:ws delete <workspace>` from Requests is
+        // the same delete `d` is on the row. Each takes the workspace to act on by name, and acts on
+        // the selection when given none, which is what the key does. `activate` is `use` under the
+        // CLI's own word for it.
         PromptCommands =
         [
             new TuiCommand("select", SelectWorkspaceAsync)
@@ -155,9 +160,16 @@ public sealed class WorkspaceScreen : ITuiScreen
             },
             new TuiCommand("use", UseWorkspaceAsync)
             {
+                Aliases = ["activate"],
                 ArgumentValues = UsableWorkspaceIdentifiers,
                 RunsInPlaceFromOtherScreens = true
             },
+            new TuiCommand("create", CreateWorkspaceAsync) { Aliases = ["new"] },
+            new TuiCommand("edit", EditWorkspaceAsync) { ArgumentValues = WorkspaceIdentifiers },
+            new TuiCommand("copy", CopyWorkspaceAsync) { ArgumentValues = UsableWorkspaceIdentifiers },
+            new TuiCommand("delete", DeleteWorkspaceAsync) { ArgumentValues = WorkspaceIdentifiers },
+            new TuiCommand("import", ImportWorkspaceAsync),
+            new TuiCommand("export", ExportWorkspaceAsync) { ArgumentValues = UsableWorkspaceIdentifiers },
             new TuiCommand("refresh", RefreshAsync)
         ];
     }
@@ -173,6 +185,18 @@ public sealed class WorkspaceScreen : ITuiScreen
     public event Action<TuiCommandResult>? NotificationRequested;
 
     public event Action<TuiExternalAction>? ExternalActionRequested;
+
+    /// <remarks>
+    /// Workspaces owns no full-screen surface of its own: it creates, copies, imports and exports
+    /// through dialogs, and edits through the external editor, none of which is a screen the shell
+    /// has to be brought back from. A command sent here from elsewhere therefore leaves the reader
+    /// on this screen, where what it did is what they are now looking at.
+    /// </remarks>
+    public event Action? TransientScreenOpened
+    {
+        add { }
+        remove { }
+    }
 
     public event Action? TransientScreenClosed
     {
@@ -516,23 +540,33 @@ public sealed class WorkspaceScreen : ITuiScreen
 
     private void RequestEdit()
     {
-        WorkspaceScreenItem? item = SelectedItem;
-        if (item is null)
-            return;
-
-        if (!_externalEditor.IsConfigured)
-        {
-            NotificationRequested?.Invoke(
-                TuiCommandResult.Failed("edit failed: no default editor is configured"));
-            return;
-        }
-
-        ExternalActionRequested?.Invoke(new TuiExternalAction(
-            cancellationToken => EditWorkspaceAsync(item.Id, cancellationToken),
-            _workspaceList));
+        if (SelectedItem is { } item)
+            NotifyIfFailed(Edit(item));
     }
 
-    private async Task<TuiCommandResult> EditWorkspaceAsync(
+    /// <remarks>
+    /// It answers rather than reports, because a command has to carry its own failure: a
+    /// notification raised while a command runs is replaced by the result that command returns.
+    /// The key that calls it reports for itself through <see cref="NotifyIfFailed"/>.
+    /// </remarks>
+    private TuiCommandResult Edit(WorkspaceScreenItem item)
+    {
+        if (!_externalEditor.IsConfigured)
+            return TuiCommandResult.Failed("edit failed: no default editor is configured");
+
+        ExternalActionRequested?.Invoke(new TuiExternalAction(
+            cancellationToken => EditWorkspaceFileAsync(item.Id, cancellationToken),
+            _workspaceList));
+        return TuiCommandResult.None;
+    }
+
+    private void NotifyIfFailed(TuiCommandResult result)
+    {
+        if (result.IsError)
+            NotificationRequested?.Invoke(result);
+    }
+
+    private async Task<TuiCommandResult> EditWorkspaceFileAsync(
         Guid workspaceId,
         CancellationToken cancellationToken)
     {
@@ -944,6 +978,89 @@ public sealed class WorkspaceScreen : ITuiScreen
 
         return TuiCommandResult.Ok($"reloaded {CountFormatting.Label(_items.Count, "workspace")}");
     }
+
+    /// <summary>
+    /// Runs a command against the workspace it names, or against the selection when it names none.
+    /// Every command that acts on one workspace goes through here, so they take their argument and
+    /// report a name that matches nothing or too much in the same words.
+    /// </summary>
+    private TuiCommandResult OnSelected(
+        string argument,
+        Func<WorkspaceScreenItem, TuiCommandResult> action)
+    {
+        if (!TuiCommandArguments.TryParseSingle(argument, out string name, out string? error))
+            return TuiCommandResult.Failed(error!);
+        if (name.Length > 0)
+        {
+            TuiCommandResult selection = SelectByName(name);
+            if (selection.IsError)
+                return selection;
+        }
+
+        return SelectedItem is { } item
+            ? action(item)
+            : TuiCommandResult.Failed("no workspace selected");
+    }
+
+    private Task<TuiCommandResult> CreateWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken)
+    {
+        if (argument.Length > 0)
+            return Task.FromResult(TuiCommandResult.Failed("usage: create"));
+
+        ShowCreateDialog();
+        return Task.FromResult(TuiCommandResult.None);
+    }
+
+    private Task<TuiCommandResult> EditWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, Edit));
+
+    private Task<TuiCommandResult> CopyWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item =>
+        {
+            if (item.IsCorrupt)
+                return TuiCommandResult.Failed($"cannot copy {item.Name}: the workspace cannot be read");
+
+            ShowCopyDialog();
+            return TuiCommandResult.None;
+        }));
+
+    private Task<TuiCommandResult> DeleteWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, _ =>
+        {
+            ShowDeleteDialog();
+            return TuiCommandResult.None;
+        }));
+
+    private Task<TuiCommandResult> ImportWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken)
+    {
+        if (argument.Length > 0)
+            return Task.FromResult(TuiCommandResult.Failed("usage: import"));
+
+        ShowImportDialog();
+        return Task.FromResult(TuiCommandResult.None);
+    }
+
+    private Task<TuiCommandResult> ExportWorkspaceAsync(
+        string argument,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, item =>
+        {
+            if (item.IsCorrupt)
+                return TuiCommandResult.Failed($"cannot export {item.Name}: the workspace cannot be read");
+
+            ShowExportDialog();
+            return TuiCommandResult.None;
+        }));
 
     private TuiCommandResult SelectByName(string name) =>
         MatchWorkspaces(name) switch

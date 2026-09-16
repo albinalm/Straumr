@@ -73,8 +73,27 @@ implements, what evidence exists, and where to resume.
   `e` on an auth that cannot be read opens the same editor. A valid edit saves through Core;
   invalid auth JSON or identity is written back for repair rather than discarded.
 - `:select <name>` / `:a <name>` resolves exact names or unique prefixes and clears a filter
-  to reach the selection. `:refresh` reloads. `:auth` / `:au` reaches the screen from
-  anywhere and can dispatch one of its commands after loading it.
+  to reach the selection. `:auth` / `:au` reaches the screen from anywhere and can dispatch
+  one of its commands after loading it. Every action the screen offers under a key is also
+  a command, so another screen can reach it through `:au …`:
+
+  | Command | Key | Does |
+  | --- | --- | --- |
+  | `:select <name>` / `:a <name>` | — | Selects an auth, clearing a filter to reach it |
+  | `:create` / `:new` | `c` | Opens the editor on a new auth |
+  | `:edit [name]` | `e`, `Enter` | Opens the editor; an auth that cannot be read opens as JSON |
+  | `:copy [name]` | `y` | Opens the editor on a copy, its name cleared |
+  | `:delete [name]` | `d` | Asks the delete confirmation, naming what still points at it |
+  | `:fetch [name]` | `f` | Fetches and saves the token or extracted value |
+  | `:json [name]` | `Ctrl+E` | Opens the auth file in `$EDITOR` |
+  | `:refresh` | — | Reloads the screen |
+
+  Each acts on the auth it names and on the selection when it names none, which is what
+  the key does. Every one of them answers
+  `no active workspace; use :ws use <workspace> to choose one` when there is none, in
+  those words on every screen. `:au edit` and `:au copy` opened from another screen return
+  to it when the editor closes; `:au delete`, `:au fetch` and `:au json` leave the reader
+  on Auths, where what they did is what is now on show.
 - Core now refuses a double quote in an auth name, as it already did for a request name, so
   every auth name has an unambiguous quoted command representation.
 - The movable dividers load from and save to the `Auths` entry in `StraumrOptions.PaneLayouts`.

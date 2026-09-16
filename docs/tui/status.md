@@ -31,6 +31,17 @@ Update it in the same change that completes or advances a milestone.
   inline response's third tab was renamed to `Network` to match. Builds and layout captures
   pass and the Workspaces snapshots are unchanged; the focus chip, clicking a title and the
   animation need a terminal check.
+- The namespaces now carry every action, not only the four that had been needed:
+  `:rq create|edit|copy|delete|send|view|json|refresh`,
+  `:au create|edit|copy|delete|fetch|json|refresh` and
+  `:ws create|edit|copy|delete|import|export|use|refresh` are all reachable from any
+  screen, under the CLI's verbs, each taking its subject by name or acting on the
+  selection. Anything needing a workspace says so in one wording when there is none. The
+  return to the calling screen is now driven by the screen reporting that it opened a
+  full-screen surface rather than by a flag on the command, and the dialogs take their own
+  initial focus so one opened by a command cannot be left behind the keyboard. Debug,
+  Release and CLI-only builds pass with no warnings; none of it has been seen in a
+  terminal.
 - Typed commands now cross screen boundaries through noun namespaces. From Requests,
   `:ws use <workspace>` / `:workspace use <workspace>` runs Workspaces' existing
   activation command in place and reloads Requests without changing the visible screen;

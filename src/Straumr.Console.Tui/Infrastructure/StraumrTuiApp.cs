@@ -31,6 +31,7 @@ public sealed class StraumrTuiApp
     private readonly Stack<TuiScreen> _returnScreens = new();
     private DateTimeOffset _messageExpiry;
     private bool _initialized;
+    private bool _transientOpened;
     private TerminalApp? _app;
     private TuiExternalAction? _pendingExternalAction;
     private Visual? _focusOnAttach;
@@ -59,6 +60,7 @@ public sealed class StraumrTuiApp
         {
             screen.NotificationRequested += Notify;
             screen.ExternalActionRequested += RequestExternalAction;
+            screen.TransientScreenOpened += () => _transientOpened = true;
             screen.TransientScreenClosed += ReturnFromTransientScreen;
             screen.Root.IsVisible = ReferenceEquals(screen, _screen);
         }
@@ -146,7 +148,7 @@ public sealed class StraumrTuiApp
         await NavigatePendingAsync(token);
         await _screen.UpdateAsync(token);
         await SetActiveWorkspaceAsync(_screen.ActiveWorkspaceName, token);
-        if (_focusAfterNavigation && !IsModalOpen && _screen.FocusTarget.App == app)
+        if (_focusAfterNavigation && !IsModalOpen && !IsModalShown(app) && _screen.FocusTarget.App == app)
         {
             _focusAfterNavigation = false;
             app.Focus(_screen.FocusTarget);
@@ -183,14 +185,19 @@ public sealed class StraumrTuiApp
             _focusAfterNavigation = true;
         }
 
-        if (pending.Command.Length > 0)
-        {
-            TuiCommandResult result = await CreateScreenCommandSet(_screen)
-                .ExecuteAsync(pending.Command, cancellationToken);
-            if (!result.IsError && pending.ReturnScreen is { } returnScreen)
-                _returnScreens.Push(returnScreen);
-            Notify(result);
-        }
+        if (pending.Command.Length == 0)
+            return;
+
+        // The return is owed by what the command actually did, not by what it was expected to do:
+        // `edit` opens the full-screen form for a request that reads and the external editor for
+        // one that does not, and a create refused for want of a workspace opens nothing at all. The
+        // screen says so by raising TransientScreenOpened, so every push here has a close to pop it.
+        _transientOpened = false;
+        TuiCommandResult dispatched = await CreateScreenCommandSet(_screen)
+            .ExecuteAsync(pending.Command, cancellationToken);
+        if (_transientOpened && pending.ReturnScreen is { } returnScreen)
+            _returnScreens.Push(returnScreen);
+        Notify(dispatched);
     }
 
     private void SetCommands()
@@ -214,14 +221,11 @@ public sealed class StraumrTuiApp
 
     private Task<TuiCommandResult> QueueNavigation(TuiScreen screen, string command)
     {
+        bool fromElsewhere = _screen.Kind != screen;
         TuiCommand? destinationCommand = CreateScreenCommandSet(_screens[screen]).ResolveCommand(command);
-        bool runInPlace = _screen.Kind != screen &&
-            destinationCommand is { RunsInPlaceFromOtherScreens: true };
-        TuiScreen? returnScreen = _screen.Kind != screen &&
-            destinationCommand is { OpensTransientScreen: true }
-                ? _screen.Kind
-                : null;
-        _pendingNavigation = new PendingNavigation(screen, command, runInPlace, returnScreen);
+        bool runInPlace = fromElsewhere && destinationCommand is { RunsInPlaceFromOtherScreens: true };
+        _pendingNavigation = new PendingNavigation(screen, command, runInPlace,
+            fromElsewhere ? _screen.Kind : null);
         return Task.FromResult(TuiCommandResult.None);
     }
 
@@ -400,6 +404,20 @@ public sealed class StraumrTuiApp
         }
     }
 
+    /// <summary>
+    /// Whether a modal surface is up anywhere, focused or not.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IsModalOpen"/> asks the focus chain, which can only answer once focus has reached
+    /// the modal. A dialog that takes its own focus does so inside <c>Show</c> and is seen there,
+    /// but one that leaves it to <c>AutoFocus</c> — every confirm, form and browser in this app —
+    /// is not focused until the render that follows. Both open inside the pass a navigated command
+    /// runs in, and the focus this shell restores after navigating would land behind them.
+    /// </remarks>
+    private bool IsModalShown(TerminalApp app) =>
+        app.Root.EnumerateVisualsDepthFirst().Any(visual =>
+            visual is IModalVisual { IsModal: true } && !ReferenceEquals(visual, _prompt.Root));
+
     private void OpenPrompt()
     {
         _message.Value = TuiCommandResult.None;
@@ -434,6 +452,10 @@ public sealed class StraumrTuiApp
         return Task.FromResult(TuiCommandResult.None);
     }
 
+    /// <param name="ReturnScreen">
+    /// The screen the command was typed on, when that is not the screen it runs on. It is returned
+    /// to only if the command opened a full-screen surface, whose close is what asks for it back.
+    /// </param>
     private readonly record struct PendingNavigation(
         TuiScreen Screen,
         string Command,
