@@ -2,6 +2,8 @@
 
 This document is an agent-focused operating guide for Straumr. It is optimized for scripted usage, machine parsing, and low-ambiguity workflows.
 
+Print this guide from any Straumr install with `straumr --agent-help`. The copy is embedded in the binary at build time, so it always describes the version you are running.
+
 ## Core Rules
 
 - Prefer `--json` whenever a command supports it.

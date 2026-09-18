@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Commands\Autocomplete\Scripts\**\*" />
+        <EmbeddedResource Include="..\..\docs\agents-doc.md" LogicalName="Straumr.Console.Cli.AgentDocs.md" />
     </ItemGroup>
 
     <ItemGroup>

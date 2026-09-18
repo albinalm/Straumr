@@ -52,6 +52,8 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
                 _registry.Add(alias);
             }
 
+            _registry.Add(AgentDocs.Flag);
+
             _registryInitialized = true;
         }
 
@@ -103,6 +105,11 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
             args[0] = "--help";
         }
 
+        if (args.Contains(AgentDocs.Flag))
+        {
+            return AgentDocs.Write();
+        }
+
         if (args.Contains("--version"))
         {
             Assembly assembly = typeof(CliConsoleIntegration).Assembly;
@@ -133,6 +140,7 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
     private void ConfigureCommands(IConfigurator config)
     {
         config.SetApplicationName("Straumr");
+        config.SetHelpProvider(new StraumrHelpProvider(config.Settings));
 
         config.AddStraumrBranch(_registry, CompletionCatalog.List, list =>
         {

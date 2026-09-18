@@ -6,6 +6,7 @@ This is a code-verified summary of the command tree configured in `Program.cs`.
 
 - Running `straumr` with no arguments prints a banner and version panel.
 - Global `--no-color` is handled before Spectre command parsing and disables ANSI and link output.
+- Global `--agent-help` is handled before Spectre command parsing and writes `docs/agents-doc.md` (embedded at build time) to stdout.
 - Command nouns have short aliases:
   - `workspace` -> `ws`
   - `request` -> `rq`
