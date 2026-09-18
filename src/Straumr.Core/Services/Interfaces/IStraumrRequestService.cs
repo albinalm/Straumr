@@ -32,6 +32,12 @@ public interface IStraumrRequestService
         StraumrRequest request,
         CancellationToken cancellationToken = default);
 
+    Task StoreResponseAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        StraumrStoredResponse? response,
+        CancellationToken cancellationToken = default);
+
     Task DeleteAsync(
         StraumrWorkspaceEntry workspace,
         Guid id,

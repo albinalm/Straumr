@@ -10,6 +10,9 @@ public interface IStraumrFileService
     Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken = default) where T : StraumrModelBase;
 
+    Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo, bool updateModified,
+        CancellationToken cancellationToken = default) where T : StraumrModelBase;
+
     Task<T> ReadStraumrModelAsync<T>(string path, JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken = default) where T : StraumrModelBase;
 

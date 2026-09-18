@@ -108,9 +108,35 @@ public class StraumrRequestService(
 
         await EnsureNoNameConflictAsync(
             request.Name, workspace, request.Id, cancellationToken: cancellationToken);
+        request.LastResponse = null;
         await fileService.WriteStraumrModelAsync(
             fullPath, request, StraumrJsonContext.Default.StraumrRequest, cancellationToken);
         return request;
+    }
+
+    public async Task StoreResponseAsync(
+        StraumrWorkspaceEntry workspace,
+        Guid id,
+        StraumrStoredResponse? response,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string fullPath = RequestPath(id, workspace);
+        if (!File.Exists(fullPath))
+        {
+            throw new StraumrException("Request not found", StraumrError.EntryNotFound);
+        }
+
+        StraumrRequest request = await fileService.PeekStraumrModelAsync(
+            fullPath, StraumrJsonContext.Default.StraumrRequest, cancellationToken);
+        if (request.LastResponse is null && response is null)
+        {
+            return;
+        }
+
+        request.LastResponse = response;
+        await fileService.WriteStraumrModelAsync(
+            fullPath, request, StraumrJsonContext.Default.StraumrRequest, false, cancellationToken);
     }
 
     public async Task DeleteAsync(

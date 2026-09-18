@@ -28,6 +28,8 @@ public interface IStraumrSettingsService
 
     int ResponseHighlightLimit { get; }
 
+    int ResponseStoreLimit { get; }
+
     /// <summary>
     /// Reads the file, or the template's defaults if it cannot be parsed. Never throws for bad TOML:
     /// <paramref name="problem"/> carries what was wrong so the caller can say so and carry on with

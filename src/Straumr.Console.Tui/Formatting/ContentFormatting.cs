@@ -43,6 +43,9 @@ internal static class ContentFormatting
         return text.Length == 0 ? empty : Preview(text);
     }
 
+    public static string Unsaved(long bytes) =>
+        $"This body was not saved: {Size(bytes)} is above the response store limit.\nPress s to send the request again.";
+
     public static string Size(long bytes) => bytes switch
     {
         < 1024 => $"{bytes} B",

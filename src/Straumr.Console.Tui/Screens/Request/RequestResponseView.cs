@@ -120,7 +120,7 @@ internal sealed class RequestResponseView
         _clock.Stop();
         _sending.Value = false;
         _failed.Value = response.Exception is not null || (int?)response.StatusCode >= 400;
-        long bytes = response.RawContent?.LongLength ?? Encoding.UTF8.GetByteCount(response.Content ?? string.Empty);
+        long bytes = response.Bytes;
         string status = response.StatusCode is { } code ? $"{(int)code} {response.ReasonPhrase}" : "Send failed";
         string protocol = response.HttpVersion?.ToString() ?? "unavailable";
         _summary.Value = $"{status} · {response.Duration.TotalMilliseconds:0.##} ms · {ContentFormatting.Size(bytes)} · HTTP {protocol}";
@@ -129,6 +129,7 @@ internal sealed class RequestResponseView
         {
             new("Status", status),
             new("HTTP version", protocol),
+            new("Sent", response.Sent is { } sent ? TimestampFormatting.Relative(sent) : "unavailable"),
             new("HTTP elapsed", $"{response.Duration.TotalMilliseconds:0.##} ms"),
             new("Response body", $"{bytes:N0} bytes ({ContentFormatting.Size(bytes)})")
         };
@@ -155,6 +156,8 @@ internal sealed class RequestResponseView
         _body.SetBody(response.Content);
         if (response.Exception is not null)
             _preview.SetPageText(0, response.Exception.Message);
+        else if (response.BodyOmitted)
+            _preview.SetPageText(0, ContentFormatting.Unsaved(bytes));
     }
 
     /// <param name="summary">

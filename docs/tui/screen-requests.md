@@ -66,7 +66,8 @@ implements, what evidence exists, and where to resume.
   named the same on the inline pane and on the full-screen view. Network contains actual
   status, duration, size, HTTP version, warnings and failures;
   no fictional network trace is shown. Inline text previews are bounded to 64 KiB.
-  Responses are held in memory per workspace/request identity.
+  Responses are held in memory per workspace/request identity and written into the request
+  file, so one is still there after a `:refresh` and after a restart.
 - `s` sends through Core using its existing default HTTP/auth behavior. It is registered on
   the list and on the container the detail regions share, so it works from the list and from
   Authentication, Secrets, Request and Response alike, on whichever page of those panes is
@@ -93,6 +94,16 @@ implements, what evidence exists, and where to resume.
   `Escape` cancels an active send, from a re-send as much as from the first one; afterward
   it returns to Requests. Timeouts, transport errors and cancellation remain visible.
   Ctrl+C retains cancellation/exit.
+- A response is written into the request file the moment it lands, so it survives a `:refresh`
+  and a restart: the status and reason, the HTTP version, the measured timings, the size, the
+  response headers, any warnings, a transport failure's message and the moment it was sent. The
+  Network page names that moment, because a response restored from the file otherwise reads exactly
+  like one that has just arrived. `[response] store-limit` in `settings.toml` is the largest body
+  worth keeping, in KiB, default 1024; a larger response is kept without its body, and the Body page
+  says so and points at `s` instead of showing an empty one. `0` keeps nothing. A response already
+  in memory is never replaced by the stored copy, so a refresh cannot downgrade what is on screen.
+  Saving a request, in the form or in `$EDITOR`, clears what was stored, the same way it already
+  dropped what was held in memory: the response described the request as it was sent.
 - With no response stored, the inline Response pane reads `No saved response.` on every page,
   the Body page adding `Press s to send the request.`
 - `v` on the inline response expands the cached result without sending again.

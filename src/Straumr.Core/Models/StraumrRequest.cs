@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Straumr.Core.Enums;
 
 namespace Straumr.Core.Models;
@@ -12,6 +13,8 @@ public class StraumrRequest : StraumrModelBase
     public Dictionary<BodyType, string> Bodies { get; set; } = new();
     public Guid? AuthId { get; set; }
     public string? Group { get; set; }
+    [JsonPropertyOrder(1)]
+    public StraumrStoredResponse? LastResponse { get; set; }
 
     public StraumrRequest CopyAs(string name) => new()
     {

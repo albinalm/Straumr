@@ -10,6 +10,7 @@ namespace Straumr.Core.Configuration;
     ReadCommentHandling = JsonCommentHandling.Skip)]
 [JsonSerializable(typeof(StraumrWorkspace))]
 [JsonSerializable(typeof(StraumrRequest))]
+[JsonSerializable(typeof(StraumrStoredResponse))]
 [JsonSerializable(typeof(StraumrSecret))]
 [JsonSerializable(typeof(StraumrAuth))]
 [JsonSerializable(typeof(StraumrState))]

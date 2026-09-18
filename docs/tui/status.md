@@ -6,6 +6,23 @@ Update it in the same change that completes or advances a milestone.
 
 ## Current Status
 
+- A sent response is now kept in the request file, so the Response pane still shows it after a
+  `:refresh` and after a restart. `StraumrRequest` carries a `LastResponse` block — the status and
+  reason, the HTTP version, the measured timings, the body, its byte count, the response headers,
+  any warnings, a transport failure's message and the moment it was sent — written after the send
+  through `IStraumrRequestService.StoreResponseAsync`, which leaves `Modified` and every other field
+  alone and is ordered last in the file so a large body cannot push the name and URL out of sight in
+  an editor. `[response] store-limit` in `settings.toml` is the largest body worth keeping, in KiB,
+  default 1024: a larger response is still kept, without its body, and the Body page says so and
+  points at `s` rather than showing an empty one. `0` keeps nothing at all. Saving a request clears
+  what was stored, the same way an edit already dropped the response held in memory, because the
+  response describes the request as it was sent. A response already in memory is never replaced by
+  the stored copy, so a refresh cannot downgrade what is on screen. The Network page now names when
+  the response was sent, since a restored one is otherwise indistinguishable from one that has just
+  landed. Debug, Release and Release CLI-only builds pass without warnings, and the file format was
+  round-tripped through `StraumrJsonContext` and the comment carrier — including a body above the
+  limit and a failed send; the terminal check is pending.
+
 - A JSON response body is now coloured by token. Keys, strings, numbers, `true`/`false`, `null` and
   the punctuation between them each read in their own colour, taken from a new `[code]` table a
   theme may write and both built-ins do. It applies to the Body page of the inline Response pane and

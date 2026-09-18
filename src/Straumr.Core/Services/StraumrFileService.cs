@@ -23,6 +23,12 @@ public class StraumrFileService : IStraumrFileService
         await WriteInternal(path, value, typeInfo, true, cancellationToken);
     }
 
+    public async Task WriteStraumrModelAsync<T>(string path, T value, JsonTypeInfo<T> typeInfo,
+        bool updateModified, CancellationToken cancellationToken = default) where T : StraumrModelBase
+    {
+        await WriteInternal(path, value, typeInfo, updateModified, cancellationToken);
+    }
+
     public async Task<T> ReadStraumrModelAsync<T>(string path, JsonTypeInfo<T> typeInfo,
         CancellationToken cancellationToken = default) where T : StraumrModelBase
     {

@@ -31,7 +31,11 @@ public class StraumrSettingsService : IStraumrSettingsService
 
     public int ResponseHighlightLimit { get; private set; } = DefaultHighlightLimit;
 
+    public int ResponseStoreLimit { get; private set; } = DefaultStoreLimit;
+
     private const int DefaultHighlightLimit = 256 * 1024;
+
+    private const int DefaultStoreLimit = 1024 * 1024;
 
     public string? Problem { get; private set; }
 
@@ -41,6 +45,7 @@ public class StraumrSettingsService : IStraumrSettingsService
         ResponseBodyFormat = ResponseBodyFormat.None;
         ResponseHighlight = true;
         ResponseHighlightLimit = DefaultHighlightLimit;
+        ResponseStoreLimit = DefaultStoreLimit;
         string path = await EnsureFileAsync(cancellationToken);
         string text;
         try
@@ -92,14 +97,23 @@ public class StraumrSettingsService : IStraumrSettingsService
         }
 
         ResponseHighlight = Settings.Response.Highlight ?? true;
+        ResponseHighlightLimit = Bytes(
+            Settings.Response.HighlightLimit, "highlight-limit", ResponseHighlightLimit);
+        ResponseStoreLimit = Bytes(Settings.Response.StoreLimit, "store-limit", ResponseStoreLimit);
+    }
 
-        if (Settings.Response.HighlightLimit is not { } limit)
-            return;
+    private int Bytes(int? kibibytes, string key, int fallback)
+    {
+        if (kibibytes is not { } size)
+            return fallback;
 
-        if (limit < 0)
-            Problem ??= $"settings.toml: response.highlight-limit is {limit}, which is not a size in KiB";
-        else
-            ResponseHighlightLimit = limit > int.MaxValue / 1024 ? int.MaxValue : limit * 1024;
+        if (size < 0)
+        {
+            Problem ??= $"settings.toml: response.{key} is {size}, which is not a size in KiB";
+            return fallback;
+        }
+
+        return size > int.MaxValue / 1024 ? int.MaxValue : size * 1024;
     }
 
     public async Task<string> EnsureFileAsync(CancellationToken cancellationToken = default)

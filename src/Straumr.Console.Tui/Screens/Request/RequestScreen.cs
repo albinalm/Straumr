@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Straumr.Console.Shared.Models;
 using Straumr.Console.Tui.Formatting;
@@ -8,6 +7,7 @@ using Straumr.Console.Tui.Visuals.Shared.Editor;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
 using Straumr.Core.Exceptions;
+using Straumr.Core.Extensions;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal;
@@ -271,6 +271,8 @@ public sealed class RequestScreen : ITuiScreen
         {
             StraumrRequest request = await _requests.GetAsync(_workspace!, id, updateLastAccessed: false, cancellationToken);
             string? problem = Validate(request, id);
+            if (problem is null && request.LastResponse is { } stored && _workspace is { } workspace)
+                _responses.TryAdd((workspace.Id, id), stored.ToResponse());
             return new RequestScreenItem(id, path, problem is null ? request : null, problem);
         }
         catch (Exception exception) when (IsRecoverable(exception))
@@ -447,9 +449,11 @@ public sealed class RequestScreen : ITuiScreen
         }
         _responseFailed.Value = response.Exception is not null || (int?)response.StatusCode >= 400;
         string status = response.StatusCode is { } code ? $"{(int)code} {response.ReasonPhrase}" : "Send failed";
-        long bytes = response.RawContent?.LongLength ?? Encoding.UTF8.GetByteCount(response.Content ?? string.Empty);
+        long bytes = response.Bytes;
         _responseSummary.Value = $"{status} · {response.Duration.TotalMilliseconds:0} ms · {ContentFormatting.Size(bytes)}";
         string details = $"{status}\nDuration: {response.Duration.TotalMilliseconds:0.##} ms\nSize: {ContentFormatting.Size(bytes)}\nHTTP: {response.HttpVersion}";
+        if (response.Sent is { } sent)
+            details += $"\nSent: {TimestampFormatting.Relative(sent)}";
         if (response.Warnings.Count > 0)
             details += "\n\nWarnings\n" + string.Join('\n', response.Warnings);
         if (response.Exception is { } exception)
@@ -459,6 +463,8 @@ public sealed class RequestScreen : ITuiScreen
         _responseBody.SetBody(response.Content);
         if (response.Exception is not null)
             _responsePreview.SetPageText(0, response.Exception.Message);
+        else if (response.BodyOmitted)
+            _responsePreview.SetPageText(0, ContentFormatting.Unsaved(bytes));
     }
 
     private void ApplyFilter(string query) => ApplyFilter(query, SelectedItem?.Id);
@@ -686,6 +692,7 @@ public sealed class RequestScreen : ITuiScreen
             _responses[(workspace.Id, id)] = response;
             _responseView?.Complete(response);
             _displayedId = null;
+            await StoreResponseAsync(workspace, id, response, cancellationToken);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && _sendCancellation.IsCancellationRequested)
         {
@@ -703,6 +710,26 @@ public sealed class RequestScreen : ITuiScreen
         {
             _sendCancellation.Dispose();
             _sendCancellation = null;
+        }
+    }
+
+    private async Task StoreResponseAsync(StraumrWorkspaceEntry workspace, Guid id, StraumrResponse response,
+        CancellationToken cancellationToken)
+    {
+        int limit = _settings.ResponseStoreLimit;
+        try
+        {
+            await _requests.StoreResponseAsync(workspace, id,
+                limit <= 0 ? null : response.ToStored(limit), cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            NotificationRequested?.Invoke(TuiCommandResult.Failed(
+                $"cannot save the response: {exception.Message}"));
         }
     }
 

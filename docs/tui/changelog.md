@@ -3,6 +3,26 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-18: The last response now survives a `:refresh` and a restart. `StraumrRequest` carries a
+  `LastResponse` block — status, reason, HTTP version, duration, time to headers, body-download
+  duration, byte count, the body, the response headers, warnings, a failure message and the moment
+  it was sent — written after a send through the new `IStraumrRequestService.StoreResponseAsync`,
+  which peeks the file, sets the block and writes it back without stamping `Modified`;
+  `IStraumrFileService` gained the write overload that makes that possible, and `[JsonPropertyOrder]`
+  puts the block at the end of the file. `StoredResponseExtensions` converts both ways, so the
+  inline pane and the full-screen view render a restored response through the exact code that renders
+  a live one. `StraumrResponse` gained `ContentLength`, `BodyOmitted`, `Sent` and a `Bytes` property
+  that folds the size computation the two call sites were each doing by hand. A request loads its
+  stored response into the screen's cache with `TryAdd`, so what is in memory always wins and a
+  refresh cannot downgrade the body on screen. `[response] store-limit` bounds the body in KiB
+  (default 1024, `0` keeps nothing) and reuses the same KiB parser as `highlight-limit`; `SaveAsync`
+  clears the block, since an edited request's last response is no longer its response; and the
+  Network page names when the response was sent. Debug, Release and Release CLI-only builds pass
+  without warnings, and the file format was round-tripped through `StraumrJsonContext` and
+  `JsoncComments` — a comment beside a request survives a stored response, a body above the limit
+  comes back marked rather than empty, and a failed send comes back as a failure. The terminal check
+  is pending.
+
 - 2026-09-18: Added syntax colouring to the response body. A body that parses as JSON is drawn as
   one `Paragraph` per line carrying a `StyledRun` per token — key, string, number, boolean, null,
   punctuation, and a plain run for everything between — instead of one uncoloured `TextBlock`.

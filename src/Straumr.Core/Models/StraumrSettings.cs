@@ -91,6 +91,14 @@ public sealed class StraumrSettings
         #
         #   highlight-limit = 1024
 
+        # The largest response body, in KiB, that a request file keeps. A sent response is written
+        # into the request beside the request itself, so the pane still shows it after a `:refresh`
+        # or a restart. One larger than this is kept without its body — the status, the headers and
+        # the measurements stay, and the Body page says the body was not saved. 0 keeps nothing.
+        # Default: 1024.
+        #
+        #   store-limit = 4096
+
         """;
 }
 
@@ -104,6 +112,9 @@ public sealed class StraumrResponseSettings
 
     [TomlPropertyName("highlight-limit")]
     public int? HighlightLimit { get; set; }
+
+    [TomlPropertyName("store-limit")]
+    public int? StoreLimit { get; set; }
 }
 
 /// <summary>

@@ -5,6 +5,13 @@ subset for the milestone in hand, and tick items here in the same change.
 
 ## S1 checkpoint
 
+- [ ] Terminal check of the stored response: send a request, `:refresh`, and the Response pane still
+      shows the status, the body, the headers and the measurements, with `v` available and the
+      Network page naming when it was sent; restart and it is all still there. Then set
+      `[response] store-limit = 1` and send something larger — the Body page says the body was not
+      saved and offers `s` while the status and the measurements survive — and `store-limit = 0`,
+      which stores nothing. Editing and saving the request clears what was stored.
+
 - [x] Terminal check of response body colouring: the developer confirmed a JSON body reads coloured
       on the Body page. Still unticked within it: `h` on a body that is not JSON, and a body large
       enough to arrive uncoloured in the full-screen view until `h` asks for it.

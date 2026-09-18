@@ -33,6 +33,7 @@ public static class HttpExtensions
             return new StraumrResponse
             {
                 StatusCode = response.StatusCode,
+                Sent = DateTimeOffset.UtcNow,
                 Duration = stopwatch.Elapsed,
                 TimeToHeaders = timeToHeaders,
                 BodyDownloadDuration = stopwatch.Elapsed - timeToHeaders,
@@ -55,6 +56,7 @@ public static class HttpExtensions
             {
                 Content = null,
                 RawContent = null,
+                Sent = DateTimeOffset.UtcNow,
                 Duration = stopwatch.Elapsed,
                 Exception = ex,
                 StatusCode = null
