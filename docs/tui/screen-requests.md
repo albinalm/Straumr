@@ -96,10 +96,16 @@ implements, what evidence exists, and where to resume.
 - With no response stored, the inline Response pane reads `No saved response.` on every page,
   the Body page adding `Press s to send the request.`
 - `v` on the inline response expands the cached result without sending again.
-  With Body focused, `b` toggles JSON beautification/minification and `y` copies the
+  With Body focused, `b` toggles JSON beautification/minification, `h` toggles syntax
+  colouring and `y` copies the
   entire body in its current formatting, including text beyond the inline preview.
   Invalid JSON remains unchanged with an explanation; unavailable clipboard access
-  reports failure. `[response] format` in `settings.toml` — `none` (default), `beautify`
+  reports failure. A body that parses as JSON is coloured by token — key, string, number,
+  boolean, null, punctuation — in the theme's `[code]` colours; one that does not is left
+  alone, and `h` on it says so in the same words `b` does. `[response] highlight` decides
+  what a body arrives with and `[response] highlight-limit`, in KiB, the size past which it
+  arrives uncoloured whatever that says, since colouring walks every line that is drawn.
+  `h` turns it on past the limit and reports the size it may cost to scroll. `[response] format` in `settings.toml` — `none` (default), `beautify`
   or `minify` — decides what a JSON body is reformatted to the moment it arrives, before
   either key is pressed; a body that is not JSON is shown as sent and nothing is reported. Pages are cycled by `t` on the inline pane, where `Tab` belongs to the
   screen's regions, and by `Tab` in the full-screen view, where those titles are the only

@@ -3,6 +3,23 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-18: Added syntax colouring to the response body. A body that parses as JSON is drawn as
+  one `Paragraph` per line carrying a `StyledRun` per token — key, string, number, boolean, null,
+  punctuation, and a plain run for everything between — instead of one uncoloured `TextBlock`.
+  `PreviewPane` gained an optional per-page highlighter, so a page is coloured only where a caller
+  asks for one and every other page is drawn exactly as before. `JsonHighlighting` is the tokenizer:
+  it works a line at a time, which is sound because a JSON string cannot contain a raw newline, and
+  tolerates text it does not recognise rather than refusing it, since a bounded preview may be cut
+  mid-document. The colours are a `[code]` table in the theme — six roles, optional, inheriting the
+  semantic roles nearest each meaning the way `[methods]` does — and both built-ins name one: the
+  terminal theme in palette slots, straumr in the palette it already has. `h` on the Body page
+  toggles, `[response] highlight` decides what a body arrives with, and `[response] highlight-limit`
+  is the size in KiB past which it arrives off, so a large body does not pay for colouring nobody
+  asked for; `h` overrides the limit and says what it may cost. Colouring is gated on the body
+  actually being JSON, so `h` on anything else says so rather than colouring words at random.
+  `ResponseBodyActions` now takes one `ResponseBodyOptions` from the settings rather than a format
+  alone. Debug and Release builds pass without warnings; the terminal check is pending.
+
 - 2026-09-18: Added `[response] format` to `settings.toml`: `none` (the default), `beautify` or
   `minify`, deciding what happens to a JSON response body the moment it arrives, on the inline
   Response pane and in the full-screen view alike. The setting is read at the moment the body is

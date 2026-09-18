@@ -7,12 +7,14 @@ internal static class ContentFormatting
 {
     private const int PreviewLimit = 64 * 1024;
 
+    public const string Truncated = "… preview truncated at 64 KiB of text.";
+
     public static string Preview(string? content, bool formatJson = false)
     {
         if (string.IsNullOrEmpty(content))
             return "No body.";
         if (content.Length > PreviewLimit)
-            return content[..PreviewLimit] + "\n… preview truncated at 64 KiB of text.";
+            return content[..PreviewLimit] + "\n" + Truncated;
         if (!formatJson)
             return content;
         try

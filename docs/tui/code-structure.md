@@ -112,6 +112,7 @@ Straumr.Console.Tui/
     HttpMethodFormatting.cs       looks each method's colour up in the theme
     AuthFormatting.cs             how an auth reads: its type, its meta line, its status
     ContentFormatting.cs          bounded JSON/text previews, headers and response sizes
+    JsonHighlighting.cs           a line of JSON split into the theme-coloured runs it draws as
 ```
 
 Add a file only when it owns meaningful behavior.

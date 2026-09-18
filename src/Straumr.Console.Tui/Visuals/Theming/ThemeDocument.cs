@@ -30,6 +30,9 @@ public sealed class ThemeDocument
     /// </summary>
     [TomlPropertyName("methods")]
     public Dictionary<string, string> Methods { get; set; } = [];
+
+    [TomlPropertyName("code")]
+    public Dictionary<string, string> Code { get; set; } = [];
 }
 
 [TomlSerializable(typeof(ThemeDocument))]

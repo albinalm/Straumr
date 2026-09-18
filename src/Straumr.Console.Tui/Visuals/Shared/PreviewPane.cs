@@ -2,12 +2,14 @@ using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
+using XenoAtom.Terminal.UI.Text;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
 
 internal sealed class PreviewPane
 {
     private readonly State<string>[] _text;
+    private readonly State<Func<string, StyledRun[]>?>[] _highlighters;
     private readonly ScrollableContent[] _views;
     private readonly TabControl? _tabs;
     private readonly PagedPane? _paged;
@@ -25,16 +27,17 @@ internal sealed class PreviewPane
     private PreviewPane(bool wrap, bool tabsOnRule, string[] pages)
     {
         _text = pages.Select(_ => new State<string>(string.Empty)).ToArray();
+        _highlighters = pages.Select(_ => new State<Func<string, StyledRun[]>?>(null)).ToArray();
         // A pane that is a whole screen shares the footer with that screen's actions, so it leaves
         // the movement keys unadvertised rather than spending half the row on them; they still work.
-        _views = _text.Select(text => new ScrollableContent(new ComputedVisual(() =>
-            new VStack(text.Value.Replace("\r", string.Empty).Split('\n').Select(line =>
-                new TextBlock(line.Length == 0 ? " " : line)
-                    .Style(StraumrStyles.PrimaryText)
-                    .Wrap(wrap)
-                    .Trimming(TextTrimming.EndEllipsis)
-                    .HorizontalAlignment(Align.Stretch)).ToArray())
-                .HorizontalAlignment(Align.Stretch)), hints: !tabsOnRule)).ToArray();
+        _views = new ScrollableContent[pages.Length];
+        for (int page = 0; page < pages.Length; page++)
+        {
+            State<string> text = _text[page];
+            State<Func<string, StyledRun[]>?> highlighter = _highlighters[page];
+            _views[page] = new ScrollableContent(
+                new ComputedVisual(() => Lines(text.Value, highlighter.Value, wrap)), hints: !tabsOnRule);
+        }
 
         if (tabsOnRule)
         {
@@ -129,6 +132,28 @@ internal sealed class PreviewPane
         Visual target = FocusTarget;
         target.App?.Focus(target);
     }
+
+    private static Visual Lines(string text, Func<string, StyledRun[]>? highlight, bool wrap) =>
+        new VStack(text.Replace("\r", string.Empty).Split('\n')
+                .Select(line => Line(line.Length == 0 ? " " : line, highlight, wrap))
+                .ToArray())
+            .HorizontalAlignment(Align.Stretch);
+
+    private static Visual Line(string line, Func<string, StyledRun[]>? highlight, bool wrap) =>
+        highlight is null
+            ? new TextBlock(line)
+                .Style(StraumrStyles.PrimaryText)
+                .Wrap(wrap)
+                .Trimming(TextTrimming.EndEllipsis)
+                .HorizontalAlignment(Align.Stretch)
+            : new Paragraph(line)
+                .Runs(highlight(line))
+                .Wrap(wrap)
+                .Trimming(TextTrimming.EndEllipsis)
+                .HorizontalAlignment(Align.Stretch);
+
+    public void SetPageHighlighter(int index, Func<string, StyledRun[]>? highlighter) =>
+        _highlighters[index].Value = highlighter;
 
     public void SetPageText(int index, string value)
     {

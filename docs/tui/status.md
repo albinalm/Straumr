@@ -6,6 +6,20 @@ Update it in the same change that completes or advances a milestone.
 
 ## Current Status
 
+- A JSON response body is now coloured by token. Keys, strings, numbers, `true`/`false`, `null` and
+  the punctuation between them each read in their own colour, taken from a new `[code]` table a
+  theme may write and both built-ins do. It applies to the Body page of the inline Response pane and
+  of the full-screen view, and only to a body that parses as JSON: anything else is left alone.
+  `h` turns it on and off by hand. `[response] highlight` in `settings.toml` decides what a body
+  arrives with (default on) and `[response] highlight-limit` the size in KiB past which it arrives
+  off regardless (default 256), because colouring walks every line that is drawn and a body of
+  several megabytes is felt through it. `h` still turns it on past the limit and says what it may
+  cost. An existing `settings.toml` does not gain the new commented block, since the template is
+  only written when there is no file — the defaults are what an unwritten key means, so nothing
+  changes until a key is added. Debug and Release builds pass without warnings, and the theme
+  parser was checked against both built-ins, a theme with no `[code]` table, an unknown key and a
+  bad colour; **needs a terminal check** — send a JSON request and look at the Body page.
+
 - Response bodies can now be reformatted on arrival. `[response] format` in `settings.toml` takes
   `none` (default), `beautify` or `minify`, and applies to JSON bodies on both the inline Response
   pane and the full-screen view; anything else is shown as it was sent. `b` continues to toggle by

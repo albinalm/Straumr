@@ -2,47 +2,70 @@ using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Enums;
+using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Input;
+using XenoAtom.Terminal.UI.Text;
 
 namespace Straumr.Console.Tui.Screens.Request;
+
+internal readonly record struct ResponseBodyOptions(
+    ResponseBodyFormat Format,
+    bool Highlight,
+    int HighlightLimit);
 
 internal sealed class ResponseBodyActions
 {
     private readonly PreviewPane _preview;
     private readonly Action<string, bool> _notify;
-    private readonly Func<ResponseBodyFormat> _arrivalFormat;
+    private readonly Func<ResponseBodyOptions> _options;
     private readonly bool _bounded;
     private string? _body;
     private bool _pretty;
+    private bool _highlighted;
+    private bool _oversized;
 
     public ResponseBodyActions(PreviewPane preview, Action<string, bool> notify,
-        Func<ResponseBodyFormat> arrivalFormat, bool bounded = true)
+        Func<ResponseBodyOptions> options, bool bounded = true)
     {
-        (_preview, _notify, _arrivalFormat) = (preview, notify, arrivalFormat);
+        (_preview, _notify, _options) = (preview, notify, options);
         _bounded = bounded;
         AddCommand("Format", "Beautify / minify", 'b', ToggleFormat);
+        AddCommand("Highlight", "Highlight", 'h', ToggleHighlight);
         AddCommand("Copy", "Copy body", 'y', Copy);
     }
 
     public void SetBody(string? body)
     {
-        ResponseBodyFormat format = _arrivalFormat();
+        ResponseBodyOptions options = _options();
         _body = body;
         _pretty = false;
-        if (format is not ResponseBodyFormat.None
-            && RequestEditingHelpers.TryFormatJson(body, indented: format is ResponseBodyFormat.Beautify,
+        if (options.Format is not ResponseBodyFormat.None
+            && RequestEditingHelpers.TryFormatJson(body, indented: options.Format is ResponseBodyFormat.Beautify,
                 out string? formatted))
         {
             _body = formatted;
-            _pretty = format is ResponseBodyFormat.Beautify;
+            _pretty = options.Format is ResponseBodyFormat.Beautify;
         }
 
+        _oversized = (_body?.Length ?? 0) > options.HighlightLimit;
+        Highlight(options.Highlight && !_oversized);
         UpdatePreview();
     }
 
     private void UpdatePreview() => _preview.SetPageText(0,
         _bounded ? ContentFormatting.Preview(_body) : string.IsNullOrEmpty(_body) ? "No body." : _body);
+
+    private void Highlight(bool on)
+    {
+        _highlighted = on && RequestEditingHelpers.IsJson(_body);
+        _preview.SetPageHighlighter(0, _highlighted ? Line : null);
+    }
+
+    private static StyledRun[] Line(string line) =>
+        line == ContentFormatting.Truncated
+            ? [new StyledRun(0, line.Length, StraumrStyles.CodeNote)]
+            : JsonHighlighting.Line(line);
 
     private void AddCommand(string id, string label, char key, Action execute) =>
         _preview.Page(0).AddCommand(new Command
@@ -65,6 +88,23 @@ internal sealed class ResponseBodyActions
         _pretty = !_pretty;
         UpdatePreview();
         _notify(_pretty ? "JSON beautified" : "JSON minified", false);
+    }
+
+    private void ToggleHighlight()
+    {
+        bool wanted = !_highlighted;
+        Highlight(wanted);
+        if (wanted && !_highlighted)
+        {
+            _notify("This body is not valid JSON; highlighting is unavailable.", true);
+            return;
+        }
+
+        _notify(_highlighted
+            ? _oversized
+                ? $"Highlighting on — {ContentFormatting.Size(_body!.Length)} of text may scroll slowly"
+                : "Highlighting on"
+            : "Highlighting off", false);
     }
 
     private void Copy()

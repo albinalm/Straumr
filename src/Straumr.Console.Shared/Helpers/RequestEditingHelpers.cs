@@ -185,6 +185,24 @@ public static class RequestEditingHelpers
         }
     }
 
+    public static bool IsJson(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(text);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// The extension a body of this type is written out under when it is handed to an external
     /// editor, leading dot included. It is the only thing that tells the editor which language it has

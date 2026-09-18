@@ -27,12 +27,20 @@ public class StraumrSettingsService : IStraumrSettingsService
 
     public ResponseBodyFormat ResponseBodyFormat { get; private set; }
 
+    public bool ResponseHighlight { get; private set; } = true;
+
+    public int ResponseHighlightLimit { get; private set; } = DefaultHighlightLimit;
+
+    private const int DefaultHighlightLimit = 256 * 1024;
+
     public string? Problem { get; private set; }
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         Problem = null;
         ResponseBodyFormat = ResponseBodyFormat.None;
+        ResponseHighlight = true;
+        ResponseHighlightLimit = DefaultHighlightLimit;
         string path = await EnsureFileAsync(cancellationToken);
         string text;
         try
@@ -60,23 +68,38 @@ public class StraumrSettingsService : IStraumrSettingsService
             return;
         }
 
-        if (Settings.Response.Format?.Trim() is not { Length: > 0 } format)
+        ReadResponse();
+    }
+
+    private void ReadResponse()
+    {
+        if (Settings.Response.Format?.Trim() is { Length: > 0 } format)
+        {
+            switch (format.ToLowerInvariant())
+            {
+                case "none":
+                    break;
+                case "beautify":
+                    ResponseBodyFormat = ResponseBodyFormat.Beautify;
+                    break;
+                case "minify":
+                    ResponseBodyFormat = ResponseBodyFormat.Minify;
+                    break;
+                default:
+                    Problem ??= $"settings.toml: response.format is \"{format}\", not none, beautify or minify";
+                    break;
+            }
+        }
+
+        ResponseHighlight = Settings.Response.Highlight ?? true;
+
+        if (Settings.Response.HighlightLimit is not { } limit)
             return;
 
-        switch (format.ToLowerInvariant())
-        {
-            case "none":
-                break;
-            case "beautify":
-                ResponseBodyFormat = ResponseBodyFormat.Beautify;
-                break;
-            case "minify":
-                ResponseBodyFormat = ResponseBodyFormat.Minify;
-                break;
-            default:
-                Problem = $"settings.toml: response.format is \"{format}\", not none, beautify or minify";
-                break;
-        }
+        if (limit < 0)
+            Problem ??= $"settings.toml: response.highlight-limit is {limit}, which is not a size in KiB";
+        else
+            ResponseHighlightLimit = limit > int.MaxValue / 1024 ? int.MaxValue : limit * 1024;
     }
 
     public async Task<string> EnsureFileAsync(CancellationToken cancellationToken = default)

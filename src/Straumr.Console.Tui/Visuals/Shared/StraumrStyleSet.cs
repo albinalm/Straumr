@@ -82,6 +82,15 @@ internal sealed class StraumrStyleSet
         _ => _otherMethod
     };
 
+    public Style CodeKey { get; }
+    public Style CodeString { get; }
+    public Style CodeNumber { get; }
+    public Style CodeBoolean { get; }
+    public Style CodeNull { get; }
+    public Style CodePunctuation { get; }
+    public Style CodePlain { get; }
+    public Style CodeNote { get; }
+
     private readonly TextBlockStyle _get;
     private readonly TextBlockStyle _post;
     private readonly TextBlockStyle _put;
@@ -163,6 +172,16 @@ internal sealed class StraumrStyleSet
         _patch = PrimaryText with { Foreground = methods.Patch };
         _delete = PrimaryText with { Foreground = methods.Delete };
         _otherMethod = PrimaryText with { Foreground = methods.Other };
+
+        CodePalette code = palette.Code;
+        CodeKey = Style.None.WithForeground(code.Key);
+        CodeString = Style.None.WithForeground(code.String);
+        CodeNumber = Style.None.WithForeground(code.Number);
+        CodeBoolean = Style.None.WithForeground(code.Boolean);
+        CodeNull = Style.None.WithForeground(code.Null);
+        CodePunctuation = Style.None.WithForeground(code.Punctuation);
+        CodePlain = Style.None.WithForeground(Text);
+        CodeNote = Style.None.WithForeground(Muted);
 
         CommandBar = CommandBarStyle.Default with
         {

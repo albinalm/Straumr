@@ -80,6 +80,15 @@ internal static class StraumrStyles
 
     public static TextBlockStyle MethodText(string method) => _set.MethodText(method);
 
+    public static Style CodeKey => _set.CodeKey;
+    public static Style CodeString => _set.CodeString;
+    public static Style CodeNumber => _set.CodeNumber;
+    public static Style CodeBoolean => _set.CodeBoolean;
+    public static Style CodeNull => _set.CodeNull;
+    public static Style CodePunctuation => _set.CodePunctuation;
+    public static Style CodePlain => _set.CodePlain;
+    public static Style CodeNote => _set.CodeNote;
+
     public static CommandBarStyle CommandBar => _set.CommandBar;
     public static TabControlStyle PreviewTabs => _set.PreviewTabs;
     public static Style CommandPromptText => _set.CommandPromptText;

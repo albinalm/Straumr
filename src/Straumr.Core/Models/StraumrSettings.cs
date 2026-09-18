@@ -78,6 +78,19 @@ public sealed class StraumrSettings
         # response pane still beautifies and minifies by hand either way.
         format = "none"
 
+        # Whether a JSON body is coloured by token: keys, strings, numbers, the two literals and
+        # the punctuation between them. The colours are the theme's `[code]` table. Default: true.
+        #
+        #   highlight = false
+        #
+        # `h` on the response body turns it on and off by hand whatever this says.
+
+        # The size, in KiB, past which a body arrives uncoloured. Colouring walks every line that
+        # is drawn, which a body of several megabytes is felt through; past this it is off until
+        # `h` asks for it. Default: 256.
+        #
+        #   highlight-limit = 1024
+
         """;
 }
 
@@ -85,6 +98,12 @@ public sealed class StraumrResponseSettings
 {
     [TomlPropertyName("format")]
     public string? Format { get; set; }
+
+    [TomlPropertyName("highlight")]
+    public bool? Highlight { get; set; }
+
+    [TomlPropertyName("highlight-limit")]
+    public int? HighlightLimit { get; set; }
 }
 
 /// <summary>

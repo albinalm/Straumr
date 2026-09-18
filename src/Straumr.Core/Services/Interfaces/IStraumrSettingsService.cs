@@ -24,6 +24,10 @@ public interface IStraumrSettingsService
 
     ResponseBodyFormat ResponseBodyFormat { get; }
 
+    bool ResponseHighlight { get; }
+
+    int ResponseHighlightLimit { get; }
+
     /// <summary>
     /// Reads the file, or the template's defaults if it cannot be parsed. Never throws for bad TOML:
     /// <paramref name="problem"/> carries what was wrong so the caller can say so and carry on with

@@ -96,7 +96,7 @@ public sealed class RequestScreen : ITuiScreen
             (state, workspaces, requests, auths, secrets, files, settings, editor);
         _responseBody = new ResponseBodyActions(_responsePreview, (message, failed) =>
             NotificationRequested?.Invoke(failed ? TuiCommandResult.Failed(message) : TuiCommandResult.Ok(message)),
-            () => _settings.ResponseBodyFormat);
+            () => BodyOptions);
         _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", 'v', OpenResponse,
             () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item && _responses.ContainsKey((workspace.Id, item.Id))));
         StraumrPaneLayout paneLayout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
@@ -649,8 +649,11 @@ public sealed class RequestScreen : ITuiScreen
     /// view returns to its in-flight state and <see cref="UpdateAsync"/> runs the request where every
     /// other Core call runs. It stands down while one is already in flight, as `s` on the list does.
     /// </remarks>
+    private ResponseBodyOptions BodyOptions =>
+        new(_settings.ResponseBodyFormat, _settings.ResponseHighlight, _settings.ResponseHighlightLimit);
+
     private RequestResponseView BuildResponseView(Guid id, StraumrRequest request, Action restoreFocus) =>
-        new(request, ActiveWorkspaceName, () => _settings.ResponseBodyFormat, () => _sendCancellation?.Cancel(), () =>
+        new(request, ActiveWorkspaceName, () => BodyOptions, () => _sendCancellation?.Cancel(), () =>
         {
             if (_sendCancellation is not null)
                 return;

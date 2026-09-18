@@ -94,6 +94,8 @@ public sealed record StraumrPalette
 
     /// <summary>What each HTTP method reads as. The most scanned colour in the app.</summary>
     public required MethodPalette Methods { get; init; }
+
+    public required CodePalette Code { get; init; }
 }
 
 /// <summary>
@@ -112,3 +114,11 @@ public sealed record MethodPalette(
     Color Patch,
     Color Delete,
     Color Other);
+
+public sealed record CodePalette(
+    Color Key,
+    Color String,
+    Color Number,
+    Color Boolean,
+    Color Null,
+    Color Punctuation);

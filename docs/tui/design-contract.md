@@ -51,6 +51,11 @@ Shared screen shell:
   empty one is inert; the selected row lifts to the bright foregrounds; the active
   workspace is the only green on screen. The names are roles, not instructions: a
   theme answers "amber" with whatever its scheme uses for a value that is present.
+- A document the reader came to read — a JSON response body — is coloured by what each
+  token is, in the theme's own `[code]` colours. That is information rather than
+  decoration, so it lives on the same side of the rule the methods do: the terminal
+  theme spends palette slots on it while its chrome stays colourless. Colouring is off
+  above a size, because it is paid for per line drawn.
 - Structure and meaning are separate decisions. Rules, bands, keys and markers may be
   colourless — the terminal theme's are — but anything that tells the reader something
   keeps its colour, and the methods keep five distinct ones. A theme drawing those from

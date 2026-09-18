@@ -213,6 +213,32 @@ public static class StraumrThemes
             return false;
         }
 
+        Dictionary<string, string> code = new(StringComparer.Ordinal);
+        foreach ((string key, string value) in document.Code)
+            code[Normalize(key)] = value;
+
+        CodePalette inheritedCode = fallback?.Code ?? new CodePalette(
+            resolved["accent"], resolved["green"], resolved["amber"],
+            resolved["purple"], resolved["muted"], resolved["muted"]);
+        Color[] codeDefaults =
+        [
+            inheritedCode.Key, inheritedCode.String, inheritedCode.Number,
+            inheritedCode.Boolean, inheritedCode.Null, inheritedCode.Punctuation
+        ];
+
+        Color[] codeColors = new Color[CodeRoles.Length];
+        for (int index = 0; index < CodeRoles.Length; index++)
+        {
+            if (!TryOptional(code, CodeRoles[index], codeDefaults[index], out codeColors[index], out error))
+                return false;
+        }
+
+        if (code.Count > 0)
+        {
+            error = $"unknown code {(code.Count == 1 ? "colour" : "colours")}: {List(code.Keys)}";
+            return false;
+        }
+
         if (colors.Count > 0)
         {
             error = $"unknown {(colors.Count == 1 ? "colour" : "colours")}: {List(colors.Keys)}";
@@ -225,6 +251,9 @@ public static class StraumrThemes
             Methods = new MethodPalette(
                 methodColors[0], methodColors[1], methodColors[2],
                 methodColors[3], methodColors[4], methodColors[5]),
+            Code = new CodePalette(
+                codeColors[0], codeColors[1], codeColors[2],
+                codeColors[3], codeColors[4], codeColors[5]),
             Background = resolved["background"],
             Raised = resolved["raised"],
             Selection = resolved["selection"],
@@ -340,6 +369,9 @@ public static class StraumrThemes
 
     private static readonly string[] MethodRoles =
         ["get", "post", "put", "patch", "delete", "other"];
+
+    private static readonly string[] CodeRoles =
+        ["key", "string", "number", "boolean", "null", "punctuation"];
 
     /// <summary>
     /// Every colour role. Required of the terminal theme and optional of every other, which layers

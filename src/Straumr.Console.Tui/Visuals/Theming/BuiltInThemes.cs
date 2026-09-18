@@ -112,6 +112,18 @@ internal static class BuiltInThemes
         patch              = "magenta"
         delete             = "red"
         other              = "default"
+
+        # A coloured response body, on the same terms as the methods: what a token is coloured by
+        # is what kind of value it is, which is information rather than decoration, and the slots
+        # are the reader's own hues rather than ones chosen here. The mapping is the conventional
+        # one, so a body reads the way it reads in the editor beside this terminal.
+        [code]
+        key                = "cyan"
+        string             = "green"
+        number             = "yellow"
+        boolean            = "magenta"
+        null               = "bright-black"
+        punctuation        = "bright-black"
         """;
 
     /// <summary>
@@ -171,5 +183,16 @@ internal static class BuiltInThemes
         patch              = "#B79CFF"
         delete             = "#FF6B7A"
         other              = "#B9C6E0"
+
+        # A coloured response body. Drawn from the palette above rather than from hues of its own:
+        # a body is read against the same ground as everything else, and six more colours would be
+        # six more pairings to keep at contrast.
+        [code]
+        key                = "#3B9EFF"
+        string             = "#3DDC97"
+        number             = "#FFC857"
+        boolean            = "#B79CFF"
+        null               = "#8FA0C4"
+        punctuation        = "#8FA0C4"
         """;
 }

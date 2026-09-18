@@ -152,7 +152,12 @@ would be written and is the answer far more often than a setting that has gone s
 ## Preview panes and full-screen views
 
 `PreviewPane` is the tabbed read-only text pane: one `ScrollableContent` per page and
-`SetText`/`SetPageText` to replace a page's text without disturbing the others. Its
+`SetText`/`SetPageText` to replace a page's text without disturbing the others.
+`SetPageHighlighter` gives one page a tokenizer: a page with none is a `TextBlock` per line
+in the body colour, exactly as before, and a page with one is a `Paragraph` per line carrying
+the runs the tokenizer returned. It is per page and per caller because colouring is the
+caller's decision — what the text is, and whether it is worth the walk over every line — and
+`PreviewPane` only asks the delegate for the lines it is already rebuilding. Its
 default form puts the page titles on a framework tab strip and cycles them with `t`,
 which is what a pane inside a titled section needs, `Tab` there belonging to the screen's
 regions. `PreviewPane.OnRule` puts them on a `Rule` the caller places instead, for a pane
