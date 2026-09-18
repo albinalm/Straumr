@@ -3,6 +3,12 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-18: The custom-theme default is now `~/.straumr/themes`: `:theme oxblood` resolves
+  `~/.straumr/themes/oxblood.toml`, with both the directory and extension inferred. Explicit
+  absolute and `~` paths still work, and settings-directory-relative references such as
+  `themes/oxblood.toml` remain compatible. The settings template and theme guide now show the bare
+  form. Debug and Release builds pass without warnings.
+
 - 2026-09-18: Renamed the fixed dark-blue built-in theme from `deepocean` to `straumr` throughout
   lookup, completion, export, the generated settings template and documentation. Its embedded TOML
   display name is now `Straumr`, so `:theme straumr` reports the same name it was selected by and

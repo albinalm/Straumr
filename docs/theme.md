@@ -20,7 +20,7 @@ terminal.
 
 Running `:theme` without an argument reports the current theme. A successful
 change is saved to `~/.straumr/settings.toml` and applied immediately.
-
+:
 You can also edit the setting directly. Run `:settings` to open the file in
 your configured editor, or set the value by hand:
 
@@ -28,14 +28,15 @@ your configured editor, or set the value by hand:
 theme = "terminal"
 ```
 
-The value can be a built-in name or a path to a theme file:
+The value can be a built-in name or a theme file. Custom names are looked up in
+`~/.straumr/themes`, and the `.toml` extension may be omitted:
 
 ```toml
-theme = "themes/mine.toml"
+theme = "mine"
 ```
 
-A relative path is resolved from the directory containing `settings.toml`, not
-from the current working directory. A leading `~` and environment variables in
+Absolute paths, paths beginning with `~`, and older paths relative to the directory
+containing `settings.toml` remain valid. A leading `~` and environment variables in
 the path are expanded.
 
 ## Create a custom theme
@@ -53,7 +54,7 @@ accent = "cyan"
 Save that as `~/.straumr/themes/mine.toml`, then select it in the TUI:
 
 ```text
-:theme themes/mine.toml
+:theme mine
 ```
 
 To start from a complete theme instead, export either built-in:
@@ -68,7 +69,7 @@ describing the palette. Straumr will not overwrite an existing file. Rename the
 export, edit it, and select the new path with `:theme`.
 
 After changing a selected theme file in an external editor, run the same
-`:theme themes/mine.toml` command again to reload it.
+`:theme mine` command again to reload it.
 
 ## File format
 

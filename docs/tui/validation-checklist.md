@@ -395,6 +395,9 @@ seen reads well, which is the whole question for the default theme.
       public members of `StraumrStyles` dumped before and after the refactor, diff empty
       but for the new `ThemeName`
 - [x] both built-in themes resolve, and neither reports a role collision
+- [x] A bare custom name resolves from `~/.straumr/themes` with `.toml` inferred; an explicit
+      absolute path and the previous settings-directory-relative `themes/name.toml` form remain
+      valid. Debug and Release builds pass without warnings.
 - [x] an unknown theme name, a theme file that is absent, a theme file that is not TOML, a
       missing colour, an unknown colour key and a bad colour value each report on the
       footer and leave a usable palette standing

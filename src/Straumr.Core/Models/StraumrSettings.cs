@@ -15,8 +15,8 @@ namespace Straumr.Core.Models;
 public sealed class StraumrSettings
 {
     /// <summary>
-    /// A built-in theme name, or a path to a theme file. <see langword="null"/> means the default,
-    /// which follows the terminal's own colours.
+    /// A built-in or custom theme name, or an explicit path to a theme file.
+    /// <see langword="null"/> means the default, which follows the terminal's own colours.
     /// </summary>
     [TomlPropertyName("theme")]
     public string? Theme { get; set; }
@@ -34,14 +34,14 @@ public sealed class StraumrSettings
         # Straumr settings. Reopen this file any time with `:settings`.
         # Values not written here take the defaults shown in the comments.
 
-        # The theme. Either a built-in name or a path to a theme file.
+        # The theme. Either a built-in or custom name, or a path to a theme file.
         #
         #   "terminal"   follow the terminal's own colours and palette (default)
         #   "straumr"   the dark blue Straumr palette
         #
-        # A path is taken relative to this file, so a theme kept beside it is just its name:
+        # A custom theme name is looked up in ~/.straumr/themes; `.toml` may be omitted:
         #
-        #   theme = "themes/mine.toml"
+        #   theme = "mine"
         #
         # A theme file carries only what it wants to be different; everything it leaves out follows
         # the terminal. A whole theme can be three lines:

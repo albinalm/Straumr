@@ -6,6 +6,10 @@ Update it in the same change that completes or advances a milestone.
 
 ## Current Status
 
+- Bare custom theme names now resolve from `~/.straumr/themes` with `.toml` inferred, so
+  `:theme oxblood` selects `~/.straumr/themes/oxblood.toml`. Explicit paths and the previous
+  settings-directory-relative form remain valid. The settings template and theme guide use the
+  short form, and Debug and Release builds pass without warnings.
 - The fixed dark-blue built-in theme is now named `straumr` instead of `deepocean`, including its
   display name, command completion, settings template, export filename and theme documentation.
   This is a clean early-access rename with no compatibility alias. Debug and Release builds pass
@@ -25,7 +29,8 @@ Update it in the same change that completes or advances a milestone.
 - Theming landed on 2026-09-16, ahead of the beta. The hardcoded blue palette is now one
   theme among others: `terminal` follows the reader's own terminal colours and is the
   default, `straumr` is the previous palette unchanged. A theme is named in
-  `~/.straumr/settings.toml`, by built-in name or by a path to a theme file; `:settings`
+  `~/.straumr/settings.toml`, by built-in name, a custom name under `~/.straumr/themes`, or a path;
+  `:settings`
   opens that file in `$EDITOR` and applies what it says on close, rebuilding the shell
   when the palette actually changed. `:theme` reports the applied theme and
   `:theme export <name>` writes a built-in out to start a custom one from. Proved

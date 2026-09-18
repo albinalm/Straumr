@@ -23,9 +23,9 @@ public static class StraumrThemes
     public static string? BuiltInSource(string name) => Sources.GetValueOrDefault(name.Trim());
 
     /// <summary>
-    /// Resolves a built-in name or a theme file path. A relative path is taken against
-    /// <paramref name="baseDirectory"/> — the settings file's own directory — so a theme kept beside
-    /// the settings that names it can be referred to by that name alone.
+    /// Resolves a built-in name or a theme file path. A relative name is first looked up under the
+    /// <c>themes</c> directory beside the settings file, with <c>.toml</c> inferred when omitted.
+    /// Explicit absolute paths and paths relative to the settings directory remain valid.
     /// </summary>
     public static bool TryResolve(
         string? reference,
@@ -87,7 +87,21 @@ public static class StraumrThemes
                 path[1..].TrimStart('/', '\\'));
         }
 
-        return Path.IsPathRooted(path) ? path : Path.Combine(baseDirectory, path);
+        if (Path.IsPathRooted(path))
+            return path;
+
+        string fileName = Path.HasExtension(path) ? path : $"{path}.toml";
+        string themePath = Path.Combine(baseDirectory, "themes", fileName);
+        if (File.Exists(themePath))
+            return themePath;
+
+        // Keep paths written before the themes directory became the default working unchanged:
+        // `themes/mine.toml` still resolves beside settings rather than becoming themes/themes/…,
+        // and a custom file deliberately kept beside settings remains valid too.
+        string legacyPath = Path.Combine(baseDirectory, path);
+        return File.Exists(legacyPath) || Path.HasExtension(path)
+            ? legacyPath
+            : themePath;
     }
 
     /// <summary>
