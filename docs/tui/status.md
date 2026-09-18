@@ -6,6 +6,38 @@ Update it in the same change that completes or advances a milestone.
 
 ## Current Status
 
+- The References field is pinned to the saved name — editing the name no longer rearranges it — and
+  the rename dialog's detail is a single line. Debug and Release builds pass without warnings.
+
+- The References field says nothing about renaming any more, and the rename dialog is two short
+  lines. Debug and Release builds pass without warnings.
+
+- The rename question is now two answers — `Rename and update` or `Cancel` — on both the form and
+  the `Ctrl+E` / `:sc json` route, since renaming a secret and leaving its references broken is never
+  what anyone means. The JSON route asks before writing, so cancelling leaves the edit unapplied.
+  Reference entries are one row each, grouped under their workspace. Debug, Release and Release
+  CLI-only builds pass without warnings; **needs a terminal check** — rename a referenced secret from
+  the form and from `Ctrl+E`, take both answers on each.
+
+- Renaming a secret now offers to take its references with it. Saving a rename whose old name is
+  still stored in a request or auth asks — `Update references`, `Rename only`, `Escape` to abandon
+  the save — and updating rewrites every stored `{{secret:old}}` to the new name through Core, which
+  carries each file's comments, stamps `Modified` and clears that request's stored response. A
+  change of case alone never asks. The rename through `Ctrl+E` / `:sc json` is deliberately not
+  covered: it is the repair route, and it still renames without asking. Debug, Release and Release
+  CLI-only builds pass without warnings and `.tmp/rename-check` passes 26 document-rewrite checks;
+  **needs a terminal check** — rename a referenced secret and take each of the three answers.
+
+- The secret editor's References row now shows the references themselves. It draws the same
+  cross-workspace index the Secrets pane draws, through one shared `SecretReferenceView`: entries
+  group under the workspace they live in with a count, and each names the resource with its kind and
+  field beneath. Nothing found names what was searched — no request or auth in N scanned workspaces —
+  and a scan that could read no workspace says that instead. The field follows the Name field as it
+  is typed, so a create or a copy shows what already references the name being given it, and a
+  rename empties the list and raises an amber line naming the references that stay on the old name.
+  Debug, Release and Release CLI-only builds pass without warnings; **needs a terminal check** —
+  open a referenced secret, a never-referenced one, and rename one without saving.
+
 - A sent response is now kept in the request file, so the Response pane still shows it after a
   `:refresh` and after a restart. `StraumrRequest` carries a `LastResponse` block — the status and
   reason, the HTTP version, the measured timings, the body, its byte count, the response headers,

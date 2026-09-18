@@ -48,6 +48,8 @@ Straumr.Console.Tui/
       SecretScreenItem.cs         readable/broken secret presentation model
       SecretEditor.cs             Name and Value over the shared editor kit
       KnownSecretReferences.cs    non-stamping, cross-workspace reference index and scan coverage
+      SecretReferenceView.cs      the grouped reference list, and the editor field that shows it
+      SecretReferenceRewrite.cs   rewriting stored references when a secret is renamed
     Workspace/
       WorkspaceScreen.cs          data loading and the parts unique to Workspaces
       WorkspaceScreenItem.cs      presentation model over StraumrWorkspace + entry

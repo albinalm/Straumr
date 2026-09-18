@@ -13,6 +13,7 @@ internal sealed record SecretUsage(Guid WorkspaceId, Guid ResourceId, string Wor
 internal sealed class KnownSecretReferences
 {
     private readonly Dictionary<string, List<SecretUsage>> _byName = new(StringComparer.OrdinalIgnoreCase);
+    public int ScannedWorkspaces { get; private set; }
     public int UnreadableWorkspaces { get; private set; }
     public int UnreadableResources { get; private set; }
 
@@ -51,6 +52,7 @@ internal sealed class KnownSecretReferences
                 continue;
             }
 
+            index.ScannedWorkspaces++;
             foreach (Guid id in workspace.Requests)
             {
                 try

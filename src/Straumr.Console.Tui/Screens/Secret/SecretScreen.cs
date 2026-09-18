@@ -41,9 +41,11 @@ public sealed class SecretScreen : ITuiScreen
     private List<SecretScreenItem> _items = [];
     private Guid? _displayedId;
     private Guid? _pendingDeleteId;
+    private JsonRename? _pendingJsonRename;
+    private Func<CancellationToken, Task<TuiCommandResult>>? _pendingNotify;
     private Guid? _editingId;
     private SecretEditor? _editorView;
-    private Func<CancellationToken, Task<TuiCommandResult>>? _pendingSave;
+    private Func<CancellationToken, Task<TuiCommandResult?>>? _pendingSave;
     private bool _savePaneLayout;
 
     public SecretScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
@@ -187,14 +189,32 @@ public sealed class SecretScreen : ITuiScreen
         if (_pendingSave is { } save)
         {
             _pendingSave = null;
-            TuiCommandResult result = await save(cancellationToken);
-            if (result.IsError)
-                _editorView?.Failed(result.Message!);
-            else if (_editorView is { } editor)
+            if (await save(cancellationToken) is { } result)
             {
-                editor.Saved();
-                editor.Report(result.Message!, error: false);
+                if (result.IsError)
+                    _editorView?.Failed(result.Message!);
+                else if (_editorView is { } editor)
+                {
+                    editor.Saved();
+                    editor.Report(result.Message!, error: false);
+                }
             }
+        }
+
+        if (_pendingNotify is { } notify)
+        {
+            _pendingNotify = null;
+            TuiCommandResult result = await notify(cancellationToken);
+            if (result.Message is not null)
+                NotificationRequested?.Invoke(result);
+        }
+
+        if (_pendingJsonRename is { Rename: { } cascade } pending)
+        {
+            _pendingJsonRename = null;
+            ShowRenameDialog(cascade, pending.Secret.Name,
+                () => _pendingNotify = token => ApplyJsonEditAsync(pending, token),
+                () => _pendingNotify = _ => Task.FromResult(TuiCommandResult.Failed("edit not saved")));
         }
 
         if (_savePaneLayout)
@@ -258,21 +278,7 @@ public sealed class SecretScreen : ITuiScreen
             return Message("Unavailable.");
         if (item.IsBroken)
             return Message("References cannot be matched until the secret's name can be read.");
-        IReadOnlyList<SecretUsage> references = _references.Value.For(item.Name);
-        var content = new List<Visual>();
-        if (references.Count == 0)
-            content.Add(Message("No known references in registered workspaces."));
-        foreach (var reference in references)
-            content.Add(new VStack(
-                    new TextBlock(SecretFormatting.Display(reference.Resource)).Style(StraumrStyles.PrimaryText)
-                        .Trimming(TextTrimming.EndEllipsis).HorizontalAlignment(Align.Stretch),
-                    Message($"{reference.Workspace} · {reference.Kind} · {reference.Field}"))
-                .HorizontalAlignment(Align.Stretch));
-        if (_references.Value.Notice is { } notice)
-            content.Add(new TextBlock(notice).Style(StraumrStyles.AmberText).Wrap(true)
-                .HorizontalAlignment(Align.Stretch));
-        content.Add(FieldList.Create(("Placeholder", FieldList.Wrapped("{{secret:" + item.Name + "}}"))));
-        return new VStack(content.ToArray()).Spacing(1).HorizontalAlignment(Align.Stretch);
+        return SecretReferenceView.Create(item.Name, _references.Value);
     }
 
     private static Visual Message(string text) =>
@@ -378,7 +384,7 @@ public sealed class SecretScreen : ITuiScreen
         // keep saying which name that was.
         string? sourceName = isNew && source is not null ? source.Name : null;
         var editor = new SecretEditor(state, ActiveWorkspaceName, isNew, fromCommand ? null : operation,
-            () => _pendingSave = token => SaveEditAsync(state, token),
+            _references, () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
             {
                 _editorView = null;
@@ -392,7 +398,64 @@ public sealed class SecretScreen : ITuiScreen
         TransientScreenOpened?.Invoke();
     }
 
-    private async Task<TuiCommandResult> SaveEditAsync(StraumrSecret state, CancellationToken cancellationToken)
+    private async Task<TuiCommandResult?> SaveEditAsync(StraumrSecret state, CancellationToken cancellationToken)
+    {
+        if (_editingId is not { } id)
+            return await WriteEditAsync(state, null, cancellationToken);
+
+        string opened;
+        try
+        {
+            var existing = await _secrets.GetAsync(id, updateLastAccessed: false, cancellationToken);
+            if (existing.Id != id)
+                return TuiCommandResult.Failed("the secret ID no longer matches its registry entry; close and refresh to repair it");
+            opened = existing.Name;
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return TuiCommandResult.Failed(exception.Message);
+        }
+
+        if (opened.Equals(state.Name, StringComparison.OrdinalIgnoreCase))
+            return await WriteEditAsync(state, null, cancellationToken);
+
+        try
+        {
+            _references.Value = await KnownSecretReferences.LoadAsync(_state.State.Workspaces,
+                _workspaces, _requests, _auths, cancellationToken);
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return TuiCommandResult.Failed(exception.Message);
+        }
+
+        IReadOnlyList<SecretUsage> usages = _references.Value.For(opened);
+        if (usages.Count == 0)
+            return await WriteEditAsync(state, null, cancellationToken);
+
+        var rename = new SecretRename(opened, usages);
+        ShowRenameDialog(rename, state.Name,
+            () => _pendingSave = token => WriteEditAsync(state, rename, token),
+            () => _pendingSave = _ => Task.FromResult<TuiCommandResult?>(
+                TuiCommandResult.Failed("rename not saved")));
+        return null;
+    }
+
+    private void ShowRenameDialog(SecretRename rename, string name, Action update, Action cancel)
+    {
+        int resources = rename.Usages.Select(usage => (usage.WorkspaceId, usage.ResourceId)).Distinct().Count();
+        int workspaces = rename.Usages.Select(usage => usage.WorkspaceId).Distinct().Count();
+        string detail = $"Used by {CountFormatting.Label(resources, "resource")} in " +
+                        $"{CountFormatting.Label(workspaces, "workspace")}.";
+        if (_references.Value.Notice is { } notice)
+            detail += $" {notice}";
+        new ConfirmDialog("Rename secret",
+            $"Update {CountFormatting.Label(rename.Usages.Count, "reference")} to {name}?",
+            detail, "Rename and update", destructive: false, update, cancel).Show();
+    }
+
+    private async Task<TuiCommandResult?> WriteEditAsync(StraumrSecret state, SecretRename? rename,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -412,15 +475,37 @@ public sealed class SecretScreen : ITuiScreen
                 saved = await _secrets.CreateAsync(state, cancellationToken);
                 _editingId = saved.Id;
             }
+
+            string message = created ? $"created secret {saved.Name}" : $"updated secret {saved.Name}";
+            if (rename is { } cascade)
+                message += await RewriteReferencesAsync(cascade, saved.Name, cancellationToken);
             await LoadAsync(cancellationToken);
             ApplyFilter(_filter.Text, saved.Id);
-            return TuiCommandResult.Ok(created ? $"created secret {saved.Name}" : $"updated secret {saved.Name}");
+            return TuiCommandResult.Ok(message);
         }
         catch (Exception exception) when (IsRecoverable(exception))
         {
             return TuiCommandResult.Failed(exception.Message);
         }
     }
+
+    private async Task<string> RewriteReferencesAsync(SecretRename rename, string name,
+        CancellationToken cancellationToken)
+    {
+        SecretRewrite rewrite = await SecretReferenceRewrite.ApplyAsync(_state.State.Workspaces,
+            rename.Usages, rename.OldName, name, _requests, _auths, cancellationToken);
+        string report = $" and {CountFormatting.Label(rewrite.References, "reference")} " +
+                        $"in {CountFormatting.Label(rewrite.Resources, "resource")}";
+        if (rewrite.Problems.Count == 0)
+            return report;
+        return $"{report}; {string.Join("; ", rewrite.Problems.Take(2))}" +
+               (rewrite.Problems.Count > 2 ? $" and {rewrite.Problems.Count - 2} more" : string.Empty);
+    }
+
+    private sealed record SecretRename(string OldName, IReadOnlyList<SecretUsage> Usages);
+
+    private sealed record JsonRename(SecretScreenItem Item, StraumrSecret Secret, string Edited,
+        string Original, SecretRename? Rename);
 
     private TuiCommandResult EditAsJson(SecretScreenItem item)
     {
@@ -445,26 +530,57 @@ public sealed class SecretScreen : ITuiScreen
             string? problem = Validate(secret, item.Id);
             if (problem is not null)
                 return TuiCommandResult.Failed($"edit not saved: {problem}");
-            // SaveAsync owns conflicts and timestamps. A missing registered file has to be
-            // restored first; its registry entry already exists, so CreateAsync is not applicable.
-            bool missing = !File.Exists(item.Path);
-            if (missing)
+
+            var pending = new JsonRename(item, secret!, edited, original, null);
+            if (item.Secret is { } current &&
+                !current.Name.Equals(secret!.Name, StringComparison.OrdinalIgnoreCase))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(item.Path)!);
-                await File.WriteAllTextAsync(item.Path, original, cancellationToken);
+                _references.Value = await KnownSecretReferences.LoadAsync(_state.State.Workspaces,
+                    _workspaces, _requests, _auths, cancellationToken);
+                IReadOnlyList<SecretUsage> usages = _references.Value.For(current.Name);
+                if (usages.Count > 0)
+                {
+                    _pendingJsonRename = pending with { Rename = new SecretRename(current.Name, usages) };
+                    return TuiCommandResult.None;
+                }
             }
-            _files.CarryCommentsFrom(item.Path, edited);
-            try { await _secrets.SaveAsync(secret!, cancellationToken); }
-            catch
-            {
-                if (missing && File.Exists(item.Path)) File.Delete(item.Path);
-                throw;
-            }
-            await LoadAsync(cancellationToken);
-            ApplyFilter(_filter.Text, item.Id);
-            return TuiCommandResult.Ok($"updated secret {secret!.Name}");
+
+            return await ApplyJsonEditAsync(pending, cancellationToken);
         }
         catch (Exception exception) when (IsRecoverable(exception) || exception is ExternalEditorException)
+        {
+            return TuiCommandResult.Failed($"edit failed: {exception.Message}");
+        }
+    }
+
+    private async Task<TuiCommandResult> ApplyJsonEditAsync(JsonRename edit, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // SaveAsync owns conflicts and timestamps. A missing registered file has to be
+            // restored first; its registry entry already exists, so CreateAsync is not applicable.
+            bool missing = !File.Exists(edit.Item.Path);
+            if (missing)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(edit.Item.Path)!);
+                await File.WriteAllTextAsync(edit.Item.Path, edit.Original, cancellationToken);
+            }
+            _files.CarryCommentsFrom(edit.Item.Path, edit.Edited);
+            try { await _secrets.SaveAsync(edit.Secret, cancellationToken); }
+            catch
+            {
+                if (missing && File.Exists(edit.Item.Path)) File.Delete(edit.Item.Path);
+                throw;
+            }
+
+            string message = $"updated secret {edit.Secret.Name}";
+            if (edit.Rename is { } cascade)
+                message += await RewriteReferencesAsync(cascade, edit.Secret.Name, cancellationToken);
+            await LoadAsync(cancellationToken);
+            ApplyFilter(_filter.Text, edit.Item.Id);
+            return TuiCommandResult.Ok(message);
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
         {
             return TuiCommandResult.Failed($"edit failed: {exception.Message}");
         }

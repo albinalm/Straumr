@@ -1,5 +1,6 @@
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
 
@@ -26,7 +27,8 @@ internal sealed class ConfirmDialog
         string detail,
         string confirmLabel,
         bool destructive,
-        Action confirm)
+        Action confirm,
+        Action? cancel = null)
     {
         var cancelButton = new Button("Cancel")
         {
@@ -58,12 +60,28 @@ internal sealed class ConfirmDialog
             DialogWidth);
 
         _cancelButton = cancelButton;
-        cancelButton.Click(() => _dialog.Close());
-        confirmButton.Click(() =>
+        cancelButton.Click(() => Answer(cancel));
+        confirmButton.Click(() => Answer(confirm));
+
+        if (cancel is null)
+            return;
+
+        _dialog.RemoveCommand(StraumrDialog.CancelCommandId);
+        _dialog.AddCommand(new Command
         {
-            _dialog.Close();
-            confirm();
+            Id = "ConfirmDialog.Cancel",
+            LabelMarkup = "Cancel",
+            Gesture = new KeyGesture(TerminalKey.Escape),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => Answer(cancel)
         });
+    }
+
+    private void Answer(Action? answer)
+    {
+        _dialog.Close();
+        answer?.Invoke();
     }
 
     /// <remarks>

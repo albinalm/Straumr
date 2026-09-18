@@ -29,8 +29,12 @@ JSON string values are decoded before matching so serialized escapes do not chan
 Matching trims the placeholder's name and ignores case, as Core's resolver does. Repeated
 occurrences in a field produce one entry.
 
-Each entry names the resource, workspace, kind and field without showing the field's value.
-The pane also gives the literal `{{secret:name}}` placeholder for use in stored fields. These
+Entries group under the workspace they belong to, headed by its name and how many references it
+holds; each entry is one row naming the resource, with its kind and field right-aligned beside it and
+no sign of the field's value. Nothing found is reported with the scope that was searched, and a scan that could
+read no workspace says that rather than reporting an absence. The pane also gives the literal
+`{{secret:name}}` placeholder for use in stored fields. The editor's References field renders the
+same view through `SecretReferenceView`, so the two cannot disagree. These
 are direct stored references, not a transitive graph of requests using an auth. Unregistered
 workspaces are outside the scan. Registry entries whose workspace files are absent are skipped,
 matching Workspaces' treatment of workspaces removed outside Straumr. Existing unreadable
@@ -70,7 +74,24 @@ Create transitions to update after its first save. Editing uses a separate worki
 preserves access timestamps. Values retain whitespace. Empty values are permitted. The form and
 Core reject blank names and double quotes.
 
-Renaming does not rewrite references; the editor says so. Delete removes the global secret and
+The References field lists the references of the name the secret was last saved under. It does not
+follow the Name field as it is typed, and changes only when a save lands; a secret that has never
+been saved says so. It carries the list and nothing else: what a rename will ask is the dialog's to
+say, when it asks. The field scrolls, takes focus and shows nothing about a value.
+
+Saving a rename whose opened name is still stored somewhere rescans the registered workspaces and
+asks one question with two answers: `Rename and update` rewrites every stored `{{secret:old}}` to the
+new name, and `Cancel` or `Escape` saves nothing at all. Nothing renames a secret and leaves its
+references pointing at a name that no longer exists. The rewrite walks each resource's serialised
+document, excluding the cached values the scan excludes, and writes through Core, so each file's
+comments are carried, `Modified` is stamped and a request's stored response is cleared as on any
+save. It runs only after Core has accepted the rename. A change of case alone never asks, since
+resolution matches without case.
+
+`Ctrl+E` and `:sc json` ask the same question, before writing rather than after: a rename typed into
+the file is the same rename, and cancelling there leaves the edited file unapplied rather than a
+renamed secret with orphaned references. The question is raised from the screen's update pass, since
+the edit returns while the external editor is still handing the terminal back. Delete removes the global secret and
 its registry entry without changing references. The confirmation counts distinct directly
 referencing resources rather than repeated fields in the same resource.
 

@@ -61,6 +61,24 @@ subset for the milestone in hand, and tick items here in the same change.
       destructive answer, wraps in both directions, does not activate either answer, and leaves
       `Tab`, `Shift+Tab`, `Enter` and `Escape` unchanged. Repeat once in the folder browser.
 - [x] Confirmation-arrow change builds in Debug and Release with no warnings or errors.
+- [ ] Terminal-check the editor's References field: a referenced secret lists its references
+      grouped by workspace, an unreferenced one names how many workspaces were scanned, the list
+      scrolls and takes focus, typing a new name empties it and raises the amber rename line, and
+      saving a rename settles on the new name.
+- [ ] Terminal-check the rename dialog from the form: renaming a referenced secret asks on
+      `Ctrl+S`, `Rename and update` reports what it rewrote and the references resolve again,
+      `Cancel` and `Escape` both save nothing and leave the editor holding the new name, and a
+      change of case alone never asks.
+- [ ] Terminal-check the same question from `Ctrl+E` / `:sc json`: renaming in the file asks after
+      the editor closes, cancelling leaves the file unchanged on disk, and confirming applies the
+      edit and the rewrite together. Try it from another screen as well, where the command
+      navigates to Secrets first.
+- [ ] Terminal-check that a secret with many references reads as one row each, grouped under each
+      workspace with its count, and that the pane and the editor field agree.
+- [x] `.tmp/rename-check`: a fully populated request and all four auth shapes round-trip through the
+      document rewrite unchanged; padded and differently cased placeholders match; repeated
+      references in one value are all rewritten; other names, plain values and cached credentials are
+      untouched; a rewritten resource deserialises exactly as an ordinary load does.
 - [ ] Terminal-check `Ctrl+E` / `:sc json`, broken/missing-file repair and invalid JSON/ID rejection.
 - [ ] Terminal-check commands in both directions: `:rq edit <request>` from Secrets, `:sc edit
       <secret>` from Requests/Auths/Workspaces, returning to the caller on form close; create/copy,

@@ -11,14 +11,14 @@ internal sealed class SecretEditor
 {
     private readonly StraumrSecret _state;
     private readonly ResourceEditorView _view;
-    private string _openedName;
+    private readonly State<string> _openedName;
     private string _openedValue;
 
     public SecretEditor(StraumrSecret state, string? workspaceName, bool isNew, char? openingGesture,
-        Action save, Action closed, string? sourceName = null)
+        State<KnownSecretReferences> references, Action save, Action closed, string? sourceName = null)
     {
         _state = state;
-        _openedName = state.Name;
+        _openedName = new State<string>(state.Name);
         _openedValue = state.Value;
         var name = new TextField("Name", state.Name, value => state.Name = value,
             placeholder: "secret name", validate: value => value.Length switch
@@ -35,9 +35,9 @@ internal sealed class SecretEditor
             isNew,
             [new EditorForm("Secret", name,
                 new TextField("Value", state.Value, value => state.Value = value, secret: true),
-                new MessageField("References", "References use the name. Renaming a secret does not update its references."))],
+                new SecretReferenceField("References", _openedName, references))],
             save, closed,
-            () => state.Name != _openedName || state.Value != _openedValue,
+            () => state.Name != _openedName.Value || state.Value != _openedValue,
             sourceName);
     }
 
@@ -48,7 +48,7 @@ internal sealed class SecretEditor
 
     public void Saved()
     {
-        _openedName = _state.Name;
+        _openedName.Value = _state.Name;
         _openedValue = _state.Value;
         _view.Saved();
     }

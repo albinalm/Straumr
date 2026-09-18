@@ -3,6 +3,58 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-18: The References field shows the saved secret's references and no longer changes while
+  the name is being typed; it updates when a save lands. An unsaved secret says its references are
+  listed once it has been saved. The rename dialog's detail is one line naming what uses the secret.
+  Debug and Release builds pass without warnings.
+
+- 2026-09-18: The References field no longer says anything about renaming — it is the list, the
+  scan's own notice when the scan was incomplete, and the placeholder. The rename dialog was cut to
+  two short lines: `Update 1 reference to atomz-scan?` over `Used by 1 resource in 1 workspace. Cancel
+  saves nothing.` Debug and Release builds pass without warnings.
+
+- 2026-09-18: The rename question became two answers and now covers both routes. `Rename and update`
+  rewrites every stored reference; `Cancel` (or `Escape`) saves nothing at all — there is no longer an
+  answer that renames and leaves references broken. `Ctrl+E` / `:sc json` asks the same question, and
+  asks it before writing, so cancelling there leaves the edited file unapplied rather than a renamed
+  secret with orphaned references; it is raised from the screen's update pass because the edit returns
+  while the external editor is still handing the terminal back. The bespoke three-answer dialog is
+  gone in favour of the shared `ConfirmDialog`, which gained an optional cancel action and takes
+  `Escape` back from the shared frame when one is given. Reference entries are one row each — resource
+  left, kind and field right-aligned through `StraumrSurfaces.Bar`, workspace and count once in the
+  group header — so a secret with fifty references is a list rather than a hundred rows of prose.
+  Debug, Release and Release CLI-only builds pass without warnings.
+
+- 2026-09-18: Renaming a secret now offers to rewrite its references. Saving a rename whose old name
+  is still stored somewhere rescans the registered workspaces and opens `SecretRenameDialog` —
+  `Update references`, `Rename only`, or `Escape` to abandon the save — naming how many references,
+  resources and workspaces are involved. `SecretReferenceRewrite` performs the update: it serialises
+  each request or auth through `StraumrJsonContext`, replaces `{{secret:old}}` with `{{secret:new}}`
+  in every string of the document except a cached custom-auth value and an OAuth2 token object,
+  deserialises it back and saves it through Core, so comments are carried and `Modified` is stamped
+  as for any edit. A change of case alone never asks, since resolution matches without case. The
+  secret is written first and the rewrite follows, so a name Core refuses cannot orphan anything;
+  what was rewritten, and anything that could not be, is reported on the editor's footer. The
+  editor's References field now says a rename will ask rather than that it will break things. The
+  screen's pending save became nullable so a save can wait for an answer instead of a result.
+  `.tmp/rename-check` covers the document rewrite: a fully populated request and all four auth shapes
+  round-trip unchanged, padded and differently cased placeholders are matched, repeated references in
+  one value are all rewritten, other names and untouched entries are left alone, cached credentials
+  do not move, and a rewritten resource deserialises exactly as an ordinary load does. Debug, Release
+  and Release CLI-only builds pass without warnings; the dialog itself needs a terminal check.
+
+- 2026-09-18: The secret editor's References row now lists the references instead of describing
+  them. `SecretReferenceView` renders the cross-workspace index — entries grouped under their
+  workspace with a per-reference count, each naming the resource and, beneath it, its kind and
+  field — and both the Secrets pane and the editor's new `SecretReferenceField` draw through it.
+  `KnownSecretReferences` counts the workspaces it actually read, so nothing found reads as `No
+  request or auth in 3 scanned workspaces references {{secret:name}}` rather than as a bare denial,
+  and a scan that could read nothing says so instead. The field is a `ScrollableContent`, so a long
+  list scrolls with the keys the rest of the app scrolls with, and it follows the Name field as it
+  is typed: a new or copied secret shows what already references the name being given it, and a
+  rename empties the list and raises an amber line naming the references left on the old name.
+  Debug, Release and Release CLI-only builds pass without warnings; the terminal check is pending.
+
 - 2026-09-18: The last response now survives a `:refresh` and a restart. `StraumrRequest` carries a
   `LastResponse` block — status, reason, HTTP version, duration, time to headers, body-download
   duration, byte count, the body, the response headers, warnings, a failure message and the moment
