@@ -6,6 +6,14 @@ Update it in the same change that completes or advances a milestone.
 
 ## Current Status
 
+- The fixed dark-blue built-in theme is now named `straumr` instead of `deepocean`, including its
+  display name, command completion, settings template, export filename and theme documentation.
+  This is a clean early-access rename with no compatibility alias. Debug and Release builds pass
+  without warnings, and a source/documentation scan leaves the old name only in the rename record.
+- Confirmation dialogs now accept all four arrow keys as well as Tab for moving between Cancel and
+  the confirming answer. Movement does not activate an answer, Cancel remains the initial focus,
+  and the folder browser now uses the shared confirmation instead of carrying a second copy. Debug
+  and Release builds pass without warnings; the input behavior needs a terminal check.
 - Shared pane resizing fixed on 2026-09-16: the outer list/detail split now uses
   `FlexiblePane`, so the filter and summary minimum widths cannot pin the divider.
   The filter's resize guard also includes focus on the editor itself. Debug and Release
@@ -16,12 +24,12 @@ Update it in the same change that completes or advances a milestone.
 - Phase: implementation
 - Theming landed on 2026-09-16, ahead of the beta. The hardcoded blue palette is now one
   theme among others: `terminal` follows the reader's own terminal colours and is the
-  default, `deepocean` is the previous palette unchanged. A theme is named in
+  default, `straumr` is the previous palette unchanged. A theme is named in
   `~/.straumr/settings.toml`, by built-in name or by a path to a theme file; `:settings`
   opens that file in `$EDITOR` and applies what it says on close, rebuilding the shell
   when the palette actually changed. `:theme` reports the applied theme and
   `:theme export <name>` writes a built-in out to start a custom one from. Proved
-  headlessly: `deepocean` is byte-identical to the old palette across all 59 members of
+  headlessly: `straumr` is byte-identical to the old palette across all 59 members of
   `StraumrStyles`, and the resolver's error, fallback, rebuild-detection and
   role-collision paths are covered. Debug, Release and CLI-only builds pass without
   warnings and both projects are clean under the trim/AOT analysers. **Needs a terminal
@@ -212,7 +220,7 @@ Update it in the same change that completes or advances a milestone.
   and the AOT-published binary's TUI in Alacritty. Neither has explicit confirmation yet.
 - Shared building blocks are in place; see [Shared Building Blocks](./shared-components.md)
   and [Adding a Screen](./adding-a-screen.md) before adding one
-- Last updated: 2026-09-16
+- Last updated: 2026-09-18
 
 ## Implementation Milestones
 

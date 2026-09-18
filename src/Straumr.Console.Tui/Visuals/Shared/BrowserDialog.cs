@@ -638,41 +638,14 @@ internal abstract class BrowserDialog
                 : $"{CountFormatting.Label(folders, "folder")} and " +
                   $"{CountFormatting.Label(files, "file")} inside it will be permanently removed.";
 
-        var cancelButton = new Button("Cancel")
-        {
-            AutoFocus = true
-        };
-        cancelButton.SetStyle(StraumrStyles.Button);
-
-        var deleteButton = new Button("Delete");
-        deleteButton.SetStyle(StraumrStyles.DangerButton);
-
-        var content = new VStack(
-                new TextBlock($"Delete {entry.Name}?")
-                    .Style(StraumrStyles.BrightText)
-                    .Wrap(true),
-                new TextBlock(contents)
-                    .Style(StraumrStyles.MutedText)
-                    .Wrap(true),
-                new HStack(cancelButton, deleteButton)
-                    .Spacing(1)
-                    .HorizontalAlignment(Align.End))
-            .Spacing(1)
-            .HorizontalAlignment(Align.Stretch);
-
-        Dialog confirmation = StraumrDialog.Create(
-            new TextBlock("Delete folder").Style(StraumrStyles.RedText),
-            content,
-            58);
-
-        cancelButton.Click(() => confirmation.Close());
-        deleteButton.Click(() =>
-        {
-            confirmation.Close();
-            DeleteFolder(entry);
-        });
-
-        confirmation.Show();
+        new ConfirmDialog(
+            "Delete folder",
+            $"Delete {entry.Name}?",
+            contents,
+            "Delete",
+            destructive: true,
+            () => DeleteFolder(entry))
+        .Show();
     }
 
     private void CreateFolder(string parent, string name)

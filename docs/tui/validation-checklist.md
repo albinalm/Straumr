@@ -40,6 +40,10 @@ subset for the milestone in hand, and tick items here in the same change.
 - [ ] Terminal-check S1 focus, scrolling, narrow/short resizing, divider persistence and filtering.
 - [ ] Terminal-check create/edit/copy, mask/reveal/remask, repeated `Ctrl+S`, and unsaved cancellation.
 - [ ] Terminal-check delete confirmation/cancel with dependents and partial reference coverage.
+- [ ] Terminal-check every arrow key in a delete confirmation: each moves between Cancel and the
+      destructive answer, wraps in both directions, does not activate either answer, and leaves
+      `Tab`, `Shift+Tab`, `Enter` and `Escape` unchanged. Repeat once in the folder browser.
+- [x] Confirmation-arrow change builds in Debug and Release with no warnings or errors.
 - [ ] Terminal-check `Ctrl+E` / `:sc json`, broken/missing-file repair and invalid JSON/ID rejection.
 - [ ] Terminal-check commands in both directions: `:rq edit <request>` from Secrets, `:sc edit
       <secret>` from Requests/Auths/Workspaces, returning to the caller on form close; create/copy,
@@ -47,6 +51,9 @@ subset for the milestone in hand, and tick items here in the same change.
 
 ## Earlier milestones
 
+- [x] Built-in theme rename: `straumr` is the registry key and embedded display name; the settings
+      template, completion/export examples and theme guide use it; Debug and Release builds pass
+      without warnings. The old name remains only where the rename itself is recorded.
 - [x] Every screen action as a namespaced command builds in Debug, Release and the
       Release CLI-isolated configuration with no warnings.
 - [x] Terminal-check the new commands from another screen: `:rq edit <request>` and
@@ -384,7 +391,7 @@ Added 2026-09-16 with the theme selector. The palette is data now, so what a sna
 prove is that the values are right; what it cannot prove is whether a scheme it has never
 seen reads well, which is the whole question for the default theme.
 
-- [x] `deepocean` is byte-identical to the palette that was hardcoded before it: all 59
+- [x] `straumr` is byte-identical to the palette that was hardcoded before it: all 59
       public members of `StraumrStyles` dumped before and after the refactor, diff empty
       but for the new `ThemeName`
 - [x] both built-in themes resolve, and neither reports a role collision
@@ -428,7 +435,7 @@ seen reads well, which is the whole question for the default theme.
 
 - [ ] verify the three buttons in the create-workspace dialog: Tab between Browse, Cancel and
       Create and confirm all three highlight the same, wherever the dialog happens to sit
-- [ ] verify `:theme deepocean` then `:theme terminal` in the terminal: each applies at once, the
+- [ ] verify `:theme straumr` then `:theme terminal` in the terminal: each applies at once, the
       reader stays on the screen they were on, and `settings.toml` still has all its comments
 - [ ] verify `:theme` with a name that does not resolve refuses without writing anything
 - [ ] verify the methods read distinctly in the developer's scheme: five requests of different
@@ -438,13 +445,13 @@ seen reads well, which is the whole question for the default theme.
 - [ ] verify `:settings` end to end: it opens `~/.straumr/settings.toml` in `$EDITOR`,
       the file is the real one rather than a copy, and closing the editor applies what was
       saved. Then confirm saving it unchanged does *not* flicker the shell
-- [ ] verify the rebuild: change `theme` from `terminal` to `deepocean` and back, and
+- [ ] verify the rebuild: change `theme` from `terminal` to `straumr` and back, and
       confirm the reader lands on the screen they were on, with a region focused and its
       title carrying the chip, the footer showing that screen's keys, and the workspace
       still active. The rebuild drops and reconstructs every screen, so selection and
       filter state resetting is expected; focus landing nowhere is not
-- [ ] verify `:theme` and `:theme export deepocean`: the report names the applied theme,
-      the export writes `~/.straumr/themes/deepocean.toml`, refuses to overwrite it the
+- [ ] verify `:theme` and `:theme export straumr`: the report names the applied theme,
+      the export writes `~/.straumr/themes/straumr.toml`, refuses to overwrite it the
       second time, and the written file can be pointed at and applied unchanged
 - [x] a theme cannot be changed out from under a full-screen editor or a dialog: both are
       modal, and the `:` prompt is already unavailable while a modal is up, so `:settings`

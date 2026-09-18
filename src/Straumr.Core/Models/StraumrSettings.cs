@@ -37,7 +37,7 @@ public sealed class StraumrSettings
         # The theme. Either a built-in name or a path to a theme file.
         #
         #   "terminal"   follow the terminal's own colours and palette (default)
-        #   "deepocean"  the dark blue Straumr palette
+        #   "straumr"   the dark blue Straumr palette
         #
         # A path is taken relative to this file, so a theme kept beside it is just its name:
         #
@@ -50,7 +50,7 @@ public sealed class StraumrSettings
         #   [colors]
         #   brand = "magenta"
         #
-        # To start from the dark palette instead, `:theme export deepocean` writes it out as a file
+        # To start from the dark palette instead, `:theme export straumr` writes it out as a file
         # to copy and change.
         theme = "terminal"
 

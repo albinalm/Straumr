@@ -12,7 +12,7 @@ namespace Straumr.Console.Tui.Visuals.Theming;
 internal static class BuiltInThemes
 {
     public const string TerminalName = "terminal";
-    public const string DeepOceanName = "deepocean";
+    public const string StraumrName = "straumr";
 
     /// <summary>
     /// The default. Every role is either the terminal's own default or one of its sixteen palette
@@ -50,7 +50,7 @@ internal static class BuiltInThemes
         # colours hold no tint of it, and a wrong guess reads as a stripe rather than a highlight.
         # Hover and the unfocused selection therefore paint nothing, which leaves the selected row
         # of an unfocused list marked by its bar alone. A theme that names its own background can
-        # have all three levels; see deepocean.
+        # have all three levels; see straumr.
         hover              = "default"
         selection-inactive = "default"
 
@@ -118,7 +118,7 @@ internal static class BuiltInThemes
     /// The palette the shell was designed against, kept under a name now that it is no longer the
     /// only one. Every pairing stays at or above 4.5:1 for text and 3:1 for glyphs.
     /// </summary>
-    public const string DeepOcean =
+    public const string Straumr =
         """
         # The dark blue Straumr palette. Fixed colours: this theme ignores the terminal's scheme.
         #
@@ -129,7 +129,7 @@ internal static class BuiltInThemes
         # The surfaces sit near hue 222 and carry higher chroma on the foregrounds, so the screen
         # reads as live rather than flat. The whole app shares one background; regions are told
         # apart by dividers alone, and the dark ground is what makes the accents carry.
-        name = "DeepOcean"
+        name = "Straumr"
 
         [colors]
         background         = "#090D15"

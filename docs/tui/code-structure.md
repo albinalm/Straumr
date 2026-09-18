@@ -101,7 +101,7 @@ Straumr.Console.Tui/
       StraumrPalette.cs           the eighteen colour roles a theme names
       StraumrTheme.cs             a resolved theme: its name, palette and warnings
       StraumrThemes.cs            resolving a built-in name or a theme file
-      BuiltInThemes.cs            `terminal` and `deepocean`, as the TOML they ship as
+      BuiltInThemes.cs            `terminal` and `straumr`, as the TOML they ship as
       ThemeDocument.cs            a theme file as it is written
       ThemeColor.cs               `#rrggbb`, `default`, a palette name, `indexed:N`
   Formatting/

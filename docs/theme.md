@@ -10,12 +10,12 @@ Open the command prompt in the TUI with `:` and use one of the built-ins:
 
 ```text
 :theme terminal
-:theme deepocean
+:theme straumr
 ```
 
 `terminal` is the default. It uses the terminal's foreground, background, and
 16-colour palette, so it follows the terminal's configured scheme.
-`deepocean` uses fixed RGB colours and therefore looks the same in every
+`straumr` uses fixed RGB colours and therefore looks the same in every
 terminal.
 
 Running `:theme` without an argument reports the current theme. A successful
@@ -60,7 +60,7 @@ To start from a complete theme instead, export either built-in:
 
 ```text
 :theme export terminal
-:theme export deepocean
+:theme export straumr
 ```
 
 The export is written to `~/.straumr/themes/<name>.toml` and includes comments

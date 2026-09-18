@@ -14,7 +14,7 @@ public static class StraumrThemes
     private static readonly Dictionary<string, string> Sources = new(StringComparer.OrdinalIgnoreCase)
     {
         [BuiltInThemes.TerminalName] = BuiltInThemes.Terminal,
-        [BuiltInThemes.DeepOceanName] = BuiltInThemes.DeepOcean
+        [BuiltInThemes.StraumrName] = BuiltInThemes.Straumr
     };
 
     public static IEnumerable<string> BuiltInNames => Sources.Keys;

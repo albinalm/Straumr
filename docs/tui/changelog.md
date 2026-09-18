@@ -3,6 +3,17 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-18: Renamed the fixed dark-blue built-in theme from `deepocean` to `straumr` throughout
+  lookup, completion, export, the generated settings template and documentation. Its embedded TOML
+  display name is now `Straumr`, so `:theme straumr` reports the same name it was selected by and
+  `:theme export straumr` writes `straumr.toml`. There is no compatibility alias during early access.
+
+- 2026-09-18: Confirmation dialogs can now be browsed with any arrow key as well as `Tab` and
+  `Shift+Tab`. They still open safely on Cancel, and arrows only move focus — `Enter` activates the
+  focused answer. The folder browser's hand-built delete confirmation was replaced by the shared
+  `ConfirmDialog`, so workspace, request, auth, secret, editor and folder-delete confirmations all
+  behave the same way.
+
 - 2026-09-16: The developer confirmed the outer-panel resize fix works. The resize hint now
   includes every available direction in one entry: `Ctrl+H Ctrl+J Ctrl+K Ctrl+L Resize` for
   stacked detail panes, and `Ctrl+H Ctrl+L Resize` otherwise. Both variants use the same
@@ -82,8 +93,8 @@ nothing here is a rule. Read the most recent entries when resuming work.
   is inherited from the terminal theme, which is the one palette whose roles all defer to the
   reader's scheme and so the only one it is safe to land on unasked; the terminal theme itself
   stays the file that names them all. A whole theme can now be three lines. No `extends` key —
-  starting from the dark palette is `:theme export deepocean` and editing the copy, which is also
-  what gives export a job. DeepOcean now names its own `brand` and `[methods]` rather than
+  starting from the dark palette is `:theme export straumr` and editing the copy, which is also
+  what gives export a job. Straumr now names its own `brand` and `[methods]` rather than
   inheriting them, as any theme fixing its own background must, and still renders identically. A
   theme that names a background but leaves `text` inherited now says so on the footer, since that
   is the one way the new default can leave a reader with text they cannot see. `:theme` also stops
@@ -93,7 +104,7 @@ nothing here is a rule. Read the most recent entries when resuming work.
   doing three jobs — the footer's key colour, the `{straumr}` wordmark and POST — so making it
   colourless for the chrome took the other two with it and the default theme came out white. There
   is now a `brand` role and a `[methods]` table, both optional and both falling back to exactly what
-  the app did before them, which is why DeepOcean declares neither and still renders identically.
+  the app did before them, which is why Straumr declares neither and still renders identically.
   The terminal theme declares both, in palette slots: green, blue, yellow, magenta and red for the
   methods and cyan for the wordmark, so every colour is the reader's own rather than one chosen
   here. The chrome stays colourless; the rule is now about what a colour is for rather than how
@@ -114,7 +125,7 @@ nothing here is a rule. Read the most recent entries when resuming work.
   inverting the terminal's own two colours rather than by any colour this repository chose —
   `selection = "invert"`, a theme value that is not a colour. That was the developer's question:
   the scheme cannot be read, but it can be swapped. The hues that remain are the ones that carry
-  meaning. DeepOcean is
+  meaning. Straumr is
   unaffected: it keeps `Theme.Default` and its styles still dump identical to the pre-theming
   palette.
 
@@ -123,7 +134,7 @@ nothing here is a rule. Read the most recent entries when resuming work.
   — all ~250 references are unchanged — but is now a facade over a `StraumrStyleSet` built from an
   18-role `StraumrPalette`. Two themes ship in the binary as TOML text: `terminal`, which paints
   with `Color.Default` and the terminal's sixteen palette slots so the app inherits whatever scheme
-  the reader configured, and `deepocean`, which is the previous palette exactly. A reader names one
+  the reader configured, and `straumr`, which is the previous palette exactly. A reader names one
   in `~/.straumr/settings.toml`, by built-in name or by a path to a theme file of their own; that
   file is opened in `$EDITOR` with `:settings` and read back when they close it. `:theme` reports
   what is applied and `:theme export <name>` writes a built-in out as a starting point. Changing
@@ -134,7 +145,7 @@ nothing here is a rule. Read the most recent entries when resuming work.
   report on the footer and leave the previous palette standing, because a typo in a hand-edited
   dotfile must not be a refusal to start. A theme whose roles collide — accent equal to selection,
   say — still applies, and says which cue it has made invisible. Proved by dumping all 59 members
-  of `StraumrStyles` before and after: `deepocean` is byte-identical to the old palette. Debug,
+  of `StraumrStyles` before and after: `straumr` is byte-identical to the old palette. Debug,
   Release and CLI-only builds pass without warnings, and both projects are clean under the
   trim/AOT analysers. Terminal acceptance of the two themes is pending.
 

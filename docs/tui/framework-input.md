@@ -85,6 +85,10 @@ framework behavior.
 
 ## Focus and modality
 
+- A two-answer confirmation treats all four arrow keys as movement between its buttons. `Tab` and
+  `Shift+Tab` remain the general traversal keys, and `Enter` still activates only the focused
+  answer. The arrow handler belongs to `ConfirmDialog` rather than every dialog: arrows inside a
+  field, dropdown, list or scrollable surface already have a local meaning that must win.
 - A dialog that leaves its initial focus to `AutoFocus` is not focused inside `Show`: the
   framework applies `AutoFocus` on the render that follows. A keystroke can afford that,
   because nothing else in that pass wants focus. A typed command cannot — it runs inside

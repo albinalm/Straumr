@@ -1,5 +1,7 @@
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
+using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Visuals.Shared;
 
@@ -35,6 +37,12 @@ internal sealed class ConfirmDialog
         var confirmButton = new Button(confirmLabel);
         confirmButton.SetStyle(destructive ? StraumrStyles.DangerButton : StraumrStyles.PrimaryButton);
 
+        // A confirmation is one choice expressed by two buttons, so the direction keys move within
+        // that choice rather than doing nothing. Tab remains available and Enter still activates
+        // whichever answer has focus; arrows only change the focused answer.
+        cancelButton.KeyDown((_, e) => MoveToOtherAnswer(e, confirmButton));
+        confirmButton.KeyDown((_, e) => MoveToOtherAnswer(e, cancelButton));
+
         var content = new VStack(
                 new TextBlock(question).Style(StraumrStyles.BrightText).Wrap(true),
                 new TextBlock(detail).Style(StraumrStyles.MutedText).Wrap(true),
@@ -68,5 +76,14 @@ internal sealed class ConfirmDialog
     {
         _dialog.Show();
         _cancelButton.App?.Focus(_cancelButton);
+    }
+
+    private static void MoveToOtherAnswer(KeyEventArgs e, Button otherAnswer)
+    {
+        if (e.Key is not (TerminalKey.Left or TerminalKey.Right or TerminalKey.Up or TerminalKey.Down))
+            return;
+
+        otherAnswer.App?.Focus(otherAnswer);
+        e.Handled = true;
     }
 }
