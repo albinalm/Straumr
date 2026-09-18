@@ -25,6 +25,9 @@ public sealed class StraumrSettings
     [TomlPropertyName("paths")]
     public StraumrPathSettings Paths { get; set; } = new();
 
+    [TomlPropertyName("response")]
+    public StraumrResponseSettings Response { get; set; } = new();
+
     /// <summary>
     /// What the file says when there is none. Written on first read so the reader has something to
     /// open and something to copy, rather than an empty buffer they have to know the keys for.
@@ -64,7 +67,24 @@ public sealed class StraumrSettings
         #
         #   secrets = "~/.straumr/secrets"
 
+        [response]
+        # What to do with a JSON response body the moment it arrives.
+        #
+        #   "none"       show it exactly as it was sent (default)
+        #   "beautify"   lay it out over indented lines
+        #   "minify"     strip it down to one line
+        #
+        # A body that is not JSON is shown as it was sent whatever this says, and `b` on the
+        # response pane still beautifies and minifies by hand either way.
+        format = "none"
+
         """;
+}
+
+public sealed class StraumrResponseSettings
+{
+    [TomlPropertyName("format")]
+    public string? Format { get; set; }
 }
 
 /// <summary>

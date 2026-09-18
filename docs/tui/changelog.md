@@ -3,6 +3,28 @@
 Part of the [TUI implementation guide](./README.md). Newest first. History only —
 nothing here is a rule. Read the most recent entries when resuming work.
 
+- 2026-09-18: Added `[response] format` to `settings.toml`: `none` (the default), `beautify` or
+  `minify`, deciding what happens to a JSON response body the moment it arrives, on the inline
+  Response pane and in the full-screen view alike. The setting is read at the moment the body is
+  set, so `:settings` takes effect on the next response without a restart, and the formatted body is
+  what `y` copies and what `b` toggles away from. A body that is not JSON is shown as sent and
+  nothing is reported; `b` still says so when pressed by hand. A value that is none of the three
+  falls back to `none` and is reported in the footer like any other settings problem. `StraumrSettings`
+  gained a `[response]` table and `IStraumrSettingsService` a resolved `ResponseBodyFormat`. Debug
+  and Release builds pass without warnings; the terminal check is pending.
+
+- 2026-09-18: Fixed the full-screen views keeping the size of the terminal they opened in. The
+  send/response view and the resource editor bind their width and height to the viewport, and that
+  binding read `TerminalApp.Terminal.Size`, which is not bindable: the framework had no reason to
+  re-evaluate it, so resizing the window left the view painted at its old size over a shell that had
+  already re-laid itself out. The size now comes from `TerminalViewport`, which reads the app root's
+  bindable `Bounds` — the size the framework arranges its root to inside the render frame. The first
+  attempt wrote the size into state from the shell's update pass and fixed only the finished view:
+  that pass is awaiting the send, so a resize while the request was in flight still did nothing until
+  the response arrived. The folder browser and the extraction help dialog clamped their height the
+  same way and now reclamp for real on a resize. Debug and Release builds pass without warnings; the
+  terminal check is pending.
+
 - 2026-09-18: The custom-theme default is now `~/.straumr/themes`: `:theme oxblood` resolves
   `~/.straumr/themes/oxblood.toml`, with both the directory and extension inferred. Explicit
   absolute and `~` paths still work, and settings-directory-relative references such as

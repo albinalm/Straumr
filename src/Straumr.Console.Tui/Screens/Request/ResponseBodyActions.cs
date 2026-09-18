@@ -1,6 +1,7 @@
 using Straumr.Console.Shared.Helpers;
 using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Visuals.Shared;
+using Straumr.Core.Enums;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Input;
 
@@ -10,13 +11,15 @@ internal sealed class ResponseBodyActions
 {
     private readonly PreviewPane _preview;
     private readonly Action<string, bool> _notify;
+    private readonly Func<ResponseBodyFormat> _arrivalFormat;
     private readonly bool _bounded;
     private string? _body;
     private bool _pretty;
 
-    public ResponseBodyActions(PreviewPane preview, Action<string, bool> notify, bool bounded = true)
+    public ResponseBodyActions(PreviewPane preview, Action<string, bool> notify,
+        Func<ResponseBodyFormat> arrivalFormat, bool bounded = true)
     {
-        (_preview, _notify) = (preview, notify);
+        (_preview, _notify, _arrivalFormat) = (preview, notify, arrivalFormat);
         _bounded = bounded;
         AddCommand("Format", "Beautify / minify", 'b', ToggleFormat);
         AddCommand("Copy", "Copy body", 'y', Copy);
@@ -24,8 +27,17 @@ internal sealed class ResponseBodyActions
 
     public void SetBody(string? body)
     {
+        ResponseBodyFormat format = _arrivalFormat();
         _body = body;
         _pretty = false;
+        if (format is not ResponseBodyFormat.None
+            && RequestEditingHelpers.TryFormatJson(body, indented: format is ResponseBodyFormat.Beautify,
+                out string? formatted))
+        {
+            _body = formatted;
+            _pretty = format is ResponseBodyFormat.Beautify;
+        }
+
         UpdatePreview();
     }
 

@@ -1,4 +1,5 @@
 using Straumr.Core.Configuration;
+using Straumr.Core.Enums;
 using Straumr.Core.Helpers;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
@@ -24,11 +25,14 @@ public class StraumrSettingsService : IStraumrSettingsService
 
     public StraumrSettings Settings { get; private set; } = new();
 
+    public ResponseBodyFormat ResponseBodyFormat { get; private set; }
+
     public string? Problem { get; private set; }
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         Problem = null;
+        ResponseBodyFormat = ResponseBodyFormat.None;
         string path = await EnsureFileAsync(cancellationToken);
         string text;
         try
@@ -53,6 +57,25 @@ public class StraumrSettingsService : IStraumrSettingsService
             // in a file whose whole purpose is to be typed in by hand would be the wrong trade.
             Settings = new StraumrSettings();
             Problem = $"settings.toml: {FirstLine(exception.Message)}";
+            return;
+        }
+
+        if (Settings.Response.Format?.Trim() is not { Length: > 0 } format)
+            return;
+
+        switch (format.ToLowerInvariant())
+        {
+            case "none":
+                break;
+            case "beautify":
+                ResponseBodyFormat = ResponseBodyFormat.Beautify;
+                break;
+            case "minify":
+                ResponseBodyFormat = ResponseBodyFormat.Minify;
+                break;
+            default:
+                Problem = $"settings.toml: response.format is \"{format}\", not none, beautify or minify";
+                break;
         }
     }
 

@@ -10,6 +10,14 @@ visuals, layout or palette. For keys, focus, commands and hosting see
 - Compose the application shell from `Grid`, `Padder`, `Rule`, layout containers,
   and a footer or `CommandBar` where their behavior fits.
 - Use `State<T>`, bindings, and computed visuals for changing UI state.
+- The terminal's own size is not a reactive dependency either. A binding over
+  `TerminalApp.Terminal.Size` registers nothing, a resize marks no visual dirty, and the
+  value it produced when the binding was first evaluated stands for the life of the visual.
+  Anything sized from the viewport reads `TerminalViewport`, which answers from
+  `TerminalApp.Root.Bounds`: the framework arranges its root to the terminal's size on every
+  layout pass, and `Visual.Bounds` is bindable, so a resize invalidates whatever read it. Do not
+  route this through state the shell writes instead — the shell's update pass is awaited by the
+  operation a full-screen view is often showing, and a send in flight would park it.
 - A binding that reads only `Stopwatch.Elapsed` has no reactive dependency and will
   not refresh as time passes. Timed labels use `IAnimatedVisual` to update retained
   text on the UI thread; the animation scheduler runs even while the screen's async

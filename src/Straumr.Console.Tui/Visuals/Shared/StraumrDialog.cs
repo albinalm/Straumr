@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Infrastructure;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
@@ -31,8 +32,8 @@ internal static class StraumrDialog
             Top = 0
         };
         dialog.SetStyle(StraumrStyles.Dialog);
-        dialog.Width(() => dialog.App?.Terminal.Size.Columns ?? 80);
-        dialog.Height(() => dialog.App?.Terminal.Size.Rows ?? 24);
+        dialog.Width(() => TerminalViewport.Columns(dialog));
+        dialog.Height(() => TerminalViewport.Rows(dialog));
         return dialog;
     }
 

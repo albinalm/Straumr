@@ -99,7 +99,9 @@ implements, what evidence exists, and where to resume.
   With Body focused, `b` toggles JSON beautification/minification and `y` copies the
   entire body in its current formatting, including text beyond the inline preview.
   Invalid JSON remains unchanged with an explanation; unavailable clipboard access
-  reports failure. Pages are cycled by `t` on the inline pane, where `Tab` belongs to the
+  reports failure. `[response] format` in `settings.toml` — `none` (default), `beautify`
+  or `minify` — decides what a JSON body is reformatted to the moment it arrives, before
+  either key is pressed; a body that is not JSON is shown as sent and nothing is reported. Pages are cycled by `t` on the inline pane, where `Tab` belongs to the
   screen's regions, and by `Tab` in the full-screen view, where those titles are the only
   ones on the rule and `t` keeps working beside it, both named in the one hint. Scrolling
   retains the shared native/Vim controls in both, though the full-screen view does not

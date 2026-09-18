@@ -1,3 +1,4 @@
+using Straumr.Core.Enums;
 using Straumr.Core.Models;
 
 namespace Straumr.Core.Services.Interfaces;
@@ -20,6 +21,8 @@ public interface IStraumrSettingsService
 
     /// <summary>Where the global secret store lives, expanded. Always a path.</summary>
     string DefaultSecretPath { get; }
+
+    ResponseBodyFormat ResponseBodyFormat { get; }
 
     /// <summary>
     /// Reads the file, or the template's defaults if it cannot be parsed. Never throws for bad TOML:

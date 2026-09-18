@@ -3,6 +3,7 @@ using System.Text;
 using Straumr.Console.Shared.Models;
 using Straumr.Console.Tui.Formatting;
 using Straumr.Console.Tui.Visuals.Shared;
+using Straumr.Core.Enums;
 using Straumr.Core.Models;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -34,15 +35,15 @@ internal sealed class RequestResponseView
     private DateTimeOffset _noticeUntil;
     private bool _focused;
 
-    public RequestResponseView(StraumrRequest request, string? workspaceName, Action cancel, Action resend,
-        Action closed)
+    public RequestResponseView(StraumrRequest request, string? workspaceName,
+        Func<ResponseBodyFormat> arrivalFormat, Action cancel, Action resend, Action closed)
     {
         _body = new ResponseBodyActions(_preview, (message, error) =>
         {
             _notice.Value = message;
             _noticeError.Value = error;
             _noticeUntil = DateTimeOffset.UtcNow + NoticeLifetime;
-        }, bounded: false);
+        }, arrivalFormat, bounded: false);
         _preview.SetText("Waiting for the response body…", "Waiting for response headers…",
             "Network measurements will appear when the request completes.");
 

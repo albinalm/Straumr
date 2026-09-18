@@ -6,6 +6,22 @@ Update it in the same change that completes or advances a milestone.
 
 ## Current Status
 
+- Response bodies can now be reformatted on arrival. `[response] format` in `settings.toml` takes
+  `none` (default), `beautify` or `minify`, and applies to JSON bodies on both the inline Response
+  pane and the full-screen view; anything else is shown as it was sent. `b` continues to toggle by
+  hand from whatever the setting produced. An existing `settings.toml` does not gain the new
+  commented block, since the template is only written when there is no file — the default is `none`,
+  so nothing changes until the key is added. Debug and Release builds pass without warnings;
+  **needs a terminal check** — set each of the three values and send a JSON request.
+- Full-screen views no longer keep the size of the terminal they opened in. Resizing while the
+  send/response view or a resource editor was open left it drawn at its old size over the re-laid
+  shell, because their width and height bound to `TerminalApp.Terminal.Size`, which registers no
+  reactive dependency. Both now read `TerminalViewport`, which answers from the app root's bindable
+  `Bounds`, as do the folder browser and extraction help dialogs, whose height clamp had the same
+  defect. The developer confirmed the finished view rescales; an in-flight one did not, because the
+  first fix pumped the size from the shell's update pass and that pass is awaiting the send. The
+  root's bounds are written by the render frame instead, which keeps running. Debug and Release
+  builds pass without warnings; **needs a terminal check** — resize during a send in flight.
 - Bare custom theme names now resolve from `~/.straumr/themes` with `.toml` inferred, so
   `:theme oxblood` selects `~/.straumr/themes/oxblood.toml`. Explicit paths and the previous
   settings-directory-relative form remain valid. The settings template and theme guide use the

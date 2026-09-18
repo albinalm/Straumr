@@ -28,6 +28,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly IStraumrAuthService _auths;
     private readonly IStraumrSecretService _secrets;
     private readonly IStraumrFileService _files;
+    private readonly IStraumrSettingsService _settings;
     private readonly ExternalEditor _editor;
     private readonly State<int> _selectedIndex = new(-1);
     private readonly State<int> _count = new(0);
@@ -89,12 +90,13 @@ public sealed class RequestScreen : ITuiScreen
 
     public RequestScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
-        IStraumrFileService files, ExternalEditor editor)
+        IStraumrFileService files, IStraumrSettingsService settings, ExternalEditor editor)
     {
-        (_state, _workspaces, _requests, _auths, _secrets, _files, _editor) =
-            (state, workspaces, requests, auths, secrets, files, editor);
+        (_state, _workspaces, _requests, _auths, _secrets, _files, _settings, _editor) =
+            (state, workspaces, requests, auths, secrets, files, settings, editor);
         _responseBody = new ResponseBodyActions(_responsePreview, (message, failed) =>
-            NotificationRequested?.Invoke(failed ? TuiCommandResult.Failed(message) : TuiCommandResult.Ok(message)));
+            NotificationRequested?.Invoke(failed ? TuiCommandResult.Failed(message) : TuiCommandResult.Ok(message)),
+            () => _settings.ResponseBodyFormat);
         _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", 'v', OpenResponse,
             () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item && _responses.ContainsKey((workspace.Id, item.Id))));
         StraumrPaneLayout paneLayout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
@@ -648,7 +650,7 @@ public sealed class RequestScreen : ITuiScreen
     /// other Core call runs. It stands down while one is already in flight, as `s` on the list does.
     /// </remarks>
     private RequestResponseView BuildResponseView(Guid id, StraumrRequest request, Action restoreFocus) =>
-        new(request, ActiveWorkspaceName, () => _sendCancellation?.Cancel(), () =>
+        new(request, ActiveWorkspaceName, () => _settings.ResponseBodyFormat, () => _sendCancellation?.Cancel(), () =>
         {
             if (_sendCancellation is not null)
                 return;

@@ -5,6 +5,12 @@ subset for the milestone in hand, and tick items here in the same change.
 
 ## S1 checkpoint
 
+- [ ] Terminal check of the viewport fix: resize the window while the send/response view is open
+      and while a resource editor is open — both refill the terminal instead of staying at the size
+      they opened at. Resize during a send still in flight as well, not only after it lands. Resize
+      with the folder browser and the extraction help open too; their height reclamps between their
+      minimum and their full height.
+
 - [x] Reference-scan regression: absent workspace files do not count as failures; a stale-only
       registry produces no warning, while existing corrupt workspaces and unreadable resources
       still count. The developer's reported four entries were verified absent through read-only inspection.
@@ -265,6 +271,13 @@ For each Workspaces milestone, run the smallest applicable subset:
       Then quit each without typing and confirm the request is unchanged and still reads saved
 - [ ] verify the response pane's `b` still beautifies and minifies, and CLI `send --beautify`
       still formats JSON and XML, both now going through `RequestEditingHelpers.TryFormatJson`
+- [ ] verify `[response] format` in `settings.toml`: with `beautify`, a minified JSON response
+      arrives laid out and `b` minifies it; with `minify`, an indented one arrives on one line and
+      `b` beautifies it; with `none` or the key absent, the body arrives exactly as sent. Check it
+      on the inline pane and in the full-screen view, that `y` copies what is on screen, that a
+      plain-text response is untouched and says nothing, that changing the value through `:settings`
+      takes effect on the next send without a restart, and that a misspelled value reports itself in
+      the footer and leaves bodies alone
 - [ ] verify the caret lands between the braces on an empty JSON body in the developer's own
       editor (nano: `+2,3`), and that an editor outside the table — or one reached through a
       wrapper script — still opens normally with no stray argument and no second file created

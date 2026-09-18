@@ -36,6 +36,7 @@ Straumr.Console.Tui/
     StraumrTuiApp.cs              shell, retained screen navigation, commands, footer
     ThemeSelection.cs             applies the settings' theme; says when a rebuild is owed
     ITuiScreen.cs                 shared contract implemented by every screen
+    TerminalViewport.cs           the terminal's size, read reactively from the app's root bounds
     SecretReferences.cs           which secrets a resource refers to, and which of them exist
     TuiScreen.cs                  screen enum; its name renders in the header
     CommandPrompt.cs              the `:` prompt: open, close, focus, completion

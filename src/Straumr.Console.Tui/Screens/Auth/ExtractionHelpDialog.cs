@@ -1,4 +1,5 @@
 using Straumr.Console.Shared.Helpers;
+using Straumr.Console.Tui.Infrastructure;
 using Straumr.Console.Tui.Visuals.Shared;
 using Straumr.Core.Enums;
 using XenoAtom.Terminal.UI;
@@ -103,16 +104,8 @@ internal sealed class ExtractionHelpDialog
 
     public void Show() => _dialog.Show();
 
-    /// <remarks>
-    /// Re-clamped on every update pass rather than set once in <see cref="Show"/>, so a resize while
-    /// the help is open reflows it instead of leaving it sized for the terminal it was opened in.
-    /// <c>Visual.App</c> is null until the dialog is shown, which is why the unclamped height is the
-    /// fallback. This is the folder browser's arrangement, for the same reason.
-    /// </remarks>
     private int? ComputeHeight() =>
-        _dialog.App is { } app
-            ? Math.Clamp(app.Terminal.Size.Rows - ViewportMargin, MinimumDialogHeight, DialogHeight)
-            : DialogHeight;
+        Math.Clamp(TerminalViewport.Rows(_dialog) - ViewportMargin, MinimumDialogHeight, DialogHeight);
 
     private static Visual Section(
         ExtractionSource source,
