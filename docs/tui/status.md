@@ -13,12 +13,14 @@ Update it in the same change that completes or advances a milestone.
   `h` turns it on and off by hand. `[response] highlight` in `settings.toml` decides what a body
   arrives with (default on) and `[response] highlight-limit` the size in KiB past which it arrives
   off regardless (default 256), because colouring walks every line that is drawn and a body of
-  several megabytes is felt through it. `h` still turns it on past the limit and says what it may
+  several megabytes is felt through it. The limit measures the text the pane will draw rather than
+  the body, so the inline pane — bounded to 64 KiB — keeps its colour on a response the full-screen
+  view opens plain. `h` still turns it on past the limit and says what it may
   cost. An existing `settings.toml` does not gain the new commented block, since the template is
   only written when there is no file — the defaults are what an unwritten key means, so nothing
-  changes until a key is added. Debug and Release builds pass without warnings, and the theme
+  changes until a key is added. Debug and Release builds pass without warnings, the theme
   parser was checked against both built-ins, a theme with no `[code]` table, an unknown key and a
-  bad colour; **needs a terminal check** — send a JSON request and look at the Body page.
+  bad colour, and the developer confirmed a coloured body in the terminal.
 
 - Response bodies can now be reformatted on arrival. `[response] format` in `settings.toml` takes
   `none` (default), `beautify` or `minify`, and applies to JSON bodies on both the inline Response

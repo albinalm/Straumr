@@ -48,13 +48,19 @@ internal sealed class ResponseBodyActions
             _pretty = options.Format is ResponseBodyFormat.Beautify;
         }
 
-        _oversized = (_body?.Length ?? 0) > options.HighlightLimit;
-        Highlight(options.Highlight && !_oversized);
         UpdatePreview();
+        Highlight(options.Highlight && !_oversized);
     }
 
-    private void UpdatePreview() => _preview.SetPageText(0,
-        _bounded ? ContentFormatting.Preview(_body) : string.IsNullOrEmpty(_body) ? "No body." : _body);
+    private void UpdatePreview()
+    {
+        string drawn = Drawn();
+        _oversized = drawn.Length > _options().HighlightLimit;
+        _preview.SetPageText(0, drawn);
+    }
+
+    private string Drawn() =>
+        _bounded ? ContentFormatting.Preview(_body) : string.IsNullOrEmpty(_body) ? "No body." : _body;
 
     private void Highlight(bool on)
     {
@@ -102,7 +108,7 @@ internal sealed class ResponseBodyActions
 
         _notify(_highlighted
             ? _oversized
-                ? $"Highlighting on — {ContentFormatting.Size(_body!.Length)} of text may scroll slowly"
+                ? $"Highlighting on — {ContentFormatting.Size(Drawn().Length)} of text may scroll slowly"
                 : "Highlighting on"
             : "Highlighting off", false);
     }

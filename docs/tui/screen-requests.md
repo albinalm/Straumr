@@ -104,7 +104,9 @@ implements, what evidence exists, and where to resume.
   boolean, null, punctuation — in the theme's `[code]` colours; one that does not is left
   alone, and `h` on it says so in the same words `b` does. `[response] highlight` decides
   what a body arrives with and `[response] highlight-limit`, in KiB, the size past which it
-  arrives uncoloured whatever that says, since colouring walks every line that is drawn.
+  arrives uncoloured whatever that says, since colouring walks every line that is drawn. The
+  limit is measured against what the pane draws, so the inline preview — bounded to 64 KiB —
+  stays coloured on a response the full-screen view opens plain.
   `h` turns it on past the limit and reports the size it may cost to scroll. `[response] format` in `settings.toml` — `none` (default), `beautify`
   or `minify` — decides what a JSON body is reformatted to the moment it arrives, before
   either key is pressed; a body that is not JSON is shown as sent and nothing is reported. Pages are cycled by `t` on the inline pane, where `Tab` belongs to the

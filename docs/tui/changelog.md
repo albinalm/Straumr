@@ -15,7 +15,10 @@ nothing here is a rule. Read the most recent entries when resuming work.
   terminal theme in palette slots, straumr in the palette it already has. `h` on the Body page
   toggles, `[response] highlight` decides what a body arrives with, and `[response] highlight-limit`
   is the size in KiB past which it arrives off, so a large body does not pay for colouring nobody
-  asked for; `h` overrides the limit and says what it may cost. Colouring is gated on the body
+  asked for; `h` overrides the limit and says what it may cost. The limit is measured against the
+  text the pane will draw rather than against the body, so the inline pane's 64 KiB preview is not
+  refused colour over length it was never going to render; only the full-screen view, which holds a
+  visual per line for the whole body, reaches it. Colouring is gated on the body
   actually being JSON, so `h` on anything else says so rather than colouring words at random.
   `ResponseBodyActions` now takes one `ResponseBodyOptions` from the settings rather than a format
   alone. Debug and Release builds pass without warnings; the terminal check is pending.

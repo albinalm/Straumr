@@ -5,11 +5,9 @@ subset for the milestone in hand, and tick items here in the same change.
 
 ## S1 checkpoint
 
-- [ ] Terminal check of response body colouring: send a request returning JSON and look at the Body
-      page, inline and full-screen. Keys, strings, numbers, `true`/`false` and `null` each read in
-      their own colour and the lines still trim rather than wrap. `h` turns it off and on, `b` keeps
-      working with it on, and `h` on a body that is not JSON says so. Try it under both built-in
-      themes, and against a body of a few megabytes, which should arrive uncoloured until `h`.
+- [x] Terminal check of response body colouring: the developer confirmed a JSON body reads coloured
+      on the Body page. Still unticked within it: `h` on a body that is not JSON, and a body large
+      enough to arrive uncoloured in the full-screen view until `h` asks for it.
 
 - [ ] Terminal check of the viewport fix: resize the window while the send/response view is open
       and while a resource editor is open — both refill the terminal instead of staying at the size
