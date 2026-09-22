@@ -62,9 +62,10 @@ jobs:
       - name: Build .deb package (Linux)
         if: runner.os == 'Linux'
         shell: bash
+        env:
+          NFPM_VERSION: 2.47.0
         run: |
-          NFPM_DEB_URL=$(curl -s https://api.github.com/repos/goreleaser/nfpm/releases/latest | jq -r '.assets[] | select(.name | endswith("amd64.deb")) | .browser_download_url')
-          curl -sLo nfpm.deb "$NFPM_DEB_URL"
+          curl -fsSLo nfpm.deb "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
           sudo dpkg -i nfpm.deb
           cp artifacts/${{ matrix.rid }}/straumr .
           VERSION=${VERSION} nfpm pkg -f packaging/deb/nfpm.yaml -p deb -t dist/
