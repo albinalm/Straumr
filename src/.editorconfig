@@ -1,0 +1,45 @@
+[*]
+
+# Microsoft .NET properties
+csharp_new_line_before_members_in_object_initializers = false
+csharp_new_line_before_open_brace = all
+csharp_preferred_modifier_order = public, internal, protected, private, file, new, required, override, static, closed, sealed, abstract, virtual, safe, unsafe, extern, volatile, async, readonly:suggestion
+csharp_preserve_single_line_blocks = true
+csharp_style_var_for_built_in_types = false:suggestion
+
+# ReSharper properties
+resharper_blank_lines_after_block_statements = 0
+resharper_blank_lines_after_start_comment = 0
+resharper_blank_lines_after_using_list = 0
+resharper_blank_lines_around_auto_property = 0
+resharper_blank_lines_around_local_method = 0
+resharper_braces_for_ifelse = not_required
+resharper_braces_redundant = false
+resharper_csharp_blank_lines_around_field = 0
+resharper_csharp_blank_lines_around_invocable = 0
+resharper_csharp_case_block_braces = next_line_shifted_2
+resharper_csharp_empty_block_style = multiline
+resharper_csharp_insert_final_newline = true
+resharper_csharp_keep_existing_enum_arrangement = false
+resharper_csharp_max_line_length = 182
+resharper_csharp_remove_blank_lines_near_braces_in_code = false
+resharper_csharp_remove_blank_lines_near_braces_in_declarations = false
+resharper_csharp_wrap_ternary_expr_style = wrap_if_long
+resharper_empty_string = string_empty
+resharper_for_other_types = use_explicit_type
+resharper_instance_members_qualify_declared_in =
+resharper_keep_existing_attribute_arrangement = true
+resharper_local_function_body = expression_body
+resharper_method_or_operator_body = expression_body
+resharper_nested_ternary_style = simple_wrap
+resharper_parentheses_redundancy_style = remove
+resharper_place_accessorholder_attribute_on_same_line = false
+resharper_place_accessor_attribute_on_same_line = true
+resharper_place_expr_accessor_on_single_line = true
+resharper_place_simple_initializer_on_single_line = false
+resharper_place_simple_list_pattern_on_single_line = false
+resharper_place_single_method_argument_lambda_on_same_line = false
+resharper_wrap_after_primary_constructor_declaration_lpar = false
+resharper_wrap_array_initializer_style = chop_if_long
+resharper_wrap_object_and_collection_initializer_style = chop_always
+resharper_wrap_primary_constructor_parameters_style = wrap_if_long

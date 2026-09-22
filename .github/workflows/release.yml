@@ -1,0 +1,397 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Compute version
+        id: meta
+        shell: bash
+        run: |
+          DATE_UTC="$(date -u '+%Y.%-m.%-d')"
+          VERSION="${DATE_UTC}.${GITHUB_RUN_NUMBER}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            artifact_ext: zip
+          - rid: linux-x64
+            os: ubuntu-latest
+            artifact_ext: tar.gz
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      APP_PROJECT: src/Straumr.Console.App/Straumr.Console.App.csproj
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          dotnet publish "${APP_PROJECT}" \
+            -c Release -r ${{ matrix.rid }} \
+            -o artifacts/${{ matrix.rid }} \
+            -p:IncludeTui=true \
+            /p:Version=${VERSION} \
+            /p:FileVersion=${VERSION} \
+            /p:InformationalVersion=${VERSION}
+
+          mkdir -p dist
+          tar -C artifacts/${{ matrix.rid }} -czf dist/straumr-${VERSION}-${{ matrix.rid }}.tar.gz straumr
+
+      - name: Build .deb package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          NFPM_DEB_URL=$(curl -s https://api.github.com/repos/goreleaser/nfpm/releases/latest | jq -r '.assets[] | select(.name | endswith("amd64.deb")) | .browser_download_url')
+          curl -sLo nfpm.deb "$NFPM_DEB_URL"
+          sudo dpkg -i nfpm.deb
+          cp artifacts/${{ matrix.rid }}/straumr .
+          VERSION=${VERSION} nfpm pkg -f packaging/deb/nfpm.yaml -p deb -t dist/
+
+      - name: Publish (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet publish $env:APP_PROJECT `
+            -c Release -r ${{ matrix.rid }} `
+            -o artifacts/${{ matrix.rid }} `
+            -p:IncludeTui=true `
+            /p:Version=${env:VERSION} `
+            /p:FileVersion=${env:VERSION} `
+            /p:InformationalVersion=${env:VERSION}
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path artifacts/${{ matrix.rid }}/straumr.exe -DestinationPath dist/straumr-${env:VERSION}-${{ matrix.rid }}.zip
+
+      - name: Build installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          iscc /DMyAppVersion="${env:VERSION}" `
+               /DMySourceDir="${env:GITHUB_WORKSPACE}\artifacts\${{ matrix.rid }}" `
+               /DMyOutputDir="${env:GITHUB_WORKSPACE}\dist" `
+               /DMyLicenseFile="${env:GITHUB_WORKSPACE}\LICENSE" `
+               /DMyIconFile="${env:GITHUB_WORKSPACE}\src\Straumr.Console.App\icon.ico" `
+               installer\straumr.iss
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.rid }}
+          path: dist/*
+
+  release:
+    needs: [ version, build ]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Install minisign
+        run: sudo apt-get update && sudo apt-get install -y minisign
+
+      - name: Create signatures and checksums
+        shell: bash
+        env:
+          MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+        run: |
+          if [ -z "$MINISIGN_PRIVATE_KEY" ]; then
+            echo "Missing MINISIGN_PRIVATE_KEY secret" >&2
+            exit 1
+          fi
+
+          echo "$MINISIGN_PRIVATE_KEY" > minisign.key
+          chmod 600 minisign.key
+
+          (cd dist && sha256sum * > sha256sums.txt)
+
+          for file in dist/*; do
+            if [ -f "$file" ]; then
+              echo "" | minisign -S -s minisign.key -m "$file" -x "${file}.minisig"
+            fi
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          generate_release_notes: true
+          files: |
+            dist/*
+
+  aur:
+    needs: [ version, release ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          echo "Host aur.archlinux.org" >> ~/.ssh/config
+          echo "  IdentityFile ~/.ssh/aur" >> ~/.ssh/config
+          echo "  User aur" >> ~/.ssh/config
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Download linux tarball and compute sha256
+        id: checksum
+        run: |
+          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz" -o tarball.tar.gz
+          SHA256=$(sha256sum tarball.tar.gz | cut -d' ' -f1)
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+
+      - name: Clone AUR repo and update
+        env:
+          SHA256: ${{ steps.checksum.outputs.sha256 }}
+        run: |
+          git clone ssh://aur@aur.archlinux.org/straumr-bin.git
+          cd straumr-bin
+
+          cp ../packaging/aur/PKGBUILD .
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+          sed -i "s/^sha256sums=.*/sha256sums=('${SHA256}')/" PKGBUILD
+
+          cat > .SRCINFO << SRCEOF
+          pkgbase = straumr-bin
+          	pkgdesc = CLI tool for managing, saving, and sending HTTP requests across workspaces
+          	pkgver = ${VERSION}
+          	pkgrel = 1
+          	url = https://github.com/albinalm/Straumr
+          	arch = x86_64
+          	license = GPL-3.0-only
+          	provides = straumr
+          	conflicts = straumr
+          	options = !debug
+          	source = straumr-bin-${VERSION}.tar.gz::https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz
+          	sha256sums = ${SHA256}
+
+          pkgname = straumr-bin
+          SRCEOF
+
+          git config user.email "albinalm@proton.me"
+          git config user.name "Albin Alm"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${VERSION}"
+          git push
+
+  winget:
+    needs: [ version, release ]
+    runs-on: windows-latest
+    continue-on-error: true
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Install wingetcreate
+        shell: pwsh
+        run: iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+      - name: Generate winget manifest
+        shell: pwsh
+        env:
+          WINGET_PAT: ${{ secrets.WINGET_PAT }}
+        run: |
+          .\wingetcreate.exe update AlbinAlm.Straumr `
+            --version $env:VERSION `
+            --urls "https://github.com/albinalm/straumr/releases/download/v$env:VERSION/straumr-$env:VERSION-win-x64-setup.exe" `
+            --token $env:WINGET_PAT
+
+      - name: Submit winget PR manually
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_PAT }}
+        run: |
+          $owner = gh api user --jq .login
+          $manifestRoot = "manifests\a\AlbinAlm\Straumr\$env:VERSION"
+          $branch = "straumr-$env:VERSION"
+
+          if (-not (Test-Path $manifestRoot)) {
+            throw "Expected generated manifest directory '$manifestRoot' was not found."
+          }
+
+          gh repo view "$owner/winget-pkgs" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh repo fork microsoft/winget-pkgs --clone=false --remote=false
+          }
+
+          gh repo sync "$owner/winget-pkgs" --source microsoft/winget-pkgs --branch master --force
+          gh repo clone "$owner/winget-pkgs" winget-pkgs -- --depth=1
+
+          Set-Location winget-pkgs
+          git remote set-url origin "https://x-access-token:$env:GH_TOKEN@github.com/$owner/winget-pkgs.git"
+          git checkout -b $branch
+          $targetDir = "manifests/a/AlbinAlm/Straumr/$env:VERSION"
+          New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+          Copy-Item -Path "..\$manifestRoot\*" -Destination $targetDir -Recurse -Force
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add $targetDir
+          git commit -m "Add AlbinAlm.Straumr version $env:VERSION"
+          git push --set-upstream origin $branch
+
+          gh pr create `
+            --repo microsoft/winget-pkgs `
+            --base master `
+            --head "${owner}:$branch" `
+            --title "Add AlbinAlm.Straumr version $env:VERSION" `
+            --body "Automated submission for Straumr version $env:VERSION."
+
+  copr:
+    needs: [ version, release ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install copr-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install copr-cli
+
+      - name: Configure copr-cli
+        run: |
+          mkdir -p ~/.config
+          echo "[copr-cli]" > ~/.config/copr
+          echo "copr_url = https://copr.fedorainfracloud.org" >> ~/.config/copr
+          echo "gssapi = false" >> ~/.config/copr
+          echo "login = ${COPR_LOGIN}" >> ~/.config/copr
+          echo "token = ${COPR_API_TOKEN}" >> ~/.config/copr
+          echo "username = ${COPR_USERNAME}" >> ~/.config/copr
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_API_TOKEN: ${{ secrets.COPR_API_TOKEN }}
+          COPR_USERNAME: ${{ secrets.COPR_USERNAME }}
+
+      - name: Build SRPM and submit to COPR
+        run: |
+          sudo apt-get install -y rpm
+          mkdir -p ~/rpmbuild/{SOURCES,SPECS,SRPMS}
+
+          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz" \
+            -o ~/rpmbuild/SOURCES/straumr-${VERSION}-linux-x64.tar.gz
+
+          cp packaging/copr/straumr.spec ~/rpmbuild/SPECS/
+          sed -i "s/%{VERSION_PLACEHOLDER}/${VERSION}/g" ~/rpmbuild/SPECS/straumr.spec
+
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          DATE=$(date -u '+%a %b %d %Y')
+          CHANGELOG="* ${DATE} Albin Alm <albinalm@proton.me> - ${VERSION}-1"
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges)
+          else
+            COMMITS="- Initial package"
+          fi
+          sed -i "/%changelog/,\$d" ~/rpmbuild/SPECS/straumr.spec
+          printf "\n%%changelog\n%s\n%s\n" "$CHANGELOG" "$COMMITS" >> ~/rpmbuild/SPECS/straumr.spec
+
+          rpmbuild -bs ~/rpmbuild/SPECS/straumr.spec
+
+          SRPM=$(find ~/rpmbuild/SRPMS -name '*.src.rpm' | head -1)
+          copr-cli build straumr "$SRPM"
+
+  apt:
+    needs: [ version, release ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev gpg
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+
+      - name: Checkout apt repo branch
+        run: |
+          git clone --branch apt-repo https://github.com/albinalm/Straumr.git apt-repo 2>/dev/null || {
+            mkdir apt-repo && cd apt-repo && git init && git checkout -b apt-repo
+          }
+
+      - name: Download .deb from release
+        run: |
+          mkdir -p apt-repo/pool/main
+          DEB_NAME=$(curl -sL "https://api.github.com/repos/albinalm/Straumr/releases/tags/v${VERSION}" \
+            | grep -oP '"name":\s*"\K[^"]*\.deb' | head -1)
+          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/${DEB_NAME}" \
+            -o "apt-repo/pool/main/${DEB_NAME}"
+
+      - name: Generate APT repo metadata
+        run: |
+          cd apt-repo
+          mkdir -p dists/stable/main/binary-amd64
+
+          dpkg-scanpackages --multiversion pool/ > dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-amd64/Packages
+
+          cd dists/stable
+          cat > Release << EOF
+          Origin: Straumr
+          Label: Straumr
+          Suite: stable
+          Codename: stable
+          Architectures: amd64
+          Components: main
+          Description: Straumr APT repository
+          EOF
+          sed -i 's/^          //' Release
+
+          apt-ftparchive release . >> Release
+          GPG_KEY_ID=$(gpg --list-keys --keyid-format long | grep -A1 "^pub" | tail -1 | xargs)
+          gpg --batch --yes --default-key "$GPG_KEY_ID" -abs -o Release.gpg Release
+          gpg --batch --yes --default-key "$GPG_KEY_ID" --clearsign -o InRelease Release
+
+      - name: Export public key
+        run: |
+          cd apt-repo
+          gpg --armor --export > straumr.gpg.key
+
+      - name: Push to apt-repo branch
+        run: |
+          cd apt-repo
+          git config user.email "albinalm@proton.me"
+          git config user.name "Albin Alm"
+          git add -A
+          git commit -m "Update APT repo to ${VERSION}" || true
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/albinalm/Straumr.git
+          git push -u origin apt-repo

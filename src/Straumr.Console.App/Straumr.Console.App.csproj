@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <PublishAot>true</PublishAot>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <ApplicationIcon>icon.ico</ApplicationIcon>
+        <Company>Albin Alm</Company>
+        <Product>Straumr</Product>
+        <AssemblyName>straumr</AssemblyName>
+        <IncludeTui Condition="'$(IncludeTui)' == ''">true</IncludeTui>
+
+        <!-- Suppress AOT/trim warnings from third-party packages -->
+        <NoWarn>$(NoWarn);IL2026;IL2104;IL3000;IL3053</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(IncludeTui)' == 'true'">
+        <DefineConstants>$(DefineConstants);INCLUDE_TUI</DefineConstants>
+    </PropertyGroup>
+
+    <!--
+        A CLI-only build and a full build previously shared bin/obj under the same configuration, so an
+        incremental build after switching IncludeTui could leave stale outputs from the other variant in
+        place instead of reliably adding or removing the TUI assembly. The two variants now build to
+        separate trees so alternating between them is always exact without requiring a clean.
+    -->
+    <PropertyGroup Condition="'$(IncludeTui)' != 'true'">
+        <BaseOutputPath>bin\cli-only\</BaseOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Straumr.Console.Cli\Straumr.Console.Cli.csproj"/>
+        <ProjectReference Include="..\Straumr.Console.Tui\Straumr.Console.Tui.csproj"
+                          Condition="'$(IncludeTui)' == 'true'"/>
+        <ProjectReference Include="..\Straumr.Console.Shared\Straumr.Console.Shared.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <IntegrationRootDescriptor Include="..\Straumr.Console.Cli\CliRoots.xml" Condition="Exists('..\Straumr.Console.Cli\CliRoots.xml')"/>
+        <TrimmerRootDescriptor Include="@(IntegrationRootDescriptor)"/>
+        <TrimmerRootDescriptor Include="MyRoots.xml"/>
+    </ItemGroup>
+
+</Project>

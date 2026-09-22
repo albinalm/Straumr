@@ -1,0 +1,119 @@
+using System.Text.Json;
+using JetBrains.Annotations;
+using Spectre.Console;
+using Spectre.Console.Cli;
+using Straumr.Console.Cli.Infrastructure;
+using Straumr.Console.Cli.Models;
+using Straumr.Core.Configuration;
+using Straumr.Core.Enums;
+using Straumr.Core.Exceptions;
+using Straumr.Core.Models;
+using Straumr.Core.Services.Interfaces;
+using static Straumr.Console.Cli.Helpers.ConsoleHelpers;
+using static Straumr.Console.Cli.Commands.Request.RequestCommandHelpers;
+
+namespace Straumr.Console.Cli.Commands.Secret;
+
+[UsedImplicitly]
+public class SecretEditCommand(
+    IStraumrSecretService secretService,
+    IStraumrFileService fileService) : AsyncCommand<SecretEditCommandSettings>
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, SecretEditCommandSettings settings,
+        CancellationToken cancellation)
+    {
+        string? editor = Environment.GetEnvironmentVariable("EDITOR");
+        if (editor is null)
+        {
+            throw new StraumrException("No default editor configured", StraumrError.MissingEntry);
+        }
+
+        StraumrSecret secret;
+        string tempPath;
+        try
+        {
+            secret = await GetSecretAsync(
+                secretService, settings.Identifier, cancellationToken: cancellation);
+            tempPath = await CreateEditorFileAsync(
+                secret, StraumrJsonContext.Default.StraumrSecret, cancellation,
+                secretService.PathFor(secret.Id));
+        }
+        catch (StraumrException ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+        }
+        catch (Exception ex)
+        {
+            WriteError(ex.Message, settings.Json);
+            return -1;
+        }
+
+        try
+        {
+            int? exitCode = await LaunchEditorAsync(editor, tempPath, cancellation);
+            if (exitCode is not null)
+            {
+                return exitCode.Value;
+            }
+
+            string editedJson = await File.ReadAllTextAsync(tempPath, cancellation);
+            StraumrSecret? deserialized;
+            try
+            {
+                deserialized = JsonSerializer.Deserialize<StraumrSecret>(editedJson,
+                    StraumrJsonContext.Default.StraumrSecret);
+            }
+            catch (JsonException ex)
+            {
+                WriteError($"Invalid secret JSON: {ex.Message}", settings.Json);
+                return 1;
+            }
+
+            if (deserialized is null)
+            {
+                WriteError("Invalid secret JSON.", settings.Json);
+                return 1;
+            }
+
+            if (deserialized.Id != secret.Id)
+            {
+                WriteError("Secret ID cannot be changed.", settings.Json);
+                return 1;
+            }
+
+            try
+            {
+                fileService.CarryCommentsFrom(secretService.PathFor(deserialized.Id), editedJson);
+                await secretService.SaveAsync(deserialized, cancellation);
+                if (settings.Json)
+                {
+                    var result = new SecretListItem(deserialized.Id.ToString(), deserialized.Name, "Valid");
+                    System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.SecretListItem));
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[green]Updated secret[/] [bold]{deserialized.Name}[/] ({deserialized.Id})");
+                }
+                return 0;
+            }
+            catch (StraumrException ex)
+            {
+                WriteError(ex.Message, settings.Json);
+                return ex.Reason == StraumrError.EntryNotFound ? 1 : -1;
+            }
+            catch (Exception ex)
+            {
+                WriteError(ex.Message, settings.Json);
+                return -1;
+            }
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+}

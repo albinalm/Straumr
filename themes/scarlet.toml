@@ -1,0 +1,63 @@
+# A graphite-black Straumr palette with vivid scarlet interaction accents.
+#
+# The surfaces and text are neutral graphite rather than wine-toned. True red is
+# reserved for selection, focus, keys, POST, and the wordmark so it lands with
+# maximum contrast against the otherwise colourless chrome.
+name = "Scarlet"
+
+[colors]
+background         = "#0D0D0F"
+
+# The only surface raised above the background, used by an identifier badge.
+raised             = "#242426"
+
+selection          = "#741919"
+selection-inactive = "#552828"
+hover              = "#202022"
+border             = "#48484C"
+
+# Neutral scroll chrome keeps red exclusive to interactive emphasis.
+scroll-track       = "#29292C"
+scroll-thumb       = "#56565B"
+
+text               = "#DFDFE2"
+text-bright        = "#F5F5F7"
+muted              = "#9D9DA3"
+muted-bright       = "#C6C6CB"
+
+# A saturated true red replaces Straumr blue for interaction and identity.
+accent             = "#FF4D4D"
+amber              = "#FFC857"
+green              = "#3DDC97"
+red                = "#FF6B6B"
+
+# Red for text on the selection band, where the base red is too close to the ground.
+red-bright         = "#FFB3B3"
+purple             = "#B79CFF"
+brand              = "#FF4D4D"
+
+[methods]
+get                = "#3DDC97"
+post               = "#FF4D4D"
+put                = "#FFC857"
+patch              = "#B79CFF"
+delete             = "#FF6B6B"
+other              = "#C6C6CB"
+
+# A response body, coloured by what each token is. The scarlet is the theme, so the body
+# gets it too: the member names carry it, which makes the shape of a document the first
+# thing the eye lands on, and the structure around them recedes into the graphite.
+[code]
+key                = "#FF4D4D"
+string             = "#3DDC97"
+number             = "#FFC857"
+
+# The literals, kept in the same family a step apart: true/false take the lifted red, pale
+# enough never to be mistaken for a member name; an absent value sits below the muted text,
+# the same way an empty count reads inert everywhere else.
+boolean            = "#FFB3B3"
+null               = "#8A8A90"
+
+# Braces, brackets, commas and colons. Dimmer than anything they hold, so the shape of the
+# document is there to follow without competing with what it says.
+punctuation        = "#64646A"

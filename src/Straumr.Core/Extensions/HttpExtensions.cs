@@ -1,0 +1,87 @@
+using System.Diagnostics;
+using System.Text;
+
+namespace Straumr.Core.Extensions;
+
+public static class HttpExtensions
+{
+    public static async Task<StraumrResponse> WithMetrics(
+        this Task<HttpResponseMessage> requestTask,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            using HttpResponseMessage response = await requestTask;
+            TimeSpan timeToHeaders = stopwatch.Elapsed;
+            byte[] raw = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            stopwatch.Stop();
+            string body = DecodeBody(raw, response.Content.Headers.ContentType?.CharSet);
+
+            Dictionary<string, IEnumerable<string>> headers = new();
+            foreach (KeyValuePair<string, IEnumerable<string>> h in response.Headers)
+            {
+                headers[h.Key] = h.Value.ToArray();
+            }
+
+            foreach (KeyValuePair<string, IEnumerable<string>> h in response.Content.Headers)
+            {
+                headers[h.Key] = h.Value.ToArray();
+            }
+
+            return new StraumrResponse
+            {
+                StatusCode = response.StatusCode,
+                Sent = DateTimeOffset.UtcNow,
+                Duration = stopwatch.Elapsed,
+                TimeToHeaders = timeToHeaders,
+                BodyDownloadDuration = stopwatch.Elapsed - timeToHeaders,
+                Content = body,
+                RawContent = raw,
+                Exception = null,
+                ResponseHeaders = headers,
+                ReasonPhrase = response.ReasonPhrase,
+                HttpVersion = response.Version
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            return new StraumrResponse
+            {
+                Content = null,
+                RawContent = null,
+                Sent = DateTimeOffset.UtcNow,
+                Duration = stopwatch.Elapsed,
+                Exception = ex,
+                StatusCode = null
+            };
+        }
+    }
+
+    private static string DecodeBody(byte[] raw, string? charset)
+    {
+        if (raw.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(charset))
+        {
+            try
+            {
+                var encoding = Encoding.GetEncoding(charset);
+                return encoding.GetString(raw);
+            }
+            catch (ArgumentException)
+            {
+            }
+        }
+
+        return Encoding.UTF8.GetString(raw);
+    }
+}

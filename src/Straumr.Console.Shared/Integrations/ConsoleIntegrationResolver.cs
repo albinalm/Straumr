@@ -1,0 +1,60 @@
+namespace Straumr.Console.Shared.Integrations;
+
+public static class ConsoleIntegrationResolver
+{
+    public static (IConsoleIntegration DefaultIntegration, string[] RemainingArgs) Resolve(
+        IReadOnlyList<IConsoleIntegration> integrations,
+        string[] args)
+    {
+        if (integrations.Count == 0)
+        {
+            throw new InvalidOperationException("No console integrations have been registered.");
+        }
+
+        IConsoleIntegration defaultIntegration =
+            integrations.FirstOrDefault(integration => integration.IsDefault) ?? integrations[0];
+
+        if (args.Length == 0)
+        {
+            return (defaultIntegration, args);
+        }
+
+        string requestedName = args[0];
+        IConsoleIntegration? requested = integrations.FirstOrDefault(integration =>
+            NameMatches(integration.Name, requestedName) || HasMatchingAlias(integration, requestedName));
+
+        if (requested is not null)
+        {
+            string[] remaining = args.Skip(1).ToArray();
+            return (requested, remaining);
+        }
+
+        IConsoleIntegration? byCommand = integrations.FirstOrDefault(integration =>
+            HasMatchingCommand(integration, requestedName));
+
+        if (byCommand is not null)
+        {
+            return (byCommand, args);
+        }
+
+        IConsoleIntegration[] argumentIntegrations = integrations
+            .Where(integration => !integration.OnlyRunOnEntrypoint)
+            .ToArray();
+
+        if (argumentIntegrations.Length == 1)
+        {
+            return (argumentIntegrations[0], args);
+        }
+
+        return (defaultIntegration, args);
+    }
+
+    private static bool NameMatches(string left, string right) =>
+        left.Equals(right, StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasMatchingAlias(IConsoleIntegration integration, string name) =>
+        integration.Aliases.Any(alias => NameMatches(alias, name));
+
+    private static bool HasMatchingCommand(IConsoleIntegration integration, string name) =>
+        integration.Commands.Any(command => NameMatches(command, name));
+}

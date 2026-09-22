@@ -1,0 +1,64 @@
+# A charcoal and oxblood Straumr palette. Fixed colours: this theme ignores the
+# terminal's scheme.
+#
+# The background stays nearly neutral, while raised surfaces, selection, borders,
+# and chrome introduce progressively brighter burgundy. Text is warmed slightly so
+# it belongs to the palette without turning pink.
+name = "Oxblood"
+
+[colors]
+background         = "#100D0F"
+
+# The only surface raised above the background, used by an identifier badge.
+raised             = "#21191D"
+
+selection          = "#661D31"
+selection-inactive = "#38242B"
+hover              = "#1B1518"
+border             = "#88505F"
+
+# Scroll bar chrome stays quieter than content while remaining visible on charcoal.
+scroll-track       = "#24191D"
+scroll-thumb       = "#8F5665"
+
+text               = "#E8DCE0"
+text-bright        = "#FFF4F6"
+muted              = "#A99098"
+muted-bright       = "#D2BCC3"
+
+# Wine red carries interaction and identity; the remaining hues retain their
+# semantic meaning while sharing the palette's softer, warmer character.
+accent             = "#E06A88"
+amber              = "#D6A85C"
+green              = "#65B990"
+red                = "#E46F7D"
+
+# Red for text on the selection band, where the base red is too close to the ground.
+red-bright         = "#FFB1BA"
+purple             = "#C58CB6"
+brand              = "#E06A88"
+
+[methods]
+get                = "#65B990"
+post               = "#E06A88"
+put                = "#D6A85C"
+patch              = "#C58CB6"
+delete             = "#E46F7D"
+other              = "#D2BCC3"
+
+# A response body, coloured by what each token is. The wine accent is spent on interaction,
+# so the body takes the palette's cooler hues for its values and lets the punctuation fall
+# back towards the charcoal — the same softer, warmer character as the rest of the theme.
+[code]
+key                = "#C58CB6"
+string             = "#65B990"
+number             = "#D6A85C"
+
+# The literals. true/false take the palette's red, which nothing else in a body uses; an
+# absent value sits below the muted text, the same way an empty count reads inert.
+boolean            = "#E46F7D"
+null               = "#8F7A81"
+
+# Braces, brackets, commas and colons. Dimmer than anything they hold, so the shape of the
+# document is there to follow without competing with what it says.
+punctuation        = "#77626A"
