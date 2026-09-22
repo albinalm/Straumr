@@ -4,7 +4,6 @@
 
 This section gates everything below it. Satisfy it before writing code.
 
-- **A GitHub MCP connection is a prerequisite for working on this project with agency.** The repository is `albinalm/Straumr`. If you cannot read issues or retrieve GitHub data through a GitHub MCP server, stop and tell the user a valid GitHub MCP connection is required. Do not work around it — not with the `gh` CLI, not with a web fetch, not by assuming an issue number. Without it you may answer questions and inspect the code, but you may not branch, commit, or open a pull request.
 - **All new development happens on a feature branch.** Never commit to `main`, and never merge into it. Work reaches `main` through a pull request, reviewed and merged by a person — an agent opens the PR and stops there.
 - **Every feature branch has a linked GitHub issue.** Look for an existing issue first. If none covers the work, you may create one and branch from it when the user asks for the work — confirm the title and body with them first, then keep going. Never invent an issue number, and never branch without one.
 - **Branch name: `<initials>/<issue-id>-<feature-description>`** — the author's initials, lowercase, then the issue number, then a short hyphenated description.
