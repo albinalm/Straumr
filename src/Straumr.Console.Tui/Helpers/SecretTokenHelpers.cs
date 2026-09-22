@@ -34,13 +34,9 @@ internal static class SecretTokenHelpers
     public static string Prefix(string text, SecretTokenModel token) =>
         text.Substring(token.NameStart, token.PrefixLength);
 
-    public static string Complete(string text, SecretTokenModel token, string name, out int caret)
-    {
-        caret = token.NameStart + name.Length + Closer.Length;
-        return string.Concat(
-            text.AsSpan(0, token.NameStart),
-            name,
-            token.HasCloser ? string.Empty : Closer,
-            text.AsSpan(token.NameStart + token.ReplaceLength));
-    }
+    public static string Replacement(SecretTokenModel token, string name) =>
+        token.HasCloser ? name : name + Closer;
+
+    public static int CaretAfter(SecretTokenModel token, string name) =>
+        token.NameStart + name.Length + Closer.Length;
 }
