@@ -48,12 +48,12 @@ internal sealed class WorkspaceFormDialog
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto })
             .ColumnGap(1)
-            .Cell(_locationInput, 0, 0)
+            .Cell(_locationInput.Root, 0, 0)
             .Cell(browseButton, 0, 1)
             .Cell(BuildResolvedLocation(), 1, 0)
             .HorizontalAlignment(Align.Stretch);
 
-        _nameField = new ValidationPresenter(_nameInput)
+        _nameField = new ValidationPresenter(_nameInput.Root)
         {
             Placement = ValidationPlacement.Below
         };

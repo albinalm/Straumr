@@ -56,6 +56,9 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         {
         }
 
+        await SecretCatalogService.LoadAsync(
+            serviceProvider.GetRequiredService<IStraumrSecretService>(), cancellationToken);
+
         var themeSelection = serviceProvider.GetRequiredService<ThemeSelectionService>();
         themeSelection.Apply();
 

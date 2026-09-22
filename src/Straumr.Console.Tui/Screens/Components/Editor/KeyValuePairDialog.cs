@@ -46,7 +46,7 @@ internal sealed class KeyValuePairDialog
         _key.SetText(initialKey);
         _key.CaretIndex = initialKey.Length;
         _key.AutoFocus = true;
-        _keyField = EditorVisualHelpers.Validated(_key);
+        _keyField = EditorVisualHelpers.Validated(_key.Root);
         _key.Changed = () => _keyField.Message = null;
 
         string text = startsAsFile ? string.Empty : initialValue;
@@ -54,7 +54,7 @@ internal sealed class KeyValuePairDialog
 
         string path = startsAsFile ? initialValue[1..] : string.Empty;
         _path = Field("path to the file to upload", path);
-        _pathField = EditorVisualHelpers.Validated(_path);
+        _pathField = EditorVisualHelpers.Validated(_path.Root);
         _path.Changed = () => _pathField.Message = null;
 
         VStack content = new VStack(
@@ -70,7 +70,7 @@ internal sealed class KeyValuePairDialog
 
         content.Add(new TextBlock(() => _isFile.Value ? "File" : valueLabel).Style(StraumrStyleService.MutedText));
         _filePicker = BuildFilePicker();
-        content.Add(new ZStack(_value, _filePicker)
+        content.Add(new ZStack(_value.Root, _filePicker)
             .HorizontalAlignment(Align.Stretch));
         content.Add(new TextBlock(() => _isFile.Value
                 ? "The file is read when the request is sent, not now, so it can change between sends."
@@ -111,7 +111,7 @@ internal sealed class KeyValuePairDialog
 
     private void SyncKind()
     {
-        _value.IsVisible = !_isFile.Value;
+        _value.Root.IsVisible = !_isFile.Value;
         _filePicker.IsVisible = _isFile.Value;
     }
 

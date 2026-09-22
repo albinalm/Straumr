@@ -192,6 +192,10 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `KeyValueField.Add` | `a` | · | `F7` | · |
 | `KeyValueField.Edit` | `e` | · | `F4` | · |
 | `KeyValueField.Remove` | `d` | · | `F8` | `Delete` |
+| `SecretSuggestions.Next` | `Down` | · | · | · |
+| `SecretSuggestions.Previous` | `Up` | · | · | · |
+| `SecretSuggestions.Insert` | `Enter` | · | · | · |
+| `SecretSuggestions.Dismiss` | `Escape` | `Ctrl+G` | · | · |
 
 ### Dialogs
 

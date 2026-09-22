@@ -165,6 +165,7 @@ public sealed class SecretScreen : ITuiScreen
 
             _items = _items.OrderByDescending(item => item.Secret?.LastAccessed ?? DateTimeOffset.MinValue)
                 .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            SecretCatalogService.Set(_items.Where(item => !item.IsBroken).Select(item => item.Name));
             _references.Value = await KnownSecretReferenceService.LoadAsync(_state.State.Workspaces,
                 _workspaces, _requests, _auths, cancellationToken);
             ApplyFilter(_filter.Text, selected);

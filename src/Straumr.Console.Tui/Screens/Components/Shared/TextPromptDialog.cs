@@ -29,7 +29,7 @@ internal sealed class TextPromptDialog
         _input.AutoFocus = true;
         _input.SetText(initialValue);
         _input.CaretIndex = initialValue.Length;
-        _field = new ValidationPresenter(_input)
+        _field = new ValidationPresenter(_input.Root)
         {
             Placement = ValidationPlacement.Below
         };
