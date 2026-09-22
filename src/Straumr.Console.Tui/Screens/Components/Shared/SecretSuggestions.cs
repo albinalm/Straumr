@@ -1,6 +1,7 @@
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
+using XenoAtom.Terminal.UI.Geometry;
 using XenoAtom.Terminal.UI.Text;
 
 namespace Straumr.Console.Tui.Screens.Components.Shared;
@@ -9,13 +10,19 @@ internal sealed class SecretSuggestions
 {
     private const int MaxRows = 8;
 
+    private const int BorderRows = 2;
+
+    private const int FooterRows = 2;
+
     private readonly TextBox _input;
+    private readonly State<int> _capacity = new(MaxRows);
     private readonly State<string[]> _matches = new([]);
     private readonly State<int> _offset = new(0);
     private readonly State<bool> _open = new(false);
     private readonly State<int> _selected = new(0);
     private bool _isRewriting;
     private SecretTokenModel _token;
+    private int _visibleRows = MaxRows;
 
     public SecretSuggestions(TextBox input)
     {
@@ -64,8 +71,15 @@ internal sealed class SecretSuggestions
             _offset.Value = 0;
         }
 
+        _capacity.Value = Capacity();
         _open.Value = true;
     }
+
+    private static int Window(int offset, int selected, int count, int rows) =>
+        Math.Clamp(
+            offset,
+            Math.Max(0, selected - rows + 1),
+            Math.Max(0, Math.Min(selected, count - rows)));
 
     private void AddCommand(string id, string label, CommandPresentation presentation, Action execute) =>
         _input.AddCommand(new Command
@@ -81,6 +95,30 @@ internal sealed class SecretSuggestions
             Execute = _ => execute()
         });
 
+    private int Capacity()
+    {
+        Rectangle input = _input.Bounds;
+        if (input.Height <= 0 || _input.App is not { } app)
+        {
+            return MaxRows;
+        }
+
+        int limit = app.Root.Bounds.Bottom - FooterRows;
+        for (Visual? node = _input.Parent; node is not null; node = node.Parent)
+        {
+            if (node is not (ScrollViewer or FlexiblePane) || node.Bounds.Height <= 0)
+            {
+                continue;
+            }
+
+            int inset = node is FlexiblePane ? ResourceScreenLayoutHelpers.PaneInset.Bottom : 0;
+            limit = Math.Min(limit, node.Bounds.Bottom - inset);
+            break;
+        }
+
+        return Math.Clamp(limit - input.Bottom - BorderRows, 1, MaxRows);
+    }
+
     private Visual Build()
     {
         string[] names = _matches.Value;
@@ -89,8 +127,12 @@ internal sealed class SecretSuggestions
             return new TextBlock(string.Empty);
         }
 
-        int offset = Math.Clamp(_offset.Value, 0, Math.Max(0, names.Length - 1));
-        int rows = Math.Min(MaxRows, names.Length - offset);
+        int capacity = _capacity.Value;
+        bool counted = names.Length > capacity && capacity >= 2;
+        int rows = Math.Min(names.Length, counted ? capacity - 1 : capacity);
+        _visibleRows = rows;
+
+        int offset = Window(_offset.Value, _selected.Value, names.Length, rows);
         List<Visual> lines = new(rows + 1);
         for (int index = 0; index < rows; index++)
         {
@@ -103,7 +145,7 @@ internal sealed class SecretSuggestions
                 .HorizontalAlignment(Align.Stretch));
         }
 
-        if (names.Length > rows)
+        if (counted)
         {
             lines.Add(new TextBlock(() => $" {_selected.Value + 1}/{names.Length} ")
                 .Style(StraumrStyleService.MutedText));
@@ -122,10 +164,7 @@ internal sealed class SecretSuggestions
 
         int next = (_selected.Value + step + names.Length) % names.Length;
         _selected.Value = next;
-        _offset.Value = Math.Clamp(
-            _offset.Value,
-            Math.Max(0, next - MaxRows + 1),
-            Math.Max(0, Math.Min(next, names.Length - MaxRows)));
+        _offset.Value = Window(_offset.Value, next, names.Length, _visibleRows);
     }
 
     private void Insert()
