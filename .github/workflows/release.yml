@@ -7,9 +7,14 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   version:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.meta.outputs.version }}
     steps:
@@ -23,15 +28,14 @@ jobs:
 
   build:
     needs: version
+    timeout-minutes: 60
     strategy:
       matrix:
         include:
           - rid: win-x64
             os: windows-latest
-            artifact_ext: zip
           - rid: linux-x64
             os: ubuntu-latest
-            artifact_ext: tar.gz
     runs-on: ${{ matrix.os }}
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -52,12 +56,17 @@ jobs:
             -c Release -r ${{ matrix.rid }} \
             -o artifacts/${{ matrix.rid }} \
             -p:IncludeTui=true \
-            /p:Version=${VERSION} \
-            /p:FileVersion=${VERSION} \
-            /p:InformationalVersion=${VERSION}
+            "/p:Version=${VERSION}" \
+            "/p:FileVersion=${VERSION}" \
+            "/p:InformationalVersion=${VERSION}"
+
+          if [ ! -f "artifacts/${{ matrix.rid }}/straumr" ]; then
+            echo "Publish did not produce artifacts/${{ matrix.rid }}/straumr" >&2
+            exit 1
+          fi
 
           mkdir -p dist
-          tar -C artifacts/${{ matrix.rid }} -czf dist/straumr-${VERSION}-${{ matrix.rid }}.tar.gz straumr
+          tar -C artifacts/${{ matrix.rid }} -czf "dist/straumr-${VERSION}-${{ matrix.rid }}.tar.gz" straumr
 
       - name: Build .deb package (Linux)
         if: runner.os == 'Linux'
@@ -65,10 +74,18 @@ jobs:
         env:
           NFPM_VERSION: 2.47.0
         run: |
-          curl -fsSLo nfpm.deb "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
+          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o nfpm.deb \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
           sudo dpkg -i nfpm.deb
           cp artifacts/${{ matrix.rid }}/straumr .
           VERSION=${VERSION} nfpm pkg -f packaging/deb/nfpm.yaml -p deb -t dist/
+
+          if [ ! -f "dist/straumr_${VERSION}_amd64.deb" ]; then
+            echo "nfpm did not produce dist/straumr_${VERSION}_amd64.deb" >&2
+            ls -la dist >&2
+            exit 1
+          fi
 
       - name: Publish (Windows)
         if: runner.os == 'Windows'
@@ -81,6 +98,10 @@ jobs:
             /p:Version=${env:VERSION} `
             /p:FileVersion=${env:VERSION} `
             /p:InformationalVersion=${env:VERSION}
+
+          if (-not (Test-Path "artifacts/${{ matrix.rid }}/straumr.exe")) {
+            throw "Publish did not produce artifacts/${{ matrix.rid }}/straumr.exe"
+          }
 
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path artifacts/${{ matrix.rid }}/straumr.exe -DestinationPath dist/straumr-${env:VERSION}-${{ matrix.rid }}.zip
@@ -97,15 +118,23 @@ jobs:
                /DMyIconFile="${env:GITHUB_WORKSPACE}\src\Straumr.Console.App\icon.ico" `
                installer\straumr.iss
 
+          $setup = "dist/straumr-$env:VERSION-win-x64-setup.exe"
+          if (-not (Test-Path $setup)) {
+            Get-ChildItem dist | Format-Table -AutoSize | Out-String | Write-Host
+            throw "Inno Setup did not produce $setup"
+          }
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.rid }}
           path: dist/*
+          if-no-files-found: error
 
   release:
     needs: [ version, build ]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
@@ -115,6 +144,28 @@ jobs:
           pattern: dist-*
           path: dist
           merge-multiple: true
+
+      - name: Verify expected assets
+        shell: bash
+        run: |
+          missing=0
+          for file in \
+            "straumr-${VERSION}-linux-x64.tar.gz" \
+            "straumr_${VERSION}_amd64.deb" \
+            "straumr-${VERSION}-win-x64.zip" \
+            "straumr-${VERSION}-win-x64-setup.exe"
+          do
+            if [ ! -f "dist/${file}" ]; then
+              echo "Missing expected asset: ${file}" >&2
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "--- dist contains ---" >&2
+            ls -la dist >&2
+            exit 1
+          fi
 
       - name: Install minisign
         run: sudo apt-get update && sudo apt-get install -y minisign
@@ -132,12 +183,15 @@ jobs:
           echo "$MINISIGN_PRIVATE_KEY" > minisign.key
           chmod 600 minisign.key
 
-          (cd dist && sha256sum * > sha256sums.txt)
+          (cd dist && find . -maxdepth 1 -type f ! -name 'sha256sums.txt' -printf '%P\n' | sort | xargs sha256sum > sha256sums.txt)
 
+          shopt -s nullglob
           for file in dist/*; do
-            if [ -f "$file" ]; then
-              echo "" | minisign -S -s minisign.key -m "$file" -x "${file}.minisig"
-            fi
+            case "$file" in
+              *.minisig) continue ;;
+            esac
+            [ -f "$file" ] || continue
+            echo "" | minisign -S -s minisign.key -m "$file" -x "${file}.minisig"
           done
 
       - name: Create GitHub Release
@@ -146,20 +200,28 @@ jobs:
           tag_name: v${{ env.VERSION }}
           name: v${{ env.VERSION }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             dist/*
 
   aur:
     needs: [ version, release ]
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 20
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - name: Set up SSH
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
         run: |
+          if [ -z "$AUR_SSH_KEY" ]; then
+            echo "Missing AUR_SSH_KEY secret" >&2
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
-          echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
           chmod 600 ~/.ssh/aur
           echo "Host aur.archlinux.org" >> ~/.ssh/config
           echo "  IdentityFile ~/.ssh/aur" >> ~/.ssh/config
@@ -169,7 +231,9 @@ jobs:
       - name: Download linux tarball and compute sha256
         id: checksum
         run: |
-          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz" -o tarball.tar.gz
+          curl -fsSL --retry 10 --retry-delay 6 --retry-all-errors \
+            -o tarball.tar.gz \
+            "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz"
           SHA256=$(sha256sum tarball.tar.gz | cut -d' ' -f1)
           echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
 
@@ -212,10 +276,28 @@ jobs:
   winget:
     needs: [ version, release ]
     runs-on: windows-latest
-    continue-on-error: true
+    timeout-minutes: 30
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      SETUP_URL: https://github.com/albinalm/straumr/releases/download/v${{ needs.version.outputs.version }}/straumr-${{ needs.version.outputs.version }}-win-x64-setup.exe
     steps:
+      - name: Wait for release asset
+        shell: pwsh
+        run: |
+          for ($i = 1; $i -le 10; $i++) {
+            try {
+              Invoke-WebRequest -Uri $env:SETUP_URL -Method Head -UseBasicParsing | Out-Null
+              Write-Host "Asset reachable after $i attempt(s)."
+              exit 0
+            }
+            catch {
+              Write-Host "Attempt ${i}: asset not reachable yet."
+              Start-Sleep -Seconds 15
+            }
+          }
+
+          throw "Release asset never became reachable: $env:SETUP_URL"
+
       - name: Install wingetcreate
         shell: pwsh
         run: iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
@@ -225,9 +307,13 @@ jobs:
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
         run: |
+          if (-not $env:WINGET_PAT) {
+            throw "Missing WINGET_PAT secret"
+          }
+
           .\wingetcreate.exe update AlbinAlm.Straumr `
             --version $env:VERSION `
-            --urls "https://github.com/albinalm/straumr/releases/download/v$env:VERSION/straumr-$env:VERSION-win-x64-setup.exe" `
+            --urls $env:SETUP_URL `
             --token $env:WINGET_PAT
 
       - name: Submit winget PR manually
@@ -274,11 +360,13 @@ jobs:
   copr:
     needs: [ version, release ]
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 30
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install copr-cli
         run: |
@@ -287,7 +375,16 @@ jobs:
           pip3 install copr-cli
 
       - name: Configure copr-cli
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_API_TOKEN: ${{ secrets.COPR_API_TOKEN }}
+          COPR_USERNAME: ${{ secrets.COPR_USERNAME }}
         run: |
+          if [ -z "$COPR_LOGIN" ] || [ -z "$COPR_API_TOKEN" ] || [ -z "$COPR_USERNAME" ]; then
+            echo "Missing one of COPR_LOGIN, COPR_API_TOKEN, COPR_USERNAME" >&2
+            exit 1
+          fi
+
           mkdir -p ~/.config
           echo "[copr-cli]" > ~/.config/copr
           echo "copr_url = https://copr.fedorainfracloud.org" >> ~/.config/copr
@@ -295,23 +392,21 @@ jobs:
           echo "login = ${COPR_LOGIN}" >> ~/.config/copr
           echo "token = ${COPR_API_TOKEN}" >> ~/.config/copr
           echo "username = ${COPR_USERNAME}" >> ~/.config/copr
-        env:
-          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
-          COPR_API_TOKEN: ${{ secrets.COPR_API_TOKEN }}
-          COPR_USERNAME: ${{ secrets.COPR_USERNAME }}
 
       - name: Build SRPM and submit to COPR
         run: |
           sudo apt-get install -y rpm
           mkdir -p ~/rpmbuild/{SOURCES,SPECS,SRPMS}
 
-          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz" \
-            -o ~/rpmbuild/SOURCES/straumr-${VERSION}-linux-x64.tar.gz
+          curl -fsSL --retry 10 --retry-delay 6 --retry-all-errors \
+            -o "$HOME/rpmbuild/SOURCES/straumr-${VERSION}-linux-x64.tar.gz" \
+            "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/straumr-${VERSION}-linux-x64.tar.gz"
 
           cp packaging/copr/straumr.spec ~/rpmbuild/SPECS/
           sed -i "s/%{VERSION_PLACEHOLDER}/${VERSION}/g" ~/rpmbuild/SPECS/straumr.spec
 
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          git fetch --tags --force --quiet
+          PREV_TAG=$(git tag --list 'v*' --sort=-creatordate | grep -v "^v${VERSION}\$" | head -1)
           DATE=$(date -u '+%a %b %d %Y')
           CHANGELOG="* ${DATE} Albin Alm <albinalm@proton.me> - ${VERSION}-1"
           if [ -n "$PREV_TAG" ]; then
@@ -319,43 +414,70 @@ jobs:
           else
             COMMITS="- Initial package"
           fi
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- Packaging update"
+          fi
           sed -i "/%changelog/,\$d" ~/rpmbuild/SPECS/straumr.spec
           printf "\n%%changelog\n%s\n%s\n" "$CHANGELOG" "$COMMITS" >> ~/rpmbuild/SPECS/straumr.spec
 
           rpmbuild -bs ~/rpmbuild/SPECS/straumr.spec
 
           SRPM=$(find ~/rpmbuild/SRPMS -name '*.src.rpm' | head -1)
+          if [ -z "$SRPM" ]; then
+            echo "rpmbuild did not produce an SRPM" >&2
+            exit 1
+          fi
+
           copr-cli build straumr "$SRPM"
 
   apt:
     needs: [ version, release ]
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 20
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      APT_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
     steps:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y dpkg-dev gpg
 
       - name: Import GPG key
-        run: |
-          echo "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
+            echo "Missing APT_GPG_PRIVATE_KEY secret" >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
 
       - name: Checkout apt repo branch
         run: |
-          git clone --branch apt-repo https://github.com/albinalm/Straumr.git apt-repo 2>/dev/null || {
-            mkdir apt-repo && cd apt-repo && git init && git checkout -b apt-repo
-          }
+          if git clone --branch apt-repo --depth 1 "$APT_REMOTE" apt-repo; then
+            echo "Cloned existing apt-repo branch."
+          else
+            echo "No apt-repo branch yet; initialising a new one."
+            mkdir -p apt-repo
+            git -C apt-repo init -b apt-repo
+            git -C apt-repo remote add origin "$APT_REMOTE"
+          fi
 
-      - name: Download .deb from release
+      - name: Download .deb from build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-linux-x64
+          path: apt-repo/pool/main
+
+      - name: Keep only .deb packages in pool
         run: |
-          mkdir -p apt-repo/pool/main
-          DEB_NAME=$(curl -sL "https://api.github.com/repos/albinalm/Straumr/releases/tags/v${VERSION}" \
-            | grep -oP '"name":\s*"\K[^"]*\.deb' | head -1)
-          curl -sL "https://github.com/albinalm/Straumr/releases/download/v${VERSION}/${DEB_NAME}" \
-            -o "apt-repo/pool/main/${DEB_NAME}"
+          find apt-repo/pool/main -type f ! -name '*.deb' -delete
+
+          if [ ! -f "apt-repo/pool/main/straumr_${VERSION}_amd64.deb" ]; then
+            echo "Expected apt-repo/pool/main/straumr_${VERSION}_amd64.deb" >&2
+            ls -la apt-repo/pool/main >&2
+            exit 1
+          fi
 
       - name: Generate APT repo metadata
         run: |
@@ -378,7 +500,13 @@ jobs:
           sed -i 's/^          //' Release
 
           apt-ftparchive release . >> Release
-          GPG_KEY_ID=$(gpg --list-keys --keyid-format long | grep -A1 "^pub" | tail -1 | xargs)
+
+          GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5; exit }')
+          if [ -z "$GPG_KEY_ID" ]; then
+            echo "No secret GPG key available for signing" >&2
+            exit 1
+          fi
+
           gpg --batch --yes --default-key "$GPG_KEY_ID" -abs -o Release.gpg Release
           gpg --batch --yes --default-key "$GPG_KEY_ID" --clearsign -o InRelease Release
 
@@ -394,5 +522,4 @@ jobs:
           git config user.name "Albin Alm"
           git add -A
           git commit -m "Update APT repo to ${VERSION}" || true
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/albinalm/Straumr.git
           git push -u origin apt-repo
