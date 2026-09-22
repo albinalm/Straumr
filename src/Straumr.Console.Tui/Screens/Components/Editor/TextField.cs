@@ -24,7 +24,7 @@ internal sealed class TextField : EditorField
         _validate = validate;
         _input = FormTextBox.Create(placeholder, secret);
         _input.SetText(initial);
-        _presenter = EditorVisualHelpers.Validated(_input);
+        _presenter = EditorVisualHelpers.Validated(_input.Root);
         _input.Changed = () =>
         {
             _presenter.Message = null;

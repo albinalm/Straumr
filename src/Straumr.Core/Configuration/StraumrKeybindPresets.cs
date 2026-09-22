@@ -39,6 +39,7 @@ public static class StraumrKeybindPresets
             ["ConfirmDialog.Cancel"] = "Ctrl+G",
             ["BrowserDialog.Cancel"] = "Ctrl+G",
             ["BrowserDialog.Location.Cancel"] = "Ctrl+G",
+            ["SecretSuggestions.Dismiss"] = "Ctrl+G",
             ["Editor.Close"] = "Ctrl+G",
             ["Response.Back"] = "Ctrl+G",
             ["Response.Cancel"] = "Ctrl+G",

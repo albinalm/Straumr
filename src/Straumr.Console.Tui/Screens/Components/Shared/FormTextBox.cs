@@ -7,6 +7,16 @@ namespace Straumr.Console.Tui.Screens.Components.Shared;
 
 internal sealed class FormTextBox : TextBox
 {
+    private readonly SecretSuggestions _suggestions;
+
+    public FormTextBox()
+    {
+        _suggestions = new SecretSuggestions(this);
+        Root = new VStack(this, _suggestions.Root).HorizontalAlignment(Align.Stretch);
+    }
+
+    public Visual Root { get; }
+
     public char? PendingEcho { get; set; }
 
     public Action? Changed { get; set; }
@@ -51,5 +61,11 @@ internal sealed class FormTextBox : TextBox
     {
         base.OnDocumentChanged(e);
         Changed?.Invoke();
+    }
+
+    protected override void OnEditorStateChanged()
+    {
+        base.OnEditorStateChanged();
+        _suggestions.Sync();
     }
 }

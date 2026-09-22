@@ -66,6 +66,8 @@ Editing a request opens a form: name, method, URL, auth, and the header and para
 
 Both paths need `$EDITOR` set. Without it, the commands that would hand off say so instead.
 
+Type `{{secret:` in any form field and a box of matching secret names opens under it. `Up` and `Down` move through it, `Enter` inserts the name and the closing braces, and `Escape` dismisses it — `Tab` is left alone so it still moves between fields. Keep typing to narrow the list.
+
 ## Sending
 
 `s` on a request sends it (`Ctrl+R` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight.

@@ -73,6 +73,7 @@ internal static class StraumrStyleService
     public static GroupStyle WindowGroup => _set.WindowGroup;
     public static SpinnerStyle RequestPulse => _set.RequestPulse;
     public static ScrollViewerStyle ListScrollViewer => _set.ListScrollViewer;
+    public static BorderStyle SuggestionPopup => _set.SelectPopup;
     public static RuleStyle Divider => _set.Divider;
 
     public static Style DividerCell => _set.DividerCell;
