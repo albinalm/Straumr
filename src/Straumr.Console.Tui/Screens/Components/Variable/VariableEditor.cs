@@ -51,10 +51,10 @@ internal sealed class VariableEditor
     public void Failed(string message) => _view.Failed(message);
     public void Report(string message, bool error) => _view.Report(message, error);
 
-    public void Saved()
+    public bool Saved()
     {
         _openedName.Value = _state.Name;
         _openedValue = _state.Value;
-        _view.Saved();
+        return _view.Saved();
     }
 }

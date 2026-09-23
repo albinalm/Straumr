@@ -20,7 +20,9 @@ internal sealed class ConfirmDialog
         bool destructive,
         Action confirm,
         Action? cancel = null,
-        KeyGesture? cancelGesture = null)
+        KeyGesture? cancelGesture = null,
+        string? alternateLabel = null,
+        Action? alternate = null)
     {
         var cancelButton = new Button("Cancel")
         {
@@ -31,13 +33,24 @@ internal sealed class ConfirmDialog
         var confirmButton = new Button(confirmLabel);
         confirmButton.SetStyle(destructive ? StraumrStyleService.DangerButton : StraumrStyleService.PrimaryButton);
 
-        cancelButton.KeyDown((_, e) => MoveToOtherAnswer(e, confirmButton));
-        confirmButton.KeyDown((_, e) => MoveToOtherAnswer(e, cancelButton));
+        Button? alternateButton = null;
+        if (alternateLabel is not null && alternate is not null)
+        {
+            alternateButton = new Button(alternateLabel);
+            alternateButton.SetStyle(StraumrStyleService.PrimaryButton);
+            alternateButton.Click(() => Answer(alternate));
+        }
+
+        Button[] answers = alternateButton is null ? [cancelButton, confirmButton] : [cancelButton, confirmButton, alternateButton];
+        foreach (Button answer in answers)
+        {
+            answer.KeyDown((_, e) => MoveToAnotherAnswer(e, answers, answer));
+        }
 
         VStack content = new VStack(
                 new TextBlock(question).Style(StraumrStyleService.BrightText).Wrap(true),
                 new TextBlock(detail).Style(StraumrStyleService.MutedText).Wrap(true),
-                new HStack(cancelButton, confirmButton)
+                new HStack(answers)
                     .Spacing(1)
                     .HorizontalAlignment(Align.End))
             .Spacing(1)
@@ -78,15 +91,20 @@ internal sealed class ConfirmDialog
     public void Show() =>
         TuiWindowHelpers.Show(_dialog, () => _cancelButton.App?.Focus(_cancelButton));
 
-    private static void MoveToOtherAnswer(KeyEventArgs e, Button otherAnswer)
+    private static void MoveToAnotherAnswer(KeyEventArgs e, Button[] answers, Button current)
     {
-        if (!TuiKeybindHelpers.Matches("ConfirmDialog.Left", e) && !TuiKeybindHelpers.Matches("ConfirmDialog.Right", e) &&
-            !TuiKeybindHelpers.Matches("ConfirmDialog.Up", e) && !TuiKeybindHelpers.Matches("ConfirmDialog.Down", e))
+        int step = TuiKeybindHelpers.Matches("ConfirmDialog.Left", e) || TuiKeybindHelpers.Matches("ConfirmDialog.Up", e)
+            ? -1
+            : TuiKeybindHelpers.Matches("ConfirmDialog.Right", e) || TuiKeybindHelpers.Matches("ConfirmDialog.Down", e)
+                ? 1
+                : 0;
+        if (step == 0)
         {
             return;
         }
 
-        otherAnswer.App?.Focus(otherAnswer);
+        Button target = answers[(Array.IndexOf(answers, current) + step + answers.Length) % answers.Length];
+        target.App?.Focus(target);
         e.Handled = true;
     }
 }

@@ -117,10 +117,10 @@ internal sealed class RequestEditor
             : SecretFormatting.Display(_state.GetDisplayUri());
     }
 
-    public void Saved()
+    public bool Saved()
     {
         _opened = _state.Copy();
-        _view.Saved();
+        return _view.Saved();
     }
 
     public void Failed(string message) => _view.Failed(message);

@@ -198,8 +198,14 @@ public sealed class SecretScreen : ITuiScreen
                 }
                 else if (_editorView is { } editor)
                 {
-                    editor.Saved();
-                    editor.Report(result.Message!, false);
+                    if (editor.Saved())
+                    {
+                        NotificationRequested?.Invoke(result);
+                    }
+                    else
+                    {
+                        editor.Report(result.Message!, false);
+                    }
                 }
             }
         }

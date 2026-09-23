@@ -226,10 +226,10 @@ internal sealed class AuthEditor
         _view.Update();
     }
 
-    public void Saved()
+    public bool Saved()
     {
         _opened = Fingerprint(_state);
-        _view.Saved();
+        return _view.Saved();
     }
 
     public void Failed(string message) => _view.Failed(message);

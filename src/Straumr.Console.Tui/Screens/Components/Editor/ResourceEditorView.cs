@@ -28,6 +28,7 @@ internal sealed class ResourceEditorView
     private readonly Action _save;
     private readonly State<bool> _saving = new(false);
 
+    private bool _closeAfterSave;
     private SavedFlashVisual? _flash;
     private bool _focused;
     private DateTimeOffset _noticeUntil;
@@ -168,17 +169,26 @@ internal sealed class ResourceEditorView
         _save();
     }
 
-    public void Saved()
+    public bool Saved()
     {
         _saving.Value = false;
         _dirty.Value = false;
         _isNew.Value = false;
+        if (_closeAfterSave)
+        {
+            _closeAfterSave = false;
+            CloseNow();
+            return true;
+        }
+
         _justSaved.Value = true;
         _flash?.Arm(SavedLifetime);
+        return false;
     }
 
     public void Failed(string message)
     {
+        _closeAfterSave = false;
         _saving.Value = false;
         Notify(message, true);
     }
@@ -187,22 +197,32 @@ internal sealed class ResourceEditorView
     {
         if (!_dirty.Value)
         {
-            _dialog.Close();
-            _closed();
+            CloseNow();
             return;
         }
 
         new ConfirmDialog(
-            "Discard changes",
-            "Discard your changes?",
-            "Nothing typed here has been written yet. Closing loses it.",
+            "Unsaved changes",
+            "Close without saving?",
+            "Nothing typed here has been written yet. Discarding loses it.",
             "Discard",
             true,
-            () =>
-            {
-                _dialog.Close();
-                _closed();
-            }).Show();
+            CloseNow,
+            alternateLabel: "Save and exit",
+            alternate: SaveAndClose).Show();
+    }
+
+    private void SaveAndClose()
+    {
+        _closeAfterSave = true;
+        TrySave();
+        _closeAfterSave = _saving.Value;
+    }
+
+    private void CloseNow()
+    {
+        _dialog.Close();
+        _closed();
     }
 
     private void Resume()
