@@ -28,9 +28,12 @@ internal sealed class RequestResponseView
     private readonly State<string> _summary = new(string.Empty);
     private bool _focused;
     private DateTimeOffset _noticeUntil;
+    private Visual? _resumeFocus;
+    private bool _suspended;
 
     public RequestResponseView(StraumrRequest request, string? workspaceName,
-        Func<ResponseBodyOptionsModel> options, Action cancel, Action resend, Action closed)
+        Func<ResponseBodyOptionsModel> options, Action<string, string> openBody,
+        Action cancel, Action resend, Action closed)
     {
         _headers = new HeadersView(Notice);
         _sent = new HeadersView(Notice);
@@ -39,7 +42,7 @@ internal sealed class RequestResponseView
             PreviewPanePageModel.Custom("Sent headers", _sent.Root, () => _sent.FocusTarget),
             PreviewPanePageModel.Text("Network"));
         _configured = request.Headers;
-        _body = new BodyPreviewService(_preview, Notice, options, false);
+        _body = new BodyPreviewService(_preview, Notice, options, false, openBody);
         ShowWaiting();
 
         Grid content = new Grid()
@@ -86,11 +89,38 @@ internal sealed class RequestResponseView
 
     public void Update()
     {
+        Resume();
         FocusBody();
         if (_notice.Value.Length > 0 && DateTimeOffset.UtcNow >= _noticeUntil)
         {
             _notice.Value = string.Empty;
         }
+    }
+
+    public void Suspend()
+    {
+        if (_suspended)
+        {
+            return;
+        }
+
+        _suspended = true;
+        _resumeFocus = _dialog.App?.FocusedElement;
+        _dialog.Close();
+    }
+
+    public void Report(string message, bool error) => Notice(message, error);
+
+    private void Resume()
+    {
+        if (!_suspended)
+        {
+            return;
+        }
+
+        _suspended = false;
+        _focused = false;
+        TuiWindowHelpers.Show(_dialog);
     }
 
     public void Restart()
@@ -126,7 +156,9 @@ internal sealed class RequestResponseView
         }
 
         _focused = true;
-        app.Focus(_preview.FocusTarget);
+        Visual target = _resumeFocus ?? _preview.FocusTarget;
+        _resumeFocus = null;
+        app.Focus(target);
     }
 
     public void Complete(StraumrResponse response, bool cached = false)

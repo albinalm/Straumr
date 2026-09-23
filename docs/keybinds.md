@@ -193,6 +193,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `ResponseBody.Format` | `b` | · | · | · |
 | `ResponseBody.Highlight` | `h` | · | · | · |
 | `ResponseBody.Copy` | `y` | · | `F5` | · |
+| `ResponseBody.Open` | `e` | · | · | · |
 | `Headers.Copy` | `y` | · | `F5` | · |
 | `Headers.Expand` | `e` | · | · | · |
 

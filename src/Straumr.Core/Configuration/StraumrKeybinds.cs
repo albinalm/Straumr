@@ -95,6 +95,7 @@ public static class StraumrKeybinds
             ["ResponseBody.Format"] = "b",
             ["ResponseBody.Highlight"] = "h",
             ["ResponseBody.Copy"] = "y",
+            ["ResponseBody.Open"] = "e",
             ["Headers.Copy"] = "y",
             ["Headers.Expand"] = "e",
             ["Editor.Save"] = "Ctrl+S",

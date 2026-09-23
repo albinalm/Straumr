@@ -68,6 +68,7 @@ public sealed class RequestScreen : ITuiScreen
 
     private Func<CancellationToken, Task<TuiCommandResultModel>>? _pendingSave;
     private Guid? _pendingSend;
+    private string? _responseNotice;
     private RequestResponseView? _responseView;
     private bool _savePaneLayout;
     private CancellationTokenSource? _sendCancellation;
@@ -94,7 +95,8 @@ public sealed class RequestScreen : ITuiScreen
             PreviewPanePageModel.Text("Network"));
         _requestBody = new BodyPreviewService(_requestPreview, Notify,
             () => BodyOptions with { Format = ResponseBodyFormat.Beautify });
-        _responseBody = new BodyPreviewService(_responsePreview, Notify, () => BodyOptions);
+        _responseBody = new BodyPreviewService(_responsePreview, Notify, () => BodyOptions,
+            open: ViewBodyExternally);
         _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", OpenResponse,
             () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item
                   && _responses.ContainsKey((workspace.Id, item.Id)) && !_responsePreview.Root.IsTyping(),
@@ -261,6 +263,19 @@ public sealed class RequestScreen : ITuiScreen
         {
             _editorNotice = null;
             _editorView?.Report(notice, true);
+        }
+
+        if (_responseNotice is { } responseNotice)
+        {
+            _responseNotice = null;
+            if (_responseView is { } view)
+            {
+                view.Report(responseNotice, true);
+            }
+            else
+            {
+                Notify(responseNotice, true);
+            }
         }
 
         await DeletePendingAsync(cancellationToken);
@@ -691,21 +706,22 @@ public sealed class RequestScreen : ITuiScreen
     }
 
     private RequestResponseView BuildResponseView(Guid id, StraumrRequest request, Action restoreFocus) =>
-        new(request, ActiveWorkspaceName, () => BodyOptions, () => _sendCancellation?.Cancel(), () =>
-        {
-            if (_sendCancellation is not null)
+        new(request, ActiveWorkspaceName, () => BodyOptions, ViewBodyExternally,
+            () => _sendCancellation?.Cancel(), () =>
             {
-                return;
-            }
+                if (_sendCancellation is not null)
+                {
+                    return;
+                }
 
-            QueueSend(id);
-            _responseView?.Restart();
-        }, () =>
-        {
-            _responseView = null;
-            restoreFocus();
-            TransientScreenClosed?.Invoke();
-        });
+                QueueSend(id);
+                _responseView?.Restart();
+            }, () =>
+            {
+                _responseView = null;
+                restoreFocus();
+                TransientScreenClosed?.Invoke();
+            });
 
     private void QueueSend(Guid id)
     {
@@ -859,6 +875,30 @@ public sealed class RequestScreen : ITuiScreen
         {
             NotificationRequested?.Invoke(TuiCommandResultModel.Failed($"delete failed: {exception.Message}"));
         }
+    }
+
+    private void ViewBodyExternally(string body, string extension)
+    {
+        if (!_editor.IsConfigured)
+        {
+            _responseNotice = "no default editor is configured; set EDITOR to open the body";
+            return;
+        }
+
+        _responseView?.Suspend();
+        ExternalActionRequested?.Invoke(new TuiExternalActionModel(async token =>
+        {
+            try
+            {
+                await _editor.ViewAsync(body, extension, token);
+            }
+            catch (Exception exception) when (IsRecoverable(exception) || exception is ExternalEditorException)
+            {
+                _responseNotice = $"open failed: {exception.Message}";
+            }
+
+            return TuiCommandResultModel.None;
+        }, _responseView is null ? _responsePreview.FocusTarget : _list));
     }
 
     private void EditContentExternally(ExternalContentEditModel edit)

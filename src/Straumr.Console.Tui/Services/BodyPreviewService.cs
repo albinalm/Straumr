@@ -9,6 +9,7 @@ internal sealed class BodyPreviewService
 {
     private readonly bool _bounded;
     private readonly Action<string, bool> _notify;
+    private readonly Action<string, string>? _open;
     private readonly Func<ResponseBodyOptionsModel> _options;
     private readonly PreviewPane _preview;
     private string? _body;
@@ -18,13 +19,17 @@ internal sealed class BodyPreviewService
     private bool _pretty;
 
     public BodyPreviewService(PreviewPane preview, Action<string, bool> notify,
-        Func<ResponseBodyOptionsModel> options, bool bounded = true)
+        Func<ResponseBodyOptionsModel> options, bool bounded = true, Action<string, string>? open = null)
     {
-        (_preview, _notify, _options) = (preview, notify, options);
+        (_preview, _notify, _options, _open) = (preview, notify, options, open);
         _bounded = bounded;
         AddCommand("Format", "Beautify / minify", ToggleFormat);
         AddCommand("Highlight", "Highlight", ToggleHighlight);
         AddCommand("Copy", "Copy body", Copy);
+        if (_open is not null)
+        {
+            AddCommand("Open", "Open in editor", Open);
+        }
     }
 
     public void SetBody(string? body, string? contentType = null)
@@ -113,6 +118,8 @@ internal sealed class BodyPreviewService
                 : $"{ContentFormatHelpers.DisplayName(_language)} highlighting on"
             : "Highlighting off", false);
     }
+
+    private void Open() => _open!(_body!, ContentFormatHelpers.FileExtension(_language));
 
     private void Copy()
     {

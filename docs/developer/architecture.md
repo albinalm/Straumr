@@ -28,6 +28,8 @@ Gestures resolving upwards is also why a text input may not sit under a bare-let
 
 Body highlighting is per line and stateless: `PreviewPane` renders a `Paragraph` per line and hands each one to a `Func<string, StyledRun[]>`, never holding the document. That bounds what the highlighters in `Formatting` can know — a construct spanning lines, an XML comment or a folded YAML block, is styled as whatever each of its lines looks like alone. So `ContentFormatHelpers.Detect` resolves the language once, off the render path, from the `Content-Type` and then the body itself, and the highlighter only classifies tokens within a line. Beautify and minify are the opposite: they need a real parse, so they cover only the languages that have one — JSON through `System.Text.Json`, XML and HTML through `XDocument` — and everything else is highlight-only rather than reformatted by guesswork.
 
+An external editor cannot share the terminal with the TUI, so `TuiExternalActionModel` stops the input loop, runs the process, and restarts `Terminal.RunAsync` over the same visual tree. A dialog does not survive that restart: `ResourceEditorView` and `RequestResponseView` each close on `Suspend`, remember the focused element, and re-`Show` from their next `Update`. A message raised while the loop is down is held in a field and reported on that same `Update`, because a notice timed from inside the handoff would expire before the editor closes.
+
 Keybindings are Core, not TUI: `StraumrKeybinds` holds the action table and `StraumrKeybindPresets` the preset overlays, because the CLI's interactive prompts bind against the same actions. A new action needs a default entry and a row in `docs/keybinds.md`, which `settings.toml` points users to.
 
 ## On disk

@@ -34,6 +34,15 @@ public static class ContentFormatHelpers
 
     public static string FormattableNames() => "JSON, XML and HTML";
 
+    public static string FileExtension(ContentLanguage language) => language switch
+    {
+        ContentLanguage.Json => ".json",
+        ContentLanguage.Xml => ".xml",
+        ContentLanguage.Html => ".html",
+        ContentLanguage.Yaml => ".yaml",
+        _ => ".txt"
+    };
+
     public static bool TryFormat(ContentLanguage language, string? text, bool indented, [NotNullWhen(true)] out string? formatted)
     {
         formatted = null;

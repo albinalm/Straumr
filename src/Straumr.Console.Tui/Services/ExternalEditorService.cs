@@ -34,7 +34,14 @@ public sealed class ExternalEditorService
     }
 
     public async Task<string> EditAsync(
-        EditorDocumentModel document, string extension, CancellationToken cancellationToken)
+        EditorDocumentModel document, string extension, CancellationToken cancellationToken) =>
+        await RunAsync(document, extension, true, cancellationToken) ?? string.Empty;
+
+    public Task ViewAsync(string text, string extension, CancellationToken cancellationToken) =>
+        RunAsync(EditorDocumentModel.AtStart(text), extension, false, cancellationToken);
+
+    private static async Task<string?> RunAsync(
+        EditorDocumentModel document, string extension, bool readBack, CancellationToken cancellationToken)
     {
         string editor = EditorCommand ??
                         throw new ExternalEditorException("no default editor is configured");
@@ -48,11 +55,12 @@ public sealed class ExternalEditorService
             await process.WaitForExitAsync(cancellationToken);
             if (process.ExitCode != 0)
             {
-                throw new ExternalEditorException(
-                    $"editor exited with code {process.ExitCode}; changes discarded");
+                throw new ExternalEditorException(readBack
+                    ? $"editor exited with code {process.ExitCode}; changes discarded"
+                    : $"editor exited with code {process.ExitCode}");
             }
 
-            return await File.ReadAllTextAsync(path, cancellationToken);
+            return readBack ? await File.ReadAllTextAsync(path, cancellationToken) : null;
         }
         finally
         {

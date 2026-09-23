@@ -87,6 +87,8 @@ A request and an auth show what they reference under **Variables & Secrets**, an
 
 On a **Body** tab — the response's and the request's alike — `b` cycles beautify and minify, `h` turns highlighting on and off, and `y` copies. Straumr works out what the body is from its `Content-Type`, falling back to reading the body itself: JSON, XML, HTML, YAML, and form-urlencoded are coloured by token, and JSON, XML, and HTML are also beautified and minified. Anything else is shown as it was sent, and `b` says so rather than changing it.
 
+On a response **Body** tab, `e` opens the whole body in your `$EDITOR` — the full body, not the preview's truncation. It is a reader, not an editor: Straumr discards whatever you leave behind and never writes it back to the response. Use it to search, fold, or copy pieces out with the keys your own editor has trained into your fingers.
+
 Sent responses are stored next to the request, so they are still there after a `:refresh` or a restart — up to the size limit in [settings](customize.md).
 
 ## What it stores, and where
