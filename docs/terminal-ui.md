@@ -12,13 +12,13 @@ Nothing there is permanent. Run `:quickstart` any time to go through it again.
 
 There are five screens, one per kind of thing:
 
-| Screen | Command | Short |
-| --- | --- | --- |
-| Requests | `:request` | `:rq` |
-| Workspaces | `:workspace` | `:ws` |
-| Auths | `:auth` | `:au` |
-| Variables | `:variable` | `:vr` |
-| Secrets | `:secret` | `:sc` |
+| Screen | Command | Short | Plural |
+| --- | --- | --- | --- |
+| Requests | `:request` | `:rq` | `:requests` |
+| Workspaces | `:workspace` | `:ws` | `:workspaces` |
+| Auths | `:auth` | `:au` | `:auths` |
+| Variables | `:variable` | `:vr` | `:variables` |
+| Secrets | `:secret` | `:sc` | `:secrets` |
 
 Each screen is a list on the left and detail panes on the right. Move through the list, and the panes follow the selection. The panes have tabs — a request shows **Body**, **Headers**, and **Params**; its response shows **Body**, **Headers**, **Sent headers**, and **Network**.
 

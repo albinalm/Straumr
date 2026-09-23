@@ -19,13 +19,13 @@ public sealed class StraumrTuiApp
 
     private static readonly TimeSpan MessageLifetime = TimeSpan.FromSeconds(5);
 
-    private static readonly (TuiScreen Screen, string Name, string Alias)[] Navigations =
+    private static readonly (TuiScreen Screen, string Name, string Alias, string Plural)[] Navigations =
     [
-        (TuiScreen.Requests, "request", "rq"),
-        (TuiScreen.Workspaces, "workspace", "ws"),
-        (TuiScreen.Auths, "auth", "au"),
-        (TuiScreen.Variables, "variable", "vr"),
-        (TuiScreen.Secrets, "secret", "sc")
+        (TuiScreen.Requests, "request", "rq", "requests"),
+        (TuiScreen.Workspaces, "workspace", "ws", "workspaces"),
+        (TuiScreen.Auths, "auth", "au", "auths"),
+        (TuiScreen.Variables, "variable", "vr", "variables"),
+        (TuiScreen.Secrets, "secret", "sc", "secrets")
     ];
     private readonly State<string?> _activeWorkspaceName = new(null);
     private readonly TuiCommandSetModel _commands = new();
@@ -341,9 +341,9 @@ public sealed class StraumrTuiApp
     {
         _commands.Clear();
         _commands.Add(new TuiCommandModel("quit", QuitAsync) { Aliases = ["q", "exit"] });
-        foreach ((TuiScreen screen, string name, string alias) in Navigations)
+        foreach ((TuiScreen screen, string name, string alias, string plural) in Navigations)
         {
-            _commands.Add(NavigationCommand(screen, name, alias));
+            _commands.Add(NavigationCommand(screen, name, alias, plural));
         }
 
         _commands.Add(new TuiCommandModel("settings", (argument, _) => OpenSettings(argument))
@@ -573,10 +573,10 @@ public sealed class StraumrTuiApp
                 .Shortcut(new TextBlock(":settings").Style(StraumrStyleService.MutedText))
                 .Action(() => _submitted.Enqueue("settings")));
 
-    private TuiCommandModel NavigationCommand(TuiScreen screen, string name, string shortAlias) =>
+    private TuiCommandModel NavigationCommand(TuiScreen screen, string name, string shortAlias, string plural) =>
         new(name, (argument, _) => QueueNavigation(screen, argument))
         {
-            Aliases = [shortAlias],
+            Aliases = [shortAlias, plural],
             AllowPrefixMatch = false,
             CompleteArgument = (argument, caret) => CreateScreenCommandSet(_screens[screen]).Complete(argument, caret)
         };
