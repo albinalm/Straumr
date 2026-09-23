@@ -193,6 +193,11 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `ResponseBody.Format` | `b` | · | · | · |
 | `ResponseBody.Highlight` | `h` | · | · | · |
 | `ResponseBody.Copy` | `y` | · | `F5` | · |
+| `ResponseBody.Open` | `e` | · | · | · |
+| `Headers.Copy` | `y` | · | `F5` | · |
+| `Headers.Expand` | `e` | · | · | · |
+
+A headers tab moves by header rather than by line, so `ResourceList.Next`, `Previous`, `First`, and `Last` drive it — the same keys that move any list. `Headers.Copy` copies the selected header's value, and `Headers.Expand` unfolds a value too long for one line.
 
 ### Editing fields
 

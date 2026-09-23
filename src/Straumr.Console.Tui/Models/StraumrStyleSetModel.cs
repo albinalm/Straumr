@@ -71,6 +71,8 @@ internal sealed class StraumrStyleSetModel
         CodePunctuation = Style.None.WithForeground(code.Punctuation);
         CodePlain = Style.None.WithForeground(Text);
         CodeNote = Style.None.WithForeground(Muted);
+        CodeKeyText = PrimaryText with { Foreground = code.Key };
+        CodePunctuationText = PrimaryText with { Foreground = code.Punctuation };
 
         CommandBar = CommandBarStyle.Default with
         {
@@ -335,6 +337,8 @@ internal sealed class StraumrStyleSetModel
     public Style CodePunctuation { get; }
     public Style CodePlain { get; }
     public Style CodeNote { get; }
+    public TextBlockStyle CodeKeyText { get; }
+    public TextBlockStyle CodePunctuationText { get; }
     public CommandBarStyle CommandBar { get; }
     public TabControlStyle PreviewTabs { get; }
     public Style CommandPromptText { get; }

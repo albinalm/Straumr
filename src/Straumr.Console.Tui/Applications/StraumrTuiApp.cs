@@ -152,6 +152,8 @@ public sealed class StraumrTuiApp
 
     public TuiCommandResultModel Message => _message.Value;
 
+    private bool IsTyping => _app?.Root.IsTyping() == true && !_prompt.Root.Owns();
+
     private bool IsModalOpen
     {
         get
@@ -343,21 +345,9 @@ public sealed class StraumrTuiApp
             AllowPrefixMatch = false,
             CompleteArgument = CompleteTheme
         });
-        _commands.Add(new TuiCommandModel("quickstart", async (argument, token) =>
-            {
-                if (argument.Length > 0)
-                {
-                    return TuiCommandResultModel.Failed("usage: quickstart");
-                }
-
-                try { await _quickStart.BeginAsync(token); }
-                catch (Exception exception) when (RequestScreen.IsRecoverable(exception))
-                {
-                    return TuiCommandResultModel.Failed($"quick start could not load: {FirstLine(exception.Message)}");
-                }
-                RestartRequested = true;
-                return TuiCommandResultModel.None;
-            })
+        _commands.Add(new TuiCommandModel("quickstart", (argument, token) => argument.Length > 0
+                ? Task.FromResult(TuiCommandResultModel.Failed("usage: quickstart"))
+                : BeginQuickStartAsync(token))
             { AllowPrefixMatch = false });
         foreach (TuiCommandModel command in _screen.PromptCommands)
         {
@@ -398,6 +388,11 @@ public sealed class StraumrTuiApp
         bool themeChanged = _themeSelection.Apply();
         RestartRequested = themeChanged || previousKeybindVersion != StraumrKeybinds.Version;
 
+        if (!_settingsService.Settings.QuickStartCompleted)
+        {
+            return await BeginQuickStartAsync(cancellationToken);
+        }
+
         if (_themeSelection.Message is { } problem)
         {
             return TuiCommandResultModel.Failed(problem);
@@ -406,6 +401,21 @@ public sealed class StraumrTuiApp
         return themeChanged
             ? TuiCommandResultModel.Ok($"theme {StraumrStyleService.ThemeName}")
             : TuiCommandResultModel.None;
+    }
+
+    private async Task<TuiCommandResultModel> BeginQuickStartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _quickStart.BeginAsync(cancellationToken);
+        }
+        catch (Exception exception) when (RequestScreen.IsRecoverable(exception))
+        {
+            return TuiCommandResultModel.Failed($"quick start could not load: {FirstLine(exception.Message)}");
+        }
+
+        RestartRequested = true;
+        return TuiCommandResultModel.None;
     }
 
     private async Task<TuiCommandResultModel> ThemeAsync(string argument, CancellationToken cancellationToken)
@@ -513,7 +523,7 @@ public sealed class StraumrTuiApp
                     .Style(StraumrStyleService.AccentText))
                 .Shortcut(new TextBlock($":{navigation.Alias}").Style(StraumrStyleService.MutedText))
                 .Action(() => _ = QueueNavigation(navigation.Screen, string.Empty)))
-            .Append(new MenuItem(new TextBlock("Settings").Style(StraumrStyleService.BrightText))
+            .Append(new MenuItem(new TextBlock("settings").Style(StraumrStyleService.BrightText))
                 .Icon(new TextBlock(" ").Style(StraumrStyleService.MutedText))
                 .Shortcut(new TextBlock(":settings").Style(StraumrStyleService.MutedText))
                 .Action(() => _submitted.Enqueue("settings")));
@@ -710,8 +720,8 @@ public sealed class StraumrTuiApp
             Gesture = TuiKeybindHelpers.Get(id),
             Importance = CommandImportance.Secondary,
             Presentation = presentation,
-            CanExecute = _ => !_quickStart.Active && !_prompt.IsOpen && !IsModalOpen,
-            IsVisible = _ => !_quickStart.Active && !IsModalOpen,
+            CanExecute = _ => !_quickStart.Active && !_prompt.IsOpen && !IsModalOpen && !IsTyping,
+            IsVisible = _ => !_quickStart.Active && !IsModalOpen && !IsTyping,
             ConsumesGestureWhenUnavailable = false,
             Execute = _ => OpenPrompt()
         };

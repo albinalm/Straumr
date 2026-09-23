@@ -20,13 +20,23 @@ There are five screens, one per kind of thing:
 | Variables | `:variable` | `:vr` |
 | Secrets | `:secret` | `:sc` |
 
-Each screen is a list on the left and detail panes on the right. Move through the list, and the panes follow the selection. The panes have tabs — a request shows **Body**, **Headers**, and **Params**; its response shows **Body**, **Headers**, and **Network**.
+Each screen is a list on the left and detail panes on the right. Move through the list, and the panes follow the selection. The panes have tabs — a request shows **Body**, **Headers**, and **Params**; its response shows **Body**, **Headers**, **Sent headers**, and **Network**.
+
+**Headers** on a response is what came back. **Sent headers** is what went out, resolved as it went — variables substituted, secrets filled in, auth applied — which is not the same as the request's own **Headers** tab, where those are still written as `{{name}}`. Sent headers are not kept with the request, so the tab has them for a response sent in this session and asks you to send again otherwise.
+
+Nothing is hidden by which header it is — `Authorization` reads like any other. What stays hidden is a secret: a header whose configured value holds a `{{secret:name}}` is listed with that reference left in place, so you see the header and its scheme without its value ever reaching the screen. Everything else is shown resolved, variables and fetched auth tokens included.
 
 The bar along the bottom always shows the keys that do something right now, for whatever has focus. It is the fastest way to learn your own keybindings; the full list is in [keybinds.md](keybinds.md).
 
 Drag the splits with `Ctrl+H`/`Ctrl+L`/`Ctrl+K`/`Ctrl+J` (vim preset). Where you leave them is remembered per screen.
 
 `/` opens the filter over the current list. On requests it matches the name, the URL, or the method, so `/post` and `/users` both narrow the list; elsewhere it matches the name. The count beside the screen title shows matches over total.
+
+Every headers tab carries a filter of its own, opened with the same `/` while the tab has focus, with its own count above it. It matches header names and values, so `/auth` finds the header and `/json` finds whatever declares it.
+
+Headers move a header at a time, not a line at a time, on the same keys that move any list — `j`/`k`, `g`/`G` in the vim preset. The selected one is marked down its left edge, and `y` copies its value.
+
+Each header is one line, cut off where it runs out of room, so a list of twenty stays a list of twenty. `e` unfolds the selected one over as many lines as its value needs and folds it back again. That is the setting worth knowing for tokens: a bearer token wrapped in full is thirty lines and buries everything under it, which is why it is not the default.
 
 ## The command prompt
 
@@ -75,7 +85,11 @@ A request and an auth show what they reference under **Variables & Secrets**, an
 
 `s` on a request sends it (`Ctrl+R` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight.
 
-On the response body, `b` cycles beautify and minify, `h` turns JSON highlighting on and off, and `y` copies. Sent responses are stored next to the request, so they are still there after a `:refresh` or a restart — up to the size limit in [settings](customize.md).
+On a **Body** tab — the response's and the request's alike — `b` cycles beautify and minify, `h` turns highlighting on and off, and `y` copies. Straumr works out what the body is from its `Content-Type`, falling back to reading the body itself: JSON, XML, HTML, YAML, and form-urlencoded are coloured by token, and JSON, XML, and HTML are also beautified and minified. Anything else is shown as it was sent, and `b` says so rather than changing it.
+
+On a response **Body** tab, `e` opens the whole body in your `$EDITOR` — the full body, not the preview's truncation. It is a reader, not an editor: Straumr discards whatever you leave behind and never writes it back to the response. Use it to search, fold, or copy pieces out with the keys your own editor has trained into your fingers.
+
+Sent responses are stored next to the request, so they are still there after a `:refresh` or a restart — up to the size limit in [settings](customize.md).
 
 ## What it stores, and where
 

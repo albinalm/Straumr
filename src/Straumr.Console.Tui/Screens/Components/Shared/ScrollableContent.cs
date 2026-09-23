@@ -44,6 +44,8 @@ public sealed partial class ScrollableContent : Visual, IScrollable
     [Bindable]
     public partial int ScrollOffset { get; set; }
 
+    public Func<KeyEventArgs, bool>? KeyHandler { get; set; }
+
     protected override int ChildrenCount => 1;
 
     public ScrollModel Scroll { get; }
@@ -78,14 +80,24 @@ public sealed partial class ScrollableContent : Visual, IScrollable
     protected override void ArrangeCore(in Rectangle finalRect)
     {
         int contentHeight = Math.Max(finalRect.Height, _content.DesiredSize.Height);
+        bool showScrollBar = contentHeight > finalRect.Height;
+        int contentWidth = Math.Max(1, finalRect.Width - (showScrollBar ? 1 : 0));
+
+        // Measured at full width, the scrollbar would paint over the last cell — where trimming puts its ellipsis.
+        if (showScrollBar && contentWidth != _content.DesiredSize.Width)
+        {
+            _content.Measure(new LayoutConstraints(
+                contentWidth, contentWidth, 0, LayoutConstraints.Unbounded.MaxHeight));
+            contentHeight = Math.Max(finalRect.Height, _content.DesiredSize.Height);
+        }
+
         Scroll.SetViewport(finalRect.Width, finalRect.Height);
         Scroll.SetExtent(finalRect.Width, contentHeight);
         int offset = Math.Clamp(ScrollOffset, 0, contentHeight - finalRect.Height);
-        bool showScrollBar = contentHeight > finalRect.Height;
         _content.Arrange(new Rectangle(
             finalRect.X,
             finalRect.Y - offset,
-            Math.Max(1, finalRect.Width - (showScrollBar ? 1 : 0)),
+            contentWidth,
             contentHeight));
     }
 
@@ -118,6 +130,12 @@ public sealed partial class ScrollableContent : Visual, IScrollable
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (KeyHandler?.Invoke(e) == true)
+        {
+            e.Handled = true;
+            return;
+        }
+
         int pageSize = Math.Max(1, Scroll.ViewportHeight);
         int? target =
             TuiKeybindHelpers.Matches("ScrollableContent.Next", e) ? ScrollOffset + 1 :
@@ -150,6 +168,23 @@ public sealed partial class ScrollableContent : Visual, IScrollable
 
         ScrollBy(e.WheelDelta > 0 ? -1 : 1);
         e.Handled = true;
+    }
+
+    public void ScrollRangeIntoView(int top, int height)
+    {
+        if (Bounds.Height <= 0)
+        {
+            return;
+        }
+
+        if (top < ScrollOffset)
+        {
+            ScrollTo(top);
+        }
+        else if (top + height > ScrollOffset + Bounds.Height)
+        {
+            ScrollTo(Math.Min(top, top + height - Bounds.Height));
+        }
     }
 
     private void ScrollBy(int delta) => ScrollTo(ScrollOffset + delta);

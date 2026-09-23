@@ -53,6 +53,8 @@ internal static class StraumrStyleService
     public static Style CodePunctuation => _set.CodePunctuation;
     public static Style CodePlain => _set.CodePlain;
     public static Style CodeNote => _set.CodeNote;
+    public static TextBlockStyle CodeKeyText => _set.CodeKeyText;
+    public static TextBlockStyle CodePunctuationText => _set.CodePunctuationText;
 
     public static CommandBarStyle CommandBar => _set.CommandBar;
     public static TabControlStyle PreviewTabs => _set.PreviewTabs;

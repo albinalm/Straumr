@@ -18,6 +18,9 @@ namespace Straumr.Console.Tui.Screens;
 public sealed class RequestScreen : ITuiScreen
 {
     private const string PaneLayoutKey = nameof(TuiScreen.Requests);
+    private const int BodyPage = 0;
+    private const int ParamsPage = 2;
+    private const int NetworkPage = 3;
     private readonly ScrollableContent _authView;
     private readonly State<RequestAuthenticationModel?> _authentication = new(null);
     private readonly IStraumrAuthService _auths;
@@ -31,11 +34,15 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<bool> _loading = new(true);
     private readonly State<int> _matchCount = new(0);
     private readonly State<string> _query = new(string.Empty);
-    private readonly PreviewPane _requestPreview = new("Body", "Headers", "Params");
+    private readonly BodyPreviewService _requestBody;
+    private readonly HeadersView _requestHeaders;
+    private readonly PreviewPane _requestPreview;
     private readonly IStraumrRequestService _requests;
-    private readonly ResponseBodyActionService _responseBody;
+    private readonly BodyPreviewService _responseBody;
     private readonly State<bool> _responseFailed = new(false);
-    private readonly PreviewPane _responsePreview = new("Body", "Headers", "Network");
+    private readonly HeadersView _responseHeaders;
+    private readonly PreviewPane _responsePreview;
+    private readonly HeadersView _sentHeaders;
     private readonly State<string> _responseSummary = new("Not sent");
     private readonly Dictionary<(Guid Workspace, Guid Request), StraumrResponse> _responses = [];
     private readonly IStraumrSecretService _secrets;
@@ -61,6 +68,7 @@ public sealed class RequestScreen : ITuiScreen
 
     private Func<CancellationToken, Task<TuiCommandResultModel>>? _pendingSave;
     private Guid? _pendingSend;
+    private string? _responseNotice;
     private RequestResponseView? _responseView;
     private bool _savePaneLayout;
     private CancellationTokenSource? _sendCancellation;
@@ -75,11 +83,24 @@ public sealed class RequestScreen : ITuiScreen
     {
         (_state, _workspaces, _requests, _auths, _secrets, _variables, _files, _settings, _editor) =
             (state, workspaces, requests, auths, secrets, variables, files, settings, editor);
-        _responseBody = new ResponseBodyActionService(_responsePreview, (message, failed) =>
-                NotificationRequested?.Invoke(failed ? TuiCommandResultModel.Failed(message) : TuiCommandResultModel.Ok(message)),
-            () => BodyOptions);
+        _requestHeaders = new HeadersView(Notify);
+        _responseHeaders = new HeadersView(Notify);
+        _sentHeaders = new HeadersView(Notify);
+        _requestPreview = new PreviewPane(PreviewPanePageModel.Text("Body"),
+            PreviewPanePageModel.Custom("Headers", _requestHeaders.Root, () => _requestHeaders.FocusTarget),
+            PreviewPanePageModel.Text("Params"));
+        _responsePreview = new PreviewPane(PreviewPanePageModel.Text("Body"),
+            PreviewPanePageModel.Custom("Headers", _responseHeaders.Root, () => _responseHeaders.FocusTarget),
+            PreviewPanePageModel.Custom("Sent headers", _sentHeaders.Root, () => _sentHeaders.FocusTarget),
+            PreviewPanePageModel.Text("Network"));
+        _requestBody = new BodyPreviewService(_requestPreview, Notify,
+            () => BodyOptions with { Format = ResponseBodyFormat.Beautify });
+        _responseBody = new BodyPreviewService(_responsePreview, Notify, () => BodyOptions,
+            open: ViewBodyExternally);
         _responsePreview.Root.AddCommand(ActionCommand("Fullscreen", OpenResponse,
-            () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item && _responses.ContainsKey((workspace.Id, item.Id))));
+            () => _workspace is { } workspace && SelectedItem is { IsBroken: false } item
+                  && _responses.ContainsKey((workspace.Id, item.Id)) && !_responsePreview.Root.IsTyping(),
+            consumes: false));
         StraumrPaneLayout paneLayout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
                                        ?? new StraumrPaneLayout();
         _splits = new PaneSplits(paneLayout.Panels, paneLayout.Sections, paneLayout.Stack);
@@ -133,7 +154,7 @@ public sealed class RequestScreen : ITuiScreen
             ResourceScreenLayoutHelpers.TwoPaneSections(_splits, "Authentication", authColumn,
                 "Request", ResourceScreenLayoutHelpers.Pane(_requestPreview.Root), authPane.Owns),
             responseRule, responsePane);
-        _sections.AddCommand(SendCommand());
+        _sections.AddCommand(SendCommand(true));
         Visual listView = ResourceScreenLayoutHelpers.Scrollable(_list);
         Root = ResourceScreenLayoutHelpers.Create("Requests",
             () => _query.Value.Length == 0 ? _count.Value.ToString() : $"{_matchCount.Value}/{_count.Value}",
@@ -244,6 +265,19 @@ public sealed class RequestScreen : ITuiScreen
             _editorView?.Report(notice, true);
         }
 
+        if (_responseNotice is { } responseNotice)
+        {
+            _responseNotice = null;
+            if (_responseView is { } view)
+            {
+                view.Report(responseNotice, true);
+            }
+            else
+            {
+                Notify(responseNotice, true);
+            }
+        }
+
         await DeletePendingAsync(cancellationToken);
 
         if (_pendingSave is { } save)
@@ -302,14 +336,21 @@ public sealed class RequestScreen : ITuiScreen
 
         if (item.Request is not { } request)
         {
+            _requestBody.SetBody(null);
+            _requestPreview.SetPageText(BodyPage,
+                $"{item.Problem}\n\nPress {TuiKeybindHelpers.Hint("Request.Edit")} to repair this request.\n{item.Path}");
+            _requestHeaders.SetMessage("Unavailable.");
+            _requestPreview.SetPageText(ParamsPage, "Unavailable.");
             _responseBody.SetBody(null);
-            _requestPreview.SetText($"{item.Problem}\n\nPress {TuiKeybindHelpers.Hint("Request.Edit")} to repair this request.\n{item.Path}", "Unavailable.", "Unavailable.");
             _responseSummary.Value = "Unavailable";
-            _responsePreview.SetText("Repair the request before sending it.", "Unavailable.", "Unavailable.");
+            _responsePreview.SetPageText(BodyPage, "Repair the request before sending it.");
+            _responseHeaders.SetMessage("Unavailable.");
+            _sentHeaders.SetMessage("Unavailable.");
+            _responsePreview.SetPageText(NetworkPage, "Unavailable.");
             return;
         }
         SetRequestPreview(request);
-        ShowResponse(item.Id);
+        ShowResponse(item.Id, request.Headers);
         _authentication.Value = RequestAuthenticationModel.Loading;
         RequestAuthenticationModel authentication = await RequestAuthenticationModel.LoadAsync(
             request, _workspace!, _auths, _secrets, _variables, cancellationToken);
@@ -401,23 +442,24 @@ public sealed class RequestScreen : ITuiScreen
 
     private void SetRequestPreview(StraumrRequest request)
     {
-        string body = request.BodyType == BodyType.None ? "No body." :
-            ContentFormatting.Preview(request.Bodies.GetValueOrDefault(request.BodyType), request.BodyType == BodyType.Json);
-        _requestPreview.SetText(body,
-            ContentFormatting.Fields(request.Headers.Select(header => new KeyValuePair<string, string>(header.Key,
-                header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase) ? "[hidden]" : header.Value)), "No headers."),
-            ContentFormatting.Fields(request.Params, "No parameters."));
+        _requestBody.SetBody(request.BodyType == BodyType.None ? null : request.Bodies.GetValueOrDefault(request.BodyType),
+            HeaderFormatting.ContentType(request.Headers) ?? RequestEditingHelpers.ContentType(request.BodyType));
+        _requestHeaders.SetHeaders(HeaderFormatting.Rows(request.Headers));
+        _requestPreview.SetPageText(ParamsPage, ContentFormatting.Fields(request.Params, "No parameters."));
     }
 
-    private void ShowResponse(Guid id)
+    private void ShowResponse(Guid id, IReadOnlyDictionary<string, string> configured)
     {
         _responseFailed.Value = false;
         if (_workspace is null || !_responses.TryGetValue((_workspace.Id, id), out StraumrResponse? response))
         {
             _responseBody.SetBody(null);
             _responseSummary.Value = "Not sent";
-            _responsePreview.SetText($"No saved response. Press {TuiKeybindHelpers.Hint("Request.Send")} to send the request.",
-                "No saved response.", "No saved response.");
+            _responsePreview.SetPageText(BodyPage,
+                $"No saved response. Press {TuiKeybindHelpers.Hint("Request.Send")} to send the request.");
+            _responseHeaders.SetMessage("No saved response.");
+            _sentHeaders.SetMessage("No saved response.");
+            _responsePreview.SetPageText(NetworkPage, "No saved response.");
             return;
         }
         _responseFailed.Value = response.Exception is not null || (int?)response.StatusCode >= 400;
@@ -440,16 +482,17 @@ public sealed class RequestScreen : ITuiScreen
             details += "\n\n" + exception.Message;
         }
 
-        _responsePreview.SetText(response.Exception?.Message ?? "No body.",
-            ContentFormatting.Headers(response.ResponseHeaders), details);
-        _responseBody.SetBody(response.Content);
+        _responsePreview.SetPageText(NetworkPage, details);
+        _responseHeaders.SetHeaders(HeaderFormatting.Rows(response.ResponseHeaders));
+        _sentHeaders.SetHeaders(HeaderFormatting.Sent(response.RequestHeaders, configured), HeaderFormatting.NotRecorded);
+        _responseBody.SetBody(response.Content, HeaderFormatting.ContentType(response.ResponseHeaders));
         if (response.Exception is not null)
         {
-            _responsePreview.SetPageText(0, response.Exception.Message);
+            _responsePreview.SetPageText(BodyPage, response.Exception.Message);
         }
         else if (response.BodyOmitted)
         {
-            _responsePreview.SetPageText(0, ContentFormatting.Unsaved(bytes));
+            _responsePreview.SetPageText(BodyPage, ContentFormatting.Unsaved(bytes));
         }
     }
 
@@ -663,21 +706,22 @@ public sealed class RequestScreen : ITuiScreen
     }
 
     private RequestResponseView BuildResponseView(Guid id, StraumrRequest request, Action restoreFocus) =>
-        new(request, ActiveWorkspaceName, () => BodyOptions, () => _sendCancellation?.Cancel(), () =>
-        {
-            if (_sendCancellation is not null)
+        new(request, ActiveWorkspaceName, () => BodyOptions, ViewBodyExternally,
+            () => _sendCancellation?.Cancel(), () =>
             {
-                return;
-            }
+                if (_sendCancellation is not null)
+                {
+                    return;
+                }
 
-            QueueSend(id);
-            _responseView?.Restart();
-        }, () =>
-        {
-            _responseView = null;
-            restoreFocus();
-            TransientScreenClosed?.Invoke();
-        });
+                QueueSend(id);
+                _responseView?.Restart();
+            }, () =>
+            {
+                _responseView = null;
+                restoreFocus();
+                TransientScreenClosed?.Invoke();
+            });
 
     private void QueueSend(Guid id)
     {
@@ -833,6 +877,30 @@ public sealed class RequestScreen : ITuiScreen
         }
     }
 
+    private void ViewBodyExternally(string body, string extension)
+    {
+        if (!_editor.IsConfigured)
+        {
+            _responseNotice = "no default editor is configured; set EDITOR to open the body";
+            return;
+        }
+
+        _responseView?.Suspend();
+        ExternalActionRequested?.Invoke(new TuiExternalActionModel(async token =>
+        {
+            try
+            {
+                await _editor.ViewAsync(body, extension, token);
+            }
+            catch (Exception exception) when (IsRecoverable(exception) || exception is ExternalEditorException)
+            {
+                _responseNotice = $"open failed: {exception.Message}";
+            }
+
+            return TuiCommandResultModel.None;
+        }, _responseView is null ? _responsePreview.FocusTarget : _list));
+    }
+
     private void EditContentExternally(ExternalContentEditModel edit)
     {
         if (_editorView is not { } view)
@@ -931,6 +999,9 @@ public sealed class RequestScreen : ITuiScreen
         return TuiCommandResultModel.None;
     }
 
+    private void Notify(string message, bool failed) => NotificationRequested?.Invoke(
+        failed ? TuiCommandResultModel.Failed(message) : TuiCommandResultModel.Ok(message));
+
     private void NotifyIfFailed(TuiCommandResultModel result)
     {
         if (result.IsError)
@@ -1007,11 +1078,12 @@ public sealed class RequestScreen : ITuiScreen
         Execute = _ => execute()
     };
 
-    private Command SendCommand() =>
-        ActionCommand("Send", QueueSend, () => SelectedItem is { IsBroken: false });
+    private Command SendCommand(bool overPanes = false) =>
+        ActionCommand("Send", QueueSend, () => SelectedItem is { IsBroken: false } && !(overPanes && Root.IsTyping()),
+            consumes: !overPanes);
 
     private static Command ActionCommand(string label, Action execute, Func<bool> available,
-        CommandPresentation presentation = CommandPresentation.CommandBar) => new()
+        CommandPresentation presentation = CommandPresentation.CommandBar, bool consumes = true) => new()
     {
         Id = $"Request.{label}",
         LabelMarkup = label,
@@ -1020,6 +1092,7 @@ public sealed class RequestScreen : ITuiScreen
         Presentation = presentation,
         IsVisible = _ => available(),
         CanExecute = _ => available(),
+        ConsumesGestureWhenUnavailable = consumes,
         Execute = _ => TuiKeybindHelpers.Run($"Request.{label}", execute)
     };
 
