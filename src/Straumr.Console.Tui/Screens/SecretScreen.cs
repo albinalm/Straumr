@@ -65,10 +65,10 @@ public sealed class SecretScreen : ITuiScreen
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => EditSelected();
         _filter = new ResourceFilter("filter secrets", ApplyFilter, () => _list);
-        _list.AddCommand(ActionCommand("New", () => OpenEditor(null, 'c'), () => !_loadError.Value));
-        _list.AddCommand(ActionCommand("Edit", () => EditSelected('e'), () => SelectedItem is not null,
+        _list.AddCommand(ActionCommand("New", () => OpenEditor(null, false), () => !_loadError.Value));
+        _list.AddCommand(ActionCommand("Edit", EditSelected, () => SelectedItem is not null,
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
-        _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, 'y'),
+        _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         _list.AddCommand(JsonCommand(false, CommandPresentation.CommandBar));
@@ -95,10 +95,10 @@ public sealed class SecretScreen : ITuiScreen
             new TuiCommandModel("select", SelectSecretAsync) { Aliases = ["s"], ArgumentValues = SecretNames },
             new TuiCommandModel("create", CreateSecretAsync) { Aliases = ["new"] },
             new TuiCommandModel("edit", (argument, _) => Task.FromResult(OnSelected(argument,
-                item => item.IsBroken ? EditAsJson(item) : OpenEditorFor(item, 'e')))) { ArgumentValues = SecretNames },
+                item => item.IsBroken ? EditAsJson(item) : OpenEditorFor(item, false)))) { ArgumentValues = SecretNames },
             new TuiCommandModel("copy", (argument, _) => Task.FromResult(OnSelected(argument,
                 item => item.IsBroken ? TuiCommandResultModel.Failed($"cannot copy {item.Name}: the secret cannot be read")
-                    : OpenEditorFor(item, 'y')))) { ArgumentValues = SecretNames },
+                    : OpenEditorFor(item, true)))) { ArgumentValues = SecretNames },
             new TuiCommandModel("delete", (argument, _) => Task.FromResult(OnSelected(argument, _ =>
             {
                 ShowDeleteDialog();
@@ -390,7 +390,7 @@ public sealed class SecretScreen : ITuiScreen
 
     private Task<TuiCommandResultModel> CreateSecretAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(_loadError.Value ? TuiCommandResultModel.Failed(_emptyMessage.Value) : argument.Length > 0
-            ? TuiCommandResultModel.Failed("usage: create") : OpenEditorFor(null, 'c'));
+            ? TuiCommandResultModel.Failed("usage: create") : OpenEditorFor(null, false));
 
     private async Task<TuiCommandResultModel> RefreshAsync(string argument, CancellationToken cancellationToken)
     {
@@ -404,18 +404,18 @@ public sealed class SecretScreen : ITuiScreen
             : TuiCommandResultModel.Ok($"reloaded {CountFormatting.Label(_items.Count, "secret")}");
     }
 
-    private TuiCommandResultModel OpenEditorFor(SecretScreenItemModel? source, char operation)
+    private TuiCommandResultModel OpenEditorFor(SecretScreenItemModel? source, bool copy)
     {
         if (_editorView is not null)
         {
             return TuiCommandResultModel.Failed("the secret editor is already open");
         }
 
-        OpenEditor(source, operation, true);
+        OpenEditor(source, copy);
         return TuiCommandResultModel.None;
     }
 
-    private void EditSelected(char? openingGesture = null)
+    private void EditSelected()
     {
         if (SelectedItem is not { } item)
         {
@@ -428,24 +428,24 @@ public sealed class SecretScreen : ITuiScreen
         }
         else
         {
-            OpenEditor(item, openingGesture ?? 'e', openingGesture is null);
+            OpenEditor(item, false);
         }
     }
 
-    private void OpenEditor(SecretScreenItemModel? source, char operation, bool fromCommand = false)
+    private void OpenEditor(SecretScreenItemModel? source, bool copy)
     {
         if (_editorView is not null)
         {
             return;
         }
 
-        bool isNew = source is null || operation == 'y';
+        bool isNew = source is null || copy;
         StraumrSecret state = source?.Secret is { } secret
             ? secret.CopyAs(isNew ? string.Empty : secret.Name)
             : new StraumrSecret { Name = string.Empty, Value = string.Empty };
         _editingId = isNew ? null : source!.Id;
         string? sourceName = isNew && source is not null ? source.Name : null;
-        var editor = new SecretEditor(state, ActiveWorkspaceName, isNew, fromCommand ? null : operation,
+        var editor = new SecretEditor(state, ActiveWorkspaceName, isNew,
             _references, () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
             {

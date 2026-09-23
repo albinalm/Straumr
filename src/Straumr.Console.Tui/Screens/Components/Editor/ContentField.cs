@@ -31,6 +31,8 @@ internal sealed class ContentField : EditorField
 
         _view = new ScrollableContent(new ComputedVisual(Build));
         _view.AddCommand(EditCommand("ContentField.Edit", CommandPresentation.CommandBar));
+        _view.AddCommand(EditCommand("ContentField.Activate", CommandPresentation.None));
+        _view.AddCommand(EditCommand("ContentField.ActivateAlternate", CommandPresentation.None));
         _view.AddCommand(EditCommand("ContentField.Edit.Control",
             CommandPresentation.None));
         _view.AddCommand(EditCommand("ContentField.Edit.Letter",

@@ -92,6 +92,17 @@ public sealed partial class ResourceList : Visual, IScrollable
         });
         AddCommand(new Command
         {
+            Id = "ResourceList.ActivateAlternate",
+            LabelMarkup = activateLabel,
+            Gesture = TuiKeybindHelpers.Get("ResourceList.ActivateAlternate"),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.None,
+            CanExecute = _ => SelectedIndex >= 0,
+            RouteGesture = false,
+            Execute = _ => TuiKeybindHelpers.Run("ResourceList.ActivateAlternate", ActivateSelection)
+        });
+        AddCommand(new Command
+        {
             Id = "ResourceList.First",
             LabelMarkup = "First",
             Gesture = TuiKeybindHelpers.Get("ResourceList.First"),
@@ -326,9 +337,11 @@ public sealed partial class ResourceList : Visual, IScrollable
             return;
         }
 
-        if (TuiKeybindHelpers.Matches("ResourceList.Activate", e))
+        if (TuiKeybindHelpers.Matches("ResourceList.Activate", e) ||
+            TuiKeybindHelpers.Matches("ResourceList.ActivateAlternate", e))
         {
-            TuiKeybindHelpers.Run("ResourceList.Activate", ActivateSelection);
+            TuiKeybindHelpers.Run(TuiKeybindHelpers.Matches("ResourceList.Activate", e)
+                ? "ResourceList.Activate" : "ResourceList.ActivateAlternate", ActivateSelection);
             e.Handled = true;
             return;
         }

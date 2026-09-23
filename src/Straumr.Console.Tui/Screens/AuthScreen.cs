@@ -98,10 +98,10 @@ public sealed class AuthScreen : ITuiScreen
         _list.ItemActivated += _ => AuthEdit();
         _filter = new ResourceFilter("filter auths", ApplyFilter, () => _list);
 
-        _list.AddCommand(ActionCommand("New", () => OpenEditor(null, 'c'), () => _workspace is not null));
+        _list.AddCommand(ActionCommand("New", () => OpenEditor(null, false), () => _workspace is not null));
         _list.AddCommand(ActionCommand("Edit", AuthEdit, () => SelectedItem is not null,
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
-        _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, 'y'),
+        _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Auth.EditJson", "Edit JSON",
@@ -645,18 +645,18 @@ public sealed class AuthScreen : ITuiScreen
 
         return Task.FromResult(argument.Length > 0
             ? TuiCommandResultModel.Failed("usage: create")
-            : OpenEditorFor(null, 'c'));
+            : OpenEditorFor(null, false));
     }
 
     private Task<TuiCommandResultModel> EditAuthAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, item => item.IsBroken
             ? EditAsJson(item)
-            : OpenEditorFor(item, 'e')));
+            : OpenEditorFor(item, false)));
 
     private Task<TuiCommandResultModel> CopyAuthAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, item => item.IsBroken
             ? TuiCommandResultModel.Failed($"cannot copy {item.Name}: the auth cannot be read")
-            : OpenEditorFor(item, 'y')));
+            : OpenEditorFor(item, true)));
 
     private Task<TuiCommandResultModel> DeleteAuthAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, _ =>
@@ -665,14 +665,14 @@ public sealed class AuthScreen : ITuiScreen
             return TuiCommandResultModel.None;
         }));
 
-    private TuiCommandResultModel OpenEditorFor(AuthScreenItemModel? source, char openingGesture)
+    private TuiCommandResultModel OpenEditorFor(AuthScreenItemModel? source, bool copy)
     {
         if (_editorView is not null)
         {
             return TuiCommandResultModel.Failed("the auth editor is already open");
         }
 
-        OpenEditor(source, openingGesture);
+        OpenEditor(source, copy);
         return TuiCommandResultModel.None;
     }
 
@@ -804,14 +804,14 @@ public sealed class AuthScreen : ITuiScreen
         }
     }
 
-    private void OpenEditor(AuthScreenItemModel? source, char openingGesture)
+    private void OpenEditor(AuthScreenItemModel? source, bool copy)
     {
         if (_workspace is null || _editorView is not null)
         {
             return;
         }
 
-        bool isNew = source is null || openingGesture == 'y';
+        bool isNew = source is null || copy;
         StraumrAuth state = source?.Auth is { } auth
             ? isNew ? auth.CopyAs(string.Empty) : Working(auth)
             : new StraumrAuth
@@ -920,7 +920,7 @@ public sealed class AuthScreen : ITuiScreen
 
         if (!item.IsBroken)
         {
-            OpenEditor(item, 'e');
+            OpenEditor(item, false);
             return;
         }
 
