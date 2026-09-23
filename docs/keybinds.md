@@ -34,8 +34,6 @@ keybind-preset = "vim"
 
 An override is applied on top of the preset. `"none"` disables an action; `"default"`, or removing the line, restores it. An unknown action name or an unparsable key is reported when settings load, and that one line falls back to its default — the rest of the file still applies.
 
-Quick start saves your choice as `keybind-preset`, so later changes to that preset's defaults apply automatically. If an older quick start saved a full `[keybinds]` table, Straumr converts its generated entries to `"default"` while keeping keys you customized.
-
 Straumr reloads settings when you close the editor you opened with `:settings`. A keybinding change rebuilds the interface in place, so the new keys are live immediately.
 
 ## Writing a key

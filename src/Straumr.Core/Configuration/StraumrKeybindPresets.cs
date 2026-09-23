@@ -141,61 +141,6 @@ public static class StraumrKeybindPresets
             StringComparer.Ordinal));
     }
 
-    public static bool TryNormalizeExpanded(IReadOnlyDictionary<string, string> keybinds,
-        out string preset, out IReadOnlyDictionary<string, string> neutralized)
-    {
-        preset = "vim";
-        neutralized = Empty;
-        if (keybinds.Count < StraumrKeybinds.Defaults.Count * 3 / 4)
-        {
-            return false;
-        }
-
-        int best = 0;
-        Dictionary<string, string> matches = new(StringComparer.Ordinal);
-        foreach (string name in Names)
-        {
-            IReadOnlyDictionary<string, string> baseline = Resolve(name);
-            Dictionary<string, string> candidate = new(StringComparer.Ordinal);
-            foreach ((string id, string value) in keybinds)
-            {
-                string? legacy = Legacy(name, id);
-                if (baseline.TryGetValue(id, out string? expected) &&
-                    (string.Equals(value, expected, StringComparison.Ordinal) ||
-                     legacy is not null && string.Equals(value, legacy, StringComparison.Ordinal)))
-                {
-                    candidate[id] = "default";
-                }
-            }
-
-            if (candidate.Count <= best)
-            {
-                continue;
-            }
-
-            best = candidate.Count;
-            preset = name;
-            matches = candidate;
-        }
-
-        if (best < StraumrKeybinds.Defaults.Count * 3 / 4)
-        {
-            return false;
-        }
-
-        neutralized = matches;
-        return true;
-    }
-
-    private static string? Legacy(string preset, string action) => action switch
-    {
-        "ContentField.Edit" => "Enter",
-        "KeyValueField.Add" when preset != "commander" => "a",
-        "BrowserDialog.New" when preset != "commander" => "n",
-        "BrowserDialog.Rename" => preset == "commander" ? "F6" : "r",
-        _ => null
-    };
-
     public static string Identify(IReadOnlyDictionary<string, string> keybinds) =>
         Names.FirstOrDefault(name => Presets[name].Count > 0 && Matches(Presets[name], keybinds)) ?? "vim";
 

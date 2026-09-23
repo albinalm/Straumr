@@ -74,30 +74,6 @@ public class StraumrSettingsService : IStraumrSettingsService
             return;
         }
 
-        if (StraumrKeybindPresets.TryNormalizeExpanded(Settings.Keybinds,
-                out string expandedPreset, out IReadOnlyDictionary<string, string> neutralized))
-        {
-            string preset = Settings.KeybindPreset ?? expandedPreset;
-            try
-            {
-                await SaveValuesAsync(new Dictionary<string, ValueSyntax>
-                {
-                    ["keybind-preset"] = new StringValueSyntax(preset)
-                }, neutralized, cancellationToken);
-                return;
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                foreach (string id in neutralized.Keys)
-                {
-                    Settings.Keybinds[id] = "default";
-                }
-
-                Settings.KeybindPreset = preset;
-                Problem = $"settings.toml: could not save updated keybinds: {exception.Message}";
-            }
-        }
-
         ReadResponse();
         string? keybindProblem = StraumrKeybinds.Apply(Settings.Keybinds, Settings.KeybindPreset);
         Problem ??= keybindProblem;
@@ -128,9 +104,8 @@ public class StraumrSettingsService : IStraumrSettingsService
         SaveValuesAsync(new Dictionary<string, ValueSyntax>
         {
             ["theme"] = new StringValueSyntax(theme),
-            ["keybind-preset"] = new StringValueSyntax(preset),
             ["quick-start-completed"] = new BooleanValueSyntax(true)
-        }, null, cancellationToken);
+        }, StraumrKeybindPresets.Resolve(preset), cancellationToken);
 
     private void ReadResponse()
     {
@@ -194,6 +169,11 @@ public class StraumrSettingsService : IStraumrSettingsService
 
         List<(int Start, int Length, string Value)> edits = new();
         List<string> additions = new();
+        if (keybinds is not null && document.KeyValues.FirstOrDefault(Names("keybind-preset")) is { } stale)
+        {
+            edits.Add((stale.Span.Start.Offset, stale.Span.End.Offset - stale.Span.Start.Offset + 1, ""));
+        }
+
         foreach ((string key, ValueSyntax value) in values)
         {
             if (document.KeyValues.FirstOrDefault(Names(key)) is { } existing)
