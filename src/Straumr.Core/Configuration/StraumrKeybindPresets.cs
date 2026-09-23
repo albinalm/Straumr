@@ -89,6 +89,7 @@ public static class StraumrKeybindPresets
         {
             ["Straumr.OpenCommandPrompt"] = "Ctrl+P",
             ["Request.Send"] = "Ctrl+R",
+            ["Auth.Send"] = "Ctrl+R",
             ["Response.Send"] = "Ctrl+R",
             ["Workspace.Create"] = "Ctrl+N",
             ["Request.New"] = "Ctrl+N",

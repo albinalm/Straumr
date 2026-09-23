@@ -158,7 +158,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `Auth.Copy` | `y` | · | `F5` | `Ctrl+D` |
 | `Auth.Delete` | `d` | · | `F8` | `Delete` |
 | `Auth.EditJson` | `Ctrl+E` | · | · | · |
-| `Auth.Fetch` | `f` | · | · | · |
+| `Auth.Send` | `s` | · | · | `Ctrl+R` |
 | `Auth.Cancel` | `Escape` | `Ctrl+G` | · | · |
 | `Auth.ExtractHelp` | `h` | · | · | · |
 | `Auth.ExtractHelp.Function` | `F1` | · | · | · |

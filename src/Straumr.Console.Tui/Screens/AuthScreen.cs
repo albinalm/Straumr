@@ -26,8 +26,8 @@ public sealed class AuthScreen : ITuiScreen
     private readonly ExternalEditorService _editor;
     private readonly State<string> _emptyMessage = new("Loading auths…");
 
-    private readonly Stopwatch _fetchClock = new();
-    private readonly State<bool> _fetching = new(false);
+    private readonly Stopwatch _sendClock = new();
+    private readonly State<bool> _sending = new(false);
     private readonly IStraumrFileService _files;
     private readonly ResourceFilter _filter;
     private readonly ResourceList _list;
@@ -58,10 +58,12 @@ public sealed class AuthScreen : ITuiScreen
     private string? _editorNotice;
 
     private AuthEditor? _editorView;
-    private CancellationTokenSource? _fetchCancellation;
+    private CancellationTokenSource? _sendCancellation;
     private List<AuthScreenItemModel> _items = [];
     private Guid? _pendingDeleteId;
-    private Guid? _pendingFetchId;
+    private Guid? _pendingSendId;
+    private Guid? _sentAuthId;
+    private readonly State<string?> _sentValue = new(null);
 
     private Func<CancellationToken, Task<TuiCommandResultModel>>? _pendingSave;
 
@@ -114,8 +116,8 @@ public sealed class AuthScreen : ITuiScreen
             _list.AddCommand(command);
         }
 
-        _list.AddCommand(FetchCommand());
-        _list.AddCommand(CancelFetchCommand());
+        _list.AddCommand(SendCommand());
+        _list.AddCommand(CancelSendCommand());
 
         _configurationView = new ScrollableContent(new ComputedVisual(BuildConfiguration));
         _credentialView = new ScrollableContent(new ComputedVisual(BuildCredential));
@@ -132,8 +134,8 @@ public sealed class AuthScreen : ITuiScreen
             ("Credential", credentialPane),
             ("Variables & Secrets", referencesPane),
             ("Used by", usedByPane));
-        _sections.AddCommand(FetchCommand());
-        _sections.AddCommand(CancelFetchCommand());
+        _sections.AddCommand(SendCommand());
+        _sections.AddCommand(CancelSendCommand());
 
         Visual listView = ResourceScreenLayoutHelpers.Scrollable(_list);
         Root = ResourceScreenLayoutHelpers.Create("Auths",
@@ -154,7 +156,7 @@ public sealed class AuthScreen : ITuiScreen
             new TuiCommandModel("edit", EditAuthAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("copy", CopyAuthAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("delete", DeleteAuthAsync) { ArgumentValues = AuthNames },
-            new TuiCommandModel("fetch", FetchAuthAsync) { ArgumentValues = AuthNames },
+            new TuiCommandModel("send", SendAuthAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("json", EditJsonAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("refresh", RefreshAsync)
         ];
@@ -190,6 +192,8 @@ public sealed class AuthScreen : ITuiScreen
         _displayedId = null;
         _references.Value = null;
         _usedBy.Value = [];
+        _sentAuthId = null;
+        _sentValue.Value = null;
         try
         {
             await _state.LoadAsync(cancellationToken);
@@ -297,10 +301,10 @@ public sealed class AuthScreen : ITuiScreen
             }
         }
 
-        if (_pendingFetchId is { } fetchId)
+        if (_pendingSendId is { } sendId)
         {
-            _pendingFetchId = null;
-            await FetchAsync(fetchId, cancellationToken);
+            _pendingSendId = null;
+            await SendAsync(sendId, cancellationToken);
         }
 
         AuthScreenItemModel? item = SelectedItem;
@@ -385,8 +389,8 @@ public sealed class AuthScreen : ITuiScreen
                 .Trimming(TextTrimming.EndEllipsis);
 
         Visual badge = new TextBlock($" {item.Id.ToString()[..8]} ").Style(StraumrStyleService.TokenChip);
-        return StraumrSurfaceHelpers.Bar(summary, new ComputedVisual(() => _fetching.Value
-            ? InFlightPulseHelpers.Create("FETCHING", _fetchClock)
+        return StraumrSurfaceHelpers.Bar(summary, new ComputedVisual(() => _sending.Value
+            ? InFlightPulseHelpers.Create("SENDING", _sendClock)
             : badge));
     }
 
@@ -493,6 +497,12 @@ public sealed class AuthScreen : ITuiScreen
             case CustomAuthConfig custom:
                 rows.Add(("Template", FieldListHelpers.Wrapped(custom.ApplyHeaderTemplate)));
                 break;
+        }
+
+        if (_sentAuthId == item.Id && _sentValue.Value is { } value)
+        {
+            rows.Add(("Last send", FieldListHelpers.Styled("value extracted", StraumrStyleService.AmberText)));
+            rows.Add(("Extracted", FieldListHelpers.Wrapped(value)));
         }
 
         rows.Add(("Injects", FieldListHelpers.Text(AuthFormatting.Injects(auth.Config))));
@@ -714,13 +724,13 @@ public sealed class AuthScreen : ITuiScreen
             : TuiCommandResultModel.Ok($"reloaded {CountFormatting.Label(_items.Count, "auth")}");
     }
 
-    private Task<TuiCommandResultModel> FetchAuthAsync(string argument, CancellationToken cancellationToken) =>
-        Task.FromResult(OnSelected(argument, _ => QueueFetch()));
+    private Task<TuiCommandResultModel> SendAuthAsync(string argument, CancellationToken cancellationToken) =>
+        Task.FromResult(OnSelected(argument, _ => QueueSend()));
 
     private Task<TuiCommandResultModel> EditJsonAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, EditAsJson));
 
-    private TuiCommandResultModel QueueFetch()
+    private TuiCommandResultModel QueueSend()
     {
         if (_workspace is null)
         {
@@ -734,73 +744,59 @@ public sealed class AuthScreen : ITuiScreen
 
         if (!AuthEditingHelpers.SupportsFetch(auth.Config))
         {
-            return TuiCommandResultModel.Failed($"{auth.Name} holds its credential; there is nothing to fetch");
+            return TuiCommandResultModel.Failed($"{auth.Name} holds its credential; there is no auth request to send");
         }
 
-        if (_fetchCancellation is not null)
+        if (_sendCancellation is not null)
         {
-            return TuiCommandResultModel.Failed("an auth is already being fetched");
+            return TuiCommandResultModel.Failed("an auth is already being sent");
         }
 
-        _fetchCancellation = new CancellationTokenSource();
-        _fetchClock.Restart();
-        _fetching.Value = true;
-        _pendingFetchId = item.Id;
+        _sentAuthId = null;
+        _sentValue.Value = null;
+        _sendCancellation = new CancellationTokenSource();
+        _sendClock.Restart();
+        _sending.Value = true;
+        _pendingSendId = item.Id;
         return TuiCommandResultModel.None;
     }
 
-    private async Task FetchAsync(Guid id, CancellationToken cancellationToken)
+    private async Task SendAsync(Guid id, CancellationToken cancellationToken)
     {
-        if (_workspace is not { } workspace || _fetchCancellation is null)
+        if (_workspace is not { } workspace || _sendCancellation is null)
         {
             return;
         }
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, _fetchCancellation.Token);
+            cancellationToken, _sendCancellation.Token);
         try
         {
             StraumrAuth auth = await _auths.GetAsync(workspace, id, false, linked.Token);
-            string report;
-            switch (auth.Config)
-            {
-                case OAuth2Config oauth:
-                    OAuth2Token token = await _auths.FetchTokenAsync(oauth, linked.Token);
-                    oauth.Token = token;
-                    report = token.ExpiresAt is { } expiry
-                        ? $"fetched token for {auth.Name}; expires {TimestampFormatting.Absolute(expiry)}"
-                        : $"fetched token for {auth.Name}";
-                    break;
-                case CustomAuthConfig custom:
-                    await _auths.ExecuteCustomAuthAsync(custom, linked.Token);
-                    report = $"fetched value for {auth.Name}";
-                    break;
-                default:
-                    return;
-            }
-
-            await _auths.SaveAsync(workspace, auth, linked.Token);
+            string value = await _requestService.SendAuthAsync(workspace, auth, linked.Token);
             await LoadAsync(cancellationToken);
             ApplyFilter(_filter.Text, id);
-            NotificationRequested?.Invoke(TuiCommandResultModel.Ok(report));
+            _sentAuthId = id;
+            _sentValue.Value = value;
+            NotificationRequested?.Invoke(TuiCommandResultModel.Ok($"auth send succeeded for {auth.Name}; value extracted"));
         }
         catch (OperationCanceledException) when (
-            !cancellationToken.IsCancellationRequested && _fetchCancellation.IsCancellationRequested)
+            !cancellationToken.IsCancellationRequested && _sendCancellation.IsCancellationRequested)
         {
-            NotificationRequested?.Invoke(TuiCommandResultModel.Failed("fetch cancelled"));
+            NotificationRequested?.Invoke(TuiCommandResultModel.Failed("auth send cancelled"));
         }
         catch (Exception exception) when (IsRecoverable(exception) ||
                                           exception is HttpRequestException or UriFormatException
                                               or InvalidOperationException)
         {
-            NotificationRequested?.Invoke(TuiCommandResultModel.Failed($"fetch failed: {exception.Message}"));
+            NotificationRequested?.Invoke(TuiCommandResultModel.Failed($"auth send failed: {exception.Message}"));
         }
         finally
         {
-            _fetchClock.Stop();
-            _fetching.Value = false;
-            _fetchCancellation.Dispose();
-            _fetchCancellation = null;
+            _sendClock.Stop();
+            _sending.Value = false;
+            _sendCancellation.Dispose();
+            _sendCancellation = null;
         }
     }
 
@@ -1045,14 +1041,14 @@ public sealed class AuthScreen : ITuiScreen
     internal static bool IsRecoverable(Exception exception) =>
         exception is StraumrException or IOException or UnauthorizedAccessException or JsonException;
 
-    private Command FetchCommand() =>
-        ActionCommand("Fetch", () => NotifyIfFailed(QueueFetch()),
-            () => !_fetching.Value && SelectedItem is { Auth: { } auth } &&
+    private Command SendCommand() =>
+        ActionCommand("Send", () => NotifyIfFailed(QueueSend()),
+            () => !_sending.Value && SelectedItem is { Auth: { } auth } &&
                   AuthEditingHelpers.SupportsFetch(auth.Config));
 
-    private Command CancelFetchCommand() =>
-        ActionCommandKey("Cancel", () => _fetchCancellation?.Cancel(),
-            () => _fetching.Value);
+    private Command CancelSendCommand() =>
+        ActionCommandKey("Cancel", () => _sendCancellation?.Cancel(),
+            () => _sending.Value);
 
     private void NotifyIfFailed(TuiCommandResultModel result)
     {

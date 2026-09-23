@@ -247,6 +247,49 @@ public class StraumrRequestService(
         return response;
     }
 
+    public async Task<string> SendAuthAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrAuth auth,
+        CancellationToken cancellationToken = default)
+    {
+        List<string> warnings = new();
+        Dictionary<string, string> resolved = new(StringComparer.Ordinal);
+        StraumrAuthConfig? config = await ResolveAuthReferencesAsync(
+            workspace, auth.Config, resolved, warnings, cancellationToken);
+        if (warnings.Count > 0)
+        {
+            throw new StraumrException(string.Join(" ", warnings), StraumrError.MissingEntry);
+        }
+
+        string value = config switch
+        {
+            OAuth2Config oauth => await FetchOAuthAsync(oauth, auth, cancellationToken),
+            CustomAuthConfig custom => await FetchCustomAsync(custom, auth, cancellationToken),
+            _ => throw new StraumrException("This auth has no request to send", StraumrError.InvalidEntry)
+        };
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new StraumrException("Auth response did not contain a usable value", StraumrError.InvalidEntry);
+        }
+
+        await authService.SaveAsync(workspace, auth, cancellationToken);
+        return value;
+    }
+
+    private async Task<string> FetchOAuthAsync(OAuth2Config resolved, StraumrAuth auth, CancellationToken cancellationToken)
+    {
+        OAuth2Token token = await authService.FetchTokenAsync(resolved, cancellationToken);
+        ((OAuth2Config)auth.Config).Token = token;
+        return token.AccessToken;
+    }
+
+    private async Task<string> FetchCustomAsync(CustomAuthConfig resolved, StraumrAuth auth, CancellationToken cancellationToken)
+    {
+        string value = await authService.ExecuteCustomAuthAsync(resolved, cancellationToken);
+        ((CustomAuthConfig)auth.Config).CachedValue = value;
+        return value;
+    }
+
     public string PathFor(StraumrWorkspaceEntry workspace, Guid id) => RequestPath(id, workspace);
 
     private async Task EnsureNoNameConflictAsync(

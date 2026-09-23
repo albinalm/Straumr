@@ -75,7 +75,7 @@ public static class StraumrKeybinds
             ["Auth.Copy"] = "y",
             ["Auth.Delete"] = "d",
             ["Auth.EditJson"] = "Ctrl+E",
-            ["Auth.Fetch"] = "f",
+            ["Auth.Send"] = "s",
             ["Auth.Cancel"] = "Escape",
             ["Auth.ExtractHelp"] = "h",
             ["Auth.ExtractHelp.Function"] = "F1",
