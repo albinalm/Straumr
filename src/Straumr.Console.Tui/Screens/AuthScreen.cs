@@ -36,10 +36,11 @@ public sealed class AuthScreen : ITuiScreen
     private readonly State<int> _matchCount = new(0);
     private readonly State<string> _query = new(string.Empty);
 
-    private readonly State<IReadOnlyList<SecretReferenceModel>?> _references = new(null);
+    private readonly State<IReadOnlyList<ReferenceModel>?> _references = new(null);
     private readonly IStraumrRequestService _requestService;
     private readonly IStraumrSecretService _secrets;
-    private readonly ScrollableContent _secretsView;
+    private readonly ScrollableContent _referencesView;
+    private readonly IStraumrVariableService _variables;
     private readonly Visual _sections;
     private readonly State<int> _selectedIndex = new(-1);
     private readonly PaneSplits _splits;
@@ -76,11 +77,12 @@ public sealed class AuthScreen : ITuiScreen
         IStraumrAuthService auths,
         IStraumrRequestService requests,
         IStraumrSecretService secrets,
+        IStraumrVariableService variables,
         IStraumrFileService files,
         ExternalEditorService editor)
     {
-        (_state, _workspaces, _auths, _requestService, _secrets, _files, _editor) =
-            (state, workspaces, auths, requests, secrets, files, editor);
+        (_state, _workspaces, _auths, _requestService, _secrets, _variables, _files, _editor) =
+            (state, workspaces, auths, requests, secrets, variables, files, editor);
 
         StraumrPaneLayout paneLayout = state.State.PaneLayouts.GetValueOrDefault(PaneLayoutKey)
                                        ?? new StraumrPaneLayout { Stack = 65 };
@@ -117,18 +119,18 @@ public sealed class AuthScreen : ITuiScreen
 
         _configurationView = new ScrollableContent(new ComputedVisual(BuildConfiguration));
         _credentialView = new ScrollableContent(new ComputedVisual(BuildCredential));
-        _secretsView = new ScrollableContent(new ComputedVisual(BuildSecrets));
+        _referencesView = new ScrollableContent(new ComputedVisual(BuildReferences));
         _usedByView = new ScrollableContent(new ComputedVisual(BuildUsedBy));
 
         Visual configurationPane = ResourceScreenLayoutHelpers.Pane(_configurationView);
         Visual credentialPane = ResourceScreenLayoutHelpers.Pane(_credentialView);
-        Visual secretsPane = ResourceScreenLayoutHelpers.Pane(_secretsView);
+        Visual referencesPane = ResourceScreenLayoutHelpers.Pane(_referencesView);
         Visual usedByPane = ResourceScreenLayoutHelpers.Pane(_usedByView);
 
         _sections = ResourceScreenLayoutHelpers.FourPaneSections(_splits,
             ("Configuration", configurationPane),
             ("Credential", credentialPane),
-            ("Secrets", secretsPane),
+            ("Variables & Secrets", referencesPane),
             ("Used by", usedByPane));
         _sections.AddCommand(FetchCommand());
         _sections.AddCommand(CancelFetchCommand());
@@ -322,9 +324,12 @@ public sealed class AuthScreen : ITuiScreen
             return;
         }
 
-        IReadOnlyList<SecretReferenceModel> references = await SecretReferenceHelpers.ResolveAsync(
+        IReadOnlyList<ReferenceModel> references = await ReferenceHelpers.ResolveAsync(
             _secrets,
-            [JsonSerializer.Serialize(auth, StraumrJsonContext.Default.StraumrAuth)],
+            _variables,
+            _workspace!,
+            null,
+            auth,
             IsRecoverable,
             cancellationToken);
         if (SelectedItem?.Id == item.Id)
@@ -501,7 +506,7 @@ public sealed class AuthScreen : ITuiScreen
         return FieldListHelpers.Create(rows.ToArray());
     }
 
-    private Visual BuildSecrets()
+    private Visual BuildReferences()
     {
         if (SelectedItem is null)
         {
@@ -513,7 +518,7 @@ public sealed class AuthScreen : ITuiScreen
             return new TextBlock("Loading…").Style(StraumrStyleService.MutedText);
         }
 
-        return SecretListHelpers.Create(references);
+        return ReferenceListHelpers.Create(references);
     }
 
     private Visual BuildUsedBy()
@@ -557,7 +562,7 @@ public sealed class AuthScreen : ITuiScreen
         value.Length == 0 ? FieldListHelpers.Styled("not set", StraumrStyleService.MutedText) :
         FieldListHelpers.Styled("set", StraumrStyleService.AmberText);
 
-    private static bool IsReference(string value) => SecretHelpers.SecretPattern.IsMatch(value);
+    private static bool IsReference(string value) => VariableHelpers.ReferencePattern.IsMatch(value);
 
     private void ApplyFilter(string query) => ApplyFilter(query, SelectedItem?.Id);
 

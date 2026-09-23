@@ -74,7 +74,7 @@ internal sealed class KeyValuePairDialog
             .HorizontalAlignment(Align.Stretch));
         content.Add(new TextBlock(() => _isFile.Value
                 ? "The file is read when the request is sent, not now, so it can change between sends."
-                : "A value may reference a secret as {{secret:name}}.")
+                : "A value may reference a variable as {{name}} or a secret as {{secret:name}}.")
             .Style(StraumrStyleService.MutedText)
             .Wrap(true));
 

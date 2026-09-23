@@ -292,7 +292,7 @@ internal sealed class AuthEditor
         new(label, initial, set, placeholder, validate: validate) { Visible = visible };
 
     private static TextField Secret(string label, string initial, Action<string> set, Func<bool> visible) =>
-        new(label, initial, set, "value or {{secret:name}}", true) { Visible = visible };
+        new(label, initial, set, "value, {{name}} or {{secret:name}}", true) { Visible = visible };
 
     private static TextField Url(string label, string initial, Action<string> set, Func<bool> visible) =>
         new(label, initial, set,

@@ -72,7 +72,8 @@ internal sealed class AutocompleteEngine(IServiceProvider services)
             CompletionCatalog.IsWorkspaceNoun(noun) && WorkspaceIdentifierVerbs.Contains(verb) ||
             (CompletionCatalog.IsRequestNoun(noun) ||
              CompletionCatalog.IsAuthNoun(noun) ||
-             CompletionCatalog.IsSecretNoun(noun)) && EntityIdentifierVerbs.Contains(verb);
+             CompletionCatalog.IsSecretNoun(noun) ||
+             CompletionCatalog.IsVariableNoun(noun)) && EntityIdentifierVerbs.Contains(verb);
 
         completions = [];
         return !needsDynamicState;
@@ -119,6 +120,11 @@ internal sealed class AutocompleteEngine(IServiceProvider services)
         if (CompletionCatalog.IsSecretNoun(noun) && EntityIdentifierVerbs.Contains(verb))
         {
             return await SecretCompletionsAsync(partial, cancellationToken);
+        }
+
+        if (CompletionCatalog.IsVariableNoun(noun) && EntityIdentifierVerbs.Contains(verb))
+        {
+            return await VariableCompletionsAsync(partial, cancellationToken);
         }
 
         return [];
@@ -203,6 +209,31 @@ internal sealed class AutocompleteEngine(IServiceProvider services)
                 .ListAsync(cancellationToken);
             return Match(secrets.SelectMany(secret =>
                 new[] { secret.Id.ToString(), secret.Name }), partial);
+        }
+        catch (StraumrException)
+        {
+            return [];
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> VariableCompletionsAsync(
+        string partial,
+        CancellationToken cancellationToken)
+    {
+        var stateService = services.GetRequiredService<IStraumrStateService>();
+        StraumrWorkspaceEntry? workspace = stateService.State.CurrentWorkspace;
+        if (workspace is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            IReadOnlyList<StraumrVariable> variables = await services
+                .GetRequiredService<IStraumrVariableService>()
+                .ListAsync(workspace, cancellationToken);
+            return Match(variables.SelectMany(variable =>
+                new[] { variable.Id.ToString(), variable.Name }), partial);
         }
         catch (StraumrException)
         {

@@ -175,7 +175,8 @@ public class StraumrWorkspaceService(
             Name = newName,
             Requests = new HashSet<Guid>(sourceWorkspace.Requests),
             Auths = new HashSet<Guid>(sourceWorkspace.Auths),
-            Secrets = new HashSet<Guid>(sourceWorkspace.Secrets)
+            Secrets = new HashSet<Guid>(sourceWorkspace.Secrets),
+            Variables = new HashSet<Guid>(sourceWorkspace.Variables)
         };
 
         string newFullPath = WorkspacePath(newWorkspace.Id, newName, outputDir);

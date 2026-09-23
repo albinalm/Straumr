@@ -55,7 +55,7 @@ public static class ModelExtensions
                 message.Headers.Authorization = new AuthenticationHeaderValue(scheme, oauthToken.AccessToken);
                 break;
             case CustomAuthConfig { CachedValue: { } cachedValue } custom:
-                string headerValue = custom.ApplyHeaderTemplate.Replace("{{value}}", cachedValue);
+                string headerValue = custom.ApplyHeaderTemplate.Replace(CustomAuthConfig.ValuePlaceholder, cachedValue);
                 message.Headers.TryAddWithoutValidation(custom.ApplyHeaderName, headerValue);
                 break;
         }

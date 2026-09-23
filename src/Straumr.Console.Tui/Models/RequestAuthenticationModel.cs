@@ -1,5 +1,3 @@
-using System.Text.Json;
-using Straumr.Core.Configuration;
 using Straumr.Core.Models;
 using Straumr.Core.Services.Interfaces;
 
@@ -10,7 +8,7 @@ internal sealed record RequestAuthenticationModel(
     string Type,
     string Injects,
     AuthStatusModel Status,
-    IReadOnlyList<SecretReferenceModel> References,
+    IReadOnlyList<ReferenceModel> References,
     string? Problem)
 {
     public static readonly RequestAuthenticationModel Loading =
@@ -19,7 +17,7 @@ internal sealed record RequestAuthenticationModel(
     public static async Task<RequestAuthenticationModel> LoadAsync(
         StraumrRequest request, StraumrWorkspaceEntry workspace,
         IStraumrAuthService authService, IStraumrSecretService secretService,
-        CancellationToken cancellationToken)
+        IStraumrVariableService variableService, CancellationToken cancellationToken)
     {
         StraumrAuth? auth = null;
         string? problem = null;
@@ -35,17 +33,8 @@ internal sealed record RequestAuthenticationModel(
             }
         }
 
-        List<string> documents = new()
-        {
-            JsonSerializer.Serialize(request, StraumrJsonContext.Default.StraumrRequest)
-        };
-        if (auth is not null)
-        {
-            documents.Add(JsonSerializer.Serialize(auth, StraumrJsonContext.Default.StraumrAuth));
-        }
-
-        IReadOnlyList<SecretReferenceModel> references = await SecretReferenceHelpers.ResolveAsync(
-            secretService, documents, RequestScreen.IsRecoverable, cancellationToken);
+        IReadOnlyList<ReferenceModel> references = await ReferenceHelpers.ResolveAsync(
+            secretService, variableService, workspace, request, auth, RequestScreen.IsRecoverable, cancellationToken);
 
         bool direct = request.Headers.Keys.Any(name => name.Equals("Authorization", StringComparison.OrdinalIgnoreCase));
         return new RequestAuthenticationModel(

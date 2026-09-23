@@ -7,7 +7,8 @@ Straumr is one program with two faces. Run `straumr` on its own and you get the 
 - A **workspace** is a folder of requests and the auth definitions they share. One per API, usually.
 - A **request** is a URL, a method, headers, query parameters, a body, and optionally an auth to apply.
 - An **auth** belongs to a workspace: bearer, basic, OAuth 2.0, or a custom bootstrap request.
-- A **secret** is global, and is how a token stays out of a request file. Write `{{secret:name}}` anywhere in a request or auth and it is substituted at send time.
+- A **variable** belongs to a workspace, and is how the same request points at staging or production. Write `{{name}}` anywhere in a request or auth and it is substituted at send time.
+- A **secret** is global, and is how a token stays out of a request file. Write `{{secret:name}}` anywhere in a request or auth and it is substituted at send time. A variable name may not start with `secret:`, so the two never collide. Custom auth is the one exception to `{{name}}`: `{{value}}` in its header template is the fetched token, and is left alone even if a variable of that name exists.
 
 ## Getting started
 
@@ -41,6 +42,7 @@ Every command takes `--help`, which is the authoritative list of options for the
 `-H`/`--header` and `-P`/`--param` can be repeated. A body goes in `--data`, and `--type` says what it is: `json`, `xml`, `text`, `form`, `multipart`, or `raw`.
 
 ```sh
+straumr create variable host https://api.example.com
 straumr create secret api-token sk_live_...
 straumr create request create-user https://api.example.com/users \
   --method POST --type json \
@@ -48,7 +50,7 @@ straumr create request create-user https://api.example.com/users \
   --data '{"name":"Ada"}'
 ```
 
-Before you send something for real, `--dry-run` shows you the request with its secrets and auth resolved, without touching the network. A secret that does not exist is left as written and reported as a warning, so you can see exactly what would have gone out.
+Before you send something for real, `--dry-run` shows you the request with its variables, secrets, and auth resolved, without touching the network. A reference that does not exist is left as written and reported as a warning, so you can see exactly what would have gone out.
 
 ```sh
 straumr send create-user --dry-run
@@ -88,7 +90,7 @@ straumr export workspace my-api ./exports
 straumr import workspace ./exports/my-api.straumrpak
 ```
 
-A `.straumrpak` is a zip of the workspace folder. It carries requests and auths. It does not carry secrets — those are global and stay on your machine, which is the point of keeping them separate.
+A `.straumrpak` is a zip of the workspace folder. It carries requests, auths, and variables. It does not carry secrets — those are global and stay on your machine, which is the point of keeping them separate.
 
 ## Editing the files directly
 

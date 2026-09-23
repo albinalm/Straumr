@@ -160,6 +160,16 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `Auth.ExtractHelp` | `h` | · | · | · |
 | `Auth.ExtractHelp.Function` | `F1` | · | · | · |
 
+### Variables
+
+| Action | vim | emacs | commander | client |
+| --- | --- | --- | --- | --- |
+| `Variable.New` | `c` | · | `F7` | `Ctrl+N` |
+| `Variable.Edit` | `e` | · | `F4` | · |
+| `Variable.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Variable.Delete` | `d` | · | `F8` | `Delete` |
+| `Variable.EditJson` | `Ctrl+E` | · | · | · |
+
 ### Secrets
 
 | Action | vim | emacs | commander | client |

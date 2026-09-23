@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IStraumrAuthService, StraumrAuthService>();
         services.TryAddSingleton<IStraumrRequestService, StraumrRequestService>();
         services.TryAddSingleton<IStraumrSecretService, StraumrSecretService>();
+        services.TryAddSingleton<IStraumrVariableService, StraumrVariableService>();
 
         services.AddHttpClient();
         AddRequestClient(services, StraumrHttpClientConstants.Default, false, false);

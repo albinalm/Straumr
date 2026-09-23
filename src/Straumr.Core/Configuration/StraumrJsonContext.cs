@@ -11,6 +11,7 @@ namespace Straumr.Core.Configuration;
 [JsonSerializable(typeof(StraumrRequest))]
 [JsonSerializable(typeof(StraumrStoredResponse))]
 [JsonSerializable(typeof(StraumrSecret))]
+[JsonSerializable(typeof(StraumrVariable))]
 [JsonSerializable(typeof(StraumrAuth))]
 [JsonSerializable(typeof(StraumrState))]
 [JsonSerializable(typeof(StraumrPaneLayout))]

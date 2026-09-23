@@ -438,6 +438,7 @@ public sealed class WorkspaceScreen : ITuiScreen
             ("Path", FieldListHelpers.Wrapped(item.DisplayPath)),
             ("Requests", FieldListHelpers.Count(workspace.Requests.Count)),
             ("Auths", FieldListHelpers.Count(workspace.Auths.Count)),
+            ("Variables", FieldListHelpers.Count(workspace.Variables.Count)),
             ("Modified", FieldListHelpers.Text(TimestampFormatting.Absolute(workspace.Modified))));
 
         return ResourceScreenLayoutHelpers.TwoPaneSections(

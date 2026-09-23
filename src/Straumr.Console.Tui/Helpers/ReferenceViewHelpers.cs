@@ -3,16 +3,17 @@ using XenoAtom.Terminal.UI.Controls;
 
 namespace Straumr.Console.Tui.Helpers;
 
-internal static class SecretReferenceViewHelpers
+internal static class ReferenceViewHelpers
 {
-    public static string Placeholder(string name) => $"{{{{secret:{name}}}}}";
+    public static string Placeholder(string name, bool isSecret) =>
+        isSecret ? $"{{{{secret:{name}}}}}" : $"{{{{{name}}}}}";
 
-    public static Visual Create(string name, KnownSecretReferenceService references)
+    public static Visual Create(string placeholder, string scope, IReadOnlyList<ReferenceUsageModel> usages,
+        KnownReferenceService references)
     {
-        IReadOnlyList<SecretUsageModel> usages = references.For(name);
         List<Visual> content = new()
         {
-            usages.Count == 0 ? Empty(name, references) : Workspaces(usages)
+            usages.Count == 0 ? Empty(placeholder, scope, references) : Workspaces(usages)
         };
         if (references.Notice is { } notice)
         {
@@ -20,20 +21,19 @@ internal static class SecretReferenceViewHelpers
                 .HorizontalAlignment(Align.Stretch));
         }
 
-        content.Add(FieldListHelpers.Create(("Placeholder", FieldListHelpers.Wrapped(Placeholder(name)))));
+        content.Add(FieldListHelpers.Create(("Placeholder", FieldListHelpers.Wrapped(placeholder))));
         return new VStack(content.ToArray()).Spacing(1).HorizontalAlignment(Align.Stretch);
     }
 
     public static Visual Message(string text) =>
         new TextBlock(text).Style(StraumrStyleService.MutedText).Wrap(true).HorizontalAlignment(Align.Stretch);
 
-    private static Visual Empty(string name, KnownSecretReferenceService references) =>
+    private static Visual Empty(string placeholder, string scope, KnownReferenceService references) =>
         Message(references.ScannedWorkspaces == 0
-            ? $"No registered workspace could be read, so references to {Placeholder(name)} are unknown."
-            : $"No request or auth in {CountFormatting.Label(references.ScannedWorkspaces, "scanned workspace")} " +
-              $"references {Placeholder(name)}.");
+            ? $"No registered workspace could be read, so references to {placeholder} are unknown."
+            : $"No request or auth in {scope} references {placeholder}.");
 
-    private static Visual Workspaces(IReadOnlyList<SecretUsageModel> usages) =>
+    private static Visual Workspaces(IReadOnlyList<ReferenceUsageModel> usages) =>
         new VStack(usages.GroupBy(usage => usage.WorkspaceId)
                 .Select(group => (Visual)new VStack([
                         Header(group.First().Workspace, group.Count()),
@@ -49,7 +49,7 @@ internal static class SecretReferenceViewHelpers
                 .Trimming(TextTrimming.EndEllipsis).HorizontalAlignment(Align.Stretch),
             new TextBlock(CountFormatting.Label(count, "reference")).Style(StraumrStyleService.MutedText));
 
-    private static Visual Entry(SecretUsageModel usage) =>
+    private static Visual Entry(ReferenceUsageModel usage) =>
         StraumrSurfaceHelpers.Bar(
             new TextBlock($"  {SecretFormatting.Display(usage.Resource)}").Style(StraumrStyleService.PrimaryText)
                 .Trimming(TextTrimming.EndEllipsis).HorizontalAlignment(Align.Stretch),

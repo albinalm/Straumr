@@ -42,6 +42,7 @@ public interface IStraumrRequestService
         CancellationToken cancellationToken = default);
 
     Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(
+        StraumrWorkspaceEntry workspace,
         StraumrRequest request,
         CancellationToken cancellationToken = default);
 
