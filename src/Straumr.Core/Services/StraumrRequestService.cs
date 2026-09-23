@@ -219,15 +219,26 @@ public class StraumrRequestService(
             client, resolvedRequest, resolvedAuthConfig, cancellationToken);
         response.Warnings = warnings;
 
-        if (ShouldRetryCustomAuth(auth, resolvedAuthConfig, response))
+        if (ShouldRetryAuth(auth, resolvedAuthConfig, response))
         {
-            var custom = (CustomAuthConfig)resolvedAuthConfig!;
-            custom.CachedValue = null;
-            await authService.ExecuteCustomAuthAsync(custom, cancellationToken);
-            if (auth is not null)
+            switch (resolvedAuthConfig)
             {
-                ((CustomAuthConfig)auth.Config).CachedValue = custom.CachedValue;
-                await authService.SaveAsync(workspace, auth, cancellationToken);
+                case BasicAuthConfig:
+                    resolvedAuthConfig = await ResolveAuthReferencesAsync(workspace, auth!.Config,
+                        new Dictionary<string, string>(StringComparer.Ordinal), warnings, cancellationToken);
+                    break;
+                case OAuth2Config oauth:
+                    OAuth2Token token = await authService.RenewTokenAsync(oauth, cancellationToken);
+                    oauth.Token = token;
+                    ((OAuth2Config)auth!.Config).Token = token;
+                    await authService.SaveAsync(workspace, auth, cancellationToken);
+                    break;
+                case CustomAuthConfig custom:
+                    custom.CachedValue = null;
+                    await authService.ExecuteCustomAuthAsync(custom, cancellationToken);
+                    ((CustomAuthConfig)auth!.Config).CachedValue = custom.CachedValue;
+                    await authService.SaveAsync(workspace, auth, cancellationToken);
+                    break;
             }
 
             response = await SendWithMetadataAsync(
@@ -245,6 +256,49 @@ public class StraumrRequestService(
 
         await Task.WhenAll(accessStamps);
         return response;
+    }
+
+    public async Task<string> SendAuthAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrAuth auth,
+        CancellationToken cancellationToken = default)
+    {
+        List<string> warnings = new();
+        Dictionary<string, string> resolved = new(StringComparer.Ordinal);
+        StraumrAuthConfig? config = await ResolveAuthReferencesAsync(
+            workspace, auth.Config, resolved, warnings, cancellationToken);
+        if (warnings.Count > 0)
+        {
+            throw new StraumrException(string.Join(" ", warnings), StraumrError.MissingEntry);
+        }
+
+        string value = config switch
+        {
+            OAuth2Config oauth => await FetchOAuthAsync(oauth, auth, cancellationToken),
+            CustomAuthConfig custom => await FetchCustomAsync(custom, auth, cancellationToken),
+            _ => throw new StraumrException("This auth has no request to send", StraumrError.InvalidEntry)
+        };
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new StraumrException("Auth response did not contain a usable value", StraumrError.InvalidEntry);
+        }
+
+        await authService.SaveAsync(workspace, auth, cancellationToken);
+        return value;
+    }
+
+    private async Task<string> FetchOAuthAsync(OAuth2Config resolved, StraumrAuth auth, CancellationToken cancellationToken)
+    {
+        OAuth2Token token = await authService.FetchTokenAsync(resolved, cancellationToken);
+        ((OAuth2Config)auth.Config).Token = token;
+        return token.AccessToken;
+    }
+
+    private async Task<string> FetchCustomAsync(CustomAuthConfig resolved, StraumrAuth auth, CancellationToken cancellationToken)
+    {
+        string value = await authService.ExecuteCustomAuthAsync(resolved, cancellationToken);
+        ((CustomAuthConfig)auth.Config).CachedValue = value;
+        return value;
     }
 
     public string PathFor(StraumrWorkspaceEntry workspace, Guid id) => RequestPath(id, workspace);
@@ -576,11 +630,14 @@ public class StraumrRequestService(
     }
 
 
-    private static bool ShouldRetryCustomAuth(
+    private static bool ShouldRetryAuth(
         StraumrAuth? auth, StraumrAuthConfig? resolvedAuthConfig, StraumrResponse response) =>
-        auth is { AutoRenewAuth: true }
-        && resolvedAuthConfig is CustomAuthConfig
-        && response.StatusCode == HttpStatusCode.Unauthorized;
+        response.StatusCode == HttpStatusCode.Unauthorized && resolvedAuthConfig switch
+        {
+            BasicAuthConfig => true,
+            OAuth2Config or CustomAuthConfig => auth is { AutoRenewAuth: true },
+            _ => false
+        };
 
     private async Task RemoveRequestAsync(
         StraumrWorkspaceEntry entry,

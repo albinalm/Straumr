@@ -39,5 +39,7 @@ public interface IStraumrAuthService
 
     Task<OAuth2Token> EnsureTokenAsync(OAuth2Config config, CancellationToken cancellationToken = default);
 
+    Task<OAuth2Token> RenewTokenAsync(OAuth2Config config, CancellationToken cancellationToken = default);
+
     Task<string> ExecuteCustomAuthAsync(CustomAuthConfig config, CancellationToken cancellationToken = default);
 }

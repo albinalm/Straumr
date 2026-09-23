@@ -51,4 +51,9 @@ public interface IStraumrRequestService
         StraumrRequest request,
         SendOptions? options = null,
         CancellationToken cancellationToken = default);
+
+    Task<string> SendAuthAsync(
+        StraumrWorkspaceEntry workspace,
+        StraumrAuth auth,
+        CancellationToken cancellationToken = default);
 }

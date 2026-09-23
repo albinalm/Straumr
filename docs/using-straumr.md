@@ -70,9 +70,9 @@ straumr edit request users --auth service-token
 
 Attach an auth to a request and it is applied on every send.
 
-- **Bearer** puts a token in an `Authorization` header, with a prefix you can change.
-- **Basic** encodes a username and password.
-- **OAuth 2.0** handles client credentials, authorization code, and resource-owner password grants, and refreshes an expired token before sending. The authorization code grant opens your browser and listens on its configured redirect URI for the callback.
+- **Bearer** puts a token in an `Authorization` header, with a prefix you can change. A 401 returns without retrying.
+- **Basic** encodes a username and password. A 401 resolves any credential references again and retries the request once.
+- **OAuth 2.0** handles client credentials, authorization code, and resource-owner password grants, and refreshes an expired token before sending. With auto-renew on, a 401 tries the refresh token, then a fresh grant if refresh is rejected, and retries the request once. The authorization code grant opens your browser and listens on its configured redirect URI for the callback.
 - **Custom** fetches a value with a request of its own — pulling it out of the response with a JSONPath expression, a header, or a regex — and applies it as a header you define. With auto-renew on, a 401 makes it fetch a fresh value and retry once.
 
 ## Scripting
