@@ -94,6 +94,14 @@ public class StraumrSettingsService : IStraumrSettingsService
         return SettingsPath;
     }
 
+    public async Task ResetAsync(CancellationToken cancellationToken = default)
+    {
+        Directory.CreateDirectory(SettingsDirectory);
+        File.Delete(SettingsPath);
+        await EnsureFileAsync(cancellationToken);
+        await LoadAsync(cancellationToken);
+    }
+
     public Task SetThemeAsync(string reference, CancellationToken cancellationToken = default)
         => SaveValuesAsync(new Dictionary<string, ValueSyntax>
         {

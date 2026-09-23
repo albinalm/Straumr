@@ -52,6 +52,7 @@ public sealed class StraumrTuiApp
     private TuiCommandResultModel? _pendingAnnouncement;
     private TuiExternalActionModel? _pendingExternalAction;
     private TuiPendingNavigationModel? _pendingNavigation;
+    private bool _resetRequested;
     private ITuiScreen _screen;
     private bool _transientOpened;
     private bool _workspaceContextLoaded;
@@ -234,6 +235,16 @@ public sealed class StraumrTuiApp
             return;
         }
 
+        if (_resetRequested)
+        {
+            _resetRequested = false;
+            Notify(await ResetSettingsAsync(token));
+            if (RestartRequested)
+            {
+                return;
+            }
+        }
+
         await NavigatePendingAsync(token);
         AnnouncePending();
         await _screen.UpdateAsync(token);
@@ -340,6 +351,10 @@ public sealed class StraumrTuiApp
             Aliases = ["set"],
             AllowPrefixMatch = false
         });
+        _commands.Add(new TuiCommandModel("reset", (argument, _) => ConfirmReset(argument))
+        {
+            AllowPrefixMatch = false
+        });
         _commands.Add(new TuiCommandModel("theme", ThemeAsync)
         {
             AllowPrefixMatch = false,
@@ -369,6 +384,36 @@ public sealed class StraumrTuiApp
 
         RequestExternalAction(new TuiExternalActionModel(EditSettingsAsync, _screen.FocusTarget));
         return Task.FromResult(TuiCommandResultModel.None);
+    }
+
+    private Task<TuiCommandResultModel> ConfirmReset(string argument)
+    {
+        if (argument.Length > 0)
+        {
+            return Task.FromResult(TuiCommandResultModel.Failed("usage: reset"));
+        }
+
+        new ConfirmDialog("Reset settings", "Recreate settings.toml with factory defaults?",
+            "Theme, keybindings, paths, and response preferences will reset. Workspaces and secrets remain. Quick start will open again.",
+            "Reset", true, () => _resetRequested = true).Show();
+        return Task.FromResult(TuiCommandResultModel.None);
+    }
+
+    private async Task<TuiCommandResultModel> ResetSettingsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _settingsService.ResetAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return TuiCommandResultModel.Failed($"settings reset failed: {FirstLine(exception.Message)}");
+        }
+
+        _themeSelection.Apply();
+        TuiCommandResultModel result = await BeginQuickStartAsync(cancellationToken);
+        RestartRequested = true;
+        return result.IsError ? result : TuiCommandResultModel.Ok("settings reset to defaults");
     }
 
     private async Task<TuiCommandResultModel> EditSettingsAsync(CancellationToken cancellationToken)

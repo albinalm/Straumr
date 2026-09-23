@@ -26,6 +26,8 @@ public interface IStraumrSettingsService
 
     Task<string> EnsureFileAsync(CancellationToken cancellationToken = default);
 
+    Task ResetAsync(CancellationToken cancellationToken = default);
+
     Task SetThemeAsync(string reference, CancellationToken cancellationToken = default);
 
     Task CompleteQuickStartAsync(string preset, string theme, CancellationToken cancellationToken = default);

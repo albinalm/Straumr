@@ -67,6 +67,8 @@ On a screen, against the thing it names — or against the selection, if you nam
 
 Requests add `:send` and `:view` (the last response, also `:response`). Workspaces add `:use` (make active, also `:activate`), `:import`, and `:export`. Auths add `:send`, which sends an OAuth or custom auth request and shows the extracted value in the credential pane. Auths that hold a bearer token or basic credentials have no request to send.
 
+Use `:reset` to replace `settings.toml` with its factory template after a confirmation. The TUI reloads into quick start so you can choose a theme and keybind preset again. Workspaces and secrets stay in place.
+
 Prefix a command with a screen name to run it from anywhere: `:rq send users` goes to Requests and sends, `:ws use my-api` switches the active workspace without leaving the screen you are on.
 
 ## Editing
