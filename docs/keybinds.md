@@ -17,6 +17,8 @@ keybind-preset = "emacs"
 - **commander** — the function-key row: `F2` saves, `F4` edits, `F5` copies, `F7` creates, `F8` deletes, `F9` opens the command prompt.
 - **client** — what a graphical API client trains into your fingers: `Ctrl+R` sends, `Ctrl+N` creates, `Ctrl+D` duplicates, `Delete` deletes, `Ctrl+F` finds.
 
+By default, `Enter` and `Space` activate the selected row on a focused list. That means use a workspace, edit a resource, open a browser folder, or choose an onboarding option. `c` creates or adds, `e` edits, and `d` deletes or removes the focused item, including within editors and the file browser. The commander preset uses `F4` to edit. These are separate actions, so each key can be changed or disabled independently.
+
 ## Override single actions
 
 Add a `[keybinds]` table to `~/.straumr/settings.toml`. Quote the action name — the dots are part of it.
@@ -85,6 +87,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `ResourceList.First` | `g` | `Home` | · | · |
 | `ResourceList.Last` | `G` | `End` | · | · |
 | `ResourceList.Activate` | `Enter` | · | · | · |
+| `ResourceList.ActivateAlternate` | `Space` | · | · | · |
 | `ResourceList.Up` | `Up` | · | · | · |
 | `ResourceList.Down` | `Down` | · | · | · |
 | `ResourceList.Home` | `Home` | · | · | · |
@@ -197,9 +200,11 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | --- | --- | --- | --- | --- |
 | `Editor.Save` | `Ctrl+S` | · | `F2` | · |
 | `Editor.Close` | `Escape` | `Ctrl+G` | · | · |
-| `ContentField.Edit` | `Enter` | · | · | · |
+| `ContentField.Edit` | `e` | · | `F4` | · |
+| `ContentField.Activate` | `Enter` | · | · | · |
+| `ContentField.ActivateAlternate` | `Space` | · | · | · |
 | `ContentField.Edit.Control` | `Ctrl+E` | · | · | · |
-| `KeyValueField.Add` | `a` | · | `F7` | · |
+| `KeyValueField.Add` | `c` | · | `F7` | `Ctrl+N` |
 | `KeyValueField.Edit` | `e` | · | `F4` | · |
 | `KeyValueField.Remove` | `d` | · | `F8` | `Delete` |
 | `SecretSuggestions.Next` | `Down` | · | · | · |
@@ -223,14 +228,22 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `BrowserDialog.Up` | `Backspace` | · | · | · |
 | `BrowserDialog.Select` | `s` | · | · | · |
 | `BrowserDialog.Select.Current` | `Ctrl+Enter` | · | · | · |
-| `BrowserDialog.New` | `n` | · | `F7` | · |
-| `BrowserDialog.Rename` | `r` | · | `F6` | · |
+| `BrowserDialog.New` | `c` | · | `F7` | `Ctrl+N` |
+| `BrowserDialog.Rename` | `e` | · | `F4` | · |
 | `BrowserDialog.Delete` | `d` | · | `F8` | `Delete` |
 | `BrowserDialog.Cancel` | `Escape` | `Ctrl+G` | · | · |
 | `BrowserDialog.Location` | `Ctrl+L` | · | · | · |
 | `BrowserDialog.Location.Go` | `Enter` | · | · | · |
 | `BrowserDialog.Location.Cancel` | `Escape` | `Ctrl+G` | · | · |
 | `BrowserDialog.Location.Complete` | `Tab` | · | · | · |
+
+### Quick start
+
+| Action | vim | emacs | commander | client |
+| --- | --- | --- | --- | --- |
+| `QuickStart.Advance` | `Enter` | · | · | · |
+
+Quick start uses the shared list activation, focus, scrolling, and dialog direction actions for its other shortcuts. Its screen command examples show the active command prompt key.
 
 ### CLI prompts
 

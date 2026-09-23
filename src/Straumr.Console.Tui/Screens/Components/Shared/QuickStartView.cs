@@ -103,25 +103,31 @@ internal sealed class QuickStartView
         }
     }
 
-    private static void ButtonKey(Button button, string label, Action action) => button.AddCommand(new Command
+    private static void ButtonKey(Button button, string label, Action action)
     {
-        Id = "QuickStart.Activate." + label,
-        LabelMarkup = label,
-        Gesture = new KeyGesture(TerminalKey.Enter),
-        Importance = CommandImportance.Primary,
-        Presentation = CommandPresentation.CommandBar,
-        Execute = _ => action()
-    });
+        foreach (string id in (string[])["ResourceList.Activate", "ResourceList.ActivateAlternate"])
+        {
+            button.AddCommand(new Command
+            {
+                Id = "QuickStart.Activate." + label + "." + id,
+                LabelMarkup = label,
+                Gesture = TuiKeybindHelpers.Get(id),
+                Importance = CommandImportance.Primary,
+                Presentation = id == "ResourceList.Activate" ? CommandPresentation.CommandBar : CommandPresentation.None,
+                Execute = _ => action()
+            });
+        }
+    }
 
     private void SwitchKey(Button from, Button to)
     {
-        foreach (TerminalKey key in (TerminalKey[])[TerminalKey.Left, TerminalKey.Right])
+        foreach (string id in (string[])["ConfirmDialog.Left", "ConfirmDialog.Right"])
         {
             from.AddCommand(new Command
             {
-                Id = "QuickStart.Switch." + key,
+                Id = "QuickStart.Switch." + id,
                 LabelMarkup = "Switch",
-                Gesture = new KeyGesture(key),
+                Gesture = TuiKeybindHelpers.Get(id),
                 Presentation = CommandPresentation.None,
                 CanExecute = _ => to.IsVisible && to.App is not null,
                 Execute = _ => to.App?.Focus(to)
@@ -129,12 +135,12 @@ internal sealed class QuickStartView
         }
     }
 
-    private void AddKey(string label, KeyGesture gesture, Action action, Func<bool>? visible = null, bool route = true) =>
+    private void AddKey(string id, string label, Action action, Func<bool>? visible = null, bool route = true) =>
         Root.AddCommand(new Command
         {
-            Id = "QuickStart." + label,
+            Id = "QuickStart." + id,
             LabelMarkup = label,
-            Gesture = gesture,
+            Gesture = TuiKeybindHelpers.Get(id),
             Presentation = CommandPresentation.CommandBar,
             Importance = CommandImportance.Primary,
             RouteGesture = route,
@@ -258,10 +264,11 @@ internal sealed class QuickStartView
             Root.RemoveCommand(command.Id);
         }
 
-        AddKey(_session.Card == 0 ? "Focus · the footer shows your keys" : "Focus", new KeyGesture(TerminalKey.Tab),
-            () => Root.App?.FocusStep(1), route: false);
-        AddKey("Scroll down", new KeyGesture(TerminalKey.PageDown), () => Scroll(1), () => Rows < 24 && _session.Card > 0);
-        AddKey("Scroll up", new KeyGesture(TerminalKey.PageUp), () => Scroll(-1), () => Rows < 24 && _session.Card > 0);
+        AddKey("Straumr.FocusNext", _session.Card == 0 ? "Focus · the footer shows your keys" : "Focus",
+            () => Root.App?.FocusStep(1),
+            route: TuiKeybindHelpers.Get("Straumr.FocusNext") != new KeyGesture(TerminalKey.Tab));
+        AddKey("ScrollableContent.PageDown", "Scroll down", () => Scroll(1), () => Rows < 24 && _session.Card > 0);
+        AddKey("ScrollableContent.PageUp", "Scroll up", () => Scroll(-1), () => Rows < 24 && _session.Card > 0);
         _focus = true;
     }
 
@@ -278,7 +285,7 @@ internal sealed class QuickStartView
     private Visual Presets()
     {
         string[] names = StraumrKeybindPresets.Names.ToArray();
-        return Card("Keybind preset", "Enter chooses, and the keys change under you.",
+        return Card("Keybind preset", $"{TuiKeybindHelpers.Hint("ResourceList.Activate")} chooses, and the keys change under you.",
             Choices(names.Select(name => new ResourceRowModel(Title(name), Keys(name), true)),
                 Math.Max(0, Array.IndexOf(names, _session.Preset)), i => _session.PreviewPreset(names[i])));
     }
@@ -301,7 +308,7 @@ internal sealed class QuickStartView
                $"Delete {StraumrKeybindPresets.Hint(preset, "Request.Delete")}";
     }
 
-    private Visual Themes() => Card("Theme", "Enter chooses, and the screen changes with it.",
+    private Visual Themes() => Card("Theme", $"{TuiKeybindHelpers.Hint("ResourceList.Activate")} chooses, and the screen changes with it.",
         Choices(_session.Themes.Select(t => new ResourceRowModel(t.Label, t.Problem ?? Origin(t.Label),
                 t.Problem is null, IsBroken: t.Problem is not null)),
             Math.Max(0, _session.Themes.FindIndex(t => t.Reference == _session.ThemeReference)), Preview));
@@ -389,7 +396,7 @@ internal sealed class QuickStartView
         {
             Id = "QuickStart.Choose",
             LabelMarkup = "Choose",
-            Gesture = new KeyGesture(TerminalKey.Enter),
+            Gesture = TuiKeybindHelpers.Get("ResourceList.Activate"),
             Importance = CommandImportance.Primary,
             Presentation = CommandPresentation.CommandBar,
             RouteGesture = false,
@@ -424,9 +431,9 @@ internal sealed class QuickStartView
 
     private void AdvanceFrom(Visual field) => field.AddCommand(new Command
     {
-        Id = "QuickStart.Next",
+        Id = "QuickStart.Advance",
         LabelMarkup = "Next",
-        Gesture = new KeyGesture(TerminalKey.Enter),
+        Gesture = TuiKeybindHelpers.Get("QuickStart.Advance"),
         Importance = CommandImportance.Primary,
         Presentation = CommandPresentation.CommandBar,
         Execute = _ => _advance = true
@@ -446,15 +453,21 @@ internal sealed class QuickStartView
 
     private Visual Map() => Card("You are set up", "", new VStack(
             new VStack(
-                    Row(":ws", "Workspaces", "browse and edit your workspace collection", false),
-                    Row(":rq", "Requests", "← you start here", true, true),
-                    Row(":au", "Auths", "fetched before a request and applied to it", false),
-                    Row(":vr", "Variables", "variables contained within the workspace", false),
-                    Row(":sc", "Secrets", "secret values, stored outside the workspace", false))
+                    Row(PromptCommand("ws"), "Workspaces", "browse and edit your workspace collection", false),
+                    Row(PromptCommand("rq"), "Requests", "← you start here", true, true),
+                    Row(PromptCommand("au"), "Auths", "fetched before a request and applied to it", false),
+                    Row(PromptCommand("vr"), "Variables", "variables contained within the workspace", false),
+                    Row(PromptCommand("sc"), "Secrets", "secret values, stored outside the workspace", false))
                 .HorizontalAlignment(Align.Center),
             new TextBlock("Tip: You can also use ☰ to navigate between screens.")
                 .Style(StraumrStyleService.MutedBrightText).HorizontalAlignment(Align.Center))
         .Spacing(1).HorizontalAlignment(Align.Stretch));
+
+    private static string PromptCommand(string alias)
+    {
+        string key = TuiKeybindHelpers.Hint("Straumr.OpenCommandPrompt");
+        return key == ":" ? $":{alias}" : $"{key} {alias}";
+    }
 
     private Visual Row(string alias, string screen, string phrase, bool here, bool always = false) => new HStack(
             new TextBlock(alias).Style(StraumrStyleService.AccentText).MinWidth(4),

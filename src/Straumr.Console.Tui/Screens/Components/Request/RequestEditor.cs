@@ -26,7 +26,6 @@ internal sealed class RequestEditor
         IReadOnlyList<StraumrAuth> auths,
         string? workspaceName,
         bool isNew,
-        char? openingGesture,
         Action save,
         Action closed,
         Action<ExternalContentEditModel> editContent,

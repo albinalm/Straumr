@@ -92,10 +92,10 @@ public sealed class RequestScreen : ITuiScreen
         _list.BindSelectedIndex(_selectedIndex);
         _list.ItemActivated += _ => RequestEdit();
         _filter = new ResourceFilter("filter requests", ApplyFilter, () => _list);
-        _list.AddCommand(ActionCommand("New", () => OpenEditor(null, 'c'), () => _workspace is not null));
+        _list.AddCommand(ActionCommand("New", () => OpenEditor(null, false), () => _workspace is not null));
         _list.AddCommand(ActionCommand("Edit", RequestEdit, () => SelectedItem is not null,
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
-        _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, 'y'),
+        _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Request.EditJson", "Edit JSON",
@@ -529,18 +529,18 @@ public sealed class RequestScreen : ITuiScreen
 
         return Task.FromResult(argument.Length > 0
             ? TuiCommandResultModel.Failed("usage: create")
-            : OpenEditorFor(null, 'c'));
+            : OpenEditorFor(null, false));
     }
 
     private Task<TuiCommandResultModel> EditRequestAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, item => item.IsBroken
             ? EditAsJson(item)
-            : OpenEditorFor(item, 'e')));
+            : OpenEditorFor(item, false)));
 
     private Task<TuiCommandResultModel> CopyRequestAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, item => item.IsBroken
             ? TuiCommandResultModel.Failed($"cannot copy {item.Name}: the request cannot be read")
-            : OpenEditorFor(item, 'y')));
+            : OpenEditorFor(item, true)));
 
     private Task<TuiCommandResultModel> DeleteRequestAsync(string argument, CancellationToken cancellationToken) =>
         Task.FromResult(OnSelected(argument, _ =>
@@ -561,14 +561,14 @@ public sealed class RequestScreen : ITuiScreen
             return TuiCommandResultModel.None;
         }));
 
-    private TuiCommandResultModel OpenEditorFor(RequestScreenItemModel? source, char openingGesture)
+    private TuiCommandResultModel OpenEditorFor(RequestScreenItemModel? source, bool copy)
     {
         if (_editorView is not null)
         {
             return TuiCommandResultModel.Failed("the request editor is already open");
         }
 
-        OpenEditor(source, openingGesture);
+        OpenEditor(source, copy);
         return TuiCommandResultModel.None;
     }
 
@@ -746,14 +746,14 @@ public sealed class RequestScreen : ITuiScreen
         }
     }
 
-    private void OpenEditor(RequestScreenItemModel? source, char openingGesture)
+    private void OpenEditor(RequestScreenItemModel? source, bool copy)
     {
         if (_workspace is null || _editorView is not null)
         {
             return;
         }
 
-        bool isNew = source is null || openingGesture == 'y';
+        bool isNew = source is null || copy;
         RequestEditorStateModel state = source?.Request is { } request
             ? RequestEditorStateModel.FromRequest(request)
             : RequestEditorStateModel.CreateNew();
@@ -764,7 +764,7 @@ public sealed class RequestScreen : ITuiScreen
 
         _editingId = isNew ? null : source!.Id;
         string? sourceName = isNew && source is not null ? source.Name : null;
-        var editor = new RequestEditor(state, _workspaceAuths, ActiveWorkspaceName, isNew, openingGesture,
+        var editor = new RequestEditor(state, _workspaceAuths, ActiveWorkspaceName, isNew,
             () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
             {
@@ -908,7 +908,7 @@ public sealed class RequestScreen : ITuiScreen
 
         if (!item.IsBroken)
         {
-            OpenEditor(item, 'e');
+            OpenEditor(item, false);
             return;
         }
 

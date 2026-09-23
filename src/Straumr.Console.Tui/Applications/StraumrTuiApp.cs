@@ -632,22 +632,6 @@ public sealed class StraumrTuiApp
             app.AddGlobalCommand(command);
         }
 
-        if (TuiKeybindHelpers.Get(OpenPromptCommandId) != new KeyGesture(':'))
-        {
-            foreach (TerminalModifiers modifiers in new[] { TerminalModifiers.None, TerminalModifiers.Shift })
-            {
-                app.AddGlobalCommand(new Command
-                {
-                    Id = "Straumr.Colon." + modifiers,
-                    LabelMarkup = "Command",
-                    Gesture = new KeyGesture(':', modifiers),
-                    Presentation = CommandPresentation.None,
-                    CanExecute = _ => !_quickStart.Active && !_prompt.IsOpen && !IsModalOpen,
-                    ConsumesGestureWhenUnavailable = false,
-                    Execute = _ => OpenPrompt()
-                });
-            }
-        }
         app.AddGlobalCommand(BuildInterruptCommand());
         if (_quickStart.Active)
         {

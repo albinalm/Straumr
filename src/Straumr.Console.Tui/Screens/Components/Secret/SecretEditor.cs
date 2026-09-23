@@ -12,7 +12,7 @@ internal sealed class SecretEditor
     private readonly ResourceEditorView _view;
     private string _openedValue;
 
-    public SecretEditor(StraumrSecret state, string? workspaceName, bool isNew, char? openingGesture,
+    public SecretEditor(StraumrSecret state, string? workspaceName, bool isNew,
         State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null)
     {
         _state = state;
