@@ -159,12 +159,26 @@ public class StraumrAuthService(
             return config.Token;
         }
 
-        if (config.Token?.RefreshToken is not null)
+        return await RenewTokenAsync(config, cancellationToken);
+    }
+
+    public async Task<OAuth2Token> RenewTokenAsync(
+        OAuth2Config config,
+        CancellationToken cancellationToken = default)
+    {
+        if (config.Token?.RefreshToken is null)
+        {
+            return await FetchTokenAsync(config, cancellationToken);
+        }
+
+        try
         {
             return await RefreshTokenAsync(config, cancellationToken);
         }
-
-        return await FetchTokenAsync(config, cancellationToken);
+        catch (InvalidOperationException)
+        {
+            return await FetchTokenAsync(config, cancellationToken);
+        }
     }
 
     public async Task<string> ExecuteCustomAuthAsync(
@@ -230,7 +244,9 @@ public class StraumrAuthService(
             parameters["client_secret"] = config.ClientSecret;
         }
 
-        return await RequestTokenAsync(config.TokenUrl, parameters, cancellationToken);
+        OAuth2Token token = await RequestTokenAsync(config.TokenUrl, parameters, cancellationToken);
+        token.RefreshToken ??= config.Token.RefreshToken;
+        return token;
     }
 
     private static string ExtractFromJson(string json, string path)
