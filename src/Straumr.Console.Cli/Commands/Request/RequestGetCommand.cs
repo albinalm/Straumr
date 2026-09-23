@@ -130,7 +130,7 @@ public class RequestGetCommand(
         {
             request = await requestService.GetAsync(workspaceEntry, foundId.Value,
                 cancellationToken: cancellation);
-            (resolvedUrl, warnings) = await requestService.ResolveUrlAsync(request, cancellation);
+            (resolvedUrl, warnings) = await requestService.ResolveUrlAsync(workspaceEntry, request, cancellation);
             status = "[green]Valid[/]";
         }
         catch (StraumrException ex) when (ex.Reason == StraumrError.CorruptEntry)

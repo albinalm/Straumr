@@ -21,7 +21,7 @@ internal sealed class SecretSuggestions
     private readonly State<bool> _open = new(false);
     private readonly State<int> _selected = new(0);
     private bool _isRewriting;
-    private SecretTokenModel _token;
+    private ReferenceTokenModel _token;
     private int _visibleRows = MaxRows;
 
     public SecretSuggestions(TextBox input)
@@ -50,13 +50,13 @@ internal sealed class SecretSuggestions
         }
 
         string text = _input.Text ?? string.Empty;
-        if (SecretTokenHelpers.At(text, _input.CaretIndex) is not { } token)
+        if (ReferenceTokenHelpers.At(text, _input.CaretIndex) is not { } token)
         {
             _open.Value = false;
             return;
         }
 
-        string[] matches = [.. SecretCatalogService.Match(SecretTokenHelpers.Prefix(text, token))];
+        string[] matches = [.. Catalog(token, ReferenceTokenHelpers.Prefix(text, token))];
         if (matches.Length == 0)
         {
             _open.Value = false;
@@ -74,6 +74,9 @@ internal sealed class SecretSuggestions
         _capacity.Value = Capacity();
         _open.Value = true;
     }
+
+    private static IReadOnlyList<string> Catalog(ReferenceTokenModel token, string prefix) =>
+        token.IsSecret ? SecretCatalogService.Match(prefix) : VariableCatalogService.Match(prefix);
 
     private static int Window(int offset, int selected, int count, int rows) =>
         Math.Clamp(
@@ -181,8 +184,8 @@ internal sealed class SecretSuggestions
         try
         {
             _input.TextDocument.Replace(
-                _token.NameStart, _token.ReplaceLength, SecretTokenHelpers.Replacement(_token, name));
-            _input.CaretIndex = SecretTokenHelpers.CaretAfter(_token, name);
+                _token.NameStart, _token.ReplaceLength, ReferenceTokenHelpers.Replacement(_token, name));
+            _input.CaretIndex = ReferenceTokenHelpers.CaretAfter(_token, name);
         }
         finally
         {

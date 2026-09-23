@@ -10,13 +10,14 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Tui.Helpers;
 
-internal static class SecretReferenceRewriteHelpers
+internal static class ReferenceRewriteHelpers
 {
-    public static async Task<SecretRewriteModel> ApplyAsync(
+    public static async Task<ReferenceRewriteModel> ApplyAsync(
         IReadOnlyList<StraumrWorkspaceEntry> entries,
-        IReadOnlyList<SecretUsageModel> usages,
+        IReadOnlyList<ReferenceUsageModel> usages,
         string oldName,
         string newName,
+        bool isSecret,
         IStraumrRequestService requests,
         IStraumrAuthService auths,
         CancellationToken cancellationToken)
@@ -24,10 +25,10 @@ internal static class SecretReferenceRewriteHelpers
         List<string> problems = new();
         int references = 0;
         int resources = 0;
-        foreach (IGrouping<(Guid WorkspaceId, Guid ResourceId), SecretUsageModel> resource in usages.GroupBy(usage => (usage.WorkspaceId, usage.ResourceId)))
+        foreach (IGrouping<(Guid WorkspaceId, Guid ResourceId), ReferenceUsageModel> resource in usages.GroupBy(usage => (usage.WorkspaceId, usage.ResourceId)))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            SecretUsageModel usage = resource.First();
+            ReferenceUsageModel usage = resource.First();
             if (entries.FirstOrDefault(entry => entry.Id == usage.WorkspaceId) is not { } entry ||
                 !File.Exists(entry.Path))
             {
@@ -38,8 +39,8 @@ internal static class SecretReferenceRewriteHelpers
             try
             {
                 int rewritten = usage.Kind == "Request"
-                    ? await RewriteRequestAsync(entry, usage.ResourceId, oldName, newName, requests, cancellationToken)
-                    : await RewriteAuthAsync(entry, usage.ResourceId, oldName, newName, auths, cancellationToken);
+                    ? await RewriteRequestAsync(entry, usage.ResourceId, oldName, newName, isSecret, requests, cancellationToken)
+                    : await RewriteAuthAsync(entry, usage.ResourceId, oldName, newName, isSecret, auths, cancellationToken);
                 if (rewritten == 0)
                 {
                     continue;
@@ -54,15 +55,15 @@ internal static class SecretReferenceRewriteHelpers
             }
         }
 
-        return new SecretRewriteModel(references, resources, problems);
+        return new ReferenceRewriteModel(references, resources, problems);
     }
 
     private static async Task<int> RewriteRequestAsync(StraumrWorkspaceEntry entry, Guid id, string oldName,
-        string newName, IStraumrRequestService requests, CancellationToken cancellationToken)
+        string newName, bool isSecret, IStraumrRequestService requests, CancellationToken cancellationToken)
     {
         StraumrRequest request = await requests.GetAsync(entry, id, false, cancellationToken);
         (StraumrRequest? rewritten, int count) =
-            Rewritten(request, id, StraumrJsonContext.Default.StraumrRequest, oldName, newName);
+            Rewritten(request, id, StraumrJsonContext.Default.StraumrRequest, oldName, newName, isSecret);
         if (rewritten is null)
         {
             return 0;
@@ -73,11 +74,11 @@ internal static class SecretReferenceRewriteHelpers
     }
 
     private static async Task<int> RewriteAuthAsync(StraumrWorkspaceEntry entry, Guid id, string oldName,
-        string newName, IStraumrAuthService auths, CancellationToken cancellationToken)
+        string newName, bool isSecret, IStraumrAuthService auths, CancellationToken cancellationToken)
     {
         StraumrAuth auth = await auths.GetAsync(entry, id, false, cancellationToken);
         (StraumrAuth? rewritten, int count) =
-            Rewritten(auth, id, StraumrJsonContext.Default.StraumrAuth, oldName, newName);
+            Rewritten(auth, id, StraumrJsonContext.Default.StraumrAuth, oldName, newName, isSecret);
         if (rewritten is null)
         {
             return 0;
@@ -88,7 +89,7 @@ internal static class SecretReferenceRewriteHelpers
     }
 
     private static (T? Rewritten, int Count) Rewritten<T>(T model, Guid id, JsonTypeInfo<T> typeInfo,
-        string oldName, string newName) where T : StraumrModelBase
+        string oldName, string newName, bool isSecret) where T : StraumrModelBase
     {
         if (model.Id != id)
         {
@@ -101,7 +102,7 @@ internal static class SecretReferenceRewriteHelpers
         }
 
         int count = 0;
-        JsonNode? rewritten = Rewrite(document, oldName, newName, ref count);
+        JsonNode? rewritten = Rewrite(document, oldName, newName, isSecret, ref count);
         if (count == 0 || rewritten is null)
         {
             return (null, 0);
@@ -116,7 +117,7 @@ internal static class SecretReferenceRewriteHelpers
         return (deserialized, count);
     }
 
-    private static JsonNode? Rewrite(JsonNode? node, string oldName, string newName, ref int count)
+    private static JsonNode? Rewrite(JsonNode? node, string oldName, string newName, bool isSecret, ref int count)
     {
         switch (node)
         {
@@ -125,7 +126,7 @@ internal static class SecretReferenceRewriteHelpers
                 foreach ((string name, JsonNode? value) in source)
                 {
                     target[name] = Resolved(name, value)
-                        ? Rewrite(value, oldName, newName, ref count)
+                        ? Rewrite(value, oldName, newName, isSecret, ref count)
                         : value?.DeepClone();
                 }
 
@@ -134,12 +135,12 @@ internal static class SecretReferenceRewriteHelpers
                 var array = new JsonArray();
                 foreach (JsonNode? value in source)
                 {
-                    array.Add(Rewrite(value, oldName, newName, ref count));
+                    array.Add(Rewrite(value, oldName, newName, isSecret, ref count));
                 }
 
                 return array;
             case JsonValue value when value.TryGetValue(out string? text):
-                return JsonValue.Create(Replace(text, oldName, newName, ref count));
+                return JsonValue.Create(Replace(text, oldName, newName, isSecret, ref count));
             default:
                 return node?.DeepClone();
         }
@@ -148,18 +149,26 @@ internal static class SecretReferenceRewriteHelpers
     private static bool Resolved(string name, JsonNode? value) =>
         name != "CachedValue" && (name != "Token" || value?.GetValueKind() != JsonValueKind.Object);
 
-    private static string Replace(string text, string oldName, string newName, ref int count)
+    private static string Replace(string text, string oldName, string newName, bool isSecret, ref int count)
     {
         var builder = new StringBuilder();
         int index = 0;
-        foreach (Match match in SecretHelpers.SecretPattern.Matches(text))
+        foreach (Match match in VariableHelpers.ReferencePattern.Matches(text))
         {
-            if (!match.Groups["name"].Value.Trim().Equals(oldName, StringComparison.OrdinalIgnoreCase))
+            string token = match.Groups["name"].Value.Trim();
+            if (VariableHelpers.IsSecretName(token) != isSecret)
             {
                 continue;
             }
 
-            builder.Append(text, index, match.Index - index).Append("{{secret:").Append(newName).Append("}}");
+            string name = isSecret ? VariableHelpers.StripSecretPrefix(token) : token;
+            if (!name.Equals(oldName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            builder.Append(text, index, match.Index - index)
+                .Append(ReferenceViewHelpers.Placeholder(newName, isSecret));
             index = match.Index + match.Length;
             count++;
         }

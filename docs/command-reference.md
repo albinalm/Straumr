@@ -16,6 +16,7 @@ page is for finding your way around.
     - `workspace` -> `ws`
     - `request` -> `rq`
     - `auth` -> `au`
+    - `variable` -> `vr`
     - `secret` -> `sc`
 
 ## Command tree
@@ -26,6 +27,7 @@ page is for finding your way around.
 straumr list workspace|ws [--json] [--filter <str>]
 straumr list request|rq [--json] [--filter <str>] [-w|--workspace <name-or-id>]
 straumr list auth|au [--json] [--filter <str>] [-w|--workspace <name-or-id>]
+straumr list variable|vr [--json] [--filter <str>] [-w|--workspace <name-or-id>]
 straumr list secret|sc [--json] [--filter <str>]
 ```
 
@@ -41,6 +43,7 @@ Common patterns:
 straumr create workspace|ws <Name> [-o|--output <DIR>] [-j|--json]
 straumr create request|rq [Name] [Url] [request options] [-j|--json] [-w|--workspace <name-or-id>]
 straumr create auth|au [Name] [auth options] [-j|--json] [-w|--workspace <name-or-id>]
+straumr create variable|vr [Name] [Value] [-w|--workspace <name-or-id>]
 straumr create secret|sc [Name] [Value]
 ```
 
@@ -98,6 +101,7 @@ When `--json` is passed, `create` outputs the new object as a JSON DTO instead o
 straumr delete workspace|ws <Name or ID> [-j|--json]
 straumr delete request|rq <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
 straumr delete auth|au <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
+straumr delete variable|vr <Name or ID> [-w|--workspace <name-or-id>]
 straumr delete secret|sc <Name or ID>
 ```
 
@@ -110,13 +114,14 @@ the signal of success.
 straumr edit workspace|ws <Name or ID> [-j|--json]
 straumr edit request|rq <Name or ID> [inline options] [-e|--editor] [-j|--json] [-w|--workspace <name-or-id>]
 straumr edit auth|au <Name or ID> [-e|--editor] [-j|--json] [-w|--workspace <name-or-id>]
+straumr edit variable|vr <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
 straumr edit secret|sc <Name or ID> [-j|--json]
 ```
 
 Notes:
 
 - workspace edit is editor-only; `--json` emits `{Id, Name, Path}` on success
-- secret edit is editor-only; `--json` emits `{Id, Name, Status}` on success
+- secret and variable edit are editor-only; `--json` emits `{Id, Name, Status}` on success
 - auth edit supports interactive and editor modes; `--json` implies `--editor` and emits `{Id, Name, Type}` on success
 - request edit supports interactive, editor, and inline modes; `--json` emits `{Id, Name, Method, Uri}` on success;
   implies `--editor` when no inline flags are set
@@ -142,6 +147,7 @@ Request inline edit options (presence of any triggers non-interactive mode):
 straumr get workspace|ws <Name or ID> [--json]
 straumr get request|rq <Name or ID> [--json] [-w|--workspace <name-or-id>]
 straumr get auth|au <Name or ID> [--json] [-w|--workspace <name-or-id>]
+straumr get variable|vr <Name or ID> [--json] [-w|--workspace <name-or-id>]
 straumr get secret|sc <Name or ID> [--json]
 ```
 
@@ -167,12 +173,13 @@ Sets the global active workspace. Prefer `--workspace` in scripts to avoid mutat
 straumr copy workspace|ws <Identifier> <NewName> [--output <DIR>] [-j|--json]
 straumr copy request|rq <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
 straumr copy auth|au <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
+straumr copy variable|vr <Identifier> <NewName> [-j|--json] [-w|--workspace <name-or-id>]
 straumr copy secret|sc <Identifier> <NewName> [-j|--json]
 ```
 
 `copy workspace --json` emits `{Id, Name, Path}`. `copy request --json` emits `{Id, Name, Method, Uri}`.
-`copy auth --json` emits `{Id, Name, Type}`. `copy secret --json` emits `{Id, Name, Status}` (status is always `Valid`
-for the newly created secret).
+`copy auth --json` emits `{Id, Name, Type}`. `copy secret --json` and `copy variable --json` emit `{Id, Name, Status}`
+(status is always `Valid` for the newly created entry).
 
 ### `import`
 

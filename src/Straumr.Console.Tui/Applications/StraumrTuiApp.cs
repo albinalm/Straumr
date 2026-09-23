@@ -24,6 +24,7 @@ public sealed class StraumrTuiApp
         (TuiScreen.Requests, "request", "rq"),
         (TuiScreen.Workspaces, "workspace", "ws"),
         (TuiScreen.Auths, "auth", "au"),
+        (TuiScreen.Variables, "variable", "vr"),
         (TuiScreen.Secrets, "secret", "sc")
     ];
     private readonly State<string?> _activeWorkspaceName = new(null);
@@ -59,6 +60,7 @@ public sealed class StraumrTuiApp
         WorkspaceScreen workspaceScreen,
         RequestScreen requestScreen,
         AuthScreen authScreen,
+        VariableScreen variableScreen,
         SecretScreen secretScreen,
         IStraumrStateService stateService,
         IStraumrSettingsService settingsService,
@@ -70,7 +72,7 @@ public sealed class StraumrTuiApp
         _settingsService = settingsService;
         _themeSelection = themeSelection;
         _editor = editor;
-        _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen, secretScreen }
+        _screens = new ITuiScreen[] { workspaceScreen, requestScreen, authScreen, variableScreen, secretScreen }
             .ToDictionary(screen => screen.Kind);
         TuiScreen initialScreen = stateService.State.CurrentWorkspace is null
             ? TuiScreen.Workspaces

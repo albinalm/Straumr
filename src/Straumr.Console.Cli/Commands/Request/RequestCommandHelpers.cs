@@ -74,6 +74,27 @@ internal static class RequestCommandHelpers
         return await service.GetAsync(workspace, identifier, updateLastAccessed, cancellationToken);
     }
 
+    internal static async Task<StraumrVariable> GetVariableAsync(
+        IStraumrVariableService service,
+        StraumrWorkspaceEntry workspace,
+        string identifier,
+        bool updateLastAccessed = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (Guid.TryParse(identifier, out Guid id))
+        {
+            try
+            {
+                return await service.GetAsync(workspace, id, updateLastAccessed, cancellationToken);
+            }
+            catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
+            {
+            }
+        }
+
+        return await service.GetAsync(workspace, identifier, updateLastAccessed, cancellationToken);
+    }
+
     internal static async Task<StraumrSecret> GetSecretAsync(
         IStraumrSecretService service,
         string identifier,

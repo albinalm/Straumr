@@ -5,5 +5,6 @@ public enum TuiScreen
     Workspaces,
     Requests,
     Auths,
+    Variables,
     Secrets
 }

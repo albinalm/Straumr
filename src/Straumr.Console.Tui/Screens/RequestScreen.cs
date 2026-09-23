@@ -39,7 +39,8 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<string> _responseSummary = new("Not sent");
     private readonly Dictionary<(Guid Workspace, Guid Request), StraumrResponse> _responses = [];
     private readonly IStraumrSecretService _secrets;
-    private readonly ScrollableContent _secretsView;
+    private readonly ScrollableContent _referencesView;
+    private readonly IStraumrVariableService _variables;
     private readonly Visual _sections;
     private readonly State<int> _selectedIndex = new(-1);
     private readonly IStraumrSettingsService _settings;
@@ -69,10 +70,11 @@ public sealed class RequestScreen : ITuiScreen
 
     public RequestScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
-        IStraumrFileService files, IStraumrSettingsService settings, ExternalEditorService editor)
+        IStraumrVariableService variables, IStraumrFileService files, IStraumrSettingsService settings,
+        ExternalEditorService editor)
     {
-        (_state, _workspaces, _requests, _auths, _secrets, _files, _settings, _editor) =
-            (state, workspaces, requests, auths, secrets, files, settings, editor);
+        (_state, _workspaces, _requests, _auths, _secrets, _variables, _files, _settings, _editor) =
+            (state, workspaces, requests, auths, secrets, variables, files, settings, editor);
         _responseBody = new ResponseBodyActionService(_responsePreview, (message, failed) =>
                 NotificationRequested?.Invoke(failed ? TuiCommandResultModel.Failed(message) : TuiCommandResultModel.Ok(message)),
             () => BodyOptions);
@@ -108,14 +110,14 @@ public sealed class RequestScreen : ITuiScreen
 
         _list.AddCommand(SendCommand());
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
-        _secretsView = new ScrollableContent(new ComputedVisual(BuildSecrets));
+        _referencesView = new ScrollableContent(new ComputedVisual(BuildReferences));
         Visual responsePane = ResourceScreenLayoutHelpers.Pane(_responsePreview.Root);
         Rule responseRule = StraumrSurfaceHelpers.TitledDivider("Response", responsePane.Owns);
         responseRule.EndLabel = new TextBlock(() => _responseSummary.Value)
             .Style(() => _responseFailed.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
         Visual authPane = ResourceScreenLayoutHelpers.Pane(_authView);
-        Visual secretsPane = ResourceScreenLayoutHelpers.Pane(_secretsView);
+        Visual referencesPane = ResourceScreenLayoutHelpers.Pane(_referencesView);
         Visual authColumn = new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
             .Rows(
@@ -123,8 +125,8 @@ public sealed class RequestScreen : ITuiScreen
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() })
             .Cell(authPane, 0, 0)
-            .Cell(StraumrSurfaceHelpers.TitledDivider("Secrets", secretsPane.Owns), 1, 0)
-            .Cell(secretsPane, 2, 0)
+            .Cell(StraumrSurfaceHelpers.TitledDivider("Variables & Secrets", referencesPane.Owns), 1, 0)
+            .Cell(referencesPane, 2, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
         _sections = ResourceScreenLayoutHelpers.StackedSections(_splits,
@@ -310,7 +312,7 @@ public sealed class RequestScreen : ITuiScreen
         ShowResponse(item.Id);
         _authentication.Value = RequestAuthenticationModel.Loading;
         RequestAuthenticationModel authentication = await RequestAuthenticationModel.LoadAsync(
-            request, _workspace!, _auths, _secrets, cancellationToken);
+            request, _workspace!, _auths, _secrets, _variables, cancellationToken);
         if (SelectedItem?.Id == item.Id)
         {
             _authentication.Value = authentication;
@@ -387,14 +389,14 @@ public sealed class RequestScreen : ITuiScreen
         return content;
     }
 
-    private Visual BuildSecrets()
+    private Visual BuildReferences()
     {
         if (_authentication.Value is not { } auth)
         {
             return new TextBlock("Unavailable.").Style(StraumrStyleService.MutedText);
         }
 
-        return SecretListHelpers.Create(auth.References);
+        return ReferenceListHelpers.Create(auth.References);
     }
 
     private void SetRequestPreview(StraumrRequest request)

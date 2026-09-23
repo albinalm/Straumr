@@ -24,6 +24,7 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
         services.TryAddScoped<WorkspaceScreen>();
         services.TryAddScoped<RequestScreen>();
         services.TryAddScoped<AuthScreen>();
+        services.TryAddScoped<VariableScreen>();
         services.TryAddScoped<SecretScreen>();
         services.TryAddScoped<StraumrTuiApp>();
     }
@@ -58,6 +59,9 @@ public sealed class TuiConsoleIntegration : IConsoleIntegration
 
         await SecretCatalogService.LoadAsync(
             serviceProvider.GetRequiredService<IStraumrSecretService>(), cancellationToken);
+        await VariableCatalogService.LoadAsync(
+            serviceProvider.GetRequiredService<IStraumrVariableService>(),
+            stateService.State.CurrentWorkspace, cancellationToken);
 
         var themeSelection = serviceProvider.GetRequiredService<ThemeSelectionService>();
         themeSelection.Apply();

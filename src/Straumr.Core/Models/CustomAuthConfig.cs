@@ -2,6 +2,10 @@ namespace Straumr.Core.Models;
 
 public class CustomAuthConfig : StraumrAuthConfig
 {
+    public const string ValueName = "value";
+    public const string ValuePlaceholder = "{{" + ValueName + "}}";
+    public const string TemplateField = nameof(ApplyHeaderTemplate);
+
     public string Url { get; set; } = string.Empty;
     public string Method { get; set; } = "POST";
     public BodyType BodyType { get; set; } = BodyType.None;
@@ -13,7 +17,7 @@ public class CustomAuthConfig : StraumrAuthConfig
     public string ExtractionExpression { get; set; } = string.Empty;
 
     public string ApplyHeaderName { get; set; } = "Authorization";
-    public string ApplyHeaderTemplate { get; set; } = "Bearer {{value}}";
+    public string ApplyHeaderTemplate { get; set; } = "Bearer " + ValuePlaceholder;
 
     public string? CachedValue { get; set; }
 

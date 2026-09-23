@@ -6,9 +6,10 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Tui.Services;
 
-internal sealed class KnownSecretReferenceService
+internal sealed class KnownReferenceService
 {
-    private readonly Dictionary<string, List<SecretUsageModel>> _byName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<ReferenceUsageModel>> _secrets = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<ReferenceUsageModel>> _variables = new(StringComparer.OrdinalIgnoreCase);
     public int ScannedWorkspaces { get; private set; }
     public int UnreadableWorkspaces { get; private set; }
     public int UnreadableResources { get; private set; }
@@ -16,14 +17,17 @@ internal sealed class KnownSecretReferenceService
     public string? Notice => UnreadableWorkspaces + UnreadableResources == 0 ? null :
         $"Reference scan incomplete: {UnreadableWorkspaces} workspace(s) and {UnreadableResources} resource(s) could not be read.";
 
-    public IReadOnlyList<SecretUsageModel> For(string name) =>
-        _byName.TryGetValue(name, out List<SecretUsageModel>? references) ? references : [];
+    public IReadOnlyList<ReferenceUsageModel> ForSecret(string name) =>
+        _secrets.TryGetValue(name, out List<ReferenceUsageModel>? references) ? references : [];
 
-    public static async Task<KnownSecretReferenceService> LoadAsync(
+    public IReadOnlyList<ReferenceUsageModel> ForVariable(Guid workspace, string name) =>
+        _variables.TryGetValue(VariableKey(workspace, name), out List<ReferenceUsageModel>? references) ? references : [];
+
+    public static async Task<KnownReferenceService> LoadAsync(
         IEnumerable<StraumrWorkspaceEntry> entries, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, CancellationToken cancellationToken)
     {
-        var index = new KnownSecretReferenceService();
+        var index = new KnownReferenceService();
         foreach (StraumrWorkspaceEntry entry in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -63,7 +67,7 @@ internal sealed class KnownSecretReferenceService
                     foreach (JsonProperty field in document.EnumerateObject().Where(field =>
                                  field.Name is "Uri" or "Headers" or "Params" or "Bodies"))
                     {
-                        index.Scan(field.Value, Label(field.Name), workspace, request, "Request");
+                        index.Scan(field.Value, Label(field.Name), workspace, request, "Request", null);
                     }
                 }
                 catch (Exception exception) when (SecretScreen.IsRecoverable(exception))
@@ -90,7 +94,8 @@ internal sealed class KnownSecretReferenceService
                             continue;
                         }
 
-                        index.Scan(field.Value, Label(field.Name), workspace, auth, "Auth");
+                        index.Scan(field.Value, Label(field.Name), workspace, auth, "Auth",
+                            field.Name == CustomAuthConfig.TemplateField ? CustomAuthConfig.ValueName : null);
                     }
                 }
                 catch (Exception exception) when (SecretScreen.IsRecoverable(exception))
@@ -100,7 +105,7 @@ internal sealed class KnownSecretReferenceService
             }
         }
 
-        foreach (List<SecretUsageModel> references in index._byName.Values)
+        foreach (List<ReferenceUsageModel> references in index._secrets.Values.Concat(index._variables.Values))
         {
             references.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(
                 $"{left.Workspace}\0{left.Resource}\0{left.Field}", $"{right.Workspace}\0{right.Resource}\0{right.Field}"));
@@ -109,26 +114,38 @@ internal sealed class KnownSecretReferenceService
         return index;
     }
 
-    private void Scan(JsonElement element, string field, StraumrWorkspace workspace, StraumrModelBase resource, string kind)
+    private static string VariableKey(Guid workspace, string name) => $"{workspace}\0{name}";
+
+    private void Scan(JsonElement element, string field, StraumrWorkspace workspace, StraumrModelBase resource,
+        string kind, string? reservedName)
     {
         if (element.ValueKind == JsonValueKind.Object)
         {
             foreach (JsonProperty property in element.EnumerateObject())
             {
-                Scan(property.Value, $"{field} · {property.Name}", workspace, resource, kind);
+                Scan(property.Value, $"{field} · {property.Name}", workspace, resource, kind, reservedName);
             }
         }
         else if (element.ValueKind == JsonValueKind.String)
         {
-            foreach (string name in SecretHelpers.SecretPattern.Matches(element.GetString()!)
+            foreach (string token in VariableHelpers.ReferencePattern.Matches(element.GetString()!)
                          .Select(match => match.Groups["name"].Value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (!_byName.TryGetValue(name, out List<SecretUsageModel>? references))
+                bool isSecret = VariableHelpers.IsSecretName(token);
+                string name = isSecret ? VariableHelpers.StripSecretPrefix(token) : token;
+                if (!isSecret && name.Equals(reservedName, StringComparison.OrdinalIgnoreCase))
                 {
-                    _byName[name] = references = [];
+                    continue;
                 }
 
-                references.Add(new SecretUsageModel(workspace.Id, resource.Id, workspace.Name, resource.Name, kind, field));
+                Dictionary<string, List<ReferenceUsageModel>> target = isSecret ? _secrets : _variables;
+                string key = isSecret ? name : VariableKey(workspace.Id, name);
+                if (!target.TryGetValue(key, out List<ReferenceUsageModel>? references))
+                {
+                    target[key] = references = [];
+                }
+
+                references.Add(new ReferenceUsageModel(workspace.Id, resource.Id, workspace.Name, resource.Name, kind, field));
             }
         }
     }

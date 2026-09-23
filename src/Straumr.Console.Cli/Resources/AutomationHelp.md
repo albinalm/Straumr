@@ -11,6 +11,6 @@ straumr send <request-id> --json --workspace <workspace>
 
 After discovery, prefer IDs over names. `--filter` on list commands matches a case-insensitive name substring or ID prefix. On failure, JSON-capable commands write an error envelope to stderr and return a nonzero exit code.
 
-Requests may reference global secrets as `{{secret:name}}`. Dry runs resolve request/auth data without making a network call; missing secrets are reported as warnings. `send --fail` maps HTTP 4xx/5xx responses to a failing exit code.
+Requests may reference global secrets as `{{secret:name}}` and workspace variables as `{{name}}`. A variable name never starts with `secret:`. Dry runs resolve request/auth data without making a network call; unresolved references are reported as warnings. `send --fail` maps HTTP 4xx/5xx responses to a failing exit code.
 
 Run `straumr <command> --help` for the complete option set of the installed release.

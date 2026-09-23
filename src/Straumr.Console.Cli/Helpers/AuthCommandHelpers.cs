@@ -272,7 +272,7 @@ internal static class AuthCommandHelpers
                 break;
             case CustomAuthConfig custom:
                 {
-                    string headerPreview = custom.ApplyHeaderTemplate.Replace("{{value}}", custom.CachedValue);
+                    string headerPreview = custom.ApplyHeaderTemplate.Replace(CustomAuthConfig.ValuePlaceholder, custom.CachedValue);
                     console.ShowMessage(
                         $"Cached value: [blue]{Markup.Escape(custom.CachedValue)}[/]\n" +
                         $"Applied as: [blue]{Markup.Escape(custom.ApplyHeaderName)}: {Markup.Escape(headerPreview)}[/]");
@@ -789,7 +789,7 @@ internal static class AuthCommandHelpers
                 case CustomAuthConfig customAuth:
                     {
                         string value = await authService.ExecuteCustomAuthAsync(customAuth, cancellationToken);
-                        string headerPreview = customAuth.ApplyHeaderTemplate.Replace("{{value}}", value);
+                        string headerPreview = customAuth.ApplyHeaderTemplate.Replace(CustomAuthConfig.ValuePlaceholder, value);
                         console.ShowMessage(
                             $"[green]Value fetched successfully![/]\n" +
                             $"Extracted: [blue]{Markup.Escape(value)}[/]\n" +

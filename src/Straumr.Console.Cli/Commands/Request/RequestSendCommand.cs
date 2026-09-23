@@ -62,7 +62,7 @@ public class RequestSendCommand(
 
             if (settings.DryRun)
             {
-                return await ExecuteDryRunAsync(request, auth, settings);
+                return await ExecuteDryRunAsync(workspaceEntry, request, auth, settings);
             }
 
             var options = new SendOptions
@@ -185,9 +185,9 @@ public class RequestSendCommand(
         }
     }
 
-    private async Task<int> ExecuteDryRunAsync(StraumrRequest request, StraumrAuth? auth, RequestSendCommandSettings settings)
+    private async Task<int> ExecuteDryRunAsync(StraumrWorkspaceEntry workspace, StraumrRequest request, StraumrAuth? auth, RequestSendCommandSettings settings)
     {
-        (string resolvedUrl, IReadOnlyList<string> warnings) = await requestService.ResolveUrlAsync(request);
+        (string resolvedUrl, IReadOnlyList<string> warnings) = await requestService.ResolveUrlAsync(workspace, request);
 
         if (settings.Json)
         {

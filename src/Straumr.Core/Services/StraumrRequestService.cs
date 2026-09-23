@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Straumr.Core.Configuration;
@@ -12,9 +13,10 @@ public class StraumrRequestService(
     IStraumrFileService fileService,
     IHttpClientFactory httpClientFactory,
     IStraumrAuthService authService,
-    IStraumrSecretService secretService) : IStraumrRequestService
+    IStraumrSecretService secretService,
+    IStraumrVariableService variableService) : IStraumrRequestService
 {
-    private static readonly Regex SecretPattern = SecretHelpers.SecretPattern;
+    private static readonly Regex ReferencePattern = VariableHelpers.ReferencePattern;
     public async Task<IReadOnlyList<StraumrRequest>> ListAsync(
         StraumrWorkspaceEntry workspace,
         CancellationToken cancellationToken = default)
@@ -152,13 +154,14 @@ public class StraumrRequestService(
     }
 
     public async Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(
+        StraumrWorkspaceEntry workspace,
         StraumrRequest request,
         CancellationToken cancellationToken = default)
     {
         List<string> warnings = new();
-        Dictionary<string, string> resolvedSecrets = new(StringComparer.Ordinal);
-        string resolvedUrl = await ResolveSecretReferencesAsync(
-            request.Uri, resolvedSecrets, warnings, cancellationToken);
+        Dictionary<string, string> resolved = new(StringComparer.Ordinal);
+        string resolvedUrl = await ResolveReferencesAsync(
+            workspace, request.Uri, resolved, warnings, cancellationToken);
         return (resolvedUrl, warnings);
     }
 
@@ -169,18 +172,18 @@ public class StraumrRequestService(
         CancellationToken cancellationToken = default)
     {
         List<string> warnings = new();
-        Dictionary<string, string> resolvedSecrets = new(StringComparer.Ordinal);
+        Dictionary<string, string> resolved = new(StringComparer.Ordinal);
 
         StraumrAuth? auth = request.AuthId.HasValue
             ? await authService.GetAsync(
                 workspace, request.AuthId.Value, true, cancellationToken)
             : null;
 
-        StraumrRequest resolvedRequest = await ResolveSecretsAsync(
-            request, resolvedSecrets, warnings, cancellationToken);
+        StraumrRequest resolvedRequest = await ResolveReferencesAsync(
+            workspace, request, resolved, warnings, cancellationToken);
 
         StraumrAuthConfig? resolvedAuthConfig = auth is not null
-            ? await ResolveAuthSecretsAsync(auth.Config, resolvedSecrets, warnings, cancellationToken)
+            ? await ResolveAuthReferencesAsync(workspace, auth.Config, resolved, warnings, cancellationToken)
             : null;
 
         if (auth is not null)
@@ -378,9 +381,10 @@ public class StraumrRequestService(
         response.RequestHeaders = requestHeaders;
     }
 
-    private async Task<StraumrRequest> ResolveSecretsAsync(
+    private async Task<StraumrRequest> ResolveReferencesAsync(
+        StraumrWorkspaceEntry workspace,
         StraumrRequest request,
-        Dictionary<string, string> resolvedSecrets,
+        Dictionary<string, string> resolved,
         List<string> warnings,
         CancellationToken cancellationToken) =>
         new()
@@ -389,20 +393,21 @@ public class StraumrRequestService(
             Name = request.Name,
             Modified = request.Modified,
             LastAccessed = request.LastAccessed,
-            Uri = await ResolveSecretReferencesAsync(request.Uri, resolvedSecrets, warnings, cancellationToken),
+            Uri = await ResolveReferencesAsync(workspace, request.Uri, resolved, warnings, cancellationToken),
             Method = request.Method,
-            Params = await ResolveSecretReferencesAsync(request.Params, resolvedSecrets, warnings,
+            Params = await ResolveReferencesAsync(workspace, request.Params, resolved, warnings,
                 StringComparer.Ordinal, cancellationToken),
-            Headers = await ResolveSecretReferencesAsync(request.Headers, resolvedSecrets, warnings,
+            Headers = await ResolveReferencesAsync(workspace, request.Headers, resolved, warnings,
                 StringComparer.OrdinalIgnoreCase, cancellationToken),
             BodyType = request.BodyType,
-            Bodies = await ResolveSecretReferencesAsync(request.Bodies, resolvedSecrets, warnings, cancellationToken),
+            Bodies = await ResolveReferencesAsync(workspace, request.Bodies, resolved, warnings, cancellationToken),
             AuthId = request.AuthId
         };
 
-    private async Task<StraumrAuthConfig?> ResolveAuthSecretsAsync(
+    private async Task<StraumrAuthConfig?> ResolveAuthReferencesAsync(
+        StraumrWorkspaceEntry workspace,
         StraumrAuthConfig? auth,
-        Dictionary<string, string> resolvedSecrets,
+        Dictionary<string, string> resolved,
         List<string> warnings,
         CancellationToken cancellationToken)
     {
@@ -413,46 +418,46 @@ public class StraumrRequestService(
             case BearerAuthConfig bearer:
                 return new BearerAuthConfig
                 {
-                    Token = await ResolveSecretReferencesAsync(bearer.Token, resolvedSecrets, warnings, cancellationToken),
-                    Prefix = await ResolveSecretReferencesAsync(bearer.Prefix, resolvedSecrets, warnings, cancellationToken)
+                    Token = await ResolveReferencesAsync(workspace, bearer.Token, resolved, warnings, cancellationToken),
+                    Prefix = await ResolveReferencesAsync(workspace, bearer.Prefix, resolved, warnings, cancellationToken)
                 };
             case BasicAuthConfig basic:
                 return new BasicAuthConfig
                 {
-                    Username = await ResolveSecretReferencesAsync(basic.Username, resolvedSecrets, warnings, cancellationToken),
-                    Password = await ResolveSecretReferencesAsync(basic.Password, resolvedSecrets, warnings, cancellationToken)
+                    Username = await ResolveReferencesAsync(workspace, basic.Username, resolved, warnings, cancellationToken),
+                    Password = await ResolveReferencesAsync(workspace, basic.Password, resolved, warnings, cancellationToken)
                 };
             case OAuth2Config oauth2:
                 return new OAuth2Config
                 {
                     GrantType = oauth2.GrantType,
-                    TokenUrl = await ResolveSecretReferencesAsync(oauth2.TokenUrl, resolvedSecrets, warnings, cancellationToken),
-                    ClientId = await ResolveSecretReferencesAsync(oauth2.ClientId, resolvedSecrets, warnings, cancellationToken),
-                    ClientSecret = await ResolveSecretReferencesAsync(oauth2.ClientSecret, resolvedSecrets, warnings, cancellationToken),
-                    Scope = await ResolveSecretReferencesAsync(oauth2.Scope, resolvedSecrets, warnings, cancellationToken),
-                    AuthorizationUrl = await ResolveSecretReferencesAsync(oauth2.AuthorizationUrl, resolvedSecrets, warnings, cancellationToken),
-                    RedirectUri = await ResolveSecretReferencesAsync(oauth2.RedirectUri, resolvedSecrets, warnings, cancellationToken),
+                    TokenUrl = await ResolveReferencesAsync(workspace, oauth2.TokenUrl, resolved, warnings, cancellationToken),
+                    ClientId = await ResolveReferencesAsync(workspace, oauth2.ClientId, resolved, warnings, cancellationToken),
+                    ClientSecret = await ResolveReferencesAsync(workspace, oauth2.ClientSecret, resolved, warnings, cancellationToken),
+                    Scope = await ResolveReferencesAsync(workspace, oauth2.Scope, resolved, warnings, cancellationToken),
+                    AuthorizationUrl = await ResolveReferencesAsync(workspace, oauth2.AuthorizationUrl, resolved, warnings, cancellationToken),
+                    RedirectUri = await ResolveReferencesAsync(workspace, oauth2.RedirectUri, resolved, warnings, cancellationToken),
                     UsePkce = oauth2.UsePkce,
-                    CodeChallengeMethod = await ResolveSecretReferencesAsync(oauth2.CodeChallengeMethod, resolvedSecrets, warnings, cancellationToken),
-                    Username = await ResolveSecretReferencesAsync(oauth2.Username, resolvedSecrets, warnings, cancellationToken),
-                    Password = await ResolveSecretReferencesAsync(oauth2.Password, resolvedSecrets, warnings, cancellationToken),
+                    CodeChallengeMethod = await ResolveReferencesAsync(workspace, oauth2.CodeChallengeMethod, resolved, warnings, cancellationToken),
+                    Username = await ResolveReferencesAsync(workspace, oauth2.Username, resolved, warnings, cancellationToken),
+                    Password = await ResolveReferencesAsync(workspace, oauth2.Password, resolved, warnings, cancellationToken),
                     Token = oauth2.Token
                 };
             case CustomAuthConfig custom:
                 return new CustomAuthConfig
                 {
-                    Url = await ResolveSecretReferencesAsync(custom.Url, resolvedSecrets, warnings, cancellationToken),
-                    Method = await ResolveSecretReferencesAsync(custom.Method, resolvedSecrets, warnings, cancellationToken),
+                    Url = await ResolveReferencesAsync(workspace, custom.Url, resolved, warnings, cancellationToken),
+                    Method = await ResolveReferencesAsync(workspace, custom.Method, resolved, warnings, cancellationToken),
                     BodyType = custom.BodyType,
-                    Bodies = await ResolveSecretReferencesAsync(custom.Bodies, resolvedSecrets, warnings, cancellationToken),
-                    Headers = await ResolveSecretReferencesAsync(custom.Headers, resolvedSecrets, warnings,
+                    Bodies = await ResolveReferencesAsync(workspace, custom.Bodies, resolved, warnings, cancellationToken),
+                    Headers = await ResolveReferencesAsync(workspace, custom.Headers, resolved, warnings,
                         StringComparer.OrdinalIgnoreCase, cancellationToken),
-                    Params = await ResolveSecretReferencesAsync(custom.Params, resolvedSecrets, warnings,
+                    Params = await ResolveReferencesAsync(workspace, custom.Params, resolved, warnings,
                         StringComparer.Ordinal, cancellationToken),
                     Source = custom.Source,
-                    ExtractionExpression = await ResolveSecretReferencesAsync(custom.ExtractionExpression, resolvedSecrets, warnings, cancellationToken),
-                    ApplyHeaderName = await ResolveSecretReferencesAsync(custom.ApplyHeaderName, resolvedSecrets, warnings, cancellationToken),
-                    ApplyHeaderTemplate = await ResolveSecretReferencesAsync(custom.ApplyHeaderTemplate, resolvedSecrets, warnings, cancellationToken),
+                    ExtractionExpression = await ResolveReferencesAsync(workspace, custom.ExtractionExpression, resolved, warnings, cancellationToken),
+                    ApplyHeaderName = await ResolveReferencesAsync(workspace, custom.ApplyHeaderName, resolved, warnings, cancellationToken),
+                    ApplyHeaderTemplate = await ResolveReferencesAsync(workspace, custom.ApplyHeaderTemplate, resolved, warnings, cancellationToken, CustomAuthConfig.ValueName),
                     CachedValue = custom.CachedValue
                 };
             default:
@@ -460,87 +465,116 @@ public class StraumrRequestService(
         }
     }
 
-    private async Task<string> ResolveSecretReferencesAsync(
+    private async Task<string> ResolveReferencesAsync(
+        StraumrWorkspaceEntry workspace,
         string value,
-        Dictionary<string, string> resolvedSecrets,
+        Dictionary<string, string> resolved,
         List<string> warnings,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? reservedName = null)
     {
         if (string.IsNullOrEmpty(value))
         {
             return value;
         }
 
-        MatchCollection matches = SecretPattern.Matches(value);
+        MatchCollection matches = ReferencePattern.Matches(value);
         if (matches.Count == 0)
         {
             return value;
         }
 
-        string resolved = value;
+        StringBuilder builder = new(value.Length);
+        int index = 0;
         foreach (Match match in matches)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string secretName = match.Groups["name"].Value.Trim();
-            if (!resolvedSecrets.TryGetValue(secretName, out string? secretValue))
-            {
-                try
-                {
-                    StraumrSecret secret = await secretService.GetAsync(
-                        secretName, true, cancellationToken);
-                    secretValue = secret.Value;
-                    resolvedSecrets[secretName] = secretValue;
-                }
-                catch (StraumrException ex) when (ex.Reason == StraumrError.EntryNotFound)
-                {
-                    string warning = $"Secret '{secretName}' could not be resolved.";
-                    if (!warnings.Contains(warning, StringComparer.Ordinal))
-                    {
-                        warnings.Add(warning);
-                    }
-
-                    continue;
-                }
-            }
-
-            resolved = resolved.Replace(match.Value, secretValue, StringComparison.Ordinal);
+            builder.Append(value, index, match.Index - index);
+            builder.Append(await ResolveReferenceAsync(workspace, match, resolved, warnings, reservedName, cancellationToken));
+            index = match.Index + match.Length;
         }
 
-        return resolved;
+        return builder.Append(value, index, value.Length - index).ToString();
     }
 
-    private async Task<Dictionary<string, string>> ResolveSecretReferencesAsync(
+    private async Task<string> ResolveReferenceAsync(
+        StraumrWorkspaceEntry workspace,
+        Match match,
+        Dictionary<string, string> resolved,
+        List<string> warnings,
+        string? reservedName,
+        CancellationToken cancellationToken)
+    {
+        string token = match.Groups["name"].Value.Trim();
+        bool isSecret = VariableHelpers.IsSecretName(token);
+        string name = isSecret ? VariableHelpers.StripSecretPrefix(token) : token;
+        if (!isSecret && name.Equals(reservedName, StringComparison.OrdinalIgnoreCase))
+        {
+            return match.Value;
+        }
+
+        string key = isSecret ? $"Secret:{name}" : $"Variable:{name}";
+        if (resolved.TryGetValue(key, out string? value))
+        {
+            return value;
+        }
+
+        try
+        {
+            value = isSecret
+                ? (await secretService.GetAsync(name, true, cancellationToken)).Value
+                : (await variableService.GetAsync(workspace, name, true, cancellationToken)).Value;
+        }
+        catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
+        {
+            string warning = $"{(isSecret ? "Secret" : "Variable")} '{name}' could not be resolved.";
+            if (!warnings.Contains(warning, StringComparer.Ordinal))
+            {
+                warnings.Add(warning);
+            }
+
+            return match.Value;
+        }
+
+        resolved[key] = value;
+        return value;
+    }
+
+    private async Task<Dictionary<string, string>> ResolveReferencesAsync(
+        StraumrWorkspaceEntry workspace,
         Dictionary<string, string> source,
-        Dictionary<string, string> resolvedSecrets,
+        Dictionary<string, string> resolved,
         List<string> warnings,
         IEqualityComparer<string> comparer,
         CancellationToken cancellationToken)
     {
-        Dictionary<string, string> resolved = new(comparer);
+        Dictionary<string, string> result = new(comparer);
         foreach (KeyValuePair<string, string> pair in source)
         {
-            resolved[pair.Key] = await ResolveSecretReferencesAsync(
-                pair.Value, resolvedSecrets, warnings, cancellationToken);
+            result[pair.Key] = await ResolveReferencesAsync(
+                workspace, pair.Value, resolved, warnings, cancellationToken);
         }
 
-        return resolved;
+        return result;
     }
 
-    private async Task<Dictionary<BodyType, string>> ResolveSecretReferencesAsync(
+    private async Task<Dictionary<BodyType, string>> ResolveReferencesAsync(
+        StraumrWorkspaceEntry workspace,
         Dictionary<BodyType, string> source,
-        Dictionary<string, string> resolvedSecrets,
+        Dictionary<string, string> resolved,
         List<string> warnings,
         CancellationToken cancellationToken)
     {
-        Dictionary<BodyType, string> resolved = new();
+        Dictionary<BodyType, string> result = new();
         foreach (KeyValuePair<BodyType, string> pair in source)
         {
-            resolved[pair.Key] = await ResolveSecretReferencesAsync(
-                pair.Value, resolvedSecrets, warnings, cancellationToken);
+            result[pair.Key] = await ResolveReferencesAsync(
+                workspace, pair.Value, resolved, warnings, cancellationToken);
         }
 
-        return resolved;
+        return result;
     }
+
 
     private static bool ShouldRetryCustomAuth(
         StraumrAuth? auth, StraumrAuthConfig? resolvedAuthConfig, StraumrResponse response) =>

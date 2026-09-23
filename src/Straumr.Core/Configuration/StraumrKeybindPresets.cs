@@ -56,23 +56,27 @@ public static class StraumrKeybindPresets
             ["Request.Edit"] = "F4",
             ["Auth.Edit"] = "F4",
             ["Secret.Edit"] = "F4",
+            ["Variable.Edit"] = "F4",
             ["KeyValueField.Edit"] = "F4",
             ["Workspace.Copy"] = "F5",
             ["Request.Copy"] = "F5",
             ["Auth.Copy"] = "F5",
             ["Secret.Copy"] = "F5",
+            ["Variable.Copy"] = "F5",
             ["ResponseBody.Copy"] = "F5",
             ["BrowserDialog.Rename"] = "F6",
             ["Workspace.Create"] = "F7",
             ["Request.New"] = "F7",
             ["Auth.New"] = "F7",
             ["Secret.New"] = "F7",
+            ["Variable.New"] = "F7",
             ["KeyValueField.Add"] = "F7",
             ["BrowserDialog.New"] = "F7",
             ["Workspace.Delete"] = "F8",
             ["Request.Delete"] = "F8",
             ["Auth.Delete"] = "F8",
             ["Secret.Delete"] = "F8",
+            ["Variable.Delete"] = "F8",
             ["KeyValueField.Remove"] = "F8",
             ["BrowserDialog.Delete"] = "F8",
             ["ResourceFilter.Open"] = "Ctrl+S"
@@ -87,14 +91,17 @@ public static class StraumrKeybindPresets
             ["Request.New"] = "Ctrl+N",
             ["Auth.New"] = "Ctrl+N",
             ["Secret.New"] = "Ctrl+N",
+            ["Variable.New"] = "Ctrl+N",
             ["Workspace.Copy"] = "Ctrl+D",
             ["Request.Copy"] = "Ctrl+D",
             ["Auth.Copy"] = "Ctrl+D",
             ["Secret.Copy"] = "Ctrl+D",
+            ["Variable.Copy"] = "Ctrl+D",
             ["Workspace.Delete"] = "Delete",
             ["Request.Delete"] = "Delete",
             ["Auth.Delete"] = "Delete",
             ["Secret.Delete"] = "Delete",
+            ["Variable.Delete"] = "Delete",
             ["KeyValueField.Remove"] = "Delete",
             ["BrowserDialog.Delete"] = "Delete",
             ["ResourceFilter.Open"] = "Ctrl+F",
@@ -131,7 +138,27 @@ public static class StraumrKeybindPresets
     }
 
     public static string Identify(IReadOnlyDictionary<string, string> keybinds) =>
-        Names.FirstOrDefault(name => Presets[name].Count > 0 && Presets[name].All(pair =>
-            keybinds.TryGetValue(pair.Key, out string? value) &&
-            string.Equals(value?.Trim(), pair.Value, StringComparison.OrdinalIgnoreCase))) ?? "vim";
+        Names.FirstOrDefault(name => Presets[name].Count > 0 && Matches(Presets[name], keybinds)) ?? "vim";
+
+    private static bool Matches(IReadOnlyDictionary<string, string> preset,
+        IReadOnlyDictionary<string, string> keybinds)
+    {
+        int matched = 0;
+        foreach ((string id, string value) in preset)
+        {
+            if (!keybinds.TryGetValue(id, out string? bound))
+            {
+                continue;
+            }
+
+            if (!string.Equals(bound?.Trim(), value, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            matched++;
+        }
+
+        return matched > 0;
+    }
 }

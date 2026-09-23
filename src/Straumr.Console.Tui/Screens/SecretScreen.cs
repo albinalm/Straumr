@@ -27,7 +27,7 @@ public sealed class SecretScreen : ITuiScreen
     private readonly State<bool> _loading = new(true);
     private readonly State<int> _matchCount = new(0);
     private readonly State<string> _query = new(string.Empty);
-    private readonly State<KnownSecretReferenceService> _references = new(new KnownSecretReferenceService());
+    private readonly State<KnownReferenceService> _references = new(new KnownReferenceService());
     private readonly ScrollableContent _referencesView;
     private readonly IStraumrRequestService _requests;
     private readonly ScrollableContent _secretView;
@@ -131,7 +131,7 @@ public sealed class SecretScreen : ITuiScreen
         _displayedId = null;
         ActiveWorkspaceName = null;
         _items = [];
-        _references.Value = new KnownSecretReferenceService();
+        _references.Value = new KnownReferenceService();
         try
         {
             await _state.LoadAsync(cancellationToken);
@@ -166,7 +166,7 @@ public sealed class SecretScreen : ITuiScreen
             _items = _items.OrderByDescending(item => item.Secret?.LastAccessed ?? DateTimeOffset.MinValue)
                 .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
             SecretCatalogService.Set(_items.Where(item => !item.IsBroken).Select(item => item.Name));
-            _references.Value = await KnownSecretReferenceService.LoadAsync(_state.State.Workspaces,
+            _references.Value = await KnownReferenceService.LoadAsync(_state.State.Workspaces,
                 _workspaces, _requests, _auths, cancellationToken);
             ApplyFilter(_filter.Text, selected);
         }
@@ -298,7 +298,9 @@ public sealed class SecretScreen : ITuiScreen
             return Message("References cannot be matched until the secret's name can be read.");
         }
 
-        return SecretReferenceViewHelpers.Create(item.Name, _references.Value);
+        return ReferenceViewHelpers.Create(ReferenceViewHelpers.Placeholder(item.Name, true),
+            CountFormatting.Label(_references.Value.ScannedWorkspaces, "scanned workspace"),
+            _references.Value.ForSecret(item.Name), _references.Value);
     }
 
     private static Visual Message(string text) =>
@@ -488,7 +490,7 @@ public sealed class SecretScreen : ITuiScreen
 
         try
         {
-            _references.Value = await KnownSecretReferenceService.LoadAsync(_state.State.Workspaces,
+            _references.Value = await KnownReferenceService.LoadAsync(_state.State.Workspaces,
                 _workspaces, _requests, _auths, cancellationToken);
         }
         catch (Exception exception) when (IsRecoverable(exception))
@@ -496,13 +498,13 @@ public sealed class SecretScreen : ITuiScreen
             return TuiCommandResultModel.Failed(exception.Message);
         }
 
-        IReadOnlyList<SecretUsageModel> usages = _references.Value.For(opened);
+        IReadOnlyList<ReferenceUsageModel> usages = _references.Value.ForSecret(opened);
         if (usages.Count == 0)
         {
             return await WriteEditAsync(state, null, cancellationToken);
         }
 
-        var rename = new SecretRenameModel(opened, usages);
+        var rename = new ReferenceRenameModel(opened, usages);
         ShowRenameDialog(rename, state.Name,
             () => _pendingSave = token => WriteEditAsync(state, rename, token),
             () => _pendingSave = _ => Task.FromResult<TuiCommandResultModel?>(
@@ -510,7 +512,7 @@ public sealed class SecretScreen : ITuiScreen
         return null;
     }
 
-    private void ShowRenameDialog(SecretRenameModel rename, string name, Action update, Action cancel)
+    private void ShowRenameDialog(ReferenceRenameModel rename, string name, Action update, Action cancel)
     {
         int resources = rename.Usages.Select(usage => (usage.WorkspaceId, usage.ResourceId)).Distinct().Count();
         int workspaces = rename.Usages.Select(usage => usage.WorkspaceId).Distinct().Count();
@@ -526,7 +528,7 @@ public sealed class SecretScreen : ITuiScreen
             detail, "Rename and update", false, update, cancel).Show();
     }
 
-    private async Task<TuiCommandResultModel?> WriteEditAsync(StraumrSecret state, SecretRenameModel? rename,
+    private async Task<TuiCommandResultModel?> WriteEditAsync(StraumrSecret state, ReferenceRenameModel? rename,
         CancellationToken cancellationToken)
     {
         try
@@ -567,11 +569,11 @@ public sealed class SecretScreen : ITuiScreen
         }
     }
 
-    private async Task<string> RewriteReferencesAsync(SecretRenameModel rename, string name,
+    private async Task<string> RewriteReferencesAsync(ReferenceRenameModel rename, string name,
         CancellationToken cancellationToken)
     {
-        SecretRewriteModel rewrite = await SecretReferenceRewriteHelpers.ApplyAsync(_state.State.Workspaces,
-            rename.Usages, rename.OldName, name, _requests, _auths, cancellationToken);
+        ReferenceRewriteModel rewrite = await ReferenceRewriteHelpers.ApplyAsync(_state.State.Workspaces,
+            rename.Usages, rename.OldName, name, true, _requests, _auths, cancellationToken);
         string report = $" and {CountFormatting.Label(rewrite.References, "reference")} " +
                         $"in {CountFormatting.Label(rewrite.Resources, "resource")}";
         if (rewrite.Problems.Count == 0)
@@ -620,12 +622,12 @@ public sealed class SecretScreen : ITuiScreen
             if (item.Secret is { } current &&
                 !current.Name.Equals(secret!.Name, StringComparison.OrdinalIgnoreCase))
             {
-                _references.Value = await KnownSecretReferenceService.LoadAsync(_state.State.Workspaces,
+                _references.Value = await KnownReferenceService.LoadAsync(_state.State.Workspaces,
                     _workspaces, _requests, _auths, cancellationToken);
-                IReadOnlyList<SecretUsageModel> usages = _references.Value.For(current.Name);
+                IReadOnlyList<ReferenceUsageModel> usages = _references.Value.ForSecret(current.Name);
                 if (usages.Count > 0)
                 {
-                    _pendingJsonRename = pending with { Rename = new SecretRenameModel(current.Name, usages) };
+                    _pendingJsonRename = pending with { Rename = new ReferenceRenameModel(current.Name, usages) };
                     return TuiCommandResultModel.None;
                 }
             }
@@ -683,7 +685,7 @@ public sealed class SecretScreen : ITuiScreen
             return;
         }
 
-        int dependents = _references.Value.For(item.Name)
+        int dependents = _references.Value.ForSecret(item.Name)
             .Select(reference => (reference.WorkspaceId, reference.ResourceId, reference.Kind)).Distinct().Count();
         string detail = "The global secret will be permanently deleted. References are not changed.";
         if (dependents > 0)

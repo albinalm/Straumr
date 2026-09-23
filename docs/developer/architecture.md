@@ -8,7 +8,7 @@ Straumr is a .NET 10 solution: a host, two peer terminal frontends, and a core e
 | `Straumr.Console.Cli` | Spectre.Console commands, CLI prompts, editor orchestration, and CLI output. |
 | `Straumr.Console.Tui` | XenoAtom.Terminal.UI application, screens, components, themes, and TUI interaction. |
 | `Straumr.Console.Shared` | Integration contracts and frontend-neutral editing abstractions. |
-| `Straumr.Core` | Models, JSONC persistence, settings/state, workspace/request/auth/secret services, and HTTP execution. |
+| `Straumr.Core` | Models, JSONC persistence, settings/state, workspace/request/auth/variable/secret services, and HTTP execution. |
 
 ## Dispatch
 
@@ -18,9 +18,11 @@ Straumr is a .NET 10 solution: a host, two peer terminal frontends, and a core e
 
 ## Where behavior lives
 
-Core services are the boundary for persistent data and application behavior. Frontends may format, prompt, and hold interaction state; they do not duplicate request sending, secret resolution, auth, or storage. `StraumrRequestService` performs send-time resolution and HTTP dispatch, `StraumrAuthService` owns OAuth and custom auth, and workspace import/export is zip-based `.straumrpak` handling in `StraumrWorkspaceService`.
+Core services are the boundary for persistent data and application behavior. Frontends may format, prompt, and hold interaction state; they do not duplicate request sending, reference resolution, auth, or storage. `StraumrRequestService` performs send-time resolution and HTTP dispatch, `StraumrAuthService` owns OAuth and custom auth, and workspace import/export is zip-based `.straumrpak` handling in `StraumrWorkspaceService`.
 
-Overlays are not free in `XenoAtom.Terminal.UI`: every `Popup` reports `IsModal`, so opening one makes it the focus scope and `EnsureFocusInScope` pulls focus off whatever anchored it. Anything that must keep the caret where it is — the `{{secret:` suggestion box under a `FormTextBox` — renders inline in the field layout instead, and gates visibility on the input's `HasFocus`. Gestures are resolved before `OnKeyDown`, walking commands from the focused visual upwards, so a field-level command with `ConsumesGestureWhenUnavailable = false` overrides a dialog's `Enter` or `Escape` only while it can execute. Assigning `TextBox.Text` is not a document edit: the backing `DynamicTextDocument` picks the new value up silently on its next read and raises no `Changed`, so nothing bound to the field learns of it. Programmatic edits that must reach the model go through `TextDocument.Replace`.
+`StraumrRequestService` resolves `{{...}}` in one pass over the original text, so a substituted value is never rescanned; a token whose name starts with `secret:` reads the global secret store and every other token reads the sending workspace's variables. That is also why a variable name may not start with `secret:`. `CustomAuthConfig.ApplyHeaderTemplate` owns `{{value}}` as the fetched token's slot, so that one name is reserved in that one field — the resolver and both reference scanners skip it there.
+
+Overlays are not free in `XenoAtom.Terminal.UI`: every `Popup` reports `IsModal`, so opening one makes it the focus scope and `EnsureFocusInScope` pulls focus off whatever anchored it. Anything that must keep the caret where it is — the `{{` suggestion box under a `FormTextBox` — renders inline in the field layout instead, and gates visibility on the input's `HasFocus`. Gestures are resolved before `OnKeyDown`, walking commands from the focused visual upwards, so a field-level command with `ConsumesGestureWhenUnavailable = false` overrides a dialog's `Enter` or `Escape` only while it can execute. Assigning `TextBox.Text` is not a document edit: the backing `DynamicTextDocument` picks the new value up silently on its next read and raises no `Changed`, so nothing bound to the field learns of it. Programmatic edits that must reach the model go through `TextDocument.Replace`.
 
 Keybindings are Core, not TUI: `StraumrKeybinds` holds the action table and `StraumrKeybindPresets` the preset overlays, because the CLI's interactive prompts bind against the same actions. A new action needs a default entry and a row in `docs/keybinds.md`, which `settings.toml` points users to.
 
@@ -34,7 +36,7 @@ Keybindings are Core, not TUI: `StraumrKeybinds` holds the action table and `Str
 | `~/.straumr/themes/` | Installed and exported themes. |
 | `<workspace root>/<name>/` | One folder per workspace; `<id>.straumr` files inside. |
 
-Resources are JSONC and are meant to stay hand-editable. `IStraumrFileService` preserves comments across writes, so a rewrite must go through it. Requests and auths share a workspace directory and the `.straumr` extension, which is why the workspace manifest's membership sets are meaningful rather than redundant. `ReadStraumrModelAsync` updates `LastAccessed`; `PeekStraumrModelAsync` is the non-mutating read.
+Resources are JSONC and are meant to stay hand-editable. `IStraumrFileService` preserves comments across writes, so a rewrite must go through it. Requests, auths, and variables share a workspace directory and the `.jsonc` extension, which is why the workspace manifest's membership sets are meaningful rather than redundant. `ReadStraumrModelAsync` updates `LastAccessed`; `PeekStraumrModelAsync` is the non-mutating read.
 
 ## Native AOT
 

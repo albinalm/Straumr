@@ -1,6 +1,6 @@
 # The terminal UI
 
-Run `straumr` with no arguments and you land in the terminal UI. It is the same data the CLI works on — the same workspaces, requests, auths, and secrets — with a screen you can move around in.
+Run `straumr` with no arguments and you land in the terminal UI. It is the same data the CLI works on — the same workspaces, requests, auths, variables, and secrets — with a screen you can move around in.
 
 ## The first launch
 
@@ -10,13 +10,14 @@ Nothing there is permanent. Run `:quickstart` any time to go through it again.
 
 ## Getting around
 
-There are four screens, one per kind of thing:
+There are five screens, one per kind of thing:
 
 | Screen | Command | Short |
 | --- | --- | --- |
 | Requests | `:request` | `:rq` |
 | Workspaces | `:workspace` | `:ws` |
 | Auths | `:auth` | `:au` |
+| Variables | `:variable` | `:vr` |
 | Secrets | `:secret` | `:sc` |
 
 Each screen is a list on the left and detail panes on the right. Move through the list, and the panes follow the selection. The panes have tabs — a request shows **Body**, **Headers**, and **Params**; its response shows **Body**, **Headers**, and **Network**.
@@ -45,7 +46,7 @@ Anywhere:
 On a screen, against the thing it names — or against the selection, if you name nothing:
 
 ```text
-:select <name>     move the selection — also :r, :w, :a, :s per screen
+:select <name>     move the selection — also :r, :w, :a, :v, :s per screen
 :create            new — also :new
 :edit <name>       open the editor
 :copy <name>       duplicate
@@ -66,7 +67,9 @@ Editing a request opens a form: name, method, URL, auth, and the header and para
 
 Both paths need `$EDITOR` set. Without it, the commands that would hand off say so instead.
 
-Type `{{secret:` in any form field and a box of matching secret names opens under it. `Up` and `Down` move through it, `Enter` inserts the name and the closing braces, and `Escape` dismisses it — `Tab` is left alone so it still moves between fields. Keep typing to narrow the list.
+Type `{{` in any form field and a box of matching variable names opens under it; type `{{secret:` and it lists secrets instead. `Up` and `Down` move through it, `Enter` inserts the name and the closing braces, and `Escape` dismisses it — `Tab` is left alone so it still moves between fields. Keep typing to narrow the list.
+
+A request and an auth show what they reference under **Variables & Secrets**, and whether each one resolves right now.
 
 ## Sending
 
@@ -81,6 +84,7 @@ On the response body, `b` cycles beautify and minify, `h` turns JSON highlightin
 | `~/.straumr/settings.toml` | your settings |
 | `~/.straumr/state.json` | active workspace, pane layouts, the secret index |
 | `~/.straumr/secrets/` | secrets, one JSONC file each |
+| your workspace directory | variables too, one JSONC file each |
 | `~/.straumr/themes/` | themes you install or export |
 | your workspace directory | one folder per workspace, `.straumr` files inside |
 

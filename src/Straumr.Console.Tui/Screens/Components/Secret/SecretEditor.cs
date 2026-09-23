@@ -13,7 +13,7 @@ internal sealed class SecretEditor
     private string _openedValue;
 
     public SecretEditor(StraumrSecret state, string? workspaceName, bool isNew, char? openingGesture,
-        State<KnownSecretReferenceService> references, Action save, Action closed, string? sourceName = null)
+        State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null)
     {
         _state = state;
         _openedName = new State<string>(state.Name);

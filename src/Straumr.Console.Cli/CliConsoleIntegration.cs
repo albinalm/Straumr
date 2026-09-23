@@ -10,6 +10,7 @@ using Straumr.Console.Cli.Commands.Autocomplete;
 using Straumr.Console.Cli.Commands.Config;
 using Straumr.Console.Cli.Commands.Request;
 using Straumr.Console.Cli.Commands.Secret;
+using Straumr.Console.Cli.Commands.Variable;
 using Straumr.Console.Cli.Commands.Workspace;
 using Straumr.Console.Cli.Console;
 using Straumr.Console.Cli.Infrastructure;
@@ -160,6 +161,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
             list.AddCommand<AuthListCommand>(CompletionCatalog.Auth);
             list.AddCommand<AuthListCommand>(CompletionCatalog.AuthAlias);
 
+            list.AddCommand<VariableListCommand>(CompletionCatalog.Variable);
+            list.AddCommand<VariableListCommand>(CompletionCatalog.VariableAlias);
+
             list.AddCommand<SecretListCommand>(CompletionCatalog.Secret);
             list.AddCommand<SecretListCommand>(CompletionCatalog.SecretAlias);
         });
@@ -174,6 +178,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
             create.AddCommand<AuthCreateCommand>(CompletionCatalog.Auth);
             create.AddCommand<AuthCreateCommand>(CompletionCatalog.AuthAlias);
+
+            create.AddCommand<VariableCreateCommand>(CompletionCatalog.Variable);
+            create.AddCommand<VariableCreateCommand>(CompletionCatalog.VariableAlias);
 
             create.AddCommand<SecretCreateCommand>(CompletionCatalog.Secret);
             create.AddCommand<SecretCreateCommand>(CompletionCatalog.SecretAlias);
@@ -190,6 +197,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
             delete.AddCommand<AuthDeleteCommand>(CompletionCatalog.Auth);
             delete.AddCommand<AuthDeleteCommand>(CompletionCatalog.AuthAlias);
 
+            delete.AddCommand<VariableDeleteCommand>(CompletionCatalog.Variable);
+            delete.AddCommand<VariableDeleteCommand>(CompletionCatalog.VariableAlias);
+
             delete.AddCommand<SecretDeleteCommand>(CompletionCatalog.Secret);
             delete.AddCommand<SecretDeleteCommand>(CompletionCatalog.SecretAlias);
         });
@@ -205,6 +215,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
             edit.AddCommand<AuthEditCommand>(CompletionCatalog.Auth);
             edit.AddCommand<AuthEditCommand>(CompletionCatalog.AuthAlias);
 
+            edit.AddCommand<VariableEditCommand>(CompletionCatalog.Variable);
+            edit.AddCommand<VariableEditCommand>(CompletionCatalog.VariableAlias);
+
             edit.AddCommand<SecretEditCommand>(CompletionCatalog.Secret);
             edit.AddCommand<SecretEditCommand>(CompletionCatalog.SecretAlias);
         });
@@ -219,6 +232,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
             get.AddCommand<AuthGetCommand>(CompletionCatalog.Auth);
             get.AddCommand<AuthGetCommand>(CompletionCatalog.AuthAlias);
+
+            get.AddCommand<VariableGetCommand>(CompletionCatalog.Variable);
+            get.AddCommand<VariableGetCommand>(CompletionCatalog.VariableAlias);
 
             get.AddCommand<SecretGetCommand>(CompletionCatalog.Secret);
             get.AddCommand<SecretGetCommand>(CompletionCatalog.SecretAlias);
@@ -240,6 +256,9 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
 
             copy.AddCommand<AuthCopyCommand>(CompletionCatalog.Auth);
             copy.AddCommand<AuthCopyCommand>(CompletionCatalog.AuthAlias);
+
+            copy.AddCommand<VariableCopyCommand>(CompletionCatalog.Variable);
+            copy.AddCommand<VariableCopyCommand>(CompletionCatalog.VariableAlias);
 
             copy.AddCommand<SecretCopyCommand>(CompletionCatalog.Secret);
             copy.AddCommand<SecretCopyCommand>(CompletionCatalog.SecretAlias);

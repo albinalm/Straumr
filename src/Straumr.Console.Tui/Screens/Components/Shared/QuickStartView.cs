@@ -449,6 +449,7 @@ internal sealed class QuickStartView
                     Row(":ws", "Workspaces", "browse and edit your workspace collection", false),
                     Row(":rq", "Requests", "← you start here", true, true),
                     Row(":au", "Auths", "fetched before a request and applied to it", false),
+                    Row(":vr", "Variables", "variables contained within the workspace", false),
                     Row(":sc", "Secrets", "secret values, stored outside the workspace", false))
                 .HorizontalAlignment(Align.Center),
             new TextBlock("Tip: You can also use ☰ to navigate between screens.")

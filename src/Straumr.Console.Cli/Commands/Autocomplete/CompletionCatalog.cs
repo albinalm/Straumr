@@ -27,6 +27,8 @@ internal static class CompletionCatalog
     public const string AuthAlias = "au";
     public const string Secret = "secret";
     public const string SecretAlias = "sc";
+    public const string Variable = "variable";
+    public const string VariableAlias = "vr";
     public const string WorkspacePath = "workspace-path";
     public const string Install = "install";
     public const string Query = "query";
@@ -40,13 +42,13 @@ internal static class CompletionCatalog
     public static readonly IReadOnlyDictionary<string, string[]> VerbNouns =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            [List] = [Workspace, Request, Auth, Secret],
-            [Create] = [Workspace, Request, Auth, Secret],
-            [Delete] = [Workspace, Request, Auth, Secret],
-            [Edit] = [Workspace, Request, Auth, Secret],
-            [Get] = [Workspace, Request, Auth, Secret],
+            [List] = [Workspace, Request, Auth, Variable, Secret],
+            [Create] = [Workspace, Request, Auth, Variable, Secret],
+            [Delete] = [Workspace, Request, Auth, Variable, Secret],
+            [Edit] = [Workspace, Request, Auth, Variable, Secret],
+            [Get] = [Workspace, Request, Auth, Variable, Secret],
             [Use] = [Workspace],
-            [Copy] = [Workspace, Request, Auth, Secret],
+            [Copy] = [Workspace, Request, Auth, Variable, Secret],
             [Import] = [Workspace],
             [Export] = [Workspace],
             [Config] = [WorkspacePath],
@@ -70,6 +72,10 @@ internal static class CompletionCatalog
     public static bool IsSecretNoun(string value) =>
         value.Equals(Secret, StringComparison.OrdinalIgnoreCase) ||
         value.Equals(SecretAlias, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsVariableNoun(string value) =>
+        value.Equals(Variable, StringComparison.OrdinalIgnoreCase) ||
+        value.Equals(VariableAlias, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsCliPrefix(string value) =>
         value.Equals(Cli, StringComparison.OrdinalIgnoreCase) ||
