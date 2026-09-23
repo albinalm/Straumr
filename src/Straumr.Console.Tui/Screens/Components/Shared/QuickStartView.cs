@@ -298,14 +298,14 @@ internal sealed class QuickStartView
         _ => char.ToUpperInvariant(name[0]) + name[1..]
     };
 
-    private static string Keys(string preset)
+    private string Keys(string preset)
     {
         string move = preset is "commander" or "client"
-            ? "Move ↑ ↓"
-            : $"Move {StraumrKeybindPresets.Hint(preset, "ResourceList.Previous")} " +
-              $"{StraumrKeybindPresets.Hint(preset, "ResourceList.Next")}";
-        return $"{move}   Filter {StraumrKeybindPresets.Hint(preset, "ResourceFilter.Open")}   " +
-               $"Delete {StraumrKeybindPresets.Hint(preset, "Request.Delete")}";
+            ? $"Move {_session.KeyHint(preset, "ResourceList.Up")} {_session.KeyHint(preset, "ResourceList.Down")}"
+            : $"Move {_session.KeyHint(preset, "ResourceList.Previous")} " +
+              $"{_session.KeyHint(preset, "ResourceList.Next")}";
+        return $"{move}   Filter {_session.KeyHint(preset, "ResourceFilter.Open")}   " +
+               $"Delete {_session.KeyHint(preset, "Request.Delete")}";
     }
 
     private Visual Themes() => Card("Theme", $"{TuiKeybindHelpers.Hint("ResourceList.Activate")} chooses, and the screen changes with it.",

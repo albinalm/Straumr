@@ -25,7 +25,10 @@ public sealed class QuickStartService(
     {
         Card = 0;
         Problem = settings.Problem;
-        Preset = StraumrKeybindPresets.Identify(settings.Settings.Keybinds);
+        Preset = StraumrKeybindPresets.TryGet(settings.Settings.KeybindPreset, out _) &&
+                 !string.IsNullOrWhiteSpace(settings.Settings.KeybindPreset)
+            ? settings.Settings.KeybindPreset.Trim().ToLowerInvariant()
+            : StraumrKeybindPresets.Identify(settings.Settings.Keybinds);
         ThemeReference = string.IsNullOrWhiteSpace(settings.Settings.Theme)
             ? StraumrThemeService.DefaultReference : settings.Settings.Theme.Trim();
         WorkspaceName = "";
@@ -108,7 +111,25 @@ public sealed class QuickStartService(
     public void PreviewPreset(string name)
     {
         Preset = name;
-        StraumrKeybinds.Apply(StraumrKeybindPresets.Resolve(name));
+        StraumrKeybinds.Apply(settings.Settings.Keybinds, name);
+    }
+
+    public string KeyHint(string preset, string action)
+    {
+        if (settings.Settings.Keybinds.TryGetValue(action, out string? value))
+        {
+            if (string.Equals(value, "none", StringComparison.OrdinalIgnoreCase))
+            {
+                return "unbound";
+            }
+
+            if (StraumrKeyGesture.TryParse(value, out StraumrKeyGesture key))
+            {
+                return key.ToString();
+            }
+        }
+
+        return StraumrKeybindPresets.Hint(preset, action);
     }
 
     public async Task CompleteAsync(CancellationToken token)
