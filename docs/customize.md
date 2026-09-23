@@ -13,8 +13,8 @@ Nothing in it is required. A setting you leave out takes its default.
 | `quick-start-completed` | `false` | Set once you finish the quick start. Clear it, or run `:quickstart`, to see it again. |
 | `paths.workspaces` | none | Where new workspaces are created. Without it, `straumr create workspace` needs `-o <dir>`. |
 | `paths.secrets` | `~/.straumr/secrets` | Where the global secret files live. |
-| `response.format` | `"none"` | What to do with a JSON body as it arrives: `none`, `beautify`, or `minify`. |
-| `response.highlight` | `true` | Colour JSON responses by token. |
+| `response.format` | `"none"` | What to do with a response body as it arrives: `none`, `beautify`, or `minify`. JSON, XML, and HTML only. |
+| `response.highlight` | `true` | Colour bodies by token — JSON, XML, HTML, YAML, and form-urlencoded, in both the response and request panes. |
 | `response.highlight-limit` | `256` | KiB. A body larger than this arrives uncoloured. |
 | `response.store-limit` | `1024` | KiB. The largest response body kept with the request. `0` keeps none. |
 
@@ -33,6 +33,8 @@ highlight-limit = 1024
 ```
 
 Neither response limit changes what is shown by hand: `h` still turns highlighting on for a large body, and `b` still beautifies it. A response over `store-limit` is still recorded — its status, headers, and timings stay with the request, and only the body is dropped.
+
+`format` applies to a response as it arrives. A request's own body preview is always laid out, since it is a preview of something you wrote rather than something that came back.
 
 If something in the file cannot be understood, Straumr says so on the next load and carries on with the default for that one line. The rest of your file still applies.
 

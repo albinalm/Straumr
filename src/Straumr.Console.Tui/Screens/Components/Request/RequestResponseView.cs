@@ -10,16 +10,21 @@ namespace Straumr.Console.Tui.Screens.Components.Request;
 
 internal sealed class RequestResponseView
 {
+    private const int BodyPage = 0;
+    private const int NetworkPage = 3;
     private static readonly TimeSpan NoticeLifetime = TimeSpan.FromSeconds(5);
-    private readonly ResponseBodyActionService _body;
+    private readonly BodyPreviewService _body;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly IReadOnlyDictionary<string, string> _configured;
 
     private readonly Dialog _dialog;
     private readonly State<bool> _failed = new(false);
+    private readonly HeadersView _headers;
     private readonly State<string> _notice = new(string.Empty);
     private readonly State<bool> _noticeError = new(false);
-    private readonly PreviewPane _preview = PreviewPane.OnRule(true, "Body", "Headers", "Network");
+    private readonly PreviewPane _preview;
     private readonly State<bool> _sending = new(true);
+    private readonly HeadersView _sent;
     private readonly State<string> _summary = new(string.Empty);
     private bool _focused;
     private DateTimeOffset _noticeUntil;
@@ -27,14 +32,15 @@ internal sealed class RequestResponseView
     public RequestResponseView(StraumrRequest request, string? workspaceName,
         Func<ResponseBodyOptionsModel> options, Action cancel, Action resend, Action closed)
     {
-        _body = new ResponseBodyActionService(_preview, (message, error) =>
-        {
-            _notice.Value = message;
-            _noticeError.Value = error;
-            _noticeUntil = DateTimeOffset.UtcNow + NoticeLifetime;
-        }, options, false);
-        _preview.SetText("Waiting for the response body…", "Waiting for response headers…",
-            "Network measurements will appear when the request completes.");
+        _headers = new HeadersView(Notice);
+        _sent = new HeadersView(Notice);
+        _preview = PreviewPane.OnRule(true, PreviewPanePageModel.Text("Body"),
+            PreviewPanePageModel.Custom("Headers", _headers.Root, () => _headers.FocusTarget),
+            PreviewPanePageModel.Custom("Sent headers", _sent.Root, () => _sent.FocusTarget),
+            PreviewPanePageModel.Text("Network"));
+        _configured = request.Headers;
+        _body = new BodyPreviewService(_preview, Notice, options, false);
+        ShowWaiting();
 
         Grid content = new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
@@ -69,8 +75,8 @@ internal sealed class RequestResponseView
             Gesture = TuiKeybindHelpers.Get("Response.Send"),
             Importance = CommandImportance.Primary,
             Presentation = CommandPresentation.CommandBar,
-            CanExecute = _ => !_sending.Value,
-            IsVisible = _ => !_sending.Value,
+            CanExecute = _ => !_sending.Value && !_preview.Root.IsTyping(),
+            IsVisible = _ => !_sending.Value && !_preview.Root.IsTyping(),
             ConsumesGestureWhenUnavailable = false,
             Execute = _ => resend()
         });
@@ -94,8 +100,22 @@ internal sealed class RequestResponseView
         _failed.Value = false;
         _summary.Value = string.Empty;
         _body.SetBody(null);
-        _preview.SetText("Waiting for the response body…", "Waiting for response headers…",
-            "Network measurements will appear when the request completes.");
+        ShowWaiting();
+    }
+
+    private void Notice(string message, bool error)
+    {
+        _notice.Value = message;
+        _noticeError.Value = error;
+        _noticeUntil = DateTimeOffset.UtcNow + NoticeLifetime;
+    }
+
+    private void ShowWaiting()
+    {
+        _preview.SetPageText(BodyPage, "Waiting for the response body…");
+        _headers.SetMessage("Waiting for response headers…");
+        _sent.SetMessage("The headers sent will appear when the request completes.");
+        _preview.SetPageText(NetworkPage, "Network measurements will appear when the request completes.");
     }
 
     private void FocusBody()
@@ -146,6 +166,7 @@ internal sealed class RequestResponseView
             }
         }
         measurements.Add(new KeyValuePair<string, string>("Response headers", response.ResponseHeaders.Count.ToString()));
+        measurements.Add(new KeyValuePair<string, string>("Request headers", response.RequestHeaders.Count.ToString()));
 
         var network = new StringBuilder(ContentFormatting.Fields(measurements, "No measurements."));
         if (response.Warnings.Count > 0)
@@ -158,16 +179,17 @@ internal sealed class RequestResponseView
             network.Append("\n\n").Append(exception.Message);
         }
 
-        _preview.SetText(response.Exception?.Message ?? "No body.",
-            ContentFormatting.Headers(response.ResponseHeaders), network.ToString());
-        _body.SetBody(response.Content);
+        _preview.SetPageText(NetworkPage, network.ToString());
+        _headers.SetHeaders(HeaderFormatting.Rows(response.ResponseHeaders));
+        _sent.SetHeaders(HeaderFormatting.Sent(response.RequestHeaders, _configured), HeaderFormatting.NotRecorded);
+        _body.SetBody(response.Content, HeaderFormatting.ContentType(response.ResponseHeaders));
         if (response.Exception is not null)
         {
-            _preview.SetPageText(0, response.Exception.Message);
+            _preview.SetPageText(BodyPage, response.Exception.Message);
         }
         else if (response.BodyOmitted)
         {
-            _preview.SetPageText(0, ContentFormatting.Unsaved(bytes, "Response.Send"));
+            _preview.SetPageText(BodyPage, ContentFormatting.Unsaved(bytes, "Response.Send"));
         }
     }
 
@@ -182,7 +204,10 @@ internal sealed class RequestResponseView
         string measurements = ContentFormatting.Fields(
             [new KeyValuePair<string, string>("Status", summary), new KeyValuePair<string, string>("Elapsed", $"{_clock.Elapsed.TotalMilliseconds:0.##} ms")],
             "No measurements.");
-        _preview.SetText(message, "No response headers.", $"{measurements}\n\n{message}");
+        _preview.SetPageText(BodyPage, message);
+        _headers.SetMessage("No response headers.");
+        _sent.SetMessage("The request did not go out.");
+        _preview.SetPageText(NetworkPage, $"{measurements}\n\n{message}");
     }
 
     private Visual BuildBar(StraumrRequest request)
@@ -230,8 +255,8 @@ internal sealed class RequestResponseView
         Gesture = TuiKeybindHelpers.Get($"Response.{label}"),
         Importance = CommandImportance.Primary,
         Presentation = CommandPresentation.CommandBar,
-        CanExecute = _ => available(),
-        IsVisible = _ => available(),
+        CanExecute = _ => available() && !_preview.Root.IsTyping(),
+        IsVisible = _ => available() && !_preview.Root.IsTyping(),
         ConsumesGestureWhenUnavailable = false,
         Execute = _ => execute()
     });

@@ -81,33 +81,36 @@ internal sealed class ResourceFilter
         _editor.ReportTextChanged();
     }
 
-    public void AttachCommands(Visual target)
+    public void AttachCommands(Visual target, string label = "Filter")
     {
         target.AddCommand(BuildOpenCommand(
             "ResourceFilter.Open",
+            label,
             CommandPresentation.CommandBar));
         target.AddCommand(BuildOpenCommand(
             "ResourceFilter.Open.Shifted",
+            label,
             CommandPresentation.None));
     }
 
     private Command BuildOpenCommand(
         string id,
+        string label,
         CommandPresentation presentation) =>
         new()
         {
             Id = id,
-            LabelMarkup = "Filter",
+            LabelMarkup = label,
             Gesture = TuiKeybindHelpers.Get(id),
             Importance = CommandImportance.Primary,
             Presentation = presentation,
-            CanExecute = _ => !ReferenceEquals(_editor.App?.FocusedElement, _editor),
-            IsVisible = _ => !ReferenceEquals(_editor.App?.FocusedElement, _editor),
+            CanExecute = _ => !_editor.IsTyping(),
+            IsVisible = _ => !_editor.IsTyping(),
             ConsumesGestureWhenUnavailable = false,
             Execute = _ => Open()
         };
 
-    private void Open()
+    public void Open()
     {
         _editor.PendingEcho = TuiKeybindHelpers.Echo("ResourceFilter.Open");
         _editor.CaretIndex = Text.Length;

@@ -133,6 +133,9 @@ internal sealed class PagedPane
             Gesture = TuiKeybindHelpers.Get($"PagedPane.{id}"),
             Importance = CommandImportance.Secondary,
             Presentation = presentation,
+            CanExecute = _ => !Root.IsTyping(),
+            IsVisible = _ => !Root.IsTyping(),
+            ConsumesGestureWhenUnavailable = false,
             Execute = _ => Change(Step(step))
         };
 

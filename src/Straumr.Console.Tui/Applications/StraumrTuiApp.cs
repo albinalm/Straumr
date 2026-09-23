@@ -152,6 +152,8 @@ public sealed class StraumrTuiApp
 
     public TuiCommandResultModel Message => _message.Value;
 
+    private bool IsTyping => _app?.Root.IsTyping() == true && !_prompt.Root.Owns();
+
     private bool IsModalOpen
     {
         get
@@ -710,8 +712,8 @@ public sealed class StraumrTuiApp
             Gesture = TuiKeybindHelpers.Get(id),
             Importance = CommandImportance.Secondary,
             Presentation = presentation,
-            CanExecute = _ => !_quickStart.Active && !_prompt.IsOpen && !IsModalOpen,
-            IsVisible = _ => !_quickStart.Active && !IsModalOpen,
+            CanExecute = _ => !_quickStart.Active && !_prompt.IsOpen && !IsModalOpen && !IsTyping,
+            IsVisible = _ => !_quickStart.Active && !IsModalOpen && !IsTyping,
             ConsumesGestureWhenUnavailable = false,
             Execute = _ => OpenPrompt()
         };

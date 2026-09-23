@@ -48,22 +48,26 @@ public sealed class StraumrSettings
         #   secrets = "~/.straumr/secrets"
 
         [response]
-        # What to do with a JSON response body the moment it arrives.
+        # What to do with a response body the moment it arrives.
         #
         #   "none"       show it exactly as it was sent (default)
         #   "beautify"   lay it out over indented lines
         #   "minify"     strip it down to one line
         #
-        # A body that is not JSON is shown as it was sent whatever this says, and `b` on the
-        # response pane still beautifies and minifies by hand either way.
+        # Beautify and minify cover JSON, XML and HTML. A body of any other kind is shown as it
+        # was sent whatever this says, and `b` on a body pane still does it by hand either way.
+        # A request's own body preview is always laid out, since it previews what you wrote.
         format = "none"
 
-        # Whether a JSON body is coloured by token: keys, strings, numbers, the two literals and
-        # the punctuation between them. The colours are the theme's `[code]` table. Default: true.
+        # Whether a body is coloured by token: keys, strings, numbers, the literals and the
+        # punctuation between them. Straumr reads the kind from the `Content-Type`, falling back
+        # to the body itself, and colours JSON, XML, HTML, YAML and form-urlencoded. It applies to
+        # the request pane as much as the response. The colours are the theme's `[code]` table.
+        # Default: true.
         #
         #   highlight = false
         #
-        # `h` on the response body turns it on and off by hand whatever this says.
+        # `h` on a body pane turns it on and off by hand whatever this says.
 
         # The size, in KiB, past which a body arrives uncoloured. Colouring walks every line that
         # is drawn, which a body of several megabytes is felt through; past this it is off until

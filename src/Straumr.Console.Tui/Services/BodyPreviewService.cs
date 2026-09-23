@@ -5,18 +5,19 @@ using XenoAtom.Terminal.UI.Text;
 
 namespace Straumr.Console.Tui.Services;
 
-internal sealed class ResponseBodyActionService
+internal sealed class BodyPreviewService
 {
     private readonly bool _bounded;
     private readonly Action<string, bool> _notify;
     private readonly Func<ResponseBodyOptionsModel> _options;
     private readonly PreviewPane _preview;
     private string? _body;
-    private bool _highlighted;
+    private Func<string, StyledRun[]>? _highlighter;
+    private ContentLanguage _language;
     private bool _oversized;
     private bool _pretty;
 
-    public ResponseBodyActionService(PreviewPane preview, Action<string, bool> notify,
+    public BodyPreviewService(PreviewPane preview, Action<string, bool> notify,
         Func<ResponseBodyOptionsModel> options, bool bounded = true)
     {
         (_preview, _notify, _options) = (preview, notify, options);
@@ -26,13 +27,14 @@ internal sealed class ResponseBodyActionService
         AddCommand("Copy", "Copy body", Copy);
     }
 
-    public void SetBody(string? body)
+    public void SetBody(string? body, string? contentType = null)
     {
         ResponseBodyOptionsModel options = _options();
+        _language = ContentFormatHelpers.Detect(contentType, body);
         _body = body;
         _pretty = false;
         if (options.Format is not ResponseBodyFormat.None
-            && RequestEditingHelpers.TryFormatJson(body, options.Format is ResponseBodyFormat.Beautify,
+            && ContentFormatHelpers.TryFormat(_language, body, options.Format is ResponseBodyFormat.Beautify,
                 out string? formatted))
         {
             _body = formatted;
@@ -55,14 +57,14 @@ internal sealed class ResponseBodyActionService
 
     private void Highlight(bool on)
     {
-        _highlighted = on && RequestEditingHelpers.IsJson(_body);
-        _preview.SetPageHighlighter(0, _highlighted ? Line : null);
+        _highlighter = on ? SyntaxHighlighting.For(_language) : null;
+        _preview.SetPageHighlighter(0, _highlighter is null ? null : Line);
     }
 
-    private static StyledRun[] Line(string line) =>
+    private StyledRun[] Line(string line) =>
         line == ContentFormatting.Truncated
             ? [new StyledRun(0, line.Length, StraumrStyleService.CodeNote)]
-            : JsonHighlighting.Line(line);
+            : _highlighter!(line);
 
     private void AddCommand(string id, string label, Action execute) =>
         _preview.Page(0).AddCommand(new Command
@@ -79,32 +81,36 @@ internal sealed class ResponseBodyActionService
 
     private void ToggleFormat()
     {
-        if (!RequestEditingHelpers.TryFormatJson(_body, !_pretty, out string? formatted))
+        if (!ContentFormatHelpers.TryFormat(_language, _body, !_pretty, out string? formatted))
         {
-            _notify("This body is not valid JSON; formatting is unavailable.", true);
+            _notify(ContentFormatHelpers.CanFormat(_language)
+                ? $"This body is not valid {ContentFormatHelpers.DisplayName(_language)}; formatting is unavailable."
+                : $"Beautify and minify cover {ContentFormatHelpers.FormattableNames()} bodies.", true);
             return;
         }
 
         _body = formatted;
         _pretty = !_pretty;
+        bool highlighted = _highlighter is not null;
         UpdatePreview();
-        _notify(_pretty ? "JSON beautified" : "JSON minified", false);
+        Highlight(highlighted && !_oversized);
+        _notify($"{ContentFormatHelpers.DisplayName(_language)} {(_pretty ? "beautified" : "minified")}", false);
     }
 
     private void ToggleHighlight()
     {
-        bool wanted = !_highlighted;
+        bool wanted = _highlighter is null;
         Highlight(wanted);
-        if (wanted && !_highlighted)
+        if (wanted && _highlighter is null)
         {
-            _notify("This body is not valid JSON; highlighting is unavailable.", true);
+            _notify("Straumr has no highlighting for this kind of body.", true);
             return;
         }
 
-        _notify(_highlighted
+        _notify(_highlighter is not null
             ? _oversized
-                ? $"Highlighting on — {ContentFormatting.Size(Drawn().Length)} of text may scroll slowly"
-                : "Highlighting on"
+                ? $"{ContentFormatHelpers.DisplayName(_language)} highlighting on — {ContentFormatting.Size(Drawn().Length)} of text may scroll slowly"
+                : $"{ContentFormatHelpers.DisplayName(_language)} highlighting on"
             : "Highlighting off", false);
     }
 
@@ -113,7 +119,7 @@ internal sealed class ResponseBodyActionService
         try
         {
             bool copied = _preview.Root.App?.Terminal.Clipboard.TrySetText(_body) == true;
-            _notify(copied ? "Copied full response body" : "Clipboard is unavailable in this terminal.", !copied);
+            _notify(copied ? "Copied the full body" : "Clipboard is unavailable in this terminal.", !copied);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
         {

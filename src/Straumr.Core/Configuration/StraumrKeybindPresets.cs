@@ -65,6 +65,7 @@ public static class StraumrKeybindPresets
             ["Secret.Copy"] = "F5",
             ["Variable.Copy"] = "F5",
             ["ResponseBody.Copy"] = "F5",
+            ["Headers.Copy"] = "F5",
             ["BrowserDialog.Rename"] = "F6",
             ["Workspace.Create"] = "F7",
             ["Request.New"] = "F7",

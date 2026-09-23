@@ -1,4 +1,5 @@
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Helpers;
@@ -6,6 +7,19 @@ namespace Straumr.Console.Tui.Helpers;
 internal static class FocusScopeHelpers
 {
     public static bool Owns(this Visual visual) => visual.HasFocus || visual.HasFocusWithin;
+
+    public static bool IsTyping(this Visual visual)
+    {
+        for (Visual? node = visual.App?.FocusedElement; node is not null; node = node.Parent)
+        {
+            if (node is TextEditorBase or PromptEditor)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public static bool IsReachable(this Visual visual)
     {

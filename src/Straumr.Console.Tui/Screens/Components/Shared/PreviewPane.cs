@@ -7,34 +7,47 @@ namespace Straumr.Console.Tui.Screens.Components.Shared;
 
 internal sealed class PreviewPane
 {
+    private readonly Func<Visual>[] _focus;
     private readonly State<Func<string, StyledRun[]>?>[] _highlighters;
     private readonly PagedPane? _paged;
+    private readonly ScrollableContent?[] _scrollers;
     private readonly TabControl? _tabs;
     private readonly State<string>[] _text;
-    private readonly ScrollableContent[] _views;
+    private readonly Visual[] _views;
 
-    public PreviewPane(params string[] pages) : this(false, pages) { }
+    public PreviewPane(params PreviewPanePageModel[] pages) : this(false, false, pages) { }
 
-    public PreviewPane(bool wrap, params string[] pages) : this(wrap, false, pages) { }
-
-    private PreviewPane(bool wrap, bool tabsOnRule, string[] pages)
+    private PreviewPane(bool wrap, bool tabsOnRule, PreviewPanePageModel[] pages)
     {
         _text = pages.Select(_ => new State<string>(string.Empty)).ToArray();
         _highlighters = pages.Select(_ => new State<Func<string, StyledRun[]>?>(null)).ToArray();
-        _views = new ScrollableContent[pages.Length];
+        _views = new Visual[pages.Length];
+        _scrollers = new ScrollableContent?[pages.Length];
+        _focus = new Func<Visual>[pages.Length];
         for (int page = 0; page < pages.Length; page++)
         {
+            if (pages[page].Content is { } custom)
+            {
+                Func<Visual> target = pages[page].FocusTarget ?? (() => custom);
+                _views[page] = custom;
+                _focus[page] = target;
+                continue;
+            }
+
             State<string> text = _text[page];
             State<Func<string, StyledRun[]>?> highlighter = _highlighters[page];
-            _views[page] = new ScrollableContent(
+            var scroller = new ScrollableContent(
                 new ComputedVisual(() => Lines(text.Value, highlighter.Value, wrap)), !tabsOnRule);
+            _scrollers[page] = scroller;
+            _views[page] = scroller;
+            _focus[page] = () => scroller;
         }
 
         if (tabsOnRule)
         {
             _paged = new PagedPane(true,
-                pages.Select((title, index) =>
-                    new PagedPanePageModel(title, _views[index], () => _views[index])).ToArray());
+                pages.Select((page, index) =>
+                    new PagedPanePageModel(page.Title, _views[index], _focus[index])).ToArray());
             Root = _paged.Root;
             TabRule = _paged.TabRule;
         }
@@ -43,13 +56,13 @@ internal sealed class PreviewPane
             TabControl tabs = new TabControl().HorizontalAlignment(Align.Stretch).VerticalAlignment(Align.Stretch);
             tabs.IsTabStop(false);
             tabs.SetStyle(StraumrStyleService.PreviewTabs);
-            ZStack stack = new ZStack(_views.Cast<Visual>().ToArray())
+            ZStack stack = new ZStack(_views)
                 .HorizontalAlignment(Align.Stretch)
                 .VerticalAlignment(Align.Stretch);
             for (int index = 0; index < pages.Length; index++)
             {
                 int pageIndex = index;
-                tabs.AddTab(new TextBlock(pages[index]).Style(() => SelectedPage == pageIndex
+                tabs.AddTab(new TextBlock(pages[index].Title).Style(() => SelectedPage == pageIndex
                     ? StraumrStyleService.AccentText : StraumrStyleService.MutedText), stack);
             }
             _tabs = tabs;
@@ -63,6 +76,9 @@ internal sealed class PreviewPane
                 Gesture = TuiKeybindHelpers.Get("PreviewPane.NextTab"),
                 Importance = CommandImportance.Secondary,
                 Presentation = CommandPresentation.CommandBar,
+                CanExecute = _ => !Root.IsTyping(),
+                IsVisible = _ => !Root.IsTyping(),
+                ConsumesGestureWhenUnavailable = false,
                 Execute = _ => SelectNextTab()
             });
         }
@@ -72,11 +88,11 @@ internal sealed class PreviewPane
 
     public Rule? TabRule { get; }
 
-    public Visual FocusTarget => _views[Math.Clamp(SelectedPage, 0, _views.Length - 1)];
+    public Visual FocusTarget => _focus[Math.Clamp(SelectedPage, 0, _focus.Length - 1)]();
 
     private int SelectedPage => _tabs?.SelectedIndex ?? _paged!.SelectedPage;
 
-    public static PreviewPane OnRule(bool wrap, params string[] pages) => new(wrap, true, pages);
+    public static PreviewPane OnRule(bool wrap, params PreviewPanePageModel[] pages) => new(wrap, true, pages);
 
     public Visual Page(int index) => _views[index];
 
@@ -124,20 +140,12 @@ internal sealed class PreviewPane
 
     public void SetPageText(int index, string value)
     {
-        if (_text[index].Value == value)
+        if (_scrollers[index] is not { } scroller || _text[index].Value == value)
         {
             return;
         }
 
         _text[index].Value = value;
-        _views[index].ScrollOffset = 0;
-    }
-
-    public void SetText(params string[] pages)
-    {
-        for (int index = 0; index < _text.Length; index++)
-        {
-            SetPageText(index, pages[index]);
-        }
+        scroller.ScrollOffset = 0;
     }
 }
