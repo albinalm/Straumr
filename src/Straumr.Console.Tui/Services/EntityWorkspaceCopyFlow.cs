@@ -6,24 +6,29 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Console.Tui.Services;
 
-internal sealed class RequestWorkspaceCopyFlow
+internal sealed class EntityWorkspaceCopyFlow
 {
-    private readonly IStraumrRequestCopyService _copies;
+    private readonly IStraumrEntityCopyService _copies;
     private readonly Action<TuiCommandResultModel> _notify;
     private readonly WorkspaceCopyFlow _picker;
     private readonly IStraumrWorkspaceService _workspaces;
     private string _destinationName = string.Empty;
     private Func<CancellationToken, Task>? _pending;
     private DependencyCopyAction? _variablePolicy;
-    public RequestWorkspaceCopyFlow(IStraumrWorkspaceService workspaces, IStraumrRequestCopyService copies, Action<TuiCommandResultModel> notify)
+    public EntityWorkspaceCopyFlow(IStraumrWorkspaceService workspaces, IStraumrEntityCopyService copies, Action<TuiCommandResultModel> notify)
     {
         (_workspaces, _copies, _notify) = (workspaces, copies, notify);
         _picker = new WorkspaceCopyFlow(workspaces, notify);
     }
-    public void Begin(StraumrWorkspaceEntry source, Guid id, string name)
+    public void BeginRequest(StraumrWorkspaceEntry source, Guid id, string name) =>
+        Begin(source, name, (destination, token) => _copies.PrepareRequestAsync(source, id, destination, name, token));
+    public void BeginAuth(StraumrWorkspaceEntry source, Guid id, string name) =>
+        Begin(source, name, (destination, token) => _copies.PrepareAuthAsync(source, id, destination, name, token));
+    private void Begin(StraumrWorkspaceEntry source, string name,
+        Func<StraumrWorkspaceEntry, CancellationToken, Task<EntityCopyPlanModel>> prepare)
     {
         _variablePolicy = null;
-        _picker.Choose(source, name, destination => _pending = token => PrepareAsync(source, id, name, destination, token));
+        _picker.Choose(source, name, destination => _pending = token => PrepareAsync(destination, prepare, token));
     }
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
@@ -39,17 +44,18 @@ internal sealed class RequestWorkspaceCopyFlow
             _notify(TuiCommandResultModel.Failed($"copy failed: {exception.Message}"));
         }
     }
-    private async Task PrepareAsync(StraumrWorkspaceEntry source, Guid id, string name, StraumrWorkspace destination, CancellationToken token)
+    private async Task PrepareAsync(StraumrWorkspace destination,
+        Func<StraumrWorkspaceEntry, CancellationToken, Task<EntityCopyPlanModel>> prepare, CancellationToken token)
     {
         _destinationName = destination.Name;
-        RequestCopyPlanModel plan = await _copies.PrepareAsync(source, id, _workspaces.GetEntry(destination.Id), name, token);
-        await CheckRequestNameAsync(plan, token);
+        EntityCopyPlanModel plan = await prepare(_workspaces.GetEntry(destination.Id), token);
+        await CheckEntityNameAsync(plan, token);
     }
-    private async Task CheckRequestNameAsync(RequestCopyPlanModel plan, CancellationToken token)
+    private async Task CheckEntityNameAsync(EntityCopyPlanModel plan, CancellationToken token)
     {
         if (await _copies.FindNameConflictAsync(plan, token) is { } conflict)
         {
-            Rename(plan.Copy, conflict.Message, () => _pending = next => CheckRequestNameAsync(plan, next));
+            Rename(plan.Copy, conflict.Message, () => _pending = next => CheckEntityNameAsync(plan, next));
             return;
         }
         if (!plan.HasDependencies)
@@ -62,14 +68,17 @@ internal sealed class RequestWorkspaceCopyFlow
         {
             detail += $"{Environment.NewLine}Missing: {string.Join(", ", plan.Missing)}. Repair these before carrying dependencies.";
         }
-        new ConfirmDialog("Copy request dependencies", "Carry the bound auth and variables into the destination workspace?", detail,
-            "Carry dependencies", false, () =>
+        bool isAuth = plan.Original is StraumrAuth;
+        new ConfirmDialog(isAuth ? "Copy auth variables" : "Copy request dependencies",
+            isAuth ? "Carry this auth's referenced variables into the destination workspace?" :
+                "Carry the bound auth and variables into the destination workspace?", detail,
+            isAuth ? "Carry variables" : "Carry dependencies", false, () =>
             {
                 plan.CarryDependencies = true;
                 _pending = next => ResolveDependenciesAsync(plan, next);
-            }, alternateLabel: "Request only", alternate: () => _pending = next => SaveAsync(plan, next)).Show();
+            }, alternateLabel: isAuth ? "Auth only" : "Request only", alternate: () => _pending = next => SaveAsync(plan, next)).Show();
     }
-    private Task ResolveDependenciesAsync(RequestCopyPlanModel plan, CancellationToken token)
+    private Task ResolveDependenciesAsync(EntityCopyPlanModel plan, CancellationToken token)
     {
         DependencyCopyModel? conflict = plan.Dependencies.FirstOrDefault(dependency => dependency.Existing is not null && !dependency.Resolved);
         if (conflict is null)
@@ -87,7 +96,7 @@ internal sealed class RequestWorkspaceCopyFlow
             (choice, all) => ApplyChoice(plan, conflict, choice, all)).Show();
         return Task.CompletedTask;
     }
-    private void ApplyChoice(RequestCopyPlanModel plan, DependencyCopyModel dependency, DependencyCopyAction choice, bool all)
+    private void ApplyChoice(EntityCopyPlanModel plan, DependencyCopyModel dependency, DependencyCopyAction choice, bool all)
     {
         if (all && dependency.Kind == "variable")
         {
@@ -105,7 +114,7 @@ internal sealed class RequestWorkspaceCopyFlow
             _pending = token => ResolveDependenciesAsync(plan, token);
         }
     }
-    private async Task SaveAsync(RequestCopyPlanModel plan, CancellationToken token)
+    private async Task SaveAsync(EntityCopyPlanModel plan, CancellationToken token)
     {
         if (await _copies.FindNameConflictAsync(plan, token) is { } conflict)
         {

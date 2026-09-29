@@ -22,7 +22,7 @@ public sealed class AuthScreen : ITuiScreen
     private readonly IStraumrAuthService _auths;
     private readonly ScrollableContent _configurationView;
     private readonly State<int> _count = new(0);
-    private readonly WorkspaceCopyFlow _copyFlow;
+    private readonly EntityWorkspaceCopyFlow _copyFlow;
     private readonly ScrollableContent _credentialView;
     private readonly ExternalEditorService _editor;
     private readonly State<string> _emptyMessage = new("Loading auths…");
@@ -82,7 +82,7 @@ public sealed class AuthScreen : ITuiScreen
         IStraumrSecretService secrets,
         IStraumrVariableService variables,
         IStraumrFileService files,
-        ExternalEditorService editor)
+        ExternalEditorService editor, IStraumrEntityCopyService entityCopies)
     {
         (_state, _workspaces, _auths, _requestService, _secrets, _variables, _files, _editor) =
             (state, workspaces, auths, requests, secrets, variables, files, editor);
@@ -106,7 +106,7 @@ public sealed class AuthScreen : ITuiScreen
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
         _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
-        _copyFlow = new WorkspaceCopyFlow(workspaces, result => NotificationRequested?.Invoke(result));
+        _copyFlow = new EntityWorkspaceCopyFlow(workspaces, entityCopies, result => NotificationRequested?.Invoke(result));
         _list.AddCommand(WorkspaceCopyFlow.Command("Auth.CopyToWorkspace", ShowCopyToWorkspace,
             () => SelectedItem is { IsBroken: false } && _workspace is not null));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
@@ -1001,8 +1001,7 @@ public sealed class AuthScreen : ITuiScreen
         {
             return TuiCommandResultModel.Failed("Repair this auth before copying it.");
         }
-        _copyFlow.Begin(source, item.Name, async (destination, name, token) =>
-            await _auths.CopyAsync(source, item.Id, destination, name, token));
+        _copyFlow.BeginAuth(source, item.Id, item.Name);
         return TuiCommandResultModel.None;
     }
     private void ShowDeleteDialog()

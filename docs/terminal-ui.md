@@ -79,6 +79,8 @@ When copying a request with a bound auth or variable references, choose **Carry 
 
 For several variable conflicts, **Apply this choice to remaining variable conflicts** repeats that choice; choosing new names still asks for each name separately. A single conflict has no checkbox. All choices are collected before saving, so cancelling any dialog creates no copies and replaces nothing. If a dependency is missing in the source, repair it before carrying dependencies, or copy only the request. With **Request only**, references stay as configured and variables resolve from the destination workspace.
 
+Copying an auth directly also checks its variable references. Choose **Carry variables** to copy them with the same conflict choices and reference remapping, or **Auth only** to leave its configuration unchanged and use the destination's variables. This works for bearer, basic, OAuth and custom auth configuration. Global secret references, cached auth results and custom auth's `{{value}}` placeholder are excluded from the variable-copy check.
+
 ## Editing
 
 Editing a request opens a form: name, method, URL, auth, and the header and parameter tables. Bodies are not edited in the form — `Enter` on the body field hands the file to your `$EDITOR`, and Straumr picks the change back up when you close it. That is deliberate: your editor already knows JSON better than any box inside a terminal UI would.

@@ -3,19 +3,17 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Core.Services;
 
-public sealed class StraumrRequestCopyService(
+public sealed class StraumrEntityCopyService(
     IStraumrRequestService requests,
     IStraumrAuthService auths,
     IStraumrVariableService variables,
-    IStraumrFileService files) : IStraumrRequestCopyService
+    IStraumrFileService files) : IStraumrEntityCopyService
 {
-    public async Task<RequestCopyPlanModel> PrepareAsync(StraumrWorkspaceEntry source, Guid id, StraumrWorkspaceEntry destination,
+    public async Task<EntityCopyPlanModel> PrepareRequestAsync(StraumrWorkspaceEntry source, Guid id, StraumrWorkspaceEntry destination,
         string name, CancellationToken cancellationToken = default)
     {
         StraumrRequest original = await requests.GetAsync(source, id, false, cancellationToken);
         List<string> missing = [];
-        List<string> authOnlyMissing = [];
-        List<string> requestVariableNames = RequestCopyReferenceHelpers.Names(original, null).ToList();
         StraumrAuth? auth = null;
         if (original.AuthId is { } authId)
         {
@@ -25,10 +23,25 @@ public sealed class StraumrRequestCopyService(
                 missing.Add($"auth {authId.ToString()[..8]}");
             }
         }
+        return await PrepareAsync(source, destination, original, original.CopyAs(name), auth, missing, cancellationToken);
+    }
+    public async Task<EntityCopyPlanModel> PrepareAuthAsync(StraumrWorkspaceEntry source, Guid id, StraumrWorkspaceEntry destination,
+        string name, CancellationToken cancellationToken = default)
+    {
+        StraumrAuth original = await auths.GetAsync(source, id, false, cancellationToken);
+        return await PrepareAsync(source, destination, original, original.CopyAs(name), null, [], cancellationToken);
+    }
+    private async Task<EntityCopyPlanModel> PrepareAsync(StraumrWorkspaceEntry source, StraumrWorkspaceEntry destination,
+        StraumrModelBase original, StraumrModelBase copy, StraumrAuth? boundAuth, List<string> missing, CancellationToken cancellationToken)
+    {
+        StraumrRequest? request = original as StraumrRequest;
+        StraumrAuth? referencedAuth = original as StraumrAuth ?? boundAuth;
+        List<string> authOnlyMissing = [];
+        List<string> requestVariableNames = EntityCopyReferenceHelpers.Names(request, null).ToList();
         IReadOnlyList<StraumrAuth> existingAuths = await auths.ListAsync(destination, cancellationToken);
         IReadOnlyList<StraumrVariable> existingVariables = await variables.ListAsync(destination, cancellationToken);
         List<DependencyCopyModel> copiedVariables = [];
-        foreach (string variableName in RequestCopyReferenceHelpers.Names(original, auth))
+        foreach (string variableName in EntityCopyReferenceHelpers.Names(request, referencedAuth))
         {
             try
             {
@@ -45,18 +58,20 @@ public sealed class StraumrRequestCopyService(
                 }
             }
         }
-        return new RequestCopyPlanModel(source, destination, original, original.CopyAs(name),
-            auth is null ? null : new DependencyCopyModel(auth, auth.CopyAs(auth.Name),
-                existingAuths.FirstOrDefault(existing => SameName(existing.Name, auth.Name))),
+        return new EntityCopyPlanModel(source, destination, original, copy,
+            boundAuth is null ? null : new DependencyCopyModel(boundAuth, boundAuth.CopyAs(boundAuth.Name),
+                existingAuths.FirstOrDefault(existing => SameName(existing.Name, boundAuth.Name))),
             copiedVariables, requestVariableNames, missing, authOnlyMissing);
     }
-    public async Task<CopyNameConflictModel?> FindNameConflictAsync(RequestCopyPlanModel plan, CancellationToken cancellationToken = default)
+    public async Task<CopyNameConflictModel?> FindNameConflictAsync(EntityCopyPlanModel plan, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<StraumrRequest> existingRequests = await requests.ListAsync(plan.Destination, cancellationToken);
-        string? requestProblem = NameProblem(plan.Copy);
-        if (requestProblem is not null || existingRequests.Any(existing => SameName(existing.Name, plan.Copy.Name)))
+        IEnumerable<StraumrModelBase> existingEntities = plan.Original is StraumrRequest
+            ? await requests.ListAsync(plan.Destination, cancellationToken)
+            : await auths.ListAsync(plan.Destination, cancellationToken);
+        string? entityProblem = NameProblem(plan.Copy);
+        if (entityProblem is not null || existingEntities.Any(existing => SameName(existing.Name, plan.Copy.Name)))
         {
-            return new CopyNameConflictModel(null, requestProblem ?? $"A request named {plan.Copy.Name} already exists.");
+            return new CopyNameConflictModel(null, entityProblem ?? $"The name {plan.Copy.Name} is already used by another {plan.Kind}.");
         }
         if (!plan.CarryDependencies)
         {
@@ -88,7 +103,7 @@ public sealed class StraumrRequestCopyService(
         }
         return null;
     }
-    public async Task CopyAsync(RequestCopyPlanModel plan, CancellationToken cancellationToken = default)
+    public async Task CopyAsync(EntityCopyPlanModel plan, CancellationToken cancellationToken = default)
     {
         if (await FindNameConflictAsync(plan, cancellationToken) is { } conflict)
         {
@@ -106,7 +121,7 @@ public sealed class StraumrRequestCopyService(
             foreach (DependencyCopyModel dependency in plan.Dependencies.Where(dependency => dependency.Action != DependencyCopyAction.UseExisting))
             {
                 StraumrModelBase model = dependency.Copy is StraumrAuth
-                    ? RequestCopyReferenceHelpers.Auth(plan, dependency)
+                    ? EntityCopyReferenceHelpers.Auth(plan, dependency)
                     : ((StraumrVariable)dependency.Original).CopyAs(dependency.Copy.Name);
                 model.Id = dependency.TargetId;
                 if (dependency.Action == DependencyCopyAction.Replace)
@@ -119,10 +134,12 @@ public sealed class StraumrRequestCopyService(
                     dependency.Action == DependencyCopyAction.Replace));
             }
         }
-        StraumrRequest request = RequestCopyReferenceHelpers.Request(plan);
-        string requestPath = requests.PathFor(plan.Destination, request.Id);
-        snapshots[requestPath] = File.Exists(requestPath) ? await File.ReadAllTextAsync(requestPath, cancellationToken) : null;
-        writes.Add((request, requestPath, await File.ReadAllTextAsync(requests.PathFor(plan.Source, plan.Original.Id), cancellationToken), false));
+        StraumrModelBase entity = plan.Original is StraumrRequest
+            ? EntityCopyReferenceHelpers.Request(plan)
+            : EntityCopyReferenceHelpers.Auth(plan, (StraumrAuth)plan.Original, plan.Copy.Name, plan.Copy.Id);
+        string entityPath = PathFor(plan.Destination, entity);
+        snapshots[entityPath] = File.Exists(entityPath) ? await File.ReadAllTextAsync(entityPath, cancellationToken) : null;
+        writes.Add((entity, entityPath, await File.ReadAllTextAsync(PathFor(plan.Source, plan.Original), cancellationToken), false));
         try
         {
             foreach ((StraumrModelBase model, string path, string jsonc, bool replace) in writes)

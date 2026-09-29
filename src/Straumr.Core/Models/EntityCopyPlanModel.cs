@@ -1,10 +1,10 @@
 namespace Straumr.Core.Models;
 
-public sealed record RequestCopyPlanModel(
+public sealed record EntityCopyPlanModel(
     StraumrWorkspaceEntry Source,
     StraumrWorkspaceEntry Destination,
-    StraumrRequest Original,
-    StraumrRequest Copy,
+    StraumrModelBase Original,
+    StraumrModelBase Copy,
     DependencyCopyModel? Auth,
     IReadOnlyList<DependencyCopyModel> BoundVariables,
     IReadOnlyList<string> RequestVariableNames,
@@ -12,6 +12,7 @@ public sealed record RequestCopyPlanModel(
     IReadOnlyList<string> AuthOnlyMissing)
 {
     public bool CarryDependencies { get; set; }
+    public string Kind => Original is StraumrRequest ? "request" : "auth";
     public IReadOnlyList<DependencyCopyModel> Variables => Auth?.Action == DependencyCopyAction.UseExisting
         ? BoundVariables.Where(variable => RequestVariableNames.Contains(variable.Original.Name, StringComparer.OrdinalIgnoreCase)).ToList()
         : BoundVariables;

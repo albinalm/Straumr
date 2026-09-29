@@ -4,16 +4,16 @@ using Straumr.Core.Configuration;
 
 namespace Straumr.Core.Helpers;
 
-internal static class RequestCopyReferenceHelpers
+internal static class EntityCopyReferenceHelpers
 {
-    public static IEnumerable<string> Names(StraumrRequest request, StraumrAuth? auth) =>
-        RequestValues(request).SelectMany(value => Names(value, null))
+    public static IEnumerable<string> Names(StraumrRequest? request, StraumrAuth? auth) =>
+        (request is null ? [] : RequestValues(request)).SelectMany(value => Names(value, null))
             .Concat(AuthFields(auth).SelectMany(field => Scan(field.Value,
                 field.Key == CustomAuthConfig.TemplateField ? CustomAuthConfig.ValueName : null)))
             .Distinct(StringComparer.OrdinalIgnoreCase);
-    public static StraumrRequest Request(RequestCopyPlanModel plan)
+    public static StraumrRequest Request(EntityCopyPlanModel plan)
     {
-        StraumrRequest copy = plan.Original.CopyAs(plan.Copy.Name);
+        StraumrRequest copy = ((StraumrRequest)plan.Original).CopyAs(plan.Copy.Name);
         copy.Id = plan.Copy.Id;
         if (!plan.CarryDependencies)
         {
@@ -30,10 +30,16 @@ internal static class RequestCopyReferenceHelpers
         }
         return copy;
     }
-    public static StraumrAuth Auth(RequestCopyPlanModel plan, DependencyCopyModel dependency)
+    public static StraumrAuth Auth(EntityCopyPlanModel plan, DependencyCopyModel dependency) =>
+        Auth(plan, (StraumrAuth)dependency.Original, dependency.Copy.Name, dependency.TargetId);
+    public static StraumrAuth Auth(EntityCopyPlanModel plan, StraumrAuth original, string name, Guid id)
     {
-        StraumrAuth copy = ((StraumrAuth)dependency.Original).CopyAs(dependency.Copy.Name);
-        copy.Id = dependency.TargetId;
+        StraumrAuth copy = original.CopyAs(name);
+        copy.Id = id;
+        if (!plan.CarryDependencies)
+        {
+            return copy;
+        }
         JsonObject document = JsonSerializer.SerializeToNode(copy, StraumrJsonContext.Default.StraumrAuth)!.AsObject();
         JsonObject config = document[nameof(StraumrAuth.Config)]!.AsObject();
         Dictionary<string, string> names = VariableNames(plan);
@@ -44,7 +50,7 @@ internal static class RequestCopyReferenceHelpers
         }
         return document.Deserialize(StraumrJsonContext.Default.StraumrAuth)!;
     }
-    private static Dictionary<string, string> VariableNames(RequestCopyPlanModel plan) =>
+    private static Dictionary<string, string> VariableNames(EntityCopyPlanModel plan) =>
         plan.Variables.ToDictionary(variable => variable.Original.Name,
             variable => variable.Action == DependencyCopyAction.UseExisting ? variable.Existing!.Name : variable.Copy.Name,
             StringComparer.OrdinalIgnoreCase);
