@@ -92,6 +92,20 @@ public class StraumrRequestService(
         return request;
     }
 
+    public async Task<StraumrRequest> CopyAsync(
+        StraumrWorkspaceEntry source,
+        Guid id,
+        StraumrWorkspaceEntry destination,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        StraumrRequest original = await GetAsync(source, id, false, cancellationToken);
+        StraumrRequest copy = original.CopyAs(name);
+        string jsonc = await File.ReadAllTextAsync(RequestPath(id, source), cancellationToken);
+        fileService.CarryCommentsFrom(RequestPath(copy.Id, destination), jsonc);
+        return await CreateAsync(destination, copy, cancellationToken);
+    }
+
     public async Task<StraumrRequest> SaveAsync(
         StraumrWorkspaceEntry workspace,
         StraumrRequest request,
@@ -369,7 +383,7 @@ public class StraumrRequestService(
         }
     }
 
-    private static void ValidateName(string name)
+    internal static void ValidateName(string name)
     {
         if (name.Contains('"'))
         {

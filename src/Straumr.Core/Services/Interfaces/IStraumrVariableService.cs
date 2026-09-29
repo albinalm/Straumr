@@ -25,6 +25,13 @@ public interface IStraumrVariableService
         StraumrVariable variable,
         CancellationToken cancellationToken = default);
 
+    Task<StraumrVariable> CopyAsync(
+        StraumrWorkspaceEntry source,
+        Guid id,
+        StraumrWorkspaceEntry destination,
+        string name,
+        CancellationToken cancellationToken = default);
+
     Task<StraumrVariable> SaveAsync(
         StraumrWorkspaceEntry workspace,
         StraumrVariable variable,

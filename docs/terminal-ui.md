@@ -73,6 +73,16 @@ Use `:reset` to replace `settings.toml` with its factory template after a confir
 
 Prefix a command with a screen name to run it from anywhere: `:rq send users` goes to Requests and sends, `:ws use my-api` switches the active workspace without leaving the screen you are on.
 
+Requests, auths and variables also offer **Copy to workspace**: `Ctrl+Y` with vim/emacs, `Shift+F5` with commander, or `Ctrl+Shift+D` with client. Choose another workspace in the selector; `/` filters its names. The copy keeps its name unless that name is already taken, in which case a prompt asks for a new unique name. Cancel either step to leave everything as it was. The source and active workspace stay in place.
+
+The same flow is available as `:copy-to <name>` on those screens, or `:rq copy-to users` from elsewhere. Each copy gets a new ID and keeps the entity's configuration and JSONC comments; saved request responses are not copied. Secrets are global and do not need a workspace copy.
+
+When copying a request with a bound auth or variable references, choose **Carry dependencies** or **Request only**. Carrying includes variables referenced by the request and its auth. A conflicting request name always needs a new name. For a conflicting auth or variable, choose **Use existing**, **Replace existing**, or **Copy with new name**. Replacing preserves the destination entity's ID and updates its configuration, which also affects other requests using it. Renamed variables are rewired in the copied request and auth; the copied request is bound to the chosen auth's destination ID. Reusing a destination auth keeps its configuration and skips variables used only by the source auth.
+
+For several variable conflicts, **Apply this choice to remaining variable conflicts** repeats that choice; choosing new names still asks for each name separately. A single conflict has no checkbox. All choices are collected before saving, so cancelling any dialog creates no copies and replaces nothing. If a dependency is missing in the source, repair it before carrying dependencies, or copy only the request. With **Request only**, references stay as configured and variables resolve from the destination workspace.
+
+Copying an auth directly also checks its variable references. Choose **Carry variables** to copy them with the same conflict choices and reference remapping, or **Auth only** to leave its configuration unchanged and use the destination's variables. This works for bearer, basic, OAuth and custom auth configuration. Global secret references, cached auth results and custom auth's `{{value}}` placeholder are excluded from the variable-copy check.
+
 ## Editing
 
 Editing a request opens a form: name, method, URL, auth, and the header and parameter tables. Bodies are not edited in the form — `Enter` on the body field hands the file to your `$EDITOR`, and Straumr picks the change back up when you close it. That is deliberate: your editor already knows JSON better than any box inside a terminal UI would.

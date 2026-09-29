@@ -25,6 +25,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<RequestAuthenticationModel?> _authentication = new(null);
     private readonly IStraumrAuthService _auths;
     private readonly State<int> _count = new(0);
+    private readonly EntityWorkspaceCopyFlow _copyFlow;
     private readonly ExternalEditorService _editor;
     private readonly State<string> _emptyMessage = new("Loading requests…");
     private readonly IStraumrFileService _files;
@@ -80,7 +81,7 @@ public sealed class RequestScreen : ITuiScreen
     public RequestScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
         IStraumrVariableService variables, IStraumrFileService files, IStraumrSettingsService settings,
-        ExternalEditorService editor)
+        ExternalEditorService editor, IStraumrEntityCopyService entityCopies)
     {
         (_state, _workspaces, _requests, _auths, _secrets, _variables, _files, _settings, _editor) =
             (state, workspaces, requests, auths, secrets, variables, files, settings, editor);
@@ -119,6 +120,9 @@ public sealed class RequestScreen : ITuiScreen
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
         _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
+        _copyFlow = new EntityWorkspaceCopyFlow(workspaces, entityCopies, result => NotificationRequested?.Invoke(result));
+        _list.AddCommand(WorkspaceCopyFlow.Command("Request.CopyToWorkspace", ShowCopyToWorkspace,
+            () => SelectedItem is { IsBroken: false } && _workspace is not null));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Request.EditJson", "Edit JSON",
                      () =>
@@ -171,6 +175,8 @@ public sealed class RequestScreen : ITuiScreen
             new TuiCommandModel("create", CreateRequestAsync) { Aliases = ["new"] },
             new TuiCommandModel("edit", EditRequestAsync) { ArgumentValues = RequestNames },
             new TuiCommandModel("copy", CopyRequestAsync) { ArgumentValues = RequestNames },
+            new TuiCommandModel("copy-to", (argument, _) => Task.FromResult(OnSelected(argument, CopyToWorkspace)))
+                { ArgumentValues = RequestNames },
             new TuiCommandModel("delete", DeleteRequestAsync) { ArgumentValues = RequestNames },
             new TuiCommandModel("send", SendRequestAsync) { ArgumentValues = RequestNames },
             new TuiCommandModel("view", ViewResponseAsync) { Aliases = ["response"], ArgumentValues = RequestNames },
@@ -260,6 +266,7 @@ public sealed class RequestScreen : ITuiScreen
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        await _copyFlow.UpdateAsync(cancellationToken);
         _responseView?.Update();
         _editorView?.Update();
         if (_editorNotice is { } notice)
@@ -830,6 +837,26 @@ public sealed class RequestScreen : ITuiScreen
         TransientScreenOpened?.Invoke();
     }
 
+    private void ShowCopyToWorkspace()
+    {
+        if (SelectedItem is { } item)
+        {
+            NotifyIfFailed(CopyToWorkspace(item));
+        }
+    }
+    private TuiCommandResultModel CopyToWorkspace(RequestScreenItemModel item)
+    {
+        if (_workspace is not { } source)
+        {
+            return TuiCommandResultModel.NoWorkspace;
+        }
+        if (item.IsBroken)
+        {
+            return TuiCommandResultModel.Failed("Repair this request before copying it.");
+        }
+        _copyFlow.BeginRequest(source, item.Id, item.Name);
+        return TuiCommandResultModel.None;
+    }
     private void ShowDeleteDialog()
     {
         if (SelectedItem is not { } item)

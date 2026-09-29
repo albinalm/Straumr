@@ -146,6 +146,7 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | `Request.New` | `c` | · | `F7` | `Ctrl+N` |
 | `Request.Edit` | `e` | · | `F4` | · |
 | `Request.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Request.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |
 | `Request.Delete` | `d` | · | `F8` | `Delete` |
 | `Request.EditJson` | `Ctrl+E` | · | · | · |
 | `Request.Send` | `s` | · | · | `Ctrl+R` |
@@ -158,6 +159,7 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | `Auth.New` | `c` | · | `F7` | `Ctrl+N` |
 | `Auth.Edit` | `e` | · | `F4` | · |
 | `Auth.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Auth.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |
 | `Auth.Delete` | `d` | · | `F8` | `Delete` |
 | `Auth.EditJson` | `Ctrl+E` | · | · | · |
 | `Auth.Send` | `s` | · | · | `Ctrl+R` |
@@ -172,6 +174,7 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | `Variable.New` | `c` | · | `F7` | `Ctrl+N` |
 | `Variable.Edit` | `e` | · | `F4` | · |
 | `Variable.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Variable.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |
 | `Variable.Delete` | `d` | · | `F8` | `Delete` |
 | `Variable.EditJson` | `Ctrl+E` | · | · | · |
 

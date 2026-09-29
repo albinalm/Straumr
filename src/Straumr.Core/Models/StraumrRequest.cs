@@ -24,6 +24,7 @@ public class StraumrRequest : StraumrModelBase
         Headers = new Dictionary<string, string>(Headers, Headers.Comparer),
         BodyType = BodyType,
         Bodies = new Dictionary<BodyType, string>(Bodies),
-        AuthId = AuthId
+        AuthId = AuthId,
+        Group = Group
     };
 }
