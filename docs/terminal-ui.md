@@ -75,6 +75,8 @@ Prefix a command with a screen name to run it from anywhere: `:rq send users` go
 
 Editing a request opens a form: name, method, URL, auth, and the header and parameter tables. Bodies are not edited in the form — `Enter` on the body field hands the file to your `$EDITOR`, and Straumr picks the change back up when you close it. That is deliberate: your editor already knows JSON better than any box inside a terminal UI would.
 
+In request, auth, variable and secret forms, `Ctrl+S` saves and keeps the form open; `Ctrl+Shift+S` saves and closes it. The commander preset uses `F2` and `Shift+F2`. Save and close returns to the list only after a successful save; validation or save errors keep your edits open. Both actions can be changed in [keybind settings](keybinds.md).
+
 `Ctrl+E` on a list entry skips the form entirely and opens the underlying JSONC file. Comments you leave in that file survive everything Straumr writes afterwards.
 
 Both paths need `$EDITOR` set. Without it, the commands that would hand off say so instead.

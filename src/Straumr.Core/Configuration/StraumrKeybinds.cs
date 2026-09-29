@@ -99,6 +99,7 @@ public static class StraumrKeybinds
             ["Headers.Copy"] = "y",
             ["Headers.Expand"] = "e",
             ["Editor.Save"] = "Ctrl+S",
+            ["Editor.SaveAndClose"] = "Ctrl+Shift+S",
             ["Editor.Close"] = "Escape",
             ["ContentField.Edit"] = "e",
             ["ContentField.Activate"] = "Enter",

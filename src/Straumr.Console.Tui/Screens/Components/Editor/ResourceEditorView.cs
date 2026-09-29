@@ -208,12 +208,17 @@ internal sealed class ResourceEditorView
             "Discard",
             true,
             CloseNow,
-            alternateLabel: "Save and exit",
+            alternateLabel: "Save and close",
             alternate: SaveAndClose).Show();
     }
 
     private void SaveAndClose()
     {
+        if (_saving.Value)
+        {
+            return;
+        }
+
         _closeAfterSave = true;
         TrySave();
         _closeAfterSave = _saving.Value;
@@ -314,20 +319,22 @@ internal sealed class ResourceEditorView
 
     private void AddSaveCommands()
     {
-        _dialog.AddCommand(SaveCommand("Editor.Save", CommandPresentation.CommandBar));
-        _dialog.AddCommand(SaveCommand("Editor.Save.Letter", CommandPresentation.None));
+        _dialog.AddCommand(SaveCommand("Editor.Save", "Save", CommandPresentation.CommandBar, TrySave));
+        _dialog.AddCommand(SaveCommand("Editor.Save.Letter", "Save", CommandPresentation.None, TrySave));
+        _dialog.AddCommand(SaveCommand("Editor.SaveAndClose", "Save and close", CommandPresentation.CommandBar, SaveAndClose));
+        _dialog.AddCommand(SaveCommand("Editor.SaveAndClose.Letter", "Save and close", CommandPresentation.None, SaveAndClose));
     }
 
-    private Command SaveCommand(string id, CommandPresentation presentation) => new()
+    private Command SaveCommand(string id, string label, CommandPresentation presentation, Action execute) => new()
     {
         Id = id,
-        LabelMarkup = "Save",
+        LabelMarkup = label,
         Gesture = TuiKeybindHelpers.Get(id),
         Importance = CommandImportance.Primary,
         Presentation = presentation,
         CanExecute = _ => !_saving.Value,
         IsVisible = _ => !_saving.Value,
         ConsumesGestureWhenUnavailable = false,
-        Execute = _ => TrySave()
+        Execute = _ => execute()
     };
 }
