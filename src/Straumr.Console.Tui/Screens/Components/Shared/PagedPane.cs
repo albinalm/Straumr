@@ -41,9 +41,9 @@ internal sealed class PagedPane
         else
         {
             Root.AddCommand(CycleCommand("NextPage", "Next page",
-                CommandPresentation.CommandBar, 1));
+                CommandPresentation.CommandBar, 1, allowWhileTyping: true));
             Root.AddCommand(CycleCommand("NextPageLetter", "Next page",
-                CommandPresentation.None, 1));
+                CommandPresentation.None, 1, allowWhileTyping: true));
         }
     }
 
@@ -125,7 +125,7 @@ internal sealed class PagedPane
     }
 
     private Command CycleCommand(string id, string label,
-        CommandPresentation presentation, int step) =>
+        CommandPresentation presentation, int step, bool allowWhileTyping = false) =>
         new()
         {
             Id = $"PagedPane.{id}",
@@ -133,8 +133,8 @@ internal sealed class PagedPane
             Gesture = TuiKeybindHelpers.Get($"PagedPane.{id}"),
             Importance = CommandImportance.Secondary,
             Presentation = presentation,
-            CanExecute = _ => !Root.IsTyping(),
-            IsVisible = _ => !Root.IsTyping(),
+            CanExecute = _ => allowWhileTyping || !Root.IsTyping(),
+            IsVisible = _ => allowWhileTyping || !Root.IsTyping(),
             ConsumesGestureWhenUnavailable = false,
             Execute = _ => Change(Step(step))
         };
