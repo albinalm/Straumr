@@ -70,6 +70,13 @@ internal static class StraumrStyleService
     public static SelectStyle Select => _set.Select;
     public static MenuListStyle Menu => _set.Menu;
     public static SwitchStyle Switch => _set.Switch;
+    public static CheckBoxStyle CheckBox => CheckBoxStyle.Default with
+    {
+        Normal = _set.Button.Normal,
+        Hovered = _set.Button.Hovered,
+        Focused = _set.Button.Focused,
+        Disabled = _set.Button.Disabled
+    };
     public static ValidationStyle Validation => _set.Validation;
     public static DialogStyle Dialog => _set.Dialog;
     public static GroupStyle WindowGroup => _set.WindowGroup;

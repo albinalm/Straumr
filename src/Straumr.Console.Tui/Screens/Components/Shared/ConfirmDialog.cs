@@ -91,7 +91,7 @@ internal sealed class ConfirmDialog
     public void Show() =>
         TuiWindowHelpers.Show(_dialog, () => _cancelButton.App?.Focus(_cancelButton));
 
-    private static void MoveToAnotherAnswer(KeyEventArgs e, Button[] answers, Button current)
+    internal static void MoveToAnotherAnswer(KeyEventArgs e, Button[] answers, Button current)
     {
         int step = TuiKeybindHelpers.Matches("ConfirmDialog.Left", e) || TuiKeybindHelpers.Matches("ConfirmDialog.Up", e)
             ? -1

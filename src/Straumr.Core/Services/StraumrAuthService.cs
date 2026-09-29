@@ -613,7 +613,7 @@ public class StraumrAuthService(
         }
     }
 
-    private static void ValidateName(string name)
+    internal static void ValidateName(string name)
     {
         if (name.Contains('"'))
         {

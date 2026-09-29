@@ -141,7 +141,7 @@ public class StraumrVariableService(IStraumrFileService fileService) : IStraumrV
 
     public string PathFor(StraumrWorkspaceEntry workspace, Guid id) => VariablePath(id, workspace);
 
-    private static void ValidateName(string name)
+    internal static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {

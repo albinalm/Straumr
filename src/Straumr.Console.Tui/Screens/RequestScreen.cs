@@ -25,7 +25,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<RequestAuthenticationModel?> _authentication = new(null);
     private readonly IStraumrAuthService _auths;
     private readonly State<int> _count = new(0);
-    private readonly WorkspaceCopyFlow _copyFlow;
+    private readonly RequestWorkspaceCopyFlow _copyFlow;
     private readonly ExternalEditorService _editor;
     private readonly State<string> _emptyMessage = new("Loading requests…");
     private readonly IStraumrFileService _files;
@@ -80,7 +80,7 @@ public sealed class RequestScreen : ITuiScreen
     public RequestScreen(IStraumrStateService state, IStraumrWorkspaceService workspaces,
         IStraumrRequestService requests, IStraumrAuthService auths, IStraumrSecretService secrets,
         IStraumrVariableService variables, IStraumrFileService files, IStraumrSettingsService settings,
-        ExternalEditorService editor)
+        ExternalEditorService editor, IStraumrRequestCopyService requestCopies)
     {
         (_state, _workspaces, _requests, _auths, _secrets, _variables, _files, _settings, _editor) =
             (state, workspaces, requests, auths, secrets, variables, files, settings, editor);
@@ -119,7 +119,7 @@ public sealed class RequestScreen : ITuiScreen
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
         _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
-        _copyFlow = new WorkspaceCopyFlow(workspaces, result => NotificationRequested?.Invoke(result));
+        _copyFlow = new RequestWorkspaceCopyFlow(workspaces, requestCopies, result => NotificationRequested?.Invoke(result));
         _list.AddCommand(WorkspaceCopyFlow.Command("Request.CopyToWorkspace", ShowCopyToWorkspace,
             () => SelectedItem is { IsBroken: false } && _workspace is not null));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
@@ -854,8 +854,7 @@ public sealed class RequestScreen : ITuiScreen
         {
             return TuiCommandResultModel.Failed("Repair this request before copying it.");
         }
-        _copyFlow.Begin(source, item.Name, async (destination, name, token) =>
-            await _requests.CopyAsync(source, item.Id, destination, name, token));
+        _copyFlow.Begin(source, item.Id, item.Name);
         return TuiCommandResultModel.None;
     }
     private void ShowDeleteDialog()

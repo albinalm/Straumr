@@ -73,7 +73,11 @@ Prefix a command with a screen name to run it from anywhere: `:rq send users` go
 
 Requests, auths and variables also offer **Copy to workspace**: `Ctrl+Y` with vim/emacs, `Shift+F5` with commander, or `Ctrl+Shift+D` with client. Choose another workspace in the selector; `/` filters its names. The copy keeps its name unless that name is already taken, in which case a prompt asks for a new unique name. Cancel either step to leave everything as it was. The source and active workspace stay in place.
 
-The same flow is available as `:copy-to <name>` on those screens, or `:rq copy-to users` from elsewhere. Each copy gets a new ID and keeps the entity's configuration and JSONC comments; saved request responses are not copied. References remain as configured, so any referenced auth must also belong to the destination workspace, and variable references use the destination's variables. Secrets are global and do not need a workspace copy.
+The same flow is available as `:copy-to <name>` on those screens, or `:rq copy-to users` from elsewhere. Each copy gets a new ID and keeps the entity's configuration and JSONC comments; saved request responses are not copied. Secrets are global and do not need a workspace copy.
+
+When copying a request with a bound auth or variable references, choose **Carry dependencies** or **Request only**. Carrying includes variables referenced by the request and its auth. A conflicting request name always needs a new name. For a conflicting auth or variable, choose **Use existing**, **Replace existing**, or **Copy with new name**. Replacing preserves the destination entity's ID and updates its configuration, which also affects other requests using it. Renamed variables are rewired in the copied request and auth; the copied request is bound to the chosen auth's destination ID. Reusing a destination auth keeps its configuration and skips variables used only by the source auth.
+
+For several variable conflicts, **Apply this choice to remaining variable conflicts** repeats that choice; choosing new names still asks for each name separately. A single conflict has no checkbox. All choices are collected before saving, so cancelling any dialog creates no copies and replaces nothing. If a dependency is missing in the source, repair it before carrying dependencies, or copy only the request. With **Request only**, references stay as configured and variables resolve from the destination workspace.
 
 ## Editing
 

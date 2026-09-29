@@ -24,7 +24,9 @@ internal sealed class WorkspaceCopyFlow(IStraumrWorkspaceService workspaces, Act
         Execute = _ => TuiKeybindHelpers.Run(id, execute)
     };
     public void Begin(StraumrWorkspaceEntry source, string name, Func<StraumrWorkspaceEntry, string, CancellationToken, Task> copy) =>
-        _pending = token => ChooseWorkspaceAsync(source, name, copy, token);
+        Choose(source, name, destination => _pending = token => CopyAsync(destination, name, copy, token));
+    public void Choose(StraumrWorkspaceEntry source, string name, Action<StraumrWorkspace> selected) =>
+        _pending = token => ChooseWorkspaceAsync(source, name, selected, token);
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
         if (_pending is not { } operation)
@@ -42,7 +44,7 @@ internal sealed class WorkspaceCopyFlow(IStraumrWorkspaceService workspaces, Act
         }
     }
     private async Task ChooseWorkspaceAsync(StraumrWorkspaceEntry source, string name,
-        Func<StraumrWorkspaceEntry, string, CancellationToken, Task> copy, CancellationToken cancellationToken)
+        Action<StraumrWorkspace> selected, CancellationToken cancellationToken)
     {
         IReadOnlyList<StraumrWorkspace> available = await workspaces.ListAsync(cancellationToken);
         List<StraumrWorkspace> destinations = available.Where(workspace => workspace.Id != source.Id)
@@ -52,8 +54,7 @@ internal sealed class WorkspaceCopyFlow(IStraumrWorkspaceService workspaces, Act
             notify(TuiCommandResultModel.Failed("Create another workspace before copying to it."));
             return;
         }
-        new WorkspacePickerDialog(name, destinations,
-            destination => _pending = token => CopyAsync(destination, name, copy, token)).Show();
+        new WorkspacePickerDialog(name, destinations, selected).Show();
     }
     private async Task CopyAsync(StraumrWorkspace destination, string name,
         Func<StraumrWorkspaceEntry, string, CancellationToken, Task> copy, CancellationToken cancellationToken)
