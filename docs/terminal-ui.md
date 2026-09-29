@@ -42,6 +42,8 @@ Each header is one line, cut off where it runs out of room, so a list of twenty 
 
 `:` opens a command prompt at the bottom of the screen. `Tab` completes, `Up` and `Down` walk back through what you have run, `Escape` closes it.
 
+For resource arguments, `Tab` cycles names only. You can also type a full ID or an unambiguous ID prefix yourself. Names containing spaces are quoted automatically when completed. Unreadable resources with only an ID as their display name are omitted from completion; select them in the list or type their ID to repair them.
+
 Anywhere:
 
 ```text

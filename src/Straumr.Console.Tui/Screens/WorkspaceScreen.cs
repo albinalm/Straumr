@@ -159,20 +159,20 @@ public sealed class WorkspaceScreen : ITuiScreen
             new TuiCommandModel("select", SelectWorkspaceAsync)
             {
                 Aliases = ["w"],
-                ArgumentValues = WorkspaceIdentifiers
+                ArgumentValues = WorkspaceNames
             },
             new TuiCommandModel("use", UseWorkspaceAsync)
             {
                 Aliases = ["activate"],
-                ArgumentValues = UsableWorkspaceIdentifiers,
+                ArgumentValues = UsableWorkspaceNames,
                 RunsInPlaceFromOtherScreens = true
             },
             new TuiCommandModel("create", CreateWorkspaceAsync) { Aliases = ["new"] },
-            new TuiCommandModel("edit", EditWorkspaceAsync) { ArgumentValues = WorkspaceIdentifiers },
-            new TuiCommandModel("copy", CopyWorkspaceAsync) { ArgumentValues = UsableWorkspaceIdentifiers },
-            new TuiCommandModel("delete", DeleteWorkspaceAsync) { ArgumentValues = WorkspaceIdentifiers },
+            new TuiCommandModel("edit", EditWorkspaceAsync) { ArgumentValues = WorkspaceNames },
+            new TuiCommandModel("copy", CopyWorkspaceAsync) { ArgumentValues = UsableWorkspaceNames },
+            new TuiCommandModel("delete", DeleteWorkspaceAsync) { ArgumentValues = WorkspaceNames },
             new TuiCommandModel("import", ImportWorkspaceAsync),
-            new TuiCommandModel("export", ExportWorkspaceAsync) { ArgumentValues = UsableWorkspaceIdentifiers },
+            new TuiCommandModel("export", ExportWorkspaceAsync) { ArgumentValues = UsableWorkspaceNames },
             new TuiCommandModel("refresh", RefreshAsync)
         ];
     }
@@ -1145,12 +1145,11 @@ public sealed class WorkspaceScreen : ITuiScreen
                 item.Id.ToString().StartsWith(name, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IEnumerable<string> WorkspaceIdentifiers() =>
-        _items.SelectMany(item => new[] { item.Name, item.Id.ToString() });
+    private IEnumerable<string> WorkspaceNames() => _items.Select(item => item.Name);
 
-    private IEnumerable<string> UsableWorkspaceIdentifiers() =>
+    private IEnumerable<string> UsableWorkspaceNames() =>
         _items.Where(item => !item.IsCorrupt)
-            .SelectMany(item => new[] { item.Name, item.Id.ToString() });
+            .Select(item => item.Name);
 
     private void ApplyFilter(string text) => ApplyFilter(text, SelectedItem?.Id);
 
