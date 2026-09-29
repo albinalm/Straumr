@@ -86,6 +86,7 @@ internal static class StraumrStyleService
     public static Style SelectedItem => _set.SelectedItem;
     public static Style SelectedItemInactive => _set.SelectedItemInactive;
     public static Style SelectionMarker => _set.SelectionMarker;
+    public static Style SelectionMarkerOnBand => _set.SelectionMarkerOnBand;
     public static Style SelectionMarkerInactive => _set.SelectionMarkerInactive;
     public static Style HoveredItem => _set.HoveredItem;
 

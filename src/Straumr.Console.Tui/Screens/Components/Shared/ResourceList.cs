@@ -265,7 +265,7 @@ public sealed partial class ResourceList : Visual, IScrollable
                 buffer,
                 SelectedIndex,
                 HasFocus ? StraumrStyleService.SelectedItem : StraumrStyleService.SelectedItemInactive,
-                HasFocus ? StraumrStyleService.SelectionMarker : StraumrStyleService.SelectionMarkerInactive);
+                HasFocus ? StraumrStyleService.SelectionMarkerOnBand : StraumrStyleService.SelectionMarkerInactive);
         }
 
         PaintCurrentMarkers(buffer);

@@ -394,6 +394,9 @@ internal sealed class StraumrStyleSetModel
     public Style SelectedItem { get; }
     public Style SelectedItemInactive { get; }
     public Style SelectionMarker { get; }
+    public Style SelectionMarkerOnBand => _selectionInverts
+        ? Style.None.WithForeground(Text).WithBackground(Accent).WithTextStyle(TextStyle.Invert)
+        : SelectionMarker;
     public Style SelectionMarkerInactive { get; }
     public Style HoveredItem { get; }
 
