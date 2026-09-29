@@ -44,7 +44,7 @@ internal sealed class TextPromptDialog
         confirmButton.Click(TrySubmit);
 
         VStack content = new VStack(
-                new TextBlock(label).Style(StraumrStyleService.MutedText),
+                new TextBlock(label).Style(StraumrStyleService.MutedText).Wrap(true),
                 _field,
                 new HStack(cancelButton, confirmButton)
                     .Spacing(1)

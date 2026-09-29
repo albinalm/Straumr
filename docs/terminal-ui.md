@@ -71,6 +71,10 @@ Use `:reset` to replace `settings.toml` with its factory template after a confir
 
 Prefix a command with a screen name to run it from anywhere: `:rq send users` goes to Requests and sends, `:ws use my-api` switches the active workspace without leaving the screen you are on.
 
+Requests, auths and variables also offer **Copy to workspace**: `Ctrl+Y` with vim/emacs, `Shift+F5` with commander, or `Ctrl+Shift+D` with client. Choose another workspace in the selector; `/` filters its names. The copy keeps its name unless that name is already taken, in which case a prompt asks for a new unique name. Cancel either step to leave everything as it was. The source and active workspace stay in place.
+
+The same flow is available as `:copy-to <name>` on those screens, or `:rq copy-to users` from elsewhere. Each copy gets a new ID and keeps the entity's configuration and JSONC comments; saved request responses are not copied. References remain as configured, so any referenced auth must also belong to the destination workspace, and variable references use the destination's variables. Secrets are global and do not need a workspace copy.
+
 ## Editing
 
 Editing a request opens a form: name, method, URL, auth, and the header and parameter tables. Bodies are not edited in the form — `Enter` on the body field hands the file to your `$EDITOR`, and Straumr picks the change back up when you close it. That is deliberate: your editor already knows JSON better than any box inside a terminal UI would.

@@ -20,6 +20,7 @@ public sealed class VariableScreen : ITuiScreen
     private const string PaneLayoutKey = nameof(TuiScreen.Variables);
     private readonly IStraumrAuthService _auths;
     private readonly State<int> _count = new(0);
+    private readonly WorkspaceCopyFlow _copyFlow;
     private readonly ExternalEditorService _editor;
     private readonly State<string> _emptyMessage = new("Loading variables…");
     private readonly IStraumrFileService _files;
@@ -73,6 +74,9 @@ public sealed class VariableScreen : ITuiScreen
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
         _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
+        _copyFlow = new WorkspaceCopyFlow(workspaces, result => NotificationRequested?.Invoke(result));
+        _list.AddCommand(WorkspaceCopyFlow.Command("Variable.CopyToWorkspace", ShowCopyToWorkspace,
+            () => SelectedItem is { IsBroken: false } && _workspace is not null));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         _list.AddCommand(JsonCommand(false, CommandPresentation.CommandBar));
         _list.AddCommand(JsonCommand(true, CommandPresentation.None));
@@ -102,6 +106,8 @@ public sealed class VariableScreen : ITuiScreen
             new TuiCommandModel("copy", (argument, _) => Task.FromResult(OnSelected(argument,
                 item => item.IsBroken ? TuiCommandResultModel.Failed($"cannot copy {item.Name}: the variable cannot be read")
                     : OpenEditorFor(item, true)))) { ArgumentValues = VariableNames },
+            new TuiCommandModel("copy-to", (argument, _) => Task.FromResult(OnSelected(argument, CopyToWorkspace)))
+                { ArgumentValues = VariableNames },
             new TuiCommandModel("delete", (argument, _) => Task.FromResult(OnSelected(argument, _ =>
             {
                 ShowDeleteDialog();
@@ -200,6 +206,7 @@ public sealed class VariableScreen : ITuiScreen
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        await _copyFlow.UpdateAsync(cancellationToken);
         _editorView?.Update();
         await DeletePendingAsync(cancellationToken);
         if (_pendingSave is { } save)
@@ -742,6 +749,27 @@ public sealed class VariableScreen : ITuiScreen
         }
     }
 
+    private void ShowCopyToWorkspace()
+    {
+        if (SelectedItem is { } item)
+        {
+            NotifyIfFailed(CopyToWorkspace(item));
+        }
+    }
+    private TuiCommandResultModel CopyToWorkspace(VariableScreenItemModel item)
+    {
+        if (_workspace is not { } source)
+        {
+            return TuiCommandResultModel.NoWorkspace;
+        }
+        if (item.IsBroken)
+        {
+            return TuiCommandResultModel.Failed("Repair this variable before copying it.");
+        }
+        _copyFlow.Begin(source, item.Name, async (destination, name, token) =>
+            await _variables.CopyAsync(source, item.Id, destination, name, token));
+        return TuiCommandResultModel.None;
+    }
     private void ShowDeleteDialog()
     {
         if (SelectedItem is not { } item || _workspace is not { } workspace)

@@ -22,6 +22,7 @@ public sealed class AuthScreen : ITuiScreen
     private readonly IStraumrAuthService _auths;
     private readonly ScrollableContent _configurationView;
     private readonly State<int> _count = new(0);
+    private readonly WorkspaceCopyFlow _copyFlow;
     private readonly ScrollableContent _credentialView;
     private readonly ExternalEditorService _editor;
     private readonly State<string> _emptyMessage = new("Loading auths…");
@@ -105,6 +106,9 @@ public sealed class AuthScreen : ITuiScreen
             TuiKeybindHelpers.SecondaryPresentation("ResourceList.Activate")));
         _list.AddCommand(ActionCommand("Copy", () => OpenEditor(SelectedItem, true),
             () => SelectedItem is { IsBroken: false }));
+        _copyFlow = new WorkspaceCopyFlow(workspaces, result => NotificationRequested?.Invoke(result));
+        _list.AddCommand(WorkspaceCopyFlow.Command("Auth.CopyToWorkspace", ShowCopyToWorkspace,
+            () => SelectedItem is { IsBroken: false } && _workspace is not null));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         foreach (Command command in ControlCommands("Auth.EditJson", "Edit JSON",
                      () =>
@@ -155,6 +159,8 @@ public sealed class AuthScreen : ITuiScreen
             new TuiCommandModel("create", CreateAuthAsync) { Aliases = ["new"] },
             new TuiCommandModel("edit", EditAuthAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("copy", CopyAuthAsync) { ArgumentValues = AuthNames },
+            new TuiCommandModel("copy-to", (argument, _) => Task.FromResult(OnSelected(argument, CopyToWorkspace)))
+                { ArgumentValues = AuthNames },
             new TuiCommandModel("delete", DeleteAuthAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("send", SendAuthAsync) { ArgumentValues = AuthNames },
             new TuiCommandModel("json", EditJsonAsync) { ArgumentValues = AuthNames },
@@ -255,6 +261,7 @@ public sealed class AuthScreen : ITuiScreen
 
     public async Task UpdateAsync(CancellationToken cancellationToken)
     {
+        await _copyFlow.UpdateAsync(cancellationToken);
         _editorView?.Update();
         if (_editorNotice is { } notice)
         {
@@ -977,6 +984,27 @@ public sealed class AuthScreen : ITuiScreen
         }
     }
 
+    private void ShowCopyToWorkspace()
+    {
+        if (SelectedItem is { } item)
+        {
+            NotifyIfFailed(CopyToWorkspace(item));
+        }
+    }
+    private TuiCommandResultModel CopyToWorkspace(AuthScreenItemModel item)
+    {
+        if (_workspace is not { } source)
+        {
+            return TuiCommandResultModel.NoWorkspace;
+        }
+        if (item.IsBroken)
+        {
+            return TuiCommandResultModel.Failed("Repair this auth before copying it.");
+        }
+        _copyFlow.Begin(source, item.Name, async (destination, name, token) =>
+            await _auths.CopyAsync(source, item.Id, destination, name, token));
+        return TuiCommandResultModel.None;
+    }
     private void ShowDeleteDialog()
     {
         if (SelectedItem is not { } item)

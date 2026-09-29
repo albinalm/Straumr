@@ -144,6 +144,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `Request.New` | `c` | · | `F7` | `Ctrl+N` |
 | `Request.Edit` | `e` | · | `F4` | · |
 | `Request.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Request.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |
 | `Request.Delete` | `d` | · | `F8` | `Delete` |
 | `Request.EditJson` | `Ctrl+E` | · | · | · |
 | `Request.Send` | `s` | · | · | `Ctrl+R` |
@@ -156,6 +157,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `Auth.New` | `c` | · | `F7` | `Ctrl+N` |
 | `Auth.Edit` | `e` | · | `F4` | · |
 | `Auth.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Auth.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |
 | `Auth.Delete` | `d` | · | `F8` | `Delete` |
 | `Auth.EditJson` | `Ctrl+E` | · | · | · |
 | `Auth.Send` | `s` | · | · | `Ctrl+R` |
@@ -170,6 +172,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `Variable.New` | `c` | · | `F7` | `Ctrl+N` |
 | `Variable.Edit` | `e` | · | `F4` | · |
 | `Variable.Copy` | `y` | · | `F5` | `Ctrl+D` |
+| `Variable.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |
 | `Variable.Delete` | `d` | · | `F8` | `Delete` |
 | `Variable.EditJson` | `Ctrl+E` | · | · | · |
 

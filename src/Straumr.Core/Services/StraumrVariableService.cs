@@ -82,6 +82,20 @@ public class StraumrVariableService(IStraumrFileService fileService) : IStraumrV
         return variable;
     }
 
+    public async Task<StraumrVariable> CopyAsync(
+        StraumrWorkspaceEntry source,
+        Guid id,
+        StraumrWorkspaceEntry destination,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        StraumrVariable original = await GetAsync(source, id, false, cancellationToken);
+        StraumrVariable copy = original.CopyAs(name);
+        string jsonc = await File.ReadAllTextAsync(VariablePath(id, source), cancellationToken);
+        fileService.CarryCommentsFrom(VariablePath(copy.Id, destination), jsonc);
+        return await CreateAsync(destination, copy, cancellationToken);
+    }
+
     public async Task<StraumrVariable> SaveAsync(
         StraumrWorkspaceEntry workspace,
         StraumrVariable variable,

@@ -25,6 +25,13 @@ public interface IStraumrAuthService
         StraumrAuth auth,
         CancellationToken cancellationToken = default);
 
+    Task<StraumrAuth> CopyAsync(
+        StraumrWorkspaceEntry source,
+        Guid id,
+        StraumrWorkspaceEntry destination,
+        string name,
+        CancellationToken cancellationToken = default);
+
     Task<StraumrAuth> SaveAsync(
         StraumrWorkspaceEntry workspace,
         StraumrAuth auth,
