@@ -23,7 +23,31 @@ internal sealed class StraumrStyleSetModel
     {
         Palette = palette;
         _selectionInverts = palette.SelectionInverts;
-        FrameworkTheme = palette.Background.Kind == ColorKind.Default ? Theme.Terminal : Theme.Default;
+        FrameworkTheme = palette.Background.Kind == ColorKind.Default
+            ? new Theme
+            {
+                Foreground = Text,
+                Background = Background,
+                Surface = Background,
+                SurfaceAlt = Raised,
+                PopupSurface = Background,
+                ControlFill = Background,
+                ControlFillHover = Hover,
+                ControlFillPressed = SelectionInactive,
+                InputFill = Background,
+                InputFillFocused = Background,
+                Border = Border,
+                FocusBorder = Accent,
+                Accent = Accent,
+                Selection = Selection,
+                Disabled = Muted,
+                Primary = Accent,
+                Success = Green,
+                Warning = Amber,
+                Error = Red,
+                Muted = Muted
+            }
+            : Theme.Default;
 
         PrimaryText = TextBlockStyle.Default with
         {
@@ -31,20 +55,21 @@ internal sealed class StraumrStyleSetModel
             TextStyle = TextStyle.None
         };
 
-        MutedText = PrimaryText with { Foreground = Muted };
+        MutedText = PrimaryText with { Foreground = Muted, TextStyle = MutedDecoration(Muted) };
         BrightText = PrimaryText with { Foreground = TextBright };
         MutedBrightText = PrimaryText with { Foreground = MutedBright };
         AccentText = PrimaryText with { Foreground = Accent };
         GreenText = PrimaryText with { Foreground = Green };
 
         FocusChip = palette.SelectionInverts
-            ? PrimaryText with { Foreground = TextBright, TextStyle = TextStyle.Invert, FillBackground = true }
+            ? PrimaryText with { Foreground = Text, Background = Background, TextStyle = TextStyle.Invert, FillBackground = true }
             : PrimaryText with { Foreground = TextBright, Background = Selection, FillBackground = true };
 
         TokenChip = PrimaryText with
         {
             Foreground = MutedBright,
             Background = Raised,
+            TextStyle = Raised.Kind == ColorKind.Default ? TextStyle.Bold : TextStyle.None,
             FillBackground = true
         };
 
@@ -67,12 +92,12 @@ internal sealed class StraumrStyleSetModel
         CodeString = Style.None.WithForeground(code.String);
         CodeNumber = Style.None.WithForeground(code.Number);
         CodeBoolean = Style.None.WithForeground(code.Boolean);
-        CodeNull = Style.None.WithForeground(code.Null);
-        CodePunctuation = Style.None.WithForeground(code.Punctuation);
+        CodeNull = MutedSurface(code.Null);
+        CodePunctuation = MutedSurface(code.Punctuation);
         CodePlain = Style.None.WithForeground(Text);
-        CodeNote = Style.None.WithForeground(Muted);
+        CodeNote = MutedSurface(Muted);
         CodeKeyText = PrimaryText with { Foreground = code.Key };
-        CodePunctuationText = PrimaryText with { Foreground = code.Punctuation };
+        CodePunctuationText = PrimaryText with { Foreground = code.Punctuation, TextStyle = MutedDecoration(code.Punctuation) };
 
         CommandBar = CommandBarStyle.Default with
         {
@@ -222,8 +247,8 @@ internal sealed class StraumrStyleSetModel
             TrackOn = Style.None.WithForeground(Accent).WithBackground(Background),
             TrackFocused = SelectedSurface(TextBright),
             TrackHovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
-            ThumbOff = Style.None.WithForeground(MutedBright).WithBackground(Background),
-            ThumbOn = Style.None.WithForeground(Green).WithBackground(Background)
+            ThumbOff = SwitchThumb(MutedBright),
+            ThumbOn = SwitchThumb(Green)
         };
 
         Validation = ValidationStyle.Default with
@@ -235,7 +260,7 @@ internal sealed class StraumrStyleSetModel
 
         Dialog = DialogStyle.Single with
         {
-            SurfaceStyle = Style.None.WithBackground(Background),
+            SurfaceStyle = Style.None.WithForeground(Text).WithBackground(Background).WithTextStyle(TextStyle.None),
             BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
             FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
             LabelBackgroundStyle = Style.None.WithBackground(Background)
@@ -256,19 +281,18 @@ internal sealed class StraumrStyleSetModel
 
         ListScrollViewer = ScrollViewerStyle.Default with
         {
-            TrackStyle = Style.None.WithForeground(ScrollTrack).WithBackground(Background),
+            TrackStyle = MutedSurface(ScrollTrack).WithBackground(Background),
             ThumbStyle = Style.None.WithForeground(ScrollThumb).WithBackground(Background)
         };
 
         Divider = RuleStyle.Default with
         {
-            LineStyle = Style.None.WithForeground(Border)
+            LineStyle = MutedSurface(Border)
         };
 
-        DividerCell = Style.None.WithForeground(Border);
+        DividerCell = MutedSurface(Border);
 
-        ScrollTrackCell = Style.None
-            .WithForeground(ScrollTrack)
+        ScrollTrackCell = MutedSurface(ScrollTrack)
             .WithBackground(Background);
 
         ScrollThumbCell = Style.None
@@ -281,11 +305,13 @@ internal sealed class StraumrStyleSetModel
             .WithForeground(Text)
             .WithBackground(SelectionInactive);
 
-        SelectionMarker = SelectedSurface(Accent);
+        SelectionMarker = _selectionInverts
+            ? Style.None.WithForeground(Accent).WithBackground(Background).WithTextStyle(TextStyle.Bold)
+            : SelectedSurface(Accent);
 
-        SelectionMarkerInactive = Style.None
-            .WithForeground(Muted)
-            .WithBackground(SelectionInactive);
+        SelectionMarkerInactive = _selectionInverts
+            ? Style.None.WithForeground(Accent).WithBackground(Background).WithTextStyle(TextStyle.None)
+            : Style.None.WithForeground(Muted).WithBackground(SelectionInactive);
 
         HoveredItem = Style.None
             .WithForeground(Text)
@@ -368,6 +394,9 @@ internal sealed class StraumrStyleSetModel
     public Style SelectedItem { get; }
     public Style SelectedItemInactive { get; }
     public Style SelectionMarker { get; }
+    public Style SelectionMarkerOnBand => _selectionInverts
+        ? Style.None.WithForeground(Text).WithBackground(Accent).WithTextStyle(TextStyle.Invert)
+        : SelectionMarker;
     public Style SelectionMarkerInactive { get; }
     public Style HoveredItem { get; }
 
@@ -383,14 +412,30 @@ internal sealed class StraumrStyleSetModel
 
     private Style SelectedSurface(Color foreground) =>
         _selectionInverts
-            ? Style.None.WithForeground(foreground).WithTextStyle(TextStyle.Invert)
+            ? Style.None.WithForeground(Text).WithBackground(Background).WithTextStyle(TextStyle.Invert)
             : Style.None.WithForeground(foreground).WithBackground(Selection);
+    public TextBlockStyle SelectedText(TextBlockStyle style) =>
+        _selectionInverts
+            ? style with { Foreground = Text, Background = Background, TextStyle = TextStyle.Invert }
+            : style;
+    public Style EditorText(Style style, Style selection) =>
+        _selectionInverts && style == selection ? SelectedSurface(TextBright) : style;
+    public TextBlockStyle MenuText(TextBlockStyle style) =>
+        _selectionInverts ? TextBlockStyle.Default : style;
+    private Style SwitchThumb(Color color) =>
+        _selectionInverts
+            ? Style.None.WithForeground(color).WithBackground(Background).WithTextStyle(TextStyle.None)
+            : Style.None.WithForeground(color).WithBackground(Background);
+    private static TextStyle MutedDecoration(Color color) =>
+        color.Kind == ColorKind.Default ? TextStyle.Dim : TextStyle.None;
+    private static Style MutedSurface(Color color) =>
+        Style.None.WithForeground(color).WithTextStyle(MutedDecoration(color));
 
     private static Brush? SolidOrNull(Color color) =>
         color.Kind == ColorKind.Default ? null : Brush.Solid(color);
 
-    public Style CurrentMarker(Color background) =>
-        Style.None.WithForeground(Accent).WithBackground(background);
+    public Style CurrentMarker(Color background, bool selected) =>
+        selected && _selectionInverts ? SelectedSurface(Accent) : Style.None.WithForeground(Accent).WithBackground(background);
 
     public string KeyMarkup(string text) => $"[{MarkupToken(Accent)}][bold]{AnsiMarkup.Escape(text)}[/][/]";
 
@@ -405,7 +450,7 @@ internal sealed class StraumrStyleSetModel
     {
         var frame = new Group { Content = list };
         frame.SetStyle(MenuPopup);
-        return frame;
+        return StraumrSurfaceHelpers.Surface(frame);
     }
 
     private Visual? OpenedSelect(Visual popup)
@@ -419,6 +464,6 @@ internal sealed class StraumrStyleSetModel
 
         Border frame = new Border(popup).Stretch();
         frame.SetStyle(SelectPopup);
-        return frame;
+        return StraumrSurfaceHelpers.Surface(frame);
     }
 }

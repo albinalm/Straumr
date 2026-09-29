@@ -22,8 +22,8 @@ internal static class BuiltInThemeHelpers
         # around any hue, so every hue it introduces of its own is a guess at somebody's taste —
         # and on a red or a warm scheme a blue accent reads as a foreign object. The only hues left
         # are the ones that carry meaning and would be lost without them: the method colours, a
-        # populated count, the active workspace, an error. Everything structural — keys, markers,
-        # rules, badges — is the terminal's own foreground, dimmed or brightened.
+        # populated count, the active workspace, an error, and keys and selection markers. Rules
+        # and badges use the terminal's own foreground, dimmed or brightened.
         name = "Terminal"
 
         [colors]
@@ -54,25 +54,20 @@ internal static class BuiltInThemeHelpers
         # that read on it.
         selection          = "invert"
 
-        # Both are real colours rather than `default`, because they are not only the text that lands
-        # on the selection band — they are every button label, the dropdown, the text a field is
-        # typed into and the badge. Leaving them at the terminal's own foreground gave all of those
-        # no colour at all, which reads as bold nothing. The cost is that a selected row is very
-        # slightly two-toned, since inversion swaps whatever colour a cell carries: on a dark scheme
-        # white and the terminal's own foreground are near enough that it does not show.
-        text-bright        = "bright-white"
-        muted              = "bright-black"
-        muted-bright       = "white"
+        # Neutral text follows the terminal foreground on light and dark schemes alike. Secondary
+        # text and structural lines are dimmed; badges use bold text on the terminal background.
+        text-bright        = "default"
+        muted              = "default"
+        muted-bright       = "default"
 
-        raised             = "bright-black"
-        border             = "bright-black"
-        scroll-track       = "bright-black"
-        scroll-thumb       = "white"
+        raised             = "default"
+        border             = "default"
+        scroll-track       = "default"
+        scroll-thumb       = "default"
 
-        # Keys, the focus chip's text and the marker on a selected row. Colourless on purpose: it
-        # has to read on the terminal's ground and on the selection band, and being brighter than
-        # the muted text around it is the whole of the job.
-        accent             = "bright-white"
+        # Keys and the selection marker use the terminal's cyan slot. The marker sits on the
+        # terminal background beside the inverted band, so it stays distinct from the row.
+        accent             = "cyan"
 
         # The hues that are left are the ones that mean something. These are palette slots, so they
         # are the reader's own green and red rather than colours chosen here — which is why colour
@@ -108,8 +103,8 @@ internal static class BuiltInThemeHelpers
         string             = "green"
         number             = "yellow"
         boolean            = "magenta"
-        null               = "bright-black"
-        punctuation        = "bright-black"
+        null               = "default"
+        punctuation        = "default"
         """;
 
     public const string Straumr =

@@ -1,4 +1,6 @@
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Geometry;
+using XenoAtom.Terminal.UI.Rendering;
 using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Services;
@@ -91,6 +93,7 @@ internal static class StraumrStyleService
     public static Style SelectedItem => _set.SelectedItem;
     public static Style SelectedItemInactive => _set.SelectedItemInactive;
     public static Style SelectionMarker => _set.SelectionMarker;
+    public static Style SelectionMarkerOnBand => _set.SelectionMarkerOnBand;
     public static Style SelectionMarkerInactive => _set.SelectionMarkerInactive;
     public static Style HoveredItem => _set.HoveredItem;
 
@@ -108,7 +111,27 @@ internal static class StraumrStyleService
 
     public static TextBlockStyle MethodText(string method) => _set.MethodText(method);
 
-    public static Style CurrentMarker(Color background) => _set.CurrentMarker(background);
+    public static Style CurrentMarker(Color background, bool selected) => _set.CurrentMarker(background, selected);
+    public static TextBlockStyle SelectedText(TextBlockStyle style) => _set.SelectedText(style);
+    public static Style EditorText(Style style, Style selection) => _set.EditorText(style, selection);
+    public static TextBlockStyle MenuText(TextBlockStyle style) => _set.MenuText(style);
+    public static void ClearTerminalSurface(CellBuffer buffer, Rectangle bounds)
+    {
+        if (Background.Kind != ColorKind.Default)
+        {
+            return;
+        }
+        buffer.PushClip(bounds);
+        try
+        {
+            // Default colours inherit underlying cells in XenoAtom 3.9.0; clearing replaces those cells instead.
+            buffer.ClearCurrentClip(Style.None.WithForeground(Text).WithBackground(Background).WithTextStyle(TextStyle.None));
+        }
+        finally
+        {
+            buffer.PopClip();
+        }
+    }
 
     public static string KeyMarkup(string text) => _set.KeyMarkup(text);
 }

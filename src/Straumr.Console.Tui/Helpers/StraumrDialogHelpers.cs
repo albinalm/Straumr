@@ -11,7 +11,7 @@ internal static class StraumrDialogHelpers
 
     public static Dialog CreateScreen(Visual content)
     {
-        var dialog = new Dialog(content)
+        var dialog = new Dialog(StraumrSurfaceHelpers.Surface(content))
         {
             Padding = new Thickness(0),
             IsModal = true,
@@ -28,7 +28,7 @@ internal static class StraumrDialogHelpers
 
     public static Dialog Create(Visual title, Visual content, int width)
     {
-        var dialog = new Dialog(title, content)
+        var dialog = new Dialog(StraumrSurfaceHelpers.Surface(title), StraumrSurfaceHelpers.Surface(content))
         {
             Width = width,
             Padding = new Thickness(2, 1, 2, 1),

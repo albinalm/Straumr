@@ -2,6 +2,8 @@
 
 Themes are TOML files for the terminal UI. The files in this folder are examples; copy one to your Straumr theme directory or select it by an absolute path.
 
+The default `terminal` theme uses your terminal's foreground and background for neutral text and surfaces, including transparent backgrounds. Secondary text and dividers are dimmed; badges use bold text, and keys and selection markers use your terminal's cyan slot. HTTP methods, status colours and JSON values also use your terminal's ANSI palette slots. Focused rows and selected input text reverse the foreground and background, with one consistent band across method labels and metadata. Dialogs and dropdowns clear the UI colours underneath them while retaining the terminal background.
+
 ## Create a theme
 
 Open Straumr and use the command prompt:

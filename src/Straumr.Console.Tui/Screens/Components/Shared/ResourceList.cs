@@ -265,7 +265,7 @@ public sealed partial class ResourceList : Visual, IScrollable
                 buffer,
                 SelectedIndex,
                 HasFocus ? StraumrStyleService.SelectedItem : StraumrStyleService.SelectedItemInactive,
-                HasFocus ? StraumrStyleService.SelectionMarker : StraumrStyleService.SelectionMarkerInactive);
+                HasFocus ? StraumrStyleService.SelectionMarkerOnBand : StraumrStyleService.SelectionMarkerInactive);
         }
 
         PaintCurrentMarkers(buffer);
@@ -294,7 +294,7 @@ public sealed partial class ResourceList : Visual, IScrollable
                 continue;
             }
 
-            buffer.SetCell(x, y, CurrentDot, StraumrStyleService.CurrentMarker(RowBackground(index)));
+            buffer.SetCell(x, y, CurrentDot, StraumrStyleService.CurrentMarker(RowBackground(index), index == SelectedIndex && HasFocus));
         }
     }
 
@@ -325,6 +325,7 @@ public sealed partial class ResourceList : Visual, IScrollable
 
             if (marker is not null)
             {
+                StraumrStyleService.ClearTerminalSurface(buffer, new Rectangle(bandLeft, y, 1, 1));
                 buffer.SetCell(bandLeft, y, SelectionBar, marker.Value);
             }
         }
@@ -512,7 +513,7 @@ public sealed partial class ResourceList : Visual, IScrollable
                 : index == SelectedIndex
                     ? StraumrStyleService.BrightText
                     : StraumrStyleService.PrimaryText,
-            TextTrimming.EndEllipsis);
+            TextTrimming.EndEllipsis, index);
 
         if (row.LeadingToken is { } token)
         {
@@ -524,7 +525,7 @@ public sealed partial class ResourceList : Visual, IScrollable
                 .ColumnGap(1)
                 .Cell(Line(token.Text,
                     () => index == SelectedIndex ? token.SelectedStyle ?? token.Style : token.Style,
-                    TextTrimming.EndEllipsis), 0, 0)
+                    TextTrimming.EndEllipsis, index), 0, 0)
                 .Cell(name, 0, 1)
                 .HorizontalAlignment(Align.Stretch);
         }
@@ -541,7 +542,7 @@ public sealed partial class ResourceList : Visual, IScrollable
                     : index == SelectedIndex
                         ? StraumrStyleService.MutedBrightText
                         : StraumrStyleService.MutedText,
-                TextTrimming.EndEllipsis));
+                TextTrimming.EndEllipsis, index));
         }
 
         if (row.Detail is not null)
@@ -551,18 +552,19 @@ public sealed partial class ResourceList : Visual, IScrollable
                 () => index == SelectedIndex
                     ? StraumrStyleService.MutedBrightText
                     : StraumrStyleService.MutedText,
-                TextTrimming.StartEllipsis));
+                TextTrimming.StartEllipsis, index));
         }
 
         return stack;
     }
 
-    private static TextBlock Line(
+    private TextBlock Line(
         string text,
         Func<TextBlockStyle> style,
-        TextTrimming trimming) =>
+        TextTrimming trimming,
+        int index) =>
         new TextBlock(text)
-            .Style(style)
+            .Style(() => HasFocus && index == SelectedIndex ? StraumrStyleService.SelectedText(style()) : style())
             .Trimming(trimming)
             .HorizontalAlignment(Align.Stretch);
 }
