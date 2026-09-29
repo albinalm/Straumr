@@ -563,14 +563,14 @@ public sealed class StraumrTuiApp
             .OrderBy(navigation => navigation.Screen)
             .Select(navigation => new MenuItem(
                     new TextBlock(navigation.Screen.ToString().ToLowerInvariant())
-                        .Style(StraumrStyleService.BrightText))
+                        .Style(StraumrStyleService.MenuText(StraumrStyleService.BrightText)))
                 .Icon(new TextBlock(navigation.Screen == _currentScreen.Value ? "●" : " ")
-                    .Style(StraumrStyleService.AccentText))
-                .Shortcut(new TextBlock($":{navigation.Alias}").Style(StraumrStyleService.MutedText))
+                    .Style(StraumrStyleService.MenuText(StraumrStyleService.AccentText)))
+                .Shortcut(new TextBlock($":{navigation.Alias}").Style(StraumrStyleService.MenuText(StraumrStyleService.MutedText)))
                 .Action(() => _ = QueueNavigation(navigation.Screen, string.Empty)))
-            .Append(new MenuItem(new TextBlock("settings").Style(StraumrStyleService.BrightText))
-                .Icon(new TextBlock(" ").Style(StraumrStyleService.MutedText))
-                .Shortcut(new TextBlock(":settings").Style(StraumrStyleService.MutedText))
+            .Append(new MenuItem(new TextBlock("settings").Style(StraumrStyleService.MenuText(StraumrStyleService.BrightText)))
+                .Icon(new TextBlock(" ").Style(StraumrStyleService.MenuText(StraumrStyleService.MutedText)))
+                .Shortcut(new TextBlock(":settings").Style(StraumrStyleService.MenuText(StraumrStyleService.MutedText)))
                 .Action(() => _submitted.Enqueue("settings")));
 
     private TuiCommandModel NavigationCommand(TuiScreen screen, string name, string shortAlias, string plural) =>

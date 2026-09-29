@@ -101,7 +101,10 @@ internal static class StraumrStyleService
 
     public static TextBlockStyle MethodText(string method) => _set.MethodText(method);
 
-    public static Style CurrentMarker(Color background) => _set.CurrentMarker(background);
+    public static Style CurrentMarker(Color background, bool selected) => _set.CurrentMarker(background, selected);
+    public static TextBlockStyle SelectedText(TextBlockStyle style) => _set.SelectedText(style);
+    public static Style EditorText(Style style, Style selection) => _set.EditorText(style, selection);
+    public static TextBlockStyle MenuText(TextBlockStyle style) => _set.MenuText(style);
 
     public static string KeyMarkup(string text) => _set.KeyMarkup(text);
 }

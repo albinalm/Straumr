@@ -1,5 +1,8 @@
+using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
+using XenoAtom.Terminal.UI.Rendering;
+using XenoAtom.Terminal.UI.Styling;
 using XenoAtom.Terminal.UI.Text;
 
 namespace Straumr.Console.Tui.Screens.Components.Shared;
@@ -15,7 +18,10 @@ internal sealed class ResourceFilterInput : PromptEditor
     public char? PendingEcho { get; set; }
 
     public Action<string>? TextChanged { get; set; }
-
+    protected override void WriteTextSegment(CellBuffer buffer, int x, int y, ReadOnlySpan<char> text, Style style,
+        bool isPlaceholder, int textIndexStart, int startColumn) =>
+        base.WriteTextSegment(buffer, x, y, text,
+            StraumrStyleService.EditorText(style, GetStyle<PromptEditorStyle>().SelectionStyle(GetTheme())), isPlaceholder, textIndexStart, startColumn);
     public void ReportTextChanged() => TextChanged?.Invoke(Text ?? string.Empty);
 
     public void Activate()
