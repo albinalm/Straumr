@@ -336,7 +336,7 @@ public sealed class SecretScreen : ITuiScreen
         }
     }
 
-    private IEnumerable<string> SecretNames() => _items.Select(item => item.Name);
+    private IEnumerable<string> SecretNames() => _items.Where(item => !item.IsBroken).Select(item => item.Name);
 
     private Task<TuiCommandResultModel> SelectSecretAsync(string argument, CancellationToken cancellationToken)
     {

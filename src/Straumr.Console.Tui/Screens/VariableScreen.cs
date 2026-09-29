@@ -357,7 +357,7 @@ public sealed class VariableScreen : ITuiScreen
         }
     }
 
-    private IEnumerable<string> VariableNames() => _items.Select(item => item.Name);
+    private IEnumerable<string> VariableNames() => _items.Where(item => !item.IsBroken).Select(item => item.Name);
 
     private Task<TuiCommandResultModel> SelectVariableAsync(string argument, CancellationToken cancellationToken)
     {

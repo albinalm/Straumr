@@ -606,7 +606,7 @@ public sealed class AuthScreen : ITuiScreen
         }
     }
 
-    private IEnumerable<string> AuthNames() => _items.Select(item => item.Name);
+    private IEnumerable<string> AuthNames() => _items.Where(item => !item.IsBroken).Select(item => item.Name);
 
     private Task<TuiCommandResultModel> SelectAuthAsync(string argument, CancellationToken cancellationToken)
     {
@@ -694,10 +694,13 @@ public sealed class AuthScreen : ITuiScreen
 
     private TuiCommandResultModel SelectAuth(string name)
     {
-        List<AuthScreenItemModel> matches = _items.FindAll(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        List<AuthScreenItemModel> matches = _items.FindAll(item =>
+            item.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+            item.Id.ToString().Equals(name, StringComparison.OrdinalIgnoreCase));
         if (matches.Count == 0)
         {
-            matches = _items.FindAll(item => item.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase));
+            matches = _items.FindAll(item => item.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase) ||
+                                             item.Id.ToString().StartsWith(name, StringComparison.OrdinalIgnoreCase));
         }
 
         if (matches.Count != 1)
