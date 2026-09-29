@@ -83,6 +83,8 @@ Type `{{` in any form field and a box of matching variable names opens under it;
 
 A request and an auth show what they reference under **Variables & Secrets**, and whether each one resolves right now.
 
+On Requests, focus **Variables & Secrets** with `Tab` and use the list navigation keys to highlight a reference (`j`/`k` or `Up`/`Down` with the vim preset). **Go to** (`Enter` or `Space`) opens its secret or workspace variable form on the value field. Existing references have their saved value; missing ones have the name prefilled so you can enter a value and create them. Saving refreshes availability when you return, and closing the form returns focus to the selected reference.
+
 ## Sending
 
 `s` on a request sends it (`Ctrl+R` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight.

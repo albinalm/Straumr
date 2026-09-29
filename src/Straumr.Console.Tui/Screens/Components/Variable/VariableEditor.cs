@@ -14,7 +14,8 @@ internal sealed class VariableEditor
     private string _openedValue;
 
     public VariableEditor(StraumrVariable state, string? workspaceName, Guid? workspaceId, bool isNew,
-        State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null)
+        State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null,
+        bool focusValue = false, char? openingEcho = null)
     {
         _state = state;
         _openedName = new State<string>(state.Name);
@@ -31,6 +32,8 @@ internal sealed class VariableEditor
                 })
             { PendingEcho = TuiKeybindHelpers.OpeningEcho };
 
+        var valueField = new TextField("Value", state.Value, text => state.Value = text)
+            { PendingEcho = focusValue ? openingEcho : null };
         _view = new ResourceEditorView(
             () => state.Name.Length == 0 ? "new variable" : state.Name,
             () => workspaceName,
@@ -38,12 +41,12 @@ internal sealed class VariableEditor
             isNew,
             [
                 new EditorForm("Variable", name,
-                    new TextField("Value", state.Value, value => state.Value = value),
+                    valueField,
                     new VariableReferenceField("References", _openedName, references, () => workspaceId))
             ],
             save, closed,
             () => state.Name != _openedName.Value || state.Value != _openedValue,
-            sourceName);
+            sourceName, focusValue ? valueField.FocusTarget : null);
     }
 
     public void Show() => _view.Show();
