@@ -325,6 +325,7 @@ public sealed partial class ResourceList : Visual, IScrollable
 
             if (marker is not null)
             {
+                StraumrStyleService.ClearTerminalSurface(buffer, new Rectangle(bandLeft, y, 1, 1));
                 buffer.SetCell(bandLeft, y, SelectionBar, marker.Value);
             }
         }

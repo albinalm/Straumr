@@ -260,7 +260,7 @@ internal sealed class StraumrStyleSetModel
 
         Dialog = DialogStyle.Single with
         {
-            SurfaceStyle = Style.None.WithBackground(Background),
+            SurfaceStyle = Style.None.WithForeground(Text).WithBackground(Background).WithTextStyle(TextStyle.None),
             BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
             FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
             LabelBackgroundStyle = Style.None.WithBackground(Background)
@@ -309,8 +309,9 @@ internal sealed class StraumrStyleSetModel
             ? Style.None.WithForeground(Accent).WithBackground(Background).WithTextStyle(TextStyle.Bold)
             : SelectedSurface(Accent);
 
-        SelectionMarkerInactive = Style.None.WithForeground(Muted).WithBackground(SelectionInactive)
-            .WithTextStyle(Muted.Kind == ColorKind.Default ? TextStyle.Bold : TextStyle.None);
+        SelectionMarkerInactive = _selectionInverts
+            ? Style.None.WithForeground(Accent).WithBackground(Background).WithTextStyle(TextStyle.None)
+            : Style.None.WithForeground(Muted).WithBackground(SelectionInactive);
 
         HoveredItem = Style.None
             .WithForeground(Text)
@@ -446,7 +447,7 @@ internal sealed class StraumrStyleSetModel
     {
         var frame = new Group { Content = list };
         frame.SetStyle(MenuPopup);
-        return frame;
+        return StraumrSurfaceHelpers.Surface(frame);
     }
 
     private Visual? OpenedSelect(Visual popup)
@@ -460,6 +461,6 @@ internal sealed class StraumrStyleSetModel
 
         Border frame = new Border(popup).Stretch();
         frame.SetStyle(SelectPopup);
-        return frame;
+        return StraumrSurfaceHelpers.Surface(frame);
     }
 }

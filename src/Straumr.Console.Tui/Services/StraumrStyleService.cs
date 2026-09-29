@@ -1,4 +1,6 @@
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Geometry;
+using XenoAtom.Terminal.UI.Rendering;
 using XenoAtom.Terminal.UI.Styling;
 
 namespace Straumr.Console.Tui.Services;
@@ -105,6 +107,23 @@ internal static class StraumrStyleService
     public static TextBlockStyle SelectedText(TextBlockStyle style) => _set.SelectedText(style);
     public static Style EditorText(Style style, Style selection) => _set.EditorText(style, selection);
     public static TextBlockStyle MenuText(TextBlockStyle style) => _set.MenuText(style);
+    public static void ClearTerminalSurface(CellBuffer buffer, Rectangle bounds)
+    {
+        if (Background.Kind != ColorKind.Default)
+        {
+            return;
+        }
+        buffer.PushClip(bounds);
+        try
+        {
+            // Default colours inherit underlying cells in XenoAtom 3.9.0; clearing replaces those cells instead.
+            buffer.ClearCurrentClip(Style.None.WithForeground(Text).WithBackground(Background).WithTextStyle(TextStyle.None));
+        }
+        finally
+        {
+            buffer.PopClip();
+        }
+    }
 
     public static string KeyMarkup(string text) => _set.KeyMarkup(text);
 }

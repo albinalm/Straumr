@@ -1,4 +1,5 @@
 using System.Text;
+using Straumr.Console.Tui.Screens.Components.Shared;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
@@ -10,6 +11,9 @@ internal static class StraumrSurfaceHelpers
     private static readonly Rune VerticalLine = new('│');
 
     public static readonly Thickness RowInset = new(1, 0, 1, 0);
+
+    public static Visual Surface(Visual content) =>
+        StraumrStyleService.Background.Kind == ColorKind.Default ? new TerminalSurface(content) : content;
 
     public static Visual VerticalDivider(params (int Row, Rune Glyph)[] junctions)
     {

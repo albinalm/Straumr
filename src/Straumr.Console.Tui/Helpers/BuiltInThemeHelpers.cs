@@ -22,8 +22,8 @@ internal static class BuiltInThemeHelpers
         # around any hue, so every hue it introduces of its own is a guess at somebody's taste —
         # and on a red or a warm scheme a blue accent reads as a foreign object. The only hues left
         # are the ones that carry meaning and would be lost without them: the method colours, a
-        # populated count, the active workspace, an error. Everything structural — keys, markers,
-        # rules, badges — is the terminal's own foreground, dimmed or brightened.
+        # populated count, the active workspace, an error, and keys and selection markers. Rules
+        # and badges use the terminal's own foreground, dimmed or brightened.
         name = "Terminal"
 
         [colors]
@@ -65,10 +65,9 @@ internal static class BuiltInThemeHelpers
         scroll-track       = "default"
         scroll-thumb       = "default"
 
-        # Keys, the focus chip's text and the marker on a selected row. Colourless on purpose: it
-        # has to read on the terminal's ground and on the selection band, and being brighter than
-        # the muted text around it is the whole of the job.
-        accent             = "default"
+        # Keys and the selection marker use the terminal's cyan slot. The marker sits on the
+        # terminal background beside the inverted band, so it stays distinct from the row.
+        accent             = "cyan"
 
         # The hues that are left are the ones that mean something. These are palette slots, so they
         # are the reader's own green and red rather than colours chosen here — which is why colour
