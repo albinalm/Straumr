@@ -46,7 +46,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<string> _responseSummary = new("Not sent");
     private readonly Dictionary<(Guid Workspace, Guid Request), StraumrResponse> _responses = [];
     private readonly IStraumrSecretService _secrets;
-    private readonly ScrollableContent _referencesView;
+    private readonly ReferencesView _referencesView;
     private readonly IStraumrVariableService _variables;
     private readonly Visual _sections;
     private readonly State<int> _selectedIndex = new(-1);
@@ -57,6 +57,7 @@ public sealed class RequestScreen : ITuiScreen
     private readonly State<List<RequestScreenItemModel>> _visible = new([]);
     private readonly IStraumrWorkspaceService _workspaces;
     private Guid? _displayedId;
+    private Guid? _referencesRequestId;
 
     private Guid? _editingId;
 
@@ -131,14 +132,14 @@ public sealed class RequestScreen : ITuiScreen
 
         _list.AddCommand(SendCommand());
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
-        _referencesView = new ScrollableContent(new ComputedVisual(BuildReferences));
+        _referencesView = new ReferencesView(reference => ReferenceRequested?.Invoke(reference));
         Visual responsePane = ResourceScreenLayoutHelpers.Pane(_responsePreview.Root);
         Rule responseRule = StraumrSurfaceHelpers.TitledDivider("Response", responsePane.Owns);
         responseRule.EndLabel = new TextBlock(() => _responseSummary.Value)
             .Style(() => _responseFailed.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
         Visual authPane = ResourceScreenLayoutHelpers.Pane(_authView);
-        Visual referencesPane = ResourceScreenLayoutHelpers.Pane(_referencesView);
+        Visual referencesPane = ResourceScreenLayoutHelpers.Pane(_referencesView.Root);
         Visual authColumn = new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
             .Rows(
@@ -191,6 +192,8 @@ public sealed class RequestScreen : ITuiScreen
     public event Action<TuiExternalActionModel>? ExternalActionRequested;
     public event Action? TransientScreenOpened;
     public event Action? TransientScreenClosed;
+    internal event Action<ReferenceModel>? ReferenceRequested;
+    internal Visual ReferenceFocusTarget => _referencesView.FocusTarget;
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
@@ -337,11 +340,13 @@ public sealed class RequestScreen : ITuiScreen
         _authentication.Value = null;
         if (item is null)
         {
+            _referencesView.SetMessage("Unavailable.");
             return;
         }
 
         if (item.Request is not { } request)
         {
+            _referencesView.SetMessage("Unavailable.");
             _requestBody.SetBody(null);
             _requestPreview.SetPageText(BodyPage,
                 $"{item.Problem}\n\nPress {TuiKeybindHelpers.Hint("Request.Edit")} to repair this request.\n{item.Path}");
@@ -363,6 +368,8 @@ public sealed class RequestScreen : ITuiScreen
         if (SelectedItem?.Id == item.Id)
         {
             _authentication.Value = authentication;
+            _referencesView.SetReferences(authentication.References, _referencesRequestId != item.Id);
+            _referencesRequestId = item.Id;
         }
     }
 
@@ -434,16 +441,6 @@ public sealed class RequestScreen : ITuiScreen
         }
 
         return content;
-    }
-
-    private Visual BuildReferences()
-    {
-        if (_authentication.Value is not { } auth)
-        {
-            return new TextBlock("Unavailable.").Style(StraumrStyleService.MutedText);
-        }
-
-        return ReferenceListHelpers.Create(auth.References);
     }
 
     private void SetRequestPreview(StraumrRequest request)

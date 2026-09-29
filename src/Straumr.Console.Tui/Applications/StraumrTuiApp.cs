@@ -38,7 +38,7 @@ public sealed class StraumrTuiApp
     private readonly CommandPrompt _prompt;
     private readonly QuickStartService _quickStart;
     private readonly QuickStartView? _quickStartView;
-    private readonly Stack<TuiScreen> _returnScreens = new();
+    private readonly Stack<(TuiScreen Screen, Visual? FocusTarget)> _returnScreens = new();
     private readonly Dictionary<TuiScreen, ITuiScreen> _screens;
 
     private readonly IStraumrSettingsService _settingsService;
@@ -46,6 +46,7 @@ public sealed class StraumrTuiApp
     private readonly ThemeSelectionService _themeSelection;
     private TerminalApp? _app;
     private bool _focusAfterNavigation;
+    private Visual? _navigationFocus;
     private Visual? _focusOnAttach;
     private bool _initialized;
     private DateTimeOffset _messageExpiry;
@@ -88,6 +89,14 @@ public sealed class StraumrTuiApp
             screen.TransientScreenClosed += ReturnFromTransientScreen;
             SetOnShow(screen, ReferenceEquals(screen, _screen));
         }
+        requestScreen.ReferenceRequested += reference =>
+            _pendingNavigation = new TuiPendingNavigationModel(reference.IsSecret ? TuiScreen.Secrets : TuiScreen.Variables,
+                string.Empty, false, TuiScreen.Requests)
+            {
+                Reference = reference,
+                FocusTarget = requestScreen.ReferenceFocusTarget,
+                OpeningEcho = TuiKeybindHelpers.OpeningEcho
+            };
         SetCommands();
 
         _prompt = new CommandPrompt(_commands.Complete, _submitted.Enqueue);
@@ -252,7 +261,8 @@ public sealed class StraumrTuiApp
         if (_focusAfterNavigation && !IsModalOpen && !IsModalShown(app) && _screen.FocusTarget.App == app)
         {
             _focusAfterNavigation = false;
-            app.Focus(_screen.FocusTarget);
+            app.Focus(_navigationFocus ?? _screen.FocusTarget);
+            _navigationFocus = null;
         }
 
         RestoreStrayFocus(app);
@@ -321,19 +331,33 @@ public sealed class StraumrTuiApp
             _focusAfterNavigation = true;
         }
 
-        if (pending.Command.Length == 0)
+        if (pending.Reference is null)
+        {
+            _navigationFocus = pending.FocusTarget;
+        }
+        if (pending.Command.Length == 0 && pending.Reference is null)
         {
             return;
         }
 
         _transientOpened = false;
-        TuiCommandResultModel dispatched = await CreateScreenCommandSet(_screen)
-            .ExecuteAsync(pending.Command, cancellationToken);
+        TuiCommandResultModel dispatched = pending.Reference is { } reference
+            ? _screen switch
+            {
+                SecretScreen secrets => secrets.OpenReference(reference.Name, pending.OpeningEcho),
+                VariableScreen variables => variables.OpenReference(reference.Name, pending.OpeningEcho),
+                _ => TuiCommandResultModel.Failed("cannot open this reference")
+            }
+            : await CreateScreenCommandSet(_screen).ExecuteAsync(pending.Command, cancellationToken);
         if (_transientOpened && pending.ReturnScreen is { } returnScreen)
         {
-            _returnScreens.Push(returnScreen);
+            _returnScreens.Push((returnScreen, pending.Reference is null ? null : pending.FocusTarget));
         }
-
+        else if (dispatched.IsError && pending.Reference is not null && pending.ReturnScreen is { } source)
+        {
+            _pendingNavigation = new TuiPendingNavigationModel(source, string.Empty, false, null) { FocusTarget = pending.FocusTarget };
+            _pendingAnnouncement = dispatched;
+        }
         Notify(dispatched);
     }
 
@@ -593,9 +617,9 @@ public sealed class StraumrTuiApp
 
     private void ReturnFromTransientScreen()
     {
-        if (_returnScreens.TryPop(out TuiScreen screen))
+        if (_returnScreens.TryPop(out (TuiScreen Screen, Visual? FocusTarget) destination))
         {
-            _pendingNavigation = new TuiPendingNavigationModel(screen, string.Empty, false, null);
+            _pendingNavigation = new TuiPendingNavigationModel(destination.Screen, string.Empty, false, null) { FocusTarget = destination.FocusTarget };
         }
     }
 
@@ -791,7 +815,7 @@ public sealed class StraumrTuiApp
 
     private void AnnouncePending()
     {
-        if (_pendingAnnouncement is not { } announcement)
+        if (_pendingNavigation is not null || _pendingAnnouncement is not { } announcement)
         {
             return;
         }

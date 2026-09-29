@@ -13,7 +13,8 @@ internal sealed class SecretEditor
     private string _openedValue;
 
     public SecretEditor(StraumrSecret state, string? workspaceName, bool isNew,
-        State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null)
+        State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null,
+        bool focusValue = false, char? openingEcho = null)
     {
         _state = state;
         _openedName = new State<string>(state.Name);
@@ -27,6 +28,8 @@ internal sealed class SecretEditor
                 })
             { PendingEcho = TuiKeybindHelpers.OpeningEcho };
 
+        var valueField = new TextField("Value", state.Value, text => state.Value = text, secret: true)
+            { PendingEcho = focusValue ? openingEcho : null };
         _view = new ResourceEditorView(
             () => state.Name.Length == 0 ? "new secret" : SecretFormatting.Display(state.Name),
             () => workspaceName,
@@ -34,12 +37,12 @@ internal sealed class SecretEditor
             isNew,
             [
                 new EditorForm("Secret", name,
-                    new TextField("Value", state.Value, value => state.Value = value, secret: true),
+                    valueField,
                     new SecretReferenceField("References", _openedName, references))
             ],
             save, closed,
             () => state.Name != _openedName.Value || state.Value != _openedValue,
-            sourceName);
+            sourceName, focusValue ? valueField.FocusTarget : null);
     }
 
     public void Show() => _view.Show();
