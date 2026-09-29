@@ -336,7 +336,7 @@ public sealed class SecretScreen : ITuiScreen
         }
     }
 
-    private IEnumerable<string> SecretNames() => _items.Select(item => item.Name);
+    private IEnumerable<string> SecretNames() => _items.Where(item => !item.IsBroken).Select(item => item.Name);
 
     private Task<TuiCommandResultModel> SelectSecretAsync(string argument, CancellationToken cancellationToken)
     {
@@ -438,7 +438,22 @@ public sealed class SecretScreen : ITuiScreen
         }
     }
 
-    private void OpenEditor(SecretScreenItemModel? source, bool copy)
+    internal TuiCommandResultModel OpenReference(string name, char? openingEcho)
+    {
+        if (_loadError.Value)
+        {
+            return TuiCommandResultModel.Failed(_emptyMessage.Value);
+        }
+        if (_editorView is not null)
+        {
+            return TuiCommandResultModel.Failed("the secret editor is already open");
+        }
+        SecretScreenItemModel? source = _items.Find(item => !item.IsBroken && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        OpenEditor(source, false, name, true, openingEcho);
+        return TuiCommandResultModel.None;
+    }
+    private void OpenEditor(SecretScreenItemModel? source, bool copy, string? referenceName = null,
+        bool focusValue = false, char? openingEcho = null)
     {
         if (_editorView is not null)
         {
@@ -448,7 +463,7 @@ public sealed class SecretScreen : ITuiScreen
         bool isNew = source is null || copy;
         StraumrSecret state = source?.Secret is { } secret
             ? secret.CopyAs(isNew ? string.Empty : secret.Name)
-            : new StraumrSecret { Name = string.Empty, Value = string.Empty };
+            : new StraumrSecret { Name = referenceName ?? string.Empty, Value = string.Empty };
         _editingId = isNew ? null : source!.Id;
         string? sourceName = isNew && source is not null ? source.Name : null;
         var editor = new SecretEditor(state, ActiveWorkspaceName, isNew,
@@ -460,7 +475,7 @@ public sealed class SecretScreen : ITuiScreen
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
-            sourceName);
+            sourceName, focusValue, openingEcho);
         _editorView = editor;
         editor.Show();
         TransientScreenOpened?.Invoke();

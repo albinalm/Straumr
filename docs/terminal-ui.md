@@ -42,6 +42,8 @@ Each header is one line, cut off where it runs out of room, so a list of twenty 
 
 `:` opens a command prompt at the bottom of the screen. `Tab` completes, `Up` and `Down` walk back through what you have run, `Escape` closes it.
 
+For resource arguments, `Tab` cycles names only. You can also type a full ID or an unambiguous ID prefix yourself. Names containing spaces are quoted automatically when completed. Unreadable resources with only an ID as their display name are omitted from completion; select them in the list or type their ID to repair them.
+
 Anywhere:
 
 ```text
@@ -77,6 +79,8 @@ Editing a request opens a form: name, method, URL, auth, and the header and para
 
 In request, auth, variable and secret forms, `Ctrl+S` saves and keeps the form open; `Ctrl+Shift+S` saves and closes it. The commander preset uses `F2` and `Shift+F2`. Save and close returns to the list only after a successful save; validation or save errors keep your edits open. Both actions can be changed in [keybind settings](keybinds.md).
 
+`Ctrl+T` switches to the next form tab and focuses its first field, including while a text input has focus. It follows the `PagedPane.NextPage` keybinding; `Tab` still moves between fields.
+
 `Ctrl+E` on a list entry skips the form entirely and opens the underlying JSONC file. Comments you leave in that file survive everything Straumr writes afterwards.
 
 Both paths need `$EDITOR` set. Without it, the commands that would hand off say so instead.
@@ -84,6 +88,8 @@ Both paths need `$EDITOR` set. Without it, the commands that would hand off say 
 Type `{{` in any form field and a box of matching variable names opens under it; type `{{secret:` and it lists secrets instead. `Up` and `Down` move through it, `Enter` inserts the name and the closing braces, and `Escape` dismisses it — `Tab` is left alone so it still moves between fields. Keep typing to narrow the list.
 
 A request and an auth show what they reference under **Variables & Secrets**, and whether each one resolves right now.
+
+On Requests, focus **Variables & Secrets** with `Tab` and use the list navigation keys to highlight a reference (`j`/`k` or `Up`/`Down` with the vim preset). **Go to** (`Enter` or `Space`) opens its secret or workspace variable form on the value field. Existing references have their saved value; missing ones have the name prefilled so you can enter a value and create them. Saving refreshes availability when you return, and closing the form returns focus to the selected reference.
 
 ## Sending
 

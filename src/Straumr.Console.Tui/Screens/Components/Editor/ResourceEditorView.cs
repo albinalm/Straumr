@@ -45,11 +45,13 @@ internal sealed class ResourceEditorView
         Action save,
         Action closed,
         Func<bool> hasChanges,
-        string? sourceName = null)
+        string? sourceName = null,
+        Visual? initialFocus = null)
     {
         _forms = pages;
         _save = save;
         _closed = closed;
+        _resumeFocus = initialFocus;
         _name = name;
         _headerName = new State<string>(name());
         _isNew = new State<bool>(isNew);

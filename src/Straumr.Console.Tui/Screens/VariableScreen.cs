@@ -357,7 +357,7 @@ public sealed class VariableScreen : ITuiScreen
         }
     }
 
-    private IEnumerable<string> VariableNames() => _items.Select(item => item.Name);
+    private IEnumerable<string> VariableNames() => _items.Where(item => !item.IsBroken).Select(item => item.Name);
 
     private Task<TuiCommandResultModel> SelectVariableAsync(string argument, CancellationToken cancellationToken)
     {
@@ -477,7 +477,26 @@ public sealed class VariableScreen : ITuiScreen
         }
     }
 
-    private void OpenEditor(VariableScreenItemModel? source, bool copy = false)
+    internal TuiCommandResultModel OpenReference(string name, char? openingEcho)
+    {
+        if (_workspace is null)
+        {
+            return TuiCommandResultModel.NoWorkspace;
+        }
+        if (_loadError.Value)
+        {
+            return TuiCommandResultModel.Failed(_emptyMessage.Value);
+        }
+        if (_editorView is not null)
+        {
+            return TuiCommandResultModel.Failed("the variable editor is already open");
+        }
+        VariableScreenItemModel? source = _items.Find(item => !item.IsBroken && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        OpenEditor(source, false, name, true, openingEcho);
+        return TuiCommandResultModel.None;
+    }
+    private void OpenEditor(VariableScreenItemModel? source, bool copy = false, string? referenceName = null,
+        bool focusValue = false, char? openingEcho = null)
     {
         if (_editorView is not null || _workspace is null)
         {
@@ -487,7 +506,7 @@ public sealed class VariableScreen : ITuiScreen
         bool isNew = source is null || copy;
         StraumrVariable state = source?.Variable is { } variable
             ? variable.CopyAs(isNew ? string.Empty : variable.Name)
-            : new StraumrVariable { Name = string.Empty, Value = string.Empty };
+            : new StraumrVariable { Name = referenceName ?? string.Empty, Value = string.Empty };
         _editingId = isNew ? null : source!.Id;
         string? sourceName = isNew && source is not null ? source.Name : null;
         var editor = new VariableEditor(state, ActiveWorkspaceName, _workspace.Id, isNew, _references,
@@ -499,7 +518,7 @@ public sealed class VariableScreen : ITuiScreen
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
-            sourceName);
+            sourceName, focusValue, openingEcho);
         _editorView = editor;
         editor.Show();
         TransientScreenOpened?.Invoke();

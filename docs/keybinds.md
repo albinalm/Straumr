@@ -80,6 +80,8 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 
 ### Lists, scrolling, and filtering
 
+The request preview's **Variables & Secrets** pane uses `ResourceList` navigation actions. `ResourceList.Activate` and `ResourceList.ActivateAlternate` appear as **Go to**, opening the selected secret or workspace variable form, including creation for a missing reference.
+
 | Action | vim | emacs | commander | client |
 | --- | --- | --- | --- | --- |
 | `ResourceList.Next` | `j` | `Ctrl+N` | · | · |
