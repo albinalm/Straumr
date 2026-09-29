@@ -206,6 +206,7 @@ A headers tab moves by header rather than by line, so `ResourceList.Next`, `Prev
 | Action | vim | emacs | commander | client |
 | --- | --- | --- | --- | --- |
 | `Editor.Save` | `Ctrl+S` | · | `F2` | · |
+| `Editor.SaveAndClose` | `Ctrl+Shift+S` | · | `Shift+F2` | · |
 | `Editor.Close` | `Escape` | `Ctrl+G` | · | · |
 | `ContentField.Edit` | `e` | · | `F4` | · |
 | `ContentField.Activate` | `Enter` | · | · | · |

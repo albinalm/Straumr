@@ -51,6 +51,7 @@ public static class StraumrKeybindPresets
         {
             ["Straumr.OpenCommandPrompt"] = "F9",
             ["Editor.Save"] = "F2",
+            ["Editor.SaveAndClose"] = "Shift+F2",
             ["Request.Fullscreen"] = "F3",
             ["Workspace.Edit"] = "F4",
             ["Request.Edit"] = "F4",
