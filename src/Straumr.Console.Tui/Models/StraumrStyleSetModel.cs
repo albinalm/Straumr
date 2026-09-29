@@ -146,7 +146,7 @@ internal sealed class StraumrStyleSetModel
             Normal = Style.None.WithForeground(MutedBright).WithBackground(Background),
             Hovered = Style.None.WithForeground(TextBright).WithBackground(Hover),
             Pressed = Style.None.WithForeground(TextBright).WithBackground(SelectionInactive),
-            Focused = SelectedSurface(TextBright),
+            Focused = SelectedSurface(TextBright) | TextStyle.Bold,
             Disabled = Style.None.WithForeground(Muted).WithBackground(Background)
         };
 
@@ -181,10 +181,10 @@ internal sealed class StraumrStyleSetModel
 
         RuleTabFocused = RuleTab with
         {
-            Normal = SelectedSurface(TextBright),
-            Hovered = SelectedSurface(TextBright),
-            Pressed = SelectedSurface(TextBright),
-            Focused = SelectedSurface(TextBright)
+            Normal = SelectedSurface(TextBright) | TextStyle.Bold,
+            Hovered = SelectedSurface(TextBright) | TextStyle.Bold,
+            Pressed = SelectedSurface(TextBright) | TextStyle.Bold,
+            Focused = SelectedSurface(TextBright) | TextStyle.Bold
         };
 
         TextBox = TextBoxStyle.Default with
