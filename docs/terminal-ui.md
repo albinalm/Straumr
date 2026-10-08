@@ -89,6 +89,8 @@ Editing a request opens a form: name, method, URL, auth, and the header and para
 
 In request, auth, variable and secret forms, `Ctrl+S` saves and keeps the form open; `Ctrl+Shift+S` saves and closes it. The commander preset uses `F2` and `Shift+F2`. Save and close returns to the list only after a successful save; validation or save errors keep your edits open. Both actions can be changed in [keybind settings](keybinds.md).
 
+Request URLs can use variable and secret references, including `{{baseUrl}}/orders`. If a request URL is invalid or empty, either save action offers **Save anyway** so you can keep your other edits, including query parameters. **Cancel** keeps the form open with all edits intact. Fix the URL before sending the request; name validation still needs to pass before saving.
+
 `Ctrl+T` switches to the next form tab and focuses its first field, including while a text input has focus. It follows the `PagedPane.NextPage` keybinding; `Tab` still moves between fields.
 
 `Ctrl+E` on a list entry skips the form entirely and opens the underlying JSONC file. Comments you leave in that file survive everything Straumr writes afterwards.

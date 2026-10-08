@@ -26,6 +26,7 @@ internal sealed class ResourceEditorView
     private readonly State<bool> _noticeError = new(false);
     private readonly PagedPane _pages;
     private readonly Action _save;
+    private readonly Func<string?>? _saveWarning;
     private readonly State<bool> _saving = new(false);
 
     private bool _closeAfterSave;
@@ -46,10 +47,12 @@ internal sealed class ResourceEditorView
         Action closed,
         Func<bool> hasChanges,
         string? sourceName = null,
-        Visual? initialFocus = null)
+        Visual? initialFocus = null,
+        Func<string?>? saveWarning = null)
     {
         _forms = pages;
         _save = save;
+        _saveWarning = saveWarning;
         _closed = closed;
         _resumeFocus = initialFocus;
         _name = name;
@@ -164,10 +167,27 @@ internal sealed class ResourceEditorView
             _pages.Select(index);
             _forms[index].Validate();
             Notify(problem, true);
+            _closeAfterSave = false;
             return;
         }
 
         _saving.Value = true;
+        if (_saveWarning?.Invoke() is { } warning)
+        {
+            new ConfirmDialog(
+                "URL warning",
+                "Save this request anyway?",
+                warning,
+                "Save anyway",
+                false,
+                _save,
+                cancel: () =>
+                {
+                    _saving.Value = false;
+                    _closeAfterSave = false;
+                }).Show();
+            return;
+        }
         _save();
     }
 
@@ -223,7 +243,6 @@ internal sealed class ResourceEditorView
 
         _closeAfterSave = true;
         TrySave();
-        _closeAfterSave = _saving.Value;
     }
 
     private void CloseNow()

@@ -39,7 +39,12 @@ public static class RequestEditingHelpers
             return false;
         }
 
-        string normalized = SecretHelpers.SecretPattern.Replace(value, "secret");
+        string normalized = VariableHelpers.ReferencePattern.Replace(value, match => match.Index switch
+        {
+            0 when value.AsSpan(match.Length).StartsWith("://", StringComparison.Ordinal) => "https",
+            0 => "https://example.com",
+            _ => "reference"
+        });
         return Uri.TryCreate(normalized, UriKind.Absolute, out _);
     }
 
