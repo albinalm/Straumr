@@ -57,10 +57,7 @@ internal sealed class RequestEditor
             state.Method, value => state.Method = value);
 
         var uri = new TextField("URL", state.Uri, value => state.Uri = value,
-            "https://api.example.com/resource",
-            validate: value => RequestEditingHelpers.IsValidAbsoluteUrl(value)
-                ? null
-                : "Enter an absolute URL, for example https://api.example.com/resource.");
+            "https://api.example.com/resource");
 
         List<string> authLabels = [NoAuth, .. auths.Select(auth => auth.Name)];
         List<Guid?> authValues = [null, .. auths.Select(auth => (Guid?)auth.Id)];
@@ -98,7 +95,10 @@ internal sealed class RequestEditor
             save,
             closed,
             () => !_state.Matches(_opened),
-            sourceName);
+            sourceName,
+            saveWarning: () => RequestEditingHelpers.IsValidAbsoluteUrl(state.Uri.Trim())
+                ? null
+                : "The URL is not a valid absolute URL. You can save your edits, but fix the URL before sending this request.");
     }
 
     public void Show() => _view.Show();
