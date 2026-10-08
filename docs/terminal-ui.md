@@ -8,6 +8,8 @@ The first time you open it, a short quick start asks three things: which keybind
 
 Nothing there is permanent. Run `:quickstart` any time to go through it again.
 
+After choosing a preset and theme, a practice screen lets you move between fields and tabs, change a method, and open a query-parameter dialog. Its sample values are not saved. The instructions and footer use the selected preset's actual bindings.
+
 ## Getting around
 
 There are five screens, one per kind of thing:
@@ -27,6 +29,10 @@ Each screen is a list on the left and detail panes on the right. Move through th
 Nothing is hidden by which header it is — `Authorization` reads like any other. What stays hidden is a secret: a header whose configured value holds a `{{secret:name}}` is listed with that reference left in place, so you see the header and its scheme without its value ever reaching the screen. Everything else is shown resolved, variables and fetched auth tokens included.
 
 The bar along the bottom always shows the keys that do something right now, for whatever has focus. It is the fastest way to learn your own keybindings; the full list is in [keybinds.md](keybinds.md).
+
+`Tab` and `Shift+Tab` move focus between panes, fields, and buttons. Within a list or choice, use the movement keys for your preset: `j`/`k` with vim, `Ctrl+N`/`Ctrl+P` with emacs, or `Down`/`Up` with commander and client. Arrow keys work in lists and choices in all presets. In a text field, type normally; arrows move the caret.
+
+`Ctrl+T` or `Ctrl+PageDown` switches to the next tab in the focused pane, and `Ctrl+PageUp` switches back. This is the same in previews and forms, including when a text field has focus. Moving through a list keeps focus in that list; use `Tab` to leave it.
 
 Drag the splits with `Ctrl+H`/`Ctrl+L`/`Ctrl+K`/`Ctrl+J` (vim preset). Where you leave them is remembered per screen.
 
@@ -91,7 +97,7 @@ In request, auth, variable and secret forms, `Ctrl+S` saves and keeps the form o
 
 Request URLs can use variable and secret references, including `{{baseUrl}}/orders`. If a request URL is invalid or empty, either save action offers **Save anyway** so you can keep your other edits, including query parameters. **Cancel** keeps the form open with all edits intact. Fix the URL before sending the request; name validation still needs to pass before saving.
 
-`Ctrl+T` switches to the next form tab and focuses its first field, including while a text input has focus. It follows the `PagedPane.NextPage` keybinding; `Tab` still moves between fields.
+Switching a form tab focuses its first field. The shared `Straumr.NextTab`, `Straumr.NextTabAlternate`, and `Straumr.PreviousTab` actions control tab switching everywhere; `Tab` and `Shift+Tab` move between fields, including in header and query-parameter dialogs.
 
 `Ctrl+E` on a list entry skips the form entirely and opens the underlying JSONC file. Comments you leave in that file survive everything Straumr writes afterwards.
 
