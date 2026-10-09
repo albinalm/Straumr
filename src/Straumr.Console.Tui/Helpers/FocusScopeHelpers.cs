@@ -34,7 +34,17 @@ internal static class FocusScopeHelpers
         return true;
     }
 
-    public static void FocusPrevious(this TerminalApp app) => app.FocusStep(-1);
+    public static bool CanTraverseWith(this Visual visual, KeyGesture? gesture)
+    {
+        for (Visual? node = visual; node is not null; node = node.Parent)
+        {
+            if (node.Commands.Any(command => command.RouteGesture && command.Gesture == gesture && command.IsVisibleFor(visual) && command.CanExecuteFor(visual)))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 
     public static void FocusStep(this TerminalApp app, int step)
     {

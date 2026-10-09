@@ -25,7 +25,9 @@ public sealed class QuickStartService(
     {
         Card = 0;
         Problem = settings.Problem;
-        Preset = StraumrKeybindPresets.Identify(settings.Settings.Keybinds);
+        Preset = settings.Settings.KeybindPreset is { Length: > 0 } preset && StraumrKeybindPresets.TryGet(preset, out _)
+            ? preset.Trim().ToLowerInvariant()
+            : StraumrKeybindPresets.Identify(settings.Settings.Keybinds);
         ThemeReference = string.IsNullOrWhiteSpace(settings.Settings.Theme)
             ? StraumrThemeService.DefaultReference : settings.Settings.Theme.Trim();
         WorkspaceName = "";

@@ -73,7 +73,7 @@ internal sealed class ResourceEditorView
             };
         }
 
-        _pages = new PagedPane(false,
+        _pages = new PagedPane(
             _forms.Select(form => new PagedPanePageModel(form.Title, form.Root, () => form.FocusTarget)
             {
                 Visible = () => form.Applies

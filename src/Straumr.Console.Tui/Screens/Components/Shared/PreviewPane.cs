@@ -1,5 +1,4 @@
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Text;
 
@@ -9,9 +8,8 @@ internal sealed class PreviewPane
 {
     private readonly Func<Visual>[] _focus;
     private readonly State<Func<string, StyledRun[]>?>[] _highlighters;
-    private readonly PagedPane? _paged;
+    private readonly PagedPane _paged;
     private readonly ScrollableContent?[] _scrollers;
-    private readonly TabControl? _tabs;
     private readonly State<string>[] _text;
     private readonly Visual[] _views;
 
@@ -43,44 +41,22 @@ internal sealed class PreviewPane
             _focus[page] = () => scroller;
         }
 
+        _paged = new PagedPane(
+            pages.Select((page, index) =>
+                new PagedPanePageModel(page.Title, _views[index], _focus[index])).ToArray());
         if (tabsOnRule)
         {
-            _paged = new PagedPane(true,
-                pages.Select((page, index) =>
-                    new PagedPanePageModel(page.Title, _views[index], _focus[index])).ToArray());
             Root = _paged.Root;
             TabRule = _paged.TabRule;
         }
         else
         {
-            TabControl tabs = new TabControl().HorizontalAlignment(Align.Stretch).VerticalAlignment(Align.Stretch);
-            tabs.IsTabStop(false);
-            tabs.SetStyle(StraumrStyleService.PreviewTabs);
-            ZStack stack = new ZStack(_views)
-                .HorizontalAlignment(Align.Stretch)
-                .VerticalAlignment(Align.Stretch);
-            for (int index = 0; index < pages.Length; index++)
-            {
-                int pageIndex = index;
-                tabs.AddTab(new TextBlock(pages[index].Title).Style(() => SelectedPage == pageIndex
-                    ? StraumrStyleService.AccentText : StraumrStyleService.MutedText), stack);
-            }
-            _tabs = tabs;
-            Root = tabs;
-            tabs.SelectionChanged(ShowSelectedPage);
-            ShowSelectedPage();
-            Root.AddCommand(new Command
-            {
-                Id = "PreviewPane.NextTab",
-                LabelMarkup = "Next tab",
-                Gesture = TuiKeybindHelpers.Get("PreviewPane.NextTab"),
-                Importance = CommandImportance.Secondary,
-                Presentation = CommandPresentation.CommandBar,
-                CanExecute = _ => !Root.IsTyping(),
-                IsVisible = _ => !Root.IsTyping(),
-                ConsumesGestureWhenUnavailable = false,
-                Execute = _ => SelectNextTab()
-            });
+            Root = new Grid()
+                .Columns(new ColumnDefinition { Width = GridLength.Star() })
+                .Rows(new RowDefinition { Height = GridLength.Auto }, new RowDefinition { Height = GridLength.Star() })
+                .Cell(_paged.TabRule, 0, 0)
+                .Cell(_paged.Root, 1, 0)
+                .HorizontalAlignment(Align.Stretch).VerticalAlignment(Align.Stretch);
         }
     }
 
@@ -90,31 +66,11 @@ internal sealed class PreviewPane
 
     public Visual FocusTarget => _focus[Math.Clamp(SelectedPage, 0, _focus.Length - 1)]();
 
-    private int SelectedPage => _tabs?.SelectedIndex ?? _paged!.SelectedPage;
+    private int SelectedPage => _paged.SelectedPage;
 
     public static PreviewPane OnRule(bool wrap, params PreviewPanePageModel[] pages) => new(wrap, true, pages);
 
     public Visual Page(int index) => _views[index];
-
-    private void SelectNextTab() =>
-        _tabs!.SelectedIndex = (_tabs.SelectedIndex + 1) % _views.Length;
-
-    private void ShowSelectedPage()
-    {
-        bool owned = Root.Owns();
-        for (int index = 0; index < _views.Length; index++)
-        {
-            _views[index].IsVisible = index == SelectedPage;
-        }
-
-        if (!owned)
-        {
-            return;
-        }
-
-        Visual target = FocusTarget;
-        target.App?.Focus(target);
-    }
 
     private static Visual Lines(string text, Func<string, StyledRun[]>? highlight, bool wrap) =>
         new VStack(text.Replace("\r", string.Empty).Split('\n')

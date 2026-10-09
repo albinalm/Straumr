@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Screens.Components.Shared;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
@@ -28,7 +29,10 @@ internal static class StraumrDialogHelpers
 
     public static Dialog Create(Visual title, Visual content, int width)
     {
-        var dialog = new Dialog(StraumrSurfaceHelpers.Surface(title), StraumrSurfaceHelpers.Surface(content))
+        Visual body = new VStack(content, StraumrSurfaceHelpers.HorizontalDivider(),
+                new HintBar().Style(StraumrStyleService.CommandBar))
+            .Spacing(1).HorizontalAlignment(Align.Stretch);
+        var dialog = new Dialog(StraumrSurfaceHelpers.Surface(title), StraumrSurfaceHelpers.Surface(body))
         {
             Width = width,
             Padding = new Thickness(2, 1, 2, 1),

@@ -11,7 +11,7 @@ internal static class TuiKeybindHelpers
     public static char? OpeningEcho { get; private set; }
     public static KeyGesture? Get(string id)
     {
-        bool letterVariant = id.EndsWith(".Letter", StringComparison.Ordinal) || id == "PagedPane.NextPageLetter";
+        bool letterVariant = id.EndsWith(".Letter", StringComparison.Ordinal);
         bool shiftedVariant = id.EndsWith(".Shifted", StringComparison.Ordinal);
         if (StraumrKeybinds.Get(Canonical(id)) is not { } binding)
         {
@@ -83,7 +83,6 @@ internal static class TuiKeybindHelpers
 
         return id switch
         {
-            "PagedPane.NextPageLetter" => "PagedPane.NextPage",
             "ResourceScreen.ResizeLeftStacked" => "ResourceScreen.ResizeLeft",
             "Request.Send" => "Request.Send",
             _ when id.StartsWith("Secret.EditJson.", StringComparison.Ordinal) => "Secret.EditJson",

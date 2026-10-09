@@ -4,16 +4,17 @@ namespace Straumr.Core.Configuration;
 
 public static class StraumrKeybinds
 {
-
     private static Dictionary<string, StraumrKeyGesture?> _bindings;
     public static IReadOnlyDictionary<string, string> Defaults { get; } = new ReadOnlyDictionary<string, string>(
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Straumr.OpenCommandPrompt"] = ":",
             ["Straumr.Interrupt"] = "Ctrl+C",
-            ["Straumr.FocusPrevious"] = "Ctrl+Tab",
             ["Straumr.FocusNext"] = "Tab",
             ["Straumr.FocusPreviousTab"] = "Shift+Tab",
+            ["Straumr.NextTab"] = "Ctrl+T",
+            ["Straumr.NextTabAlternate"] = "Ctrl+PageDown",
+            ["Straumr.PreviousTab"] = "Ctrl+PageUp",
             ["CommandPrompt.Accept"] = "Enter",
             ["CommandPrompt.Cancel"] = "Escape",
             ["CommandPrompt.Complete"] = "Tab",
@@ -52,11 +53,6 @@ public static class StraumrKeybinds
             ["ResourceScreen.ResizeRight"] = "Ctrl+L",
             ["ResourceScreen.ResizeUp"] = "Ctrl+K",
             ["ResourceScreen.ResizeDown"] = "Ctrl+J",
-            ["PreviewPane.NextTab"] = "t",
-            ["PagedPane.NextTab"] = "Tab",
-            ["PagedPane.PreviousTab"] = "Shift+Tab",
-            ["PagedPane.NextTabKey"] = "t",
-            ["PagedPane.NextPage"] = "Ctrl+T",
             ["Workspace.Create"] = "c",
             ["Workspace.Edit"] = "e",
             ["Workspace.Copy"] = "y",

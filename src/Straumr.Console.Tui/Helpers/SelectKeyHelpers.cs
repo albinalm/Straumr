@@ -1,4 +1,5 @@
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Input;
 
@@ -8,10 +9,24 @@ internal static class SelectKeyHelpers
 {
     public static Select<string> WithMovementKeys(this Select<string> select)
     {
+        AddMovementHint(select, "Select.Previous", "Previous option", -1);
+        AddMovementHint(select, "Select.Next", "Next option", 1);
         select.KeyDown((_, e) =>
             Move(e, select.Items.Count, select.SelectedIndex, index => select.SelectedIndex = index));
         return select;
     }
+    private static void AddMovementHint(Select<string> select, string id, string label, int step) =>
+        select.AddCommand(new Command
+        {
+            Id = id,
+            LabelMarkup = label,
+            Gesture = TuiKeybindHelpers.Get(id),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.CommandBar,
+            RouteGesture = false,
+            CanExecute = _ => select.Items.Count > 0,
+            Execute = _ => select.SelectedIndex = Math.Clamp(select.SelectedIndex + step, 0, select.Items.Count - 1)
+        });
 
     public static void AttachTo(ListBox<string> list) =>
         list.KeyDown((_, e) =>

@@ -17,6 +17,15 @@ keybind-preset = "emacs"
 - **commander** — the function-key row: `F2` saves, `F4` edits, `F5` copies, `F7` creates, `F8` deletes, `F9` opens the command prompt.
 - **client** — what a graphical API client trains into your fingers: `Ctrl+R` sends, `Ctrl+N` creates, `Ctrl+D` duplicates, `Delete` deletes, `Ctrl+F` finds.
 
+All presets use the same navigation rules:
+
+- `Tab` moves focus to the next field, pane, or button; `Shift+Tab` moves it back.
+- `Ctrl+T` or `Ctrl+PageDown` switches to the next tab in the focused pane; `Ctrl+PageUp` switches to the previous tab. These work in previews and editors, including while typing.
+- Movement keys select items within a list or change a choice such as the request method. Vim uses `j`/`k`, Emacs uses `Ctrl+N`/`Ctrl+P`, and commander and client use `Down`/`Up`. Arrow keys also work in lists and choices in every preset.
+- Text fields accept normal typing and caret movement. Movement keys do not jump between fields.
+
+The footer shows the actions for the current focus. Quick start includes a practice screen using your selected preset's bindings. The command prompt and file-browser location input use `Tab` for completion, as shown in their hints.
+
 By default, `Enter` and `Space` activate the selected row on a focused list. That means use a workspace, edit a resource, open a browser folder, or choose an onboarding option. `c` creates or adds, `e` edits, and `d` deletes or removes the focused item, including within editors and the file browser. The commander preset uses `F4` to edit. These are separate actions, so each key can be changed or disabled independently.
 
 ## Override single actions
@@ -64,9 +73,11 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | --- | --- | --- | --- | --- |
 | `Straumr.OpenCommandPrompt` | `:` | `Alt+X` | `F9` | `Ctrl+P` |
 | `Straumr.Interrupt` | `Ctrl+C` | · | · | · |
-| `Straumr.FocusPrevious` | `Ctrl+Tab` | · | · | · |
 | `Straumr.FocusNext` | `Tab` | · | · | · |
 | `Straumr.FocusPreviousTab` | `Shift+Tab` | · | · | · |
+| `Straumr.NextTab` | `Ctrl+T` | · | · | · |
+| `Straumr.NextTabAlternate` | `Ctrl+PageDown` | · | · | · |
+| `Straumr.PreviousTab` | `Ctrl+PageUp` | · | · | · |
 
 ### Command prompt
 
@@ -84,10 +95,10 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 
 | Action | vim | emacs | commander | client |
 | --- | --- | --- | --- | --- |
-| `ResourceList.Next` | `j` | `Ctrl+N` | · | · |
-| `ResourceList.Previous` | `k` | `Ctrl+P` | · | · |
-| `ResourceList.First` | `g` | `Home` | · | · |
-| `ResourceList.Last` | `G` | `End` | · | · |
+| `ResourceList.Next` | `j` | `Ctrl+N` | `Down` | `Down` |
+| `ResourceList.Previous` | `k` | `Ctrl+P` | `Up` | `Up` |
+| `ResourceList.First` | `g` | `Home` | `Home` | `Home` |
+| `ResourceList.Last` | `G` | `End` | `End` | `End` |
 | `ResourceList.Activate` | `Enter` | · | · | · |
 | `ResourceList.ActivateAlternate` | `Space` | · | · | · |
 | `ResourceList.Up` | `Up` | · | · | · |
@@ -96,20 +107,20 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | `ResourceList.End` | `End` | · | · | · |
 | `ResourceList.PageUp` | `PageUp` | `PageUp` | · | · |
 | `ResourceList.PageDown` | `PageDown` | `Ctrl+V` | · | · |
-| `ScrollableContent.Next` | `j` | `Ctrl+N` | · | · |
-| `ScrollableContent.Previous` | `k` | `Ctrl+P` | · | · |
-| `ScrollableContent.Top` | `g` | `Home` | · | · |
-| `ScrollableContent.Bottom` | `G` | `End` | · | · |
+| `ScrollableContent.Next` | `j` | `Ctrl+N` | `Down` | `Down` |
+| `ScrollableContent.Previous` | `k` | `Ctrl+P` | `Up` | `Up` |
+| `ScrollableContent.Top` | `g` | `Home` | `Home` | `Home` |
+| `ScrollableContent.Bottom` | `G` | `End` | `End` | `End` |
 | `ScrollableContent.Up` | `Up` | · | · | · |
 | `ScrollableContent.Down` | `Down` | · | · | · |
 | `ScrollableContent.Home` | `Home` | · | · | · |
 | `ScrollableContent.End` | `End` | · | · | · |
 | `ScrollableContent.PageUp` | `PageUp` | `PageUp` | · | · |
 | `ScrollableContent.PageDown` | `PageDown` | `Ctrl+V` | · | · |
-| `Select.Next` | `j` | `Ctrl+N` | · | · |
-| `Select.Previous` | `k` | `Ctrl+P` | · | · |
-| `Select.First` | `g` | `Home` | · | · |
-| `Select.Last` | `G` | `End` | · | · |
+| `Select.Next` | `j` | `Ctrl+N` | `Down` | `Down` |
+| `Select.Previous` | `k` | `Ctrl+P` | `Up` | `Up` |
+| `Select.First` | `g` | `Home` | `Home` | `Home` |
+| `Select.Last` | `G` | `End` | `End` | `End` |
 | `ResourceFilter.Open` | `/` | `Ctrl+S` | `Ctrl+S` | `Ctrl+F` |
 | `ResourceFilter.Accept` | `Enter` | · | · | · |
 | `ResourceFilter.Cancel` | `Escape` | `Ctrl+G` | · | · |
@@ -122,11 +133,6 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | `ResourceScreen.ResizeRight` | `Ctrl+L` | · | · | · |
 | `ResourceScreen.ResizeUp` | `Ctrl+K` | · | · | · |
 | `ResourceScreen.ResizeDown` | `Ctrl+J` | · | · | · |
-| `PreviewPane.NextTab` | `t` | · | · | · |
-| `PagedPane.NextTab` | `Tab` | · | · | · |
-| `PagedPane.PreviousTab` | `Shift+Tab` | · | · | · |
-| `PagedPane.NextTabKey` | `t` | · | · | · |
-| `PagedPane.NextPage` | `Ctrl+T` | · | · | · |
 
 ### Workspaces
 
@@ -261,12 +267,12 @@ Quick start uses the shared list activation, focus, scrolling, and dialog direct
 | Action | vim | emacs | commander | client |
 | --- | --- | --- | --- | --- |
 | `Cli.Cancel` | `Escape` | `Ctrl+G` | · | · |
-| `Cli.Next` | `j` | `Ctrl+N` | · | · |
+| `Cli.Next` | `j` | `Ctrl+N` | `Down` | `Down` |
 | `Cli.NextUpper` | `J` | · | · | · |
-| `Cli.Previous` | `k` | `Ctrl+P` | · | · |
+| `Cli.Previous` | `k` | `Ctrl+P` | `Up` | `Up` |
 | `Cli.PreviousUpper` | `K` | · | · | · |
-| `Cli.First` | `g` | `Home` | · | · |
-| `Cli.Last` | `G` | `End` | · | · |
+| `Cli.First` | `g` | `Home` | `Home` | `Home` |
+| `Cli.Last` | `G` | `End` | `End` | `End` |
 | `Cli.Search` | `/` | `Ctrl+S` | · | `Ctrl+F` |
 
 The same action name can be bound in several places — `Request.Edit` and `Workspace.Edit` are separate actions so you can move one without moving the other, and the presets change them together.

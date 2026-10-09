@@ -663,17 +663,6 @@ public sealed class StraumrTuiApp
             Execute = _ => RequestInterrupt()
         };
 
-    private static Command BuildFocusPreviousCommand(TerminalApp app) =>
-        new()
-        {
-            Id = "Straumr.FocusPrevious",
-            LabelMarkup = "Previous field",
-            Gesture = TuiKeybindHelpers.Get("Straumr.FocusPrevious"),
-            Importance = CommandImportance.Secondary,
-            Presentation = CommandPresentation.None,
-            Execute = _ => app.FocusPrevious()
-        };
-
     private void RequestInterrupt()
     {
         _interruptSource.Cancel();
@@ -712,12 +701,6 @@ public sealed class StraumrTuiApp
         }
 
         app.AddGlobalCommand(BuildInterruptCommand());
-        if (_quickStart.Active)
-        {
-            return;
-        }
-
-        app.AddGlobalCommand(BuildFocusPreviousCommand(app));
         ConfigureFocusTraversal(app, "Straumr.FocusNext", new KeyGesture(TerminalKey.Tab), 1);
         ConfigureFocusTraversal(app, "Straumr.FocusPreviousTab", new KeyGesture(TerminalKey.Tab, TerminalModifiers.Shift), -1);
 
@@ -733,19 +716,21 @@ public sealed class StraumrTuiApp
     private static void ConfigureFocusTraversal(TerminalApp app, string id, KeyGesture original, int step)
     {
         KeyGesture? gesture = TuiKeybindHelpers.Get(id);
+        app.AddGlobalCommand(new Command
+        {
+            Id = id,
+            LabelMarkup = step > 0 ? "Focus next" : "Focus previous",
+            Gesture = gesture,
+            Importance = CommandImportance.Secondary,
+            Presentation = CommandPresentation.CommandBar,
+            RouteGesture = gesture != original,
+            IsVisible = target => target.CanTraverseWith(gesture),
+            Execute = _ => app.FocusStep(step)
+        });
         if (gesture == original)
         {
             return;
         }
-
-        app.AddGlobalCommand(new Command
-        {
-            Id = id,
-            LabelMarkup = step > 0 ? "Next field" : "Previous field",
-            Gesture = gesture,
-            Presentation = CommandPresentation.None,
-            Execute = _ => app.FocusStep(step)
-        });
         app.AddGlobalCommand(new Command
         {
             Id = $"{id}.Replaced",

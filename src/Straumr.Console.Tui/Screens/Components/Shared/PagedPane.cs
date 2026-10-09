@@ -1,5 +1,4 @@
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
 
 namespace Straumr.Console.Tui.Screens.Components.Shared;
@@ -11,7 +10,7 @@ internal sealed class PagedPane
 
     private readonly Visual[] _tabs;
 
-    public PagedPane(bool tabCyclesPages, params PagedPanePageModel[] pages)
+    public PagedPane(params PagedPanePageModel[] pages)
     {
         _pages = pages;
         _page = new State<int>(FirstApplicable(0));
@@ -30,21 +29,7 @@ internal sealed class PagedPane
         TabRule = StraumrSurfaceHelpers.HorizontalDivider();
         TabRule.StartLabel(new HStack(_tabs).Spacing(0));
 
-        if (tabCyclesPages)
-        {
-            Root.AddCommand(CycleCommand("NextTab", TuiKeybindHelpers.CombinedLabel("Next tab", "PagedPane.NextTabKey"),
-                CommandPresentation.CommandBar, 1));
-            Root.AddCommand(CycleCommand("PreviousTab", "Previous tab",
-                CommandPresentation.None, -1));
-            Root.AddCommand(CycleCommand("NextTabKey", "Next tab", TuiKeybindHelpers.SecondaryPresentation("PagedPane.NextTab"), 1));
-        }
-        else
-        {
-            Root.AddCommand(CycleCommand("NextPage", "Next page",
-                CommandPresentation.CommandBar, 1, allowWhileTyping: true));
-            Root.AddCommand(CycleCommand("NextPageLetter", "Next page",
-                CommandPresentation.None, 1, allowWhileTyping: true));
-        }
+        Root.AddTabNavigation(step => Change(Step(step)), () => _pages.Count(page => page.Applies) > 1);
     }
 
     public Visual Root { get; }
@@ -123,21 +108,6 @@ internal sealed class PagedPane
             prepared.App?.Focus(prepared);
         });
     }
-
-    private Command CycleCommand(string id, string label,
-        CommandPresentation presentation, int step, bool allowWhileTyping = false) =>
-        new()
-        {
-            Id = $"PagedPane.{id}",
-            LabelMarkup = label,
-            Gesture = TuiKeybindHelpers.Get($"PagedPane.{id}"),
-            Importance = CommandImportance.Secondary,
-            Presentation = presentation,
-            CanExecute = _ => allowWhileTyping || !Root.IsTyping(),
-            IsVisible = _ => allowWhileTyping || !Root.IsTyping(),
-            ConsumesGestureWhenUnavailable = false,
-            Execute = _ => Change(Step(step))
-        };
 
     private void Change(int index)
     {

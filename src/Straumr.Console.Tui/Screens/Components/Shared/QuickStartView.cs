@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Screens.Components.Editor;
 using Straumr.Core.Configuration;
 using Tomlyn;
 using XenoAtom.Terminal;
@@ -11,7 +12,7 @@ namespace Straumr.Console.Tui.Screens.Components.Shared;
 
 internal sealed class QuickStartView
 {
-    private const int Cards = 5;
+    private const int Cards = 6;
 
     internal const string Wordmark = """
                                       ____  _
@@ -135,7 +136,7 @@ internal sealed class QuickStartView
         }
     }
 
-    private void AddKey(string id, string label, Action action, Func<bool>? visible = null, bool route = true) =>
+    private void AddKey(string id, string label, Action action, Func<bool>? visible = null) =>
         Root.AddCommand(new Command
         {
             Id = "QuickStart." + id,
@@ -143,63 +144,10 @@ internal sealed class QuickStartView
             Gesture = TuiKeybindHelpers.Get(id),
             Presentation = CommandPresentation.CommandBar,
             Importance = CommandImportance.Primary,
-            RouteGesture = route,
             IsVisible = _ => visible?.Invoke() ?? true,
             CanExecute = _ => visible?.Invoke() ?? true,
             Execute = _ => action()
         });
-
-    private static void Focus(Visual? visual) => visual?.App?.Focus(visual);
-
-    private void StackedKeys(ResourceList list)
-    {
-        Move(list, "Down", ["ResourceList.Next", "ResourceList.Down"], () =>
-        {
-            if (list.SelectedIndex >= list.Count - 1)
-            {
-                Focus(_next);
-            }
-            else
-            {
-                list.SelectedIndex++;
-            }
-        });
-        Move(list, "Up", ["ResourceList.Previous", "ResourceList.Up"], () => list.SelectedIndex--);
-        Move(list, "Top", ["ResourceList.First", "ResourceList.Home"], () => list.SelectedIndex = 0);
-        Move(list, "Bottom", ["ResourceList.Last", "ResourceList.End"], () => Focus(_next));
-    }
-
-    private void ListKey(Button button)
-    {
-        Move(button, "Up", ["ResourceList.Previous", "ResourceList.Up"], () => Focus(_choices));
-        Move(button, "Top", ["ResourceList.First", "ResourceList.Home"], () =>
-        {
-            Focus(_choices);
-            if (_choices is not null)
-            {
-                _choices.SelectedIndex = 0;
-            }
-        });
-        Move(button, "Bottom", ["ResourceList.Last", "ResourceList.End"], () => Focus(_next));
-    }
-
-    private static void Move(Visual target, string name, string[] actions, Action action)
-    {
-        foreach (string id in actions)
-        {
-            if (TuiKeybindHelpers.Get(id) is { } gesture)
-            {
-                target.AddCommand(new Command
-                {
-                    Id = $"QuickStart.Move.{name}.{id}",
-                    LabelMarkup = name,
-                    Gesture = gesture,
-                    Presentation = CommandPresentation.None,
-                    Execute = _ => action()
-                });
-            }
-        }
-    }
 
     private void Back()
     {
@@ -238,10 +186,8 @@ internal sealed class QuickStartView
 
         ButtonKey(_next, _nextLabel.Value, () => _advance = true);
         SwitchKey(_next, _back);
-        ListKey(_next);
         ButtonKey(_back, "Back", Back);
         SwitchKey(_back, _next);
-        ListKey(_back);
         _back.IsTabStop(_back.IsReachable);
         _progress.Value = string.Join(' ', Enumerable.Range(0, Cards).Select(i => i <= _session.Card ? "●" : "○"));
         Visual content = _session.Card switch
@@ -249,7 +195,8 @@ internal sealed class QuickStartView
             0 => Welcome(),
             1 => Presets(),
             2 => Themes(),
-            3 => Workspace(),
+            3 => Navigation(),
+            4 => Workspace(),
             _ => Map()
         };
         _contentScroll = new ScrollViewer(content, false)
@@ -264,9 +211,6 @@ internal sealed class QuickStartView
             Root.RemoveCommand(command.Id);
         }
 
-        AddKey("Straumr.FocusNext", _session.Card == 0 ? "Focus · the footer shows your keys" : "Focus",
-            () => Root.App?.FocusStep(1),
-            route: TuiKeybindHelpers.Get("Straumr.FocusNext") != new KeyGesture(TerminalKey.Tab));
         AddKey("ScrollableContent.PageDown", "Scroll down", () => Scroll(1), () => Rows < 24 && _session.Card > 0);
         AddKey("ScrollableContent.PageUp", "Scroll up", () => Scroll(-1), () => Rows < 24 && _session.Card > 0);
         _focus = true;
@@ -300,10 +244,8 @@ internal sealed class QuickStartView
 
     private static string Keys(string preset)
     {
-        string move = preset is "commander" or "client"
-            ? "Move ↑ ↓"
-            : $"Move {StraumrKeybindPresets.Hint(preset, "ResourceList.Previous")} " +
-              $"{StraumrKeybindPresets.Hint(preset, "ResourceList.Next")}";
+        string move = $"Move {StraumrKeybindPresets.Hint(preset, "ResourceList.Previous")} " +
+                      $"{StraumrKeybindPresets.Hint(preset, "ResourceList.Next")}";
         return $"{move}   Filter {StraumrKeybindPresets.Hint(preset, "ResourceFilter.Open")}   " +
                $"Delete {StraumrKeybindPresets.Hint(preset, "Request.Delete")}";
     }
@@ -367,6 +309,30 @@ internal sealed class QuickStartView
             .Spacing(1).HorizontalAlignment(Align.Stretch));
     }
 
+    private Visual Navigation()
+    {
+        var name = new TextField("Name", "Practice request", _ => { });
+        ChoiceField<string> method = new("Method", ["GET", "POST", "PUT"], ["GET", "POST", "PUT"], "GET", _ => { });
+        var parameters = new KeyValueField("Parameters", "parameter", new Dictionary<string, string> { ["limit"] = "10" });
+        var fields = new EditorForm("Fields", name, method);
+        var entries = new EditorForm("Params", parameters);
+        var tabs = new PagedPane(
+            new PagedPanePageModel(fields.Title, fields.Root, () => fields.FocusTarget),
+            new PagedPanePageModel(entries.Title, entries.Root, () => entries.FocusTarget));
+        _firstField = tabs.FocusTarget;
+        return Card("Try navigation", "Sample values are not saved.", new VStack(
+                new TextBlock($"Focus: {TuiKeybindHelpers.Hint("Straumr.FocusNext")} next; {TuiKeybindHelpers.Hint("Straumr.FocusPreviousTab")} previous.")
+                    .Style(StraumrStyleService.PrimaryText).Wrap(true),
+                new TextBlock($"Tabs: {TuiKeybindHelpers.Hint("Straumr.NextTab")} / {TuiKeybindHelpers.Hint("Straumr.NextTabAlternate")} next; " +
+                              $"{TuiKeybindHelpers.Hint("Straumr.PreviousTab")} previous.")
+                    .Style(StraumrStyleService.PrimaryText).Wrap(true),
+                new TextBlock($"Lists and choices: {TuiKeybindHelpers.Hint("Select.Previous")} / {TuiKeybindHelpers.Hint("Select.Next")}. Text fields: type normally.")
+                    .Style(StraumrStyleService.MutedBrightText).Wrap(true),
+                tabs.TabRule,
+                tabs.Root.MinHeight(5).MaxHeight(5))
+            .Spacing(1).HorizontalAlignment(Align.Stretch));
+    }
+
     private void Pick(int index)
     {
         if (index < _session.Workspaces.Count)
@@ -385,25 +351,9 @@ internal sealed class QuickStartView
         _chosen = Math.Clamp(chosen, 0, Math.Max(0, _rows.Length - 1));
         _choose = select;
         _choices = new ResourceList(Marked(), activateLabel: "Choose");
-        foreach (Command command in _choices.Commands.ToArray())
-        {
-            _choices.RemoveCommand(command.Id);
-        }
-
         _choices.SelectedIndex = _chosen;
         _choices.ItemActivated += Choose;
-        _choices.AddCommand(new Command
-        {
-            Id = "QuickStart.Choose",
-            LabelMarkup = "Choose",
-            Gesture = TuiKeybindHelpers.Get("ResourceList.Activate"),
-            Importance = CommandImportance.Primary,
-            Presentation = CommandPresentation.CommandBar,
-            RouteGesture = false,
-            Execute = _ => Choose(_choices?.SelectedIndex ?? 0)
-        });
-        StackedKeys(_choices);
-        int height = Height(_rows, _session.Card == 3 ? 3 : 4);
+        int height = Height(_rows, _session.Card == 4 ? 3 : 4);
         return ResourceScreenLayoutHelpers.Scrollable(_choices).MinHeight(height).MaxHeight(height);
     }
 
@@ -425,7 +375,9 @@ internal sealed class QuickStartView
             return;
         }
 
+        int previousKeybindVersion = StraumrKeybinds.Version;
         _choose?.Invoke(Math.Clamp(index, 0, _rows.Length - 1));
+        PreviewChanged |= previousKeybindVersion != StraumrKeybinds.Version;
         ShowCard();
     }
 
@@ -514,7 +466,7 @@ internal sealed class QuickStartView
                     throw new InvalidOperationException(problem);
                 }
 
-                if (_session.Card == 3)
+                if (_session.Card == 4)
                 {
                     await _session.ActivateWorkspaceAsync(token);
                 }
