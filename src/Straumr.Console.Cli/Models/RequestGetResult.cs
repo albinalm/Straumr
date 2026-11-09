@@ -1,3 +1,5 @@
+using Straumr.Core.Models;
+
 namespace Straumr.Console.Cli.Models;
 
 public record RequestGetResult(
@@ -11,4 +13,5 @@ public record RequestGetResult(
     string? Body,
     string? AuthId,
     string LastAccessed,
-    string Modified);
+    string Modified,
+    IReadOnlyList<ResponseCapture> Captures);

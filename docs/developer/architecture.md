@@ -47,3 +47,11 @@ Resources are JSONC and are meant to stay hand-editable. `IStraumrFileService` p
 ## Native AOT
 
 The host publishes self-contained, single-file, AOT-compiled. That constrains two things. Serialization is source-generated: persisted models belong in `StraumrJsonContext`, CLI DTOs in `CliJsonContext`, and a newly serialised type needs an entry in one of them. Reflection is not: Spectre command and settings types are preserved through `Straumr.Console.Cli/CliRoots.xml`, so a change to CLI registration must keep that descriptor in step.
+
+## Request-derived values
+
+`StraumrRequestService` owns request-backed resolution and response capture so both frontends use the normal auth and HTTP pipeline. Its async-local resolution context records the request/variable chain, dry-run policy, send options, and value-free notices. A per-workspace semaphore serializes variable fetches and capture writes within the process; nested dependencies share the held lock. This does not coordinate separate CLI processes.
+
+Variable cache fingerprints cover workspace identity/path and reachable source configuration, variables, and secrets. Access metadata and stored responses are excluded. Nested variable caches and expiry affect reuse, while the configuration-only fingerprint detects edits during a fetch. Auth runtime caches are excluded to allow normal auth renewal. Fingerprints are hashes and never include plaintext inputs in notices. All extraction uses `ResponseValueExtractor`; custom auth retains its existing permissive result handling, while variables and captures require usable scalar values.
+
+Captures run only for explicit successful sends, validate/extract every result before writing, and attempt rollback if persistence fails. Request copy plans include capture targets and remap their IDs. Request-backed source requests are not implicitly cloned across workspaces; callers must select an existing destination variable configured for a destination source request.

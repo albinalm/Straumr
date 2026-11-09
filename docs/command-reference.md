@@ -43,7 +43,7 @@ Common patterns:
 straumr create workspace|ws <Name> [-o|--output <DIR>] [-j|--json]
 straumr create request|rq [Name] [Url] [request options] [-j|--json] [-w|--workspace <name-or-id>]
 straumr create auth|au [Name] [auth options] [-j|--json] [-w|--workspace <name-or-id>]
-straumr create variable|vr [Name] [Value] [-w|--workspace <name-or-id>]
+straumr create variable|vr [Name] [Value] [--from-request <request>] [--extract <rule>] [--ttl <seconds>] [-j|--json] [-w|--workspace <name-or-id>]
 straumr create secret|sc [Name] [Value]
 ```
 
@@ -57,6 +57,7 @@ Request options:
 - `-d|--data`
 - `-t|--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`)
 - `-a|--auth`
+- `--capture <variable-name-or-id>=<extraction-rule>` (repeatable; inline creation only)
 - `-e|--editor`
 
 Request names may contain spaces but cannot contain a double quote (`"`). Core enforces this invariant for create, copy,
@@ -94,6 +95,14 @@ Auth options for non-interactive creation (requires `--type`):
 - `--no-auto-renew` — disable auto-renewal
 
 When `--json` is passed, `create` outputs the new object as a JSON DTO instead of a human-readable confirmation.
+
+### `refresh`
+
+```text
+straumr refresh variable|vr <Name or ID> [-j|--json] [-w|--workspace <name-or-id>]
+```
+
+Fetches a new value for a request-backed variable without sending any dependent request. Plain variables cannot be refreshed. JSON output contains `{Id, Name, CachedAt}` and does not include the value. See [values from other requests](using-straumr.md#values-from-other-requests) for source, TTL, and extraction behavior.
 
 ### `delete`
 
@@ -138,6 +147,8 @@ Request inline edit options (presence of any triggers non-interactive mode):
 - `-d|--data`
 - `-t|--type` (body type: `json`, `xml`, `text`, `form`, `multipart`, `raw`, `none`)
 - `-a|--auth` (auth name or ID; use `none` to remove auth)
+- `--capture <variable-name-or-id>=<extraction-rule>` (repeatable; adds or replaces the rule for that variable)
+- `--clear-captures` (removes all rules before adding new ones)
 - `-j|--json` — output the updated request as `{Id, Name, Method, Uri}`; implies `--editor` when no inline flags are
   set; errors emitted as JSON to stderr
 

@@ -1,5 +1,8 @@
 <linker>
-    <assembly fullname="Straumr.Console.Cli"/>
+    <assembly fullname="Straumr.Console.Cli" preserve="all">
+        <type fullname="Straumr.Console.Cli.Commands.Variable.VariableRefreshCommand"/>
+        <type fullname="Straumr.Console.Cli.Commands.Variable.VariableRefreshCommandSettings"/>
+    </assembly>
     <assembly fullname="Spectre.Console.Cli">
         <type fullname="Spectre.Console.Cli.EmptyCommandSettings"/>
         <type fullname="Spectre.Console.Cli.ExplainCommand"/>

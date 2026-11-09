@@ -20,6 +20,7 @@ namespace Straumr.Console.Cli.Infrastructure;
 [JsonSerializable(typeof(SendResult))]
 [JsonSerializable(typeof(CliErrorMessage))]
 [JsonSerializable(typeof(DryRunResult))]
+[JsonSerializable(typeof(VariableRefreshResult))]
 [JsonSerializable(typeof(ConfigWorkspacePathResult))]
 [JsonSerializable(typeof(WorkspaceExportResult))]
 [JsonSerializable(typeof(JsonElement))]

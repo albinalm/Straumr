@@ -44,6 +44,7 @@ public sealed class VariableScreen : ITuiScreen
     private Guid? _editingId;
     private VariableEditor? _editorView;
     private List<VariableScreenItemModel> _items = [];
+    private IReadOnlyList<StraumrRequest> _sourceRequests = [];
     private Guid? _pendingDeleteId;
     private VariableJsonRenameModel? _pendingJsonRename;
     private Func<CancellationToken, Task<TuiCommandResultModel>>? _pendingNotify;
@@ -77,6 +78,8 @@ public sealed class VariableScreen : ITuiScreen
         _copyFlow = new WorkspaceCopyFlow(workspaces, result => NotificationRequested?.Invoke(result));
         _list.AddCommand(WorkspaceCopyFlow.Command("Variable.CopyToWorkspace", ShowCopyToWorkspace,
             () => SelectedItem is { IsBroken: false } && _workspace is not null));
+        _list.AddCommand(ActionCommand("Fetch", () => QueueFetch(string.Empty),
+            () => SelectedItem?.Variable?.Source is not null));
         _list.AddCommand(ActionCommand("Delete", ShowDeleteDialog, () => SelectedItem is not null));
         _list.AddCommand(JsonCommand(false, CommandPresentation.CommandBar));
         _list.AddCommand(JsonCommand(true, CommandPresentation.None));
@@ -115,6 +118,7 @@ public sealed class VariableScreen : ITuiScreen
             }))) { ArgumentValues = VariableNames },
             new TuiCommandModel("json", (argument, _) => Task.FromResult(OnSelected(argument, EditAsJson)))
                 { ArgumentValues = VariableNames },
+            new TuiCommandModel("fetch", (argument, _) => Task.FromResult(QueueFetch(argument))) { ArgumentValues = VariableNames },
             new TuiCommandModel("refresh", RefreshAsync)
         ];
     }
@@ -162,6 +166,7 @@ public sealed class VariableScreen : ITuiScreen
             }
 
             ActiveWorkspaceName = workspace.Name;
+            _sourceRequests = await _requests.ListAsync(_workspace, cancellationToken);
             foreach (Guid id in workspace.Variables)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -306,10 +311,14 @@ public sealed class VariableScreen : ITuiScreen
                 .Spacing(1).HorizontalAlignment(Align.Stretch);
         }
 
+        string value = variable.Source is null ? variable.Value : variable.CachedValue ?? string.Empty;
         return FieldListHelpers.Create(
-            ("Value", variable.Value.Length == 0
-                ? FieldListHelpers.Styled("not set", StraumrStyleService.MutedText)
-                : FieldListHelpers.Wrapped(variable.Value)),
+            ("Value", value.Length == 0
+                ? FieldListHelpers.Styled(variable.Source is null ? "not set" : "not fetched", StraumrStyleService.MutedText)
+                : FieldListHelpers.Wrapped(value)),
+            ("Source request", FieldListHelpers.Text(variable.Source is { } source
+                ? _sourceRequests.FirstOrDefault(request => request.Id == source.RequestId)?.Name ?? source.RequestId.ToString() : "plain value")),
+            ("Cache", FieldListHelpers.Text(variable.CachedAt is { } cachedAt ? TimestampFormatting.Absolute(cachedAt) : "not fetched")),
             ("Modified", FieldListHelpers.Text(TimestampFormatting.Absolute(variable.Modified))),
             ("Last accessed", FieldListHelpers.Text(LastAccessed(variable))),
             ("Storage", FieldListHelpers.Wrapped(PathFormatting.Display(item.Path))));
@@ -353,7 +362,7 @@ public sealed class VariableScreen : ITuiScreen
         _matchCount.Value = _visible.Value.Count;
         _list.SetRows(_visible.Value.Select(item => new ResourceRowModel(item.Name,
             item.Variable is { } variable ? LastAccessed(variable) : "cannot be read",
-            item.Variable is { Value.Length: > 0 }, IsBroken: item.IsBroken)));
+            item.Variable is { CachedValue.Length: > 0 } or { Source: null, Value.Length: > 0 }, IsBroken: item.IsBroken)));
         int index = selected is { } id ? _visible.Value.FindIndex(item => item.Id == id) : -1;
         _selectedIndex.Value = index >= 0 ? index : _visible.Value.Count > 0 ? 0 : -1;
         if (!_loadError.Value && _workspace is not null)
@@ -444,6 +453,30 @@ public sealed class VariableScreen : ITuiScreen
             ? TuiCommandResultModel.Failed("usage: create") : OpenEditorFor(null, false));
     }
 
+    private TuiCommandResultModel QueueFetch(string argument) => OnSelected(argument, item =>
+    {
+        _pendingNotify = token => FetchVariableAsync(item.Id, token);
+        return TuiCommandResultModel.None;
+    });
+
+    private async Task<TuiCommandResultModel> FetchVariableAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (_workspace is not { } workspace)
+        {
+            return TuiCommandResultModel.NoWorkspace;
+        }
+        try
+        {
+            StraumrVariable variable = await _requests.RefreshVariableAsync(workspace, id, cancellationToken);
+            await LoadAsync(cancellationToken);
+            return TuiCommandResultModel.Ok($"refreshed variable {variable.Name}");
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return TuiCommandResultModel.Failed(exception.Message);
+        }
+    }
+
     private async Task<TuiCommandResultModel> RefreshAsync(string argument, CancellationToken cancellationToken)
     {
         if (argument.Length > 0)
@@ -516,7 +549,7 @@ public sealed class VariableScreen : ITuiScreen
             : new StraumrVariable { Name = referenceName ?? string.Empty, Value = string.Empty };
         _editingId = isNew ? null : source!.Id;
         string? sourceName = isNew && source is not null ? source.Name : null;
-        var editor = new VariableEditor(state, ActiveWorkspaceName, _workspace.Id, isNew, _references,
+        var editor = new VariableEditor(state, ActiveWorkspaceName, _workspace.Id, isNew, _references, _sourceRequests,
             () => _pendingSave = token => SaveEditAsync(state, token),
             () =>
             {
@@ -624,6 +657,7 @@ public sealed class VariableScreen : ITuiScreen
 
                 existing.Name = state.Name;
                 existing.Value = state.Value;
+                existing.Source = state.Source;
                 saved = await _variables.SaveAsync(workspace, existing, cancellationToken);
             }
             else

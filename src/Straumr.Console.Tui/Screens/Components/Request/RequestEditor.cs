@@ -1,5 +1,6 @@
 using Straumr.Console.Tui.Screens.Components.Editor;
 using Straumr.Core.Models;
+using Straumr.Core.Enums;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 
@@ -90,7 +91,10 @@ internal sealed class RequestEditor
                 new EditorForm("Request", name, method, uri, auth),
                 new EditorForm("Headers", _headers),
                 new EditorForm("Params", new KeyValueField("Parameters", "parameter", state.Params)),
-                new EditorForm("Body", body.Fields)
+                new EditorForm("Body", body.Fields),
+                new EditorForm("Response captures", new ContentField("Rules", state.CapturesJson,
+                    value => state.CapturesJson = value,
+                    new ContentFormatModel(".json", text => RequestEditingHelpers.BodyEditingDocument(BodyType.Json, text)), editContent))
             ],
             save,
             closed,

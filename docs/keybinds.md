@@ -178,6 +178,7 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | Action | vim | emacs | commander | client |
 | --- | --- | --- | --- | --- |
 | `Variable.New` | `c` | · | `F7` | `Ctrl+N` |
+| `Variable.Fetch` | `s` | `s` | `s` | `s` |
 | `Variable.Edit` | `e` | · | `F4` | · |
 | `Variable.Copy` | `y` | · | `F5` | `Ctrl+D` |
 | `Variable.CopyToWorkspace` | `Ctrl+Y` | · | `Shift+F5` | `Ctrl+Shift+D` |

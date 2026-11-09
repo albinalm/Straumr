@@ -9,7 +9,7 @@ using Straumr.Core.Services.Interfaces;
 
 namespace Straumr.Core.Services;
 
-public class StraumrRequestService(
+public partial class StraumrRequestService(
     IStraumrFileService fileService,
     IHttpClientFactory httpClientFactory,
     IStraumrAuthService authService,
@@ -76,6 +76,7 @@ public class StraumrRequestService(
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateName(request.Name);
+        await ValidateCapturesAsync(workspace, request, cancellationToken);
         string fullPath = RequestPath(request.Id, workspace);
         if (File.Exists(fullPath))
         {
@@ -113,6 +114,7 @@ public class StraumrRequestService(
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateName(request.Name);
+        await ValidateCapturesAsync(workspace, request, cancellationToken);
         string fullPath = RequestPath(request.Id, workspace);
         if (!File.Exists(fullPath))
         {
@@ -167,23 +169,27 @@ public class StraumrRequestService(
         await RemoveRequestAsync(workspace, workspaceModel, id, cancellationToken);
     }
 
-    public async Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(
+    public Task<(string ResolvedUrl, IReadOnlyList<string> Warnings)> ResolveUrlAsync(
         StraumrWorkspaceEntry workspace,
         StraumrRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        List<string> warnings = new();
-        Dictionary<string, string> resolved = new(StringComparer.Ordinal);
-        string resolvedUrl = await ResolveReferencesAsync(
-            workspace, request.Uri, resolved, warnings, cancellationToken);
-        return (resolvedUrl, warnings);
-    }
+        CancellationToken cancellationToken = default) =>
+        InResolutionAsync(false, null, async () =>
+        {
+            List<string> warnings = [];
+            Dictionary<string, string> resolved = new(StringComparer.Ordinal);
+            string resolvedUrl = await ResolveReferencesAsync(workspace, request.Uri, resolved, warnings, cancellationToken);
+            return (resolvedUrl, (IReadOnlyList<string>)warnings);
+        });
 
-    public async Task<StraumrResponse> SendAsync(
+    public Task<StraumrResponse> SendAsync(
         StraumrWorkspaceEntry workspace,
         StraumrRequest request,
         SendOptions? options = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        InResolutionAsync(true, options, () => SendTrackedAsync(workspace, request, true, cancellationToken));
+
+    private async Task<StraumrResponse> SendCoreAsync(
+        StraumrWorkspaceEntry workspace, StraumrRequest request, bool capture, CancellationToken cancellationToken)
     {
         List<string> warnings = new();
         Dictionary<string, string> resolved = new(StringComparer.Ordinal);
@@ -227,7 +233,7 @@ public class StraumrRequestService(
             }
         }
 
-        using HttpClient client = httpClientFactory.CreateClient(StraumrHttpClientConstants.For(options));
+        using HttpClient client = httpClientFactory.CreateClient(StraumrHttpClientConstants.For(_resolution.Value!.Options));
 
         StraumrResponse response = await SendWithMetadataAsync(
             client, resolvedRequest, resolvedAuthConfig, cancellationToken);
@@ -269,13 +275,20 @@ public class StraumrRequestService(
         ];
 
         await Task.WhenAll(accessStamps);
+        if (capture && response.Exception is null && response.StatusCode is >= HttpStatusCode.OK and < HttpStatusCode.MultipleChoices)
+        {
+            await CaptureAsync(workspace, request, response, cancellationToken);
+        }
+        response.Warnings = warnings.Concat(_resolution.Value!.Notices).Distinct(StringComparer.Ordinal).ToList();
         return response;
     }
 
-    public async Task<string> SendAuthAsync(
-        StraumrWorkspaceEntry workspace,
-        StraumrAuth auth,
-        CancellationToken cancellationToken = default)
+    public Task<string> SendAuthAsync(
+        StraumrWorkspaceEntry workspace, StraumrAuth auth, CancellationToken cancellationToken = default) =>
+        InResolutionAsync(true, null, () => SendAuthCoreAsync(workspace, auth, cancellationToken));
+
+    private async Task<string> SendAuthCoreAsync(
+        StraumrWorkspaceEntry workspace, StraumrAuth auth, CancellationToken cancellationToken)
     {
         List<string> warnings = new();
         Dictionary<string, string> resolved = new(StringComparer.Ordinal);
@@ -587,11 +600,17 @@ public class StraumrRequestService(
             return value;
         }
 
+        StraumrVariable? variable = null;
         try
         {
-            value = isSecret
-                ? (await secretService.GetAsync(name, true, cancellationToken)).Value
-                : (await variableService.GetAsync(workspace, name, true, cancellationToken)).Value;
+            if (isSecret)
+            {
+                value = (await secretService.GetAsync(name, _resolution.Value!.AllowFetch, cancellationToken)).Value;
+            }
+            else
+            {
+                variable = await variableService.GetAsync(workspace, name, false, cancellationToken);
+            }
         }
         catch (StraumrException exception) when (exception.Reason == StraumrError.EntryNotFound)
         {
@@ -600,12 +619,20 @@ public class StraumrRequestService(
             {
                 warnings.Add(warning);
             }
-
             return match.Value;
         }
+        if (variable is not null)
+        {
+            value = await ResolveVariableValueAsync(workspace, variable, false, warnings, cancellationToken);
+            if (_resolution.Value!.AllowFetch)
+            {
+                await fileService.StampAccessAsync(variableService.PathFor(workspace, variable.Id),
+                    StraumrJsonContext.Default.StraumrVariable, cancellationToken);
+            }
+        }
 
-        resolved[key] = value;
-        return value;
+        resolved[key] = value!;
+        return value!;
     }
 
     private async Task<Dictionary<string, string>> ResolveReferencesAsync(
