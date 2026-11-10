@@ -3,6 +3,7 @@ using JetBrains.Annotations;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Console.Cli.Infrastructure;
+using Straumr.Console.Cli.Helpers;
 using Straumr.Console.Cli.Models;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
@@ -21,6 +22,7 @@ public class RequestEditCommand(
     IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
+    IStraumrVariableService variableService,
     IStraumrAuthService authService,
     IStraumrFileService fileService,
     IInteractiveConsole interactiveConsole)
@@ -65,7 +67,7 @@ public class RequestEditCommand(
                               settings.Method is not null ||
                               settings.Headers?.Length > 0 || settings.Params?.Length > 0 ||
                               settings.Data is not null || settings.BodyType is not null ||
-                              settings.Auth is not null;
+                              settings.Auth is not null || settings.Captures?.Length > 0 || settings.ClearCaptures;
 
         if (settings.UseEditor || settings.Json && !hasInlineFlags)
         {
@@ -229,6 +231,16 @@ public class RequestEditCommand(
 
         try
         {
+            if (settings.ClearCaptures)
+            {
+                request.Captures.Clear();
+            }
+            List<ResponseCapture> captures = await ExtractionOptionHelpers.ParseCapturesAsync(settings.Captures ?? [], workspaceEntry, variableService, cancellation);
+            foreach (ResponseCapture capture in captures)
+            {
+                request.Captures.RemoveAll(existing => existing.VariableId == capture.VariableId);
+                request.Captures.Add(capture);
+            }
             await requestService.SaveAsync(workspaceEntry, request, cancellation);
             if (settings.Json)
             {

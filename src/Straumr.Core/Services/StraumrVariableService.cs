@@ -65,6 +65,7 @@ public class StraumrVariableService(IStraumrFileService fileService) : IStraumrV
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateName(variable.Name);
+        await ValidateSourceAsync(workspace, variable, cancellationToken);
         string fullPath = VariablePath(variable.Id, workspace);
         if (File.Exists(fullPath))
         {
@@ -103,6 +104,7 @@ public class StraumrVariableService(IStraumrFileService fileService) : IStraumrV
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateName(variable.Name);
+        await ValidateSourceAsync(workspace, variable, cancellationToken);
         string fullPath = VariablePath(variable.Id, workspace);
         if (!File.Exists(fullPath))
         {
@@ -111,6 +113,13 @@ public class StraumrVariableService(IStraumrFileService fileService) : IStraumrV
 
         await EnsureNoNameConflictAsync(
             variable.Name, workspace, variable.Id, cancellationToken: cancellationToken);
+        StraumrVariable previous = await GetAsync(workspace, variable.Id, false, cancellationToken);
+        if (previous.Source != variable.Source || previous.Value != variable.Value)
+        {
+            variable.CachedValue = null;
+            variable.CachedAt = null;
+            variable.CacheKey = null;
+        }
 
         await fileService.WriteStraumrModelAsync(
             fullPath, variable, StraumrJsonContext.Default.StraumrVariable, cancellationToken);
@@ -140,6 +149,24 @@ public class StraumrVariableService(IStraumrFileService fileService) : IStraumrV
     }
 
     public string PathFor(StraumrWorkspaceEntry workspace, Guid id) => VariablePath(id, workspace);
+
+    private async Task ValidateSourceAsync(StraumrWorkspaceEntry workspace, StraumrVariable variable, CancellationToken cancellationToken)
+    {
+        if (variable.Source is not { } source)
+        {
+            return;
+        }
+        ResponseValueExtractor.Validate(source.ExtractionSource, source.Expression);
+        if (source.TimeToLiveSeconds is <= 0)
+        {
+            throw new StraumrException("Variable TTL must be a positive number of seconds", StraumrError.InvalidEntry);
+        }
+        StraumrWorkspace model = await LoadWorkspaceAsync(workspace, cancellationToken);
+        if (!model.Requests.Contains(source.RequestId))
+        {
+            throw new StraumrException("The variable source request must belong to this workspace", StraumrError.InvalidEntry);
+        }
+    }
 
     internal static void ValidateName(string name)
     {

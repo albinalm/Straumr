@@ -9,6 +9,7 @@ internal static class CompletionCatalog
     public const string Create = "create";
     public const string Delete = "delete";
     public const string Edit = "edit";
+    public const string Refresh = "refresh";
     public const string Get = "get";
     public const string Use = "use";
     public const string Copy = "copy";
@@ -35,7 +36,7 @@ internal static class CompletionCatalog
 
     public static readonly string[] TopLevelVerbs =
     [
-        List, Create, Delete, Edit, Get, Use, Copy, Import, Export,
+        List, Create, Delete, Edit, Refresh, Get, Use, Copy, Import, Export,
         Config, Autocomplete, Send, About
     ];
 
@@ -46,6 +47,7 @@ internal static class CompletionCatalog
             [Create] = [Workspace, Request, Auth, Variable, Secret],
             [Delete] = [Workspace, Request, Auth, Variable, Secret],
             [Edit] = [Workspace, Request, Auth, Variable, Secret],
+            [Refresh] = [Variable],
             [Get] = [Workspace, Request, Auth, Variable, Secret],
             [Use] = [Workspace],
             [Copy] = [Workspace, Request, Auth, Variable, Secret],

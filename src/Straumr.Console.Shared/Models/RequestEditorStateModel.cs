@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Straumr.Core.Configuration;
+using Straumr.Core.Exceptions;
 using Straumr.Core.Enums;
 using Straumr.Core.Models;
 
@@ -24,6 +27,7 @@ public sealed class RequestEditorStateModel
     public BodyType BodyType { get; set; }
     public Dictionary<BodyType, string> Bodies { get; }
     public Guid? AuthId { get; set; }
+    public string CapturesJson { get; set; } = "[]";
 
     public static RequestEditorStateModel CreateNew() => new(string.Empty);
 
@@ -34,7 +38,8 @@ public sealed class RequestEditorStateModel
             Uri = request.Uri,
             Method = request.Method.Method,
             BodyType = request.BodyType,
-            AuthId = request.AuthId
+            AuthId = request.AuthId,
+            CapturesJson = JsonSerializer.Serialize(request.Captures, StraumrJsonContext.Default.ListResponseCapture)
         };
 
         foreach (KeyValuePair<string, string> kv in request.Params)
@@ -62,7 +67,8 @@ public sealed class RequestEditorStateModel
             Uri = Uri,
             Method = Method,
             BodyType = BodyType,
-            AuthId = AuthId
+            AuthId = AuthId,
+            CapturesJson = CapturesJson
         };
 
         foreach (KeyValuePair<string, string> kv in Params)
@@ -92,6 +98,7 @@ public sealed class RequestEditorStateModel
                string.Equals(Method, other.Method, StringComparison.Ordinal) &&
                BodyType == other.BodyType &&
                AuthId == other.AuthId &&
+               CapturesJson == other.CapturesJson &&
                string.Equals(Body(this), Body(other), StringComparison.Ordinal) &&
                Same(Params, other.Params) &&
                Same(Headers, other.Headers);
@@ -175,7 +182,8 @@ public sealed class RequestEditorStateModel
             Headers = new Dictionary<string, string>(Headers, StringComparer.OrdinalIgnoreCase),
             BodyType = BodyType,
             Bodies = new Dictionary<BodyType, string>(Bodies),
-            AuthId = AuthId
+            AuthId = AuthId,
+            Captures = ReadCaptures()
         };
 
     public void ApplyTo(StraumrRequest request)
@@ -188,5 +196,18 @@ public sealed class RequestEditorStateModel
         request.BodyType = BodyType;
         request.Bodies = new Dictionary<BodyType, string>(Bodies);
         request.AuthId = AuthId;
+        request.Captures = ReadCaptures();
+    }
+    private List<ResponseCapture> ReadCaptures()
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(CapturesJson, StraumrJsonContext.Default.ListResponseCapture)
+                ?? throw new StraumrException("Response captures must be a JSON array", StraumrError.InvalidEntry);
+        }
+        catch (JsonException exception)
+        {
+            throw new StraumrException("Invalid response capture JSON: " + exception.Message, StraumrError.InvalidEntry, exception);
+        }
     }
 }

@@ -18,7 +18,7 @@ internal sealed class AutocompleteEngine(IServiceProvider services)
     private static readonly HashSet<string> EntityIdentifierVerbs =
         new([
             CompletionCatalog.Get, CompletionCatalog.Delete, CompletionCatalog.Edit,
-            CompletionCatalog.Copy
+            CompletionCatalog.Copy, CompletionCatalog.Refresh
         ], StringComparer.OrdinalIgnoreCase);
 
     public static bool TryCompleteStatic(string query, out IReadOnlyList<string> completions)

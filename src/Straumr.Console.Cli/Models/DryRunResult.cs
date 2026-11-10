@@ -7,4 +7,5 @@ public record DryRunResult(
     Dictionary<string, string> Headers,
     Dictionary<string, string> Params,
     string BodyType,
-    string? Body);
+    string? Body,
+    IReadOnlyList<string> Warnings);

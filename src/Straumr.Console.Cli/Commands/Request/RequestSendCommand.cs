@@ -199,7 +199,8 @@ public class RequestSendCommand(
                 request.Headers,
                 request.Params,
                 request.BodyType.ToString(),
-                bodyContent
+                bodyContent,
+                warnings
             );
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.DryRunResult));
             return 0;
@@ -260,7 +261,8 @@ public class RequestSendCommand(
             response.HttpVersion?.ToString(),
             response.Duration.TotalMilliseconds,
             headers,
-            ParseBodyElement(response.Content, headers)
+            ParseBodyElement(response.Content, headers),
+            response.Warnings
         );
 
         System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.SendResult));

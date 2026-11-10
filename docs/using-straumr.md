@@ -50,7 +50,7 @@ straumr create request create-user https://api.example.com/users \
   --data '{"name":"Ada"}'
 ```
 
-Before you send something for real, `--dry-run` shows you the request with its variables, secrets, and auth resolved, without touching the network. A reference that does not exist is left as written and reported as a warning, so you can see exactly what would have gone out.
+Before you send something for real, `--dry-run` resolves references in the URL without touching the network. Headers, parameters, and the body are shown as stored. Missing references and request-backed values that need fetching remain as placeholders and produce warnings, including in JSON output.
 
 ```sh
 straumr send create-user --dry-run
@@ -107,3 +107,55 @@ straumr autocomplete install --shell zsh
 ```
 
 bash, zsh, and PowerShell are supported. `--alias <name>` adds completion for a shell alias you use for `straumr`.
+
+## Values from other requests
+
+A request-backed variable gets its value by sending another saved request. That source request can use its own auth and variables. The resulting value works in URLs, query parameters, headers, bodies, and auth fields, just like a plain variable.
+
+```sh
+straumr create variable route-session-id --from-request route-v2-session --extract jsonpath:session.sessionId --ttl 900
+straumr edit request route-query --param 'sessionId={{route-session-id}}'
+straumr send route-query
+straumr refresh variable route-session-id
+```
+
+Creating the variable does not send its source request. The first send that needs the value fetches it; later sends reuse the cache. `--ttl` is a positive number of seconds, measured from the successful fetch. Without a TTL, the value lasts until you explicitly refresh it or change its source configuration or inputs. Changes to the source request, its auth configuration, referenced variables, or referenced secrets invalidate the cache. A copy keeps the source configuration and drops the cached value.
+
+References use IDs internally and belong to the same workspace. When copying across workspaces, configure a request-backed variable with a source request in the destination first, then choose that existing variable when carrying request dependencies. Source requests are not automatically copied. Refreshes within a running Straumr process share a workspace lock; separate CLI processes may fetch independently.
+
+In the TUI variable editor, choose **Source request**, the extraction source, an expression, and optionally a TTL. **Fetch** (`s` by default, action `Variable.Fetch`) or `:fetch <name or ID>` forces a refresh. The usual `:refresh` reloads the screen without fetching values. Request and auth sends use the same resolution behavior as the CLI.
+
+Extraction rules are `jsonpath:<path>`, `header:<name>`, and `regex:<pattern>`. JSON paths are dotted property names with numeric array segments, such as `sessions.0.sessionId`. Header names ignore case. Regex uses the first capture group, or the whole match when no group is present, and has a two-second timeout. Values must be non-empty strings, numbers, or booleans; missing values, nulls, arrays, and objects fail without replacing a valid cache. Circular dependencies report the request/variable chain.
+
+Dry-run never sends a source request, refreshes a cache, or performs a capture. It can use an existing valid cached value in the URL; otherwise it keeps the placeholder and explains why. Fetch and capture notices appear with response warnings, including the `Warnings` array in `--json` output, without including extracted values.
+
+A 401 or 403 does not automatically refresh a request-backed variable or replay the dependent request. Refresh explicitly when a session is rejected. Existing attached-auth renewal behavior still applies.
+
+## Capturing response values
+
+Use capture when you deliberately send a request and want to save a value for later requests:
+
+```sh
+straumr create variable moderation-reference pending
+straumr edit request intelligence-v2-moderations-create --capture moderation-reference=jsonpath:reference
+straumr send intelligence-v2-moderations-create
+straumr edit request intelligence-v2-moderations-status --param 'reference={{moderation-reference}}'
+```
+
+`create request <name> <url>` also accepts repeatable `--capture` options. Each rule uses `<variable-name-or-ID>=<extraction-rule>`. The target must already exist as a plain variable in the same workspace. Editing with `--capture` replaces the rule for that target; `--clear-captures` removes all rules before any new ones are added.
+
+Captures run only after a successful explicit send (HTTP 2xx). Sending a request automatically as a variable source does not run its captures. All targets and extraction results are checked before writing values. A write failure attempts to restore earlier writes and reports any restoration failure. Capture failure means the HTTP request already completed: check its effects before sending it again.
+
+The TUI request editor has a **Response captures** tab, edited with your `$EDITOR`. The request JSON editor exposes the same `Captures` array:
+
+```json
+[
+  {
+    "VariableId": "<target-variable-guid>",
+    "ExtractionSource": 0,
+    "Expression": "reference"
+  }
+]
+```
+
+`ExtractionSource` is `0` for JSON path, `1` for response header, and `2` for regex. Request copies keep capture rules; copying with dependencies remaps their target IDs.

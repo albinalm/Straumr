@@ -78,6 +78,7 @@ public static class StraumrKeybinds
             ["Auth.ExtractHelp"] = "h",
             ["Auth.ExtractHelp.Function"] = "F1",
             ["Variable.New"] = "c",
+            ["Variable.Fetch"] = "s",
             ["Variable.Edit"] = "e",
             ["Variable.Copy"] = "y",
             ["Variable.CopyToWorkspace"] = "Ctrl+Y",

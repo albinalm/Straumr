@@ -7,6 +7,13 @@ namespace Straumr.Console.Cli.Commands.Request;
 [UsedImplicitly]
 public sealed class RequestEditCommandSettings : CommandSettings
 {
+    [CommandOption("--capture <RULE>")]
+    [Description("Add or replace a capture for variable-name-or-id=jsonpath:path (or header:name, regex:pattern); repeatable")]
+    public string[]? Captures { get; [UsedImplicitly] set; }
+    [CommandOption("--clear-captures")]
+    [Description("Remove all response captures before adding new --capture rules")]
+    public bool ClearCaptures { get; [UsedImplicitly] set; }
+
     [CommandArgument(0, "<Name or ID>")]
     [Description("Name or ID of the request to edit")]
     public required string Identifier { get; set; }

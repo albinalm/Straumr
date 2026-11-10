@@ -131,3 +131,9 @@ Sent responses are stored next to the request, so they are still there after a `
 | your workspace directory | one folder per workspace, `.straumr` files inside |
 
 All of it is text, and all of it is yours to edit.
+
+## Request-backed variables and captures
+
+In Variables, choose a source request in the variable editor to fetch its value automatically on use. Set its extraction source, expression, and optional TTL. The **Fetch** action (`s` by default) or `:fetch <name or ID>` refreshes that variable immediately. `:refresh` only reloads the screen.
+
+The request editor's **Response captures** tab opens capture rules in `$EDITOR`. Captures write values into existing plain variables after a successful explicit send. Source requests sent automatically while resolving a variable do not run captures. Response details include fetch and capture notices. See [values from other requests](using-straumr.md#values-from-other-requests) for rules and examples.

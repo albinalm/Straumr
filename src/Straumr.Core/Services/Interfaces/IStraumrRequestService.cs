@@ -2,6 +2,7 @@ namespace Straumr.Core.Services.Interfaces;
 
 public interface IStraumrRequestService
 {
+    Task<StraumrVariable> RefreshVariableAsync(StraumrWorkspaceEntry workspace, Guid id, CancellationToken cancellationToken = default);
     string PathFor(StraumrWorkspaceEntry workspace, Guid id);
 
     Task<IReadOnlyList<StraumrRequest>> ListAsync(
