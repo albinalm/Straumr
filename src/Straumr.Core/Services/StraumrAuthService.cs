@@ -3,7 +3,6 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Straumr.Core.Configuration;
 using Straumr.Core.Exceptions;
 using Straumr.Core.Extensions;
@@ -223,13 +222,10 @@ public class StraumrAuthService(
 
         string body = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        string extracted = config.Source switch
-        {
-            ExtractionSource.JsonPath => ExtractFromJson(body, config.ExtractionExpression),
-            ExtractionSource.ResponseHeader => ExtractFromHeader(response, config.ExtractionExpression),
-            ExtractionSource.Regex => ExtractFromRegex(body, config.ExtractionExpression),
-            _ => throw new InvalidOperationException($"Unsupported extraction source: {config.Source}")
-        };
+        Dictionary<string, IEnumerable<string>> headers = response.Headers.Concat(response.Content.Headers)
+            .GroupBy(header => header.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => (IEnumerable<string>)group.SelectMany(header => header.Value).ToArray(), StringComparer.OrdinalIgnoreCase);
+        string extracted = ResponseValueExtractor.Extract(body, headers, config.Source, config.ExtractionExpression, false);
 
         config.CachedValue = extracted;
         return extracted;
@@ -261,65 +257,6 @@ public class StraumrAuthService(
         OAuth2Token token = await RequestTokenAsync(config.TokenUrl, parameters, cancellationToken);
         token.RefreshToken ??= config.Token.RefreshToken;
         return token;
-    }
-
-    private static string ExtractFromJson(string json, string path)
-    {
-        using JsonDocument doc = JsonDocument.Parse(json);
-        JsonElement current = doc.RootElement;
-
-        foreach (string segment in path.Split('.', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (current.ValueKind == JsonValueKind.Array && int.TryParse(segment, out int index))
-            {
-                if (index < 0 || index >= current.GetArrayLength())
-                {
-                    throw new InvalidOperationException($"Array index [{index}] out of range in JSON path: {path}");
-                }
-
-                current = current[index];
-            }
-            else if (current.ValueKind == JsonValueKind.Object && current.TryGetProperty(segment, out JsonElement next))
-            {
-                current = next;
-            }
-            else
-            {
-                throw new InvalidOperationException($"Property '{segment}' not found in JSON path: {path}");
-            }
-        }
-
-        return current.ValueKind == JsonValueKind.String
-            ? current.GetString() ?? string.Empty
-            : current.GetRawText();
-    }
-
-    private static string ExtractFromHeader(HttpResponseMessage response, string headerName)
-    {
-        if (response.Headers.TryGetValues(headerName, out IEnumerable<string>? values))
-        {
-            return values.First();
-        }
-
-        if (response.Content.Headers.TryGetValues(headerName, out IEnumerable<string>? contentValues))
-        {
-            return contentValues.First();
-        }
-
-        throw new InvalidOperationException($"Response header '{headerName}' not found");
-    }
-
-    private static string ExtractFromRegex(string body, string pattern)
-    {
-        Match match = Regex.Match(body, pattern);
-        if (!match.Success)
-        {
-            throw new InvalidOperationException($"Regex pattern did not match: {pattern}");
-        }
-
-        return match.Groups.Count > 1
-            ? match.Groups[1].Value
-            : match.Value;
     }
 
     private async Task<OAuth2Token> FetchClientCredentialsAsync(

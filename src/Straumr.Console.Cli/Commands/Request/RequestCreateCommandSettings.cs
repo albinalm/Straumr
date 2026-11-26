@@ -7,6 +7,9 @@ namespace Straumr.Console.Cli.Commands.Request;
 [UsedImplicitly]
 public sealed class RequestCreateCommandSettings : CommandSettings
 {
+    [CommandOption("--capture <RULE>")]
+    [Description("Capture variable-name-or-id=jsonpath:path (or header:name, regex:pattern); repeatable; requires inline URL")]
+    public string[]? Captures { get; [UsedImplicitly] set; }
     [CommandArgument(0, "[Name]")]
     [Description("Name of the request to create")]
     public string? Name { get; [UsedImplicitly] set; }

@@ -16,7 +16,7 @@ internal sealed class ChoicePickerDialog
     public ChoicePickerDialog(string label, IReadOnlyList<string> labels, int selected, Action<int> choose)
     {
         var list = new ResourceList(labels.Select((text, index) => new ResourceRowModel(text, IsCurrent: index == selected)),
-            activateLabel: "Choose")
+            activateLabel: "Choose", choicePicker: true)
         {
             AutoFocus = true,
             ActivatesOnClick = true,

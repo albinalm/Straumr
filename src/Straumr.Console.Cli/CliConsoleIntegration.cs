@@ -240,6 +240,11 @@ internal sealed class CliConsoleIntegration : IConsoleIntegration
             get.AddCommand<SecretGetCommand>(CompletionCatalog.SecretAlias);
         });
 
+        config.AddStraumrBranch(_registry, CompletionCatalog.Refresh, refresh =>
+        {
+            refresh.AddCommand<VariableRefreshCommand>(CompletionCatalog.Variable);
+            refresh.AddCommand<VariableRefreshCommand>(CompletionCatalog.VariableAlias);
+        });
         config.AddStraumrBranch(_registry, CompletionCatalog.Use, use =>
         {
             use.AddCommand<WorkspaceActivateCommand>(CompletionCatalog.Workspace);

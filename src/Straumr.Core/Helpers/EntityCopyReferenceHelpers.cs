@@ -24,6 +24,10 @@ internal static class EntityCopyReferenceHelpers
         copy.Headers = copy.Headers.ToDictionary(pair => pair.Key, pair => Replace(pair.Value, names, null), copy.Headers.Comparer);
         copy.Params = copy.Params.ToDictionary(pair => pair.Key, pair => Replace(pair.Value, names, null), copy.Params.Comparer);
         copy.Bodies = copy.Bodies.ToDictionary(pair => pair.Key, pair => Replace(pair.Value, names, null));
+        copy.Captures = copy.Captures.Select(capture => capture with
+        {
+            VariableId = plan.Variables.First(variable => variable.Original.Id == capture.VariableId).TargetId
+        }).ToList();
         if (plan.Auth is { } auth)
         {
             copy.AuthId = auth.TargetId;

@@ -38,10 +38,26 @@ public sealed class StraumrEntityCopyService(
         StraumrAuth? referencedAuth = original as StraumrAuth ?? boundAuth;
         List<string> authOnlyMissing = [];
         List<string> requestVariableNames = EntityCopyReferenceHelpers.Names(request, null).ToList();
+        if (request is not null)
+        {
+            foreach (ResponseCapture capture in request.Captures)
+            {
+                try
+                {
+                    StraumrVariable target = await variables.GetAsync(source, capture.VariableId, false, cancellationToken);
+                    requestVariableNames.Add(target.Name);
+                }
+                catch (StraumrException exception) when (exception.Reason is StraumrError.EntryNotFound or StraumrError.CorruptEntry)
+                {
+                    missing.Add($"capture variable {capture.VariableId}");
+                }
+            }
+        }
+
         IReadOnlyList<StraumrAuth> existingAuths = await auths.ListAsync(destination, cancellationToken);
         IReadOnlyList<StraumrVariable> existingVariables = await variables.ListAsync(destination, cancellationToken);
         List<DependencyCopyModel> copiedVariables = [];
-        foreach (string variableName in EntityCopyReferenceHelpers.Names(request, referencedAuth))
+        foreach (string variableName in EntityCopyReferenceHelpers.Names(request, referencedAuth).Concat(requestVariableNames).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
             {

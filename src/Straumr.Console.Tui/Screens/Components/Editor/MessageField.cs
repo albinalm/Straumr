@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Screens.Components.Shared;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 
@@ -8,11 +9,11 @@ internal sealed class MessageField : EditorField
     public MessageField(string label, string message) : base(label)
     {
         GrowsToFill = true;
-        Content = ResourceScreenLayoutHelpers.Message(
+        Content = new ScrollableContent(ResourceScreenLayoutHelpers.Message(
             new TextBlock(message)
                 .Style(StraumrStyleService.MutedText)
                 .Wrap(true)
-                .Trimming(TextTrimming.EndEllipsis));
+                .Trimming(TextTrimming.EndEllipsis)), hints: false);
     }
 
     public override Visual Content { get; }

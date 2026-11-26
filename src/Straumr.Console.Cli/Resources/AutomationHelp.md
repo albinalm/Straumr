@@ -157,8 +157,8 @@ A variable name may not start with `secret:`. In a custom auth's apply-header te
 token and is never treated as a variable.
 
 `--dry-run` does not make a network call and does not fetch tokens. It resolves the URL only: headers, params, and the
-body are printed as stored, with placeholders intact. `--dry-run --json` also drops the warning list, so run a plain
-`send <id> --dry-run` and read stderr-free stdout when you need to confirm that every reference resolves.
+body are printed as stored, with placeholders intact. `--dry-run --json` includes unresolved-reference warnings in its `Warnings` array. Neither mode fetches request-backed
+variables or changes their caches; a missing, expired, or invalidated cached value stays as a placeholder.
 
 ## Auth on send
 
@@ -172,19 +172,20 @@ unattended — use client credentials, password, a custom auth request, or a pre
 ## JSON output and exit codes
 
 `--json` (`-j`) is supported on `list`, `get`, `create`, `copy`, `edit`, `delete`, `send`, `import`, `export`, and
-`config workspace-path`. Output is pretty-printed, PascalCase JSON on stdout — one object or array per invocation, not
-a stream. Timestamps are local time, `yyyy-MM-ddTHH:mm:ss`, with no offset.
+`refresh variable`, and `config workspace-path`. Output is pretty-printed, PascalCase JSON on stdout — one object or array per invocation, not
+a stream. Existing list/get DTO timestamps use local time, `yyyy-MM-ddTHH:mm:ss`, with no offset. Cache timestamps use ISO 8601 with an offset.
 
 ```text
-send            {Status, Reason, Version, DurationMs, Headers, Body}
-send --dry-run  {Method, Uri, Auth, Headers, Params, BodyType, Body}
-get request     {Id, Name, Method, Uri, BodyType, Headers, Params, Body, AuthId, LastAccessed, Modified}
+send            {Status, Reason, Version, DurationMs, Headers, Body, Warnings}
+send --dry-run  {Method, Uri, Auth, Headers, Params, BodyType, Body, Warnings}
+get request     {Id, Name, Method, Uri, BodyType, Headers, Params, Body, AuthId, LastAccessed, Modified, Captures}
 list request    [{Id, Name, Method, Uri, Status, LastAccessed}]
 list workspace  [{Id, Name, Path, IsCurrent, Requests, Status, LastAccessed}]
 list auth       [{Id, Name, Type}]
 list secret     [{Id, Name, Status}]
 list variable   [{Id, Name, Status}]
 create/copy     workspace {Id, Name, Path} · request {Id, Name, Method, Uri} · auth {Id, Name, Type}
+refresh variable {Id, Name, CachedAt}
 export          {Path}
 ```
 
@@ -220,3 +221,40 @@ prints the version and exits, `--agent-help` prints this guide, and both are han
 under `~/.straumr/secrets`. Do not echo them into logs, transcripts, or commit them; reference them as
 `{{secret:name}}` and let Straumr substitute at send time. An exported `.straumrpak` carries requests, auths, and
 variables, never secrets.
+
+## Request-backed variables and response capture
+
+```sh
+straumr create variable session-id --from-request <source-request-id> --extract jsonpath:session.sessionId --ttl 900 -w <workspace-id> --json
+straumr refresh variable <variable-id> -w <workspace-id> --json
+straumr create variable reference pending -w <workspace-id> --json
+straumr edit request <create-request-id> --capture <variable-id>=jsonpath:reference -w <workspace-id> --json
+straumr edit request <create-request-id> --clear-captures -w <workspace-id> --json
+```
+
+`--from-request` and `--extract` must be supplied together, without a literal value. `--ttl` is optional and must be a
+positive number of seconds. Creation does not fetch. Resolution fetches a missing or expired cache using the source
+request's normal auth and variables. Source request/configuration/input changes invalidate the cache, including changes
+to referenced variables and secrets. Cache scope includes the workspace ID and storage path. Copies drop cached values.
+Within a process, concurrent variable fetches are serialized per workspace; separate processes may fetch independently.
+When copying request dependencies across workspaces, create destination request-backed variables against destination
+source requests first, then select those existing variables; source requests are not carried automatically.
+
+Rules are `jsonpath:<dotted-path>` (numeric array segments allowed), `header:<name>` (case-insensitive), or
+`regex:<pattern>` (first capture group, otherwise the entire match; two-second timeout). Request-backed values and captures
+require non-empty scalar results. Null, object, array, empty, or missing results fail without replacing a valid value.
+
+`refresh variable` forces a fetch and does not send any dependent request. Its JSON result excludes the value.
+`get variable <id> --json` returns the persisted model, including `Source`, `CachedValue`, `CachedAt`, and `CacheKey`.
+Treat cached values as sensitive when they contain sessions or tokens. No status code triggers variable renewal or
+replay; attached auth keeps its existing renewal behavior. Cycles fail with their dependency chain.
+
+`--capture <variable-name-or-id>=<rule>` is repeatable on inline request creation and editing. Targets must be existing
+plain variables in the same workspace. Editing replaces an existing rule for that target; `--clear-captures` removes
+all rules before additions. `get request --json` includes `Captures`, with persisted variable IDs.
+
+Capture runs on successful explicit sends (HTTP 2xx), after any existing auth retry. Automatic variable-source sends
+do not capture. All results are extracted before writes. A persistence failure attempts to restore earlier writes.
+A capture error reports that the HTTP request already completed; do not blindly resend a request with side effects.
+Dry-run performs no fetches or captures and uses valid existing caches only in the URL. `Warnings` includes fetch/capture
+notices and resolution warnings without extracted values. `--silent` suppresses human-readable notices.

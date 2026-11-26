@@ -83,6 +83,7 @@ public static class StraumrKeybinds
             ["Auth.ExtractHelp"] = "i",
             ["Auth.ExtractHelp.Function"] = "F1",
             ["Variable.New"] = "c",
+            ["Variable.Fetch"] = "s",
             ["Variable.Edit"] = "e",
             ["Variable.Copy"] = "y",
             ["Variable.CopyToWorkspace"] = "Ctrl+y",
@@ -165,8 +166,18 @@ public static class StraumrKeybinds
                 : throw new InvalidOperationException($"Invalid preset binding: {id}");
         }
 
-        foreach ((string id, string value) in overrides)
+        foreach ((string configuredId, string value) in overrides)
         {
+            string id = configuredId switch
+            {
+                "Straumr.FocusNext" => "Straumr.NextField",
+                "Straumr.FocusPreviousTab" => "Straumr.PreviousField",
+                _ => configuredId
+            };
+            if (id != configuredId && overrides.ContainsKey(id))
+            {
+                continue;
+            }
             if (!bindings.ContainsKey(id))
             {
                 problem ??= $"settings.toml: unknown keybind \"{id}\" (see docs/keybinds.md)";

@@ -8,4 +8,5 @@ public record SendResult(
     string? Version,
     double DurationMs,
     Dictionary<string, string[]> Headers,
-    JsonElement? Body);
+    JsonElement? Body,
+    IReadOnlyList<string> Warnings);

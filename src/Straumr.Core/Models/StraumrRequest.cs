@@ -12,6 +12,7 @@ public class StraumrRequest : StraumrModelBase
     public Dictionary<BodyType, string> Bodies { get; set; } = new();
     public Guid? AuthId { get; set; }
     public string? Group { get; set; }
+    public List<ResponseCapture> Captures { get; set; } = [];
     [JsonPropertyOrder(1)]
     public StraumrStoredResponse? LastResponse { get; set; }
 
@@ -25,6 +26,7 @@ public class StraumrRequest : StraumrModelBase
         BodyType = BodyType,
         Bodies = new Dictionary<BodyType, string>(Bodies),
         AuthId = AuthId,
-        Group = Group
+        Group = Group,
+        Captures = [.. Captures]
     };
 }

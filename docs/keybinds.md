@@ -85,7 +85,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | `Straumr.NextField` | `Tab` | · | · | · |
 | `Straumr.PreviousField` | `Shift+Tab` | · | · | · |
 
-`Straumr.NextField` and `Straumr.PreviousField` move through the fields, buttons, and pick-list options of a popup. On screens and in editors, `Tab` belongs to the tabs; quick start uses them to step between a card's content and its buttons.
+`Straumr.NextField` and `Straumr.PreviousField` move through the fields, buttons, and pick-list options of a popup. Existing overrides for `Straumr.FocusNext` and `Straumr.FocusPreviousTab` also apply here. On screens and in editors, `Tab` switches tabs. In quick start it steps between a card's content and its buttons.
 
 ### Command prompt
 
@@ -186,6 +186,7 @@ The request preview's **Variables & Secrets** pane uses `ResourceList` navigatio
 | Action | vim | emacs | commander | client |
 | --- | --- | --- | --- | --- |
 | `Variable.New` | `c` | · | `F7` | `Ctrl+n` |
+| `Variable.Fetch` | `s` | · | · | · |
 | `Variable.Edit` | `e` | · | `F4` | · |
 | `Variable.Copy` | `y` | · | `F5` | `Ctrl+d` |
 | `Variable.CopyToWorkspace` | `Ctrl+y` | · | `Shift+F5` | `Ctrl+Shift+d` |

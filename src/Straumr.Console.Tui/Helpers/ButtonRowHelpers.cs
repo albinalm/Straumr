@@ -11,14 +11,11 @@ internal static class ButtonRowHelpers
         {
             button.PointerMoved(() =>
             {
-                if (!button.HasFocus && Reachable(buttons).Contains(button))
+                if (!button.HasFocus && button.IsEnabled && button.IsReachable())
                 {
                     button.App?.Focus(button);
                 }
             });
         }
     }
-
-    private static Button[] Reachable(Button[] buttons) =>
-        buttons.Where(button => button.IsVisible && button.IsEnabled && button.IsReachable()).ToArray();
 }

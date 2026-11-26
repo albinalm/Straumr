@@ -116,7 +116,8 @@ public class RequestGetCommand(
                 currentBody,
                 req.AuthId?.ToString(),
                 req.LastAccessed.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                req.Modified.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss")
+                req.Modified.LocalDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                req.Captures
             );
             System.Console.WriteLine(JsonSerializer.Serialize(result, CliJsonContext.Relaxed.RequestGetResult));
             return 0;

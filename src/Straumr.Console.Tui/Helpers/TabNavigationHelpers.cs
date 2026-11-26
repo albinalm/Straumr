@@ -1,3 +1,4 @@
+using Straumr.Console.Tui.Screens.Components.Shared;
 using Straumr.Core.Configuration;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -46,7 +47,7 @@ internal static class TabNavigationHelpers
                 LabelMarkup = string.Empty,
                 Gesture = tab,
                 Presentation = CommandPresentation.None,
-                CanExecute = _ => root.App?.FocusedElement is not PromptEditor || tab != TuiKeybindHelpers.Get("CommandPrompt.Complete"),
+                CanExecute = _ => root.App?.FocusedElement is not CommandPromptInput || tab != TuiKeybindHelpers.Get("CommandPrompt.Complete"),
                 ConsumesGestureWhenUnavailable = false,
                 Execute = _ => { }
             });

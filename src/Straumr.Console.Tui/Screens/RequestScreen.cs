@@ -943,7 +943,7 @@ public sealed class RequestScreen : ITuiScreen
 
         if (!_editor.IsConfigured)
         {
-            view.Report("no default editor is configured; set EDITOR to write a body", true);
+            view.Report("no default editor is configured; set EDITOR to edit request content", true);
             return;
         }
 

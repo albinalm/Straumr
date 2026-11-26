@@ -3,6 +3,7 @@ using JetBrains.Annotations;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Straumr.Console.Cli.Infrastructure;
+using Straumr.Console.Cli.Helpers;
 using Straumr.Console.Cli.Models;
 using Straumr.Core.Configuration;
 using Straumr.Core.Enums;
@@ -21,6 +22,7 @@ public class RequestCreateCommand(
     IStraumrStateService stateService,
     IStraumrWorkspaceService workspaceService,
     IStraumrRequestService requestService,
+    IStraumrVariableService variableService,
     IStraumrAuthService authService,
     IStraumrFileService fileService,
     IInteractiveConsole interactiveConsole)
@@ -72,6 +74,11 @@ public class RequestCreateCommand(
             return await ExecuteInlineAsync(settings, workspaceEntry!);
         }
 
+        if (settings.Captures is { Length: > 0 })
+        {
+            WriteError("--capture requires an inline request URL; use the JSON editor to configure existing requests", settings.Json);
+            return 1;
+        }
         if (!settings.UseEditor)
         {
             return await ExecutePromptMenuAsync(settings, workspaceEntry!, cancellation);
@@ -382,6 +389,7 @@ public class RequestCreateCommand(
 
         try
         {
+            request.Captures = await ExtractionOptionHelpers.ParseCapturesAsync(settings.Captures ?? [], workspaceEntry, variableService);
             await requestService.CreateAsync(workspaceEntry, request);
 
             if (settings.Json)

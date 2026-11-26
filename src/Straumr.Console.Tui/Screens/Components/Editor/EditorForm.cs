@@ -88,7 +88,7 @@ internal sealed class EditorForm
     public bool Applies => Visible?.Invoke() ?? true;
 
     public Visual FocusTarget =>
-        _fields.FirstOrDefault(item => item.IsVisible)?.FocusTarget ?? Root;
+        Reachable.FirstOrDefault()?.FocusTarget ?? Root;
 
     public Visual LastTarget => Reachable.LastOrDefault()?.FocusTarget ?? Root;
 

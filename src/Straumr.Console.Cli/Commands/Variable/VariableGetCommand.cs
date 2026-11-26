@@ -74,7 +74,14 @@ public class VariableGetCommand(
 
         table.AddRow("[grey]ID[/]", Markup.Escape(variable.Id.ToString()));
         table.AddRow("[grey]Name[/]", $"[bold]{Markup.Escape(variable.Name)}[/]");
-        table.AddRow("[grey]Value[/]", Markup.Escape(variable.Value));
+        table.AddRow("[grey]Value[/]", Markup.Escape(variable.Source is null ? variable.Value : variable.CachedValue ?? "not fetched"));
+        if (variable.Source is { } source)
+        {
+            table.AddRow("[grey]Source request[/]", source.RequestId.ToString());
+            table.AddRow("[grey]Extraction[/]", Markup.Escape($"{source.ExtractionSource}: {source.Expression}"));
+            table.AddRow("[grey]TTL[/]", source.TimeToLiveSeconds is { } ttl ? $"{ttl} seconds" : "until refreshed or inputs change");
+            table.AddRow("[grey]Cache[/]", variable.CachedAt is { } timestamp ? timestamp.ToString("O") : "not fetched");
+        }
         table.AddRow("[grey]Placeholder[/]", Markup.Escape($"{{{{{variable.Name}}}}}"));
         table.AddRow("[grey]Last Accessed[/]", variable.LastAccessed.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss"));
         table.AddRow("[grey]Modified[/]", variable.Modified.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss"));
