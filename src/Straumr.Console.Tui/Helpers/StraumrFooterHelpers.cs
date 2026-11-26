@@ -18,7 +18,8 @@ internal static class StraumrFooterHelpers
         Func<string?> notice,
         Func<TextBlockStyle> noticeStyle,
         Visual? prompt = null,
-        Func<bool>? promptOpen = null)
+        Func<bool>? promptOpen = null,
+        string[]? compactHintPriority = null)
     {
         Func<bool> open = promptOpen ?? (() => false);
         Visual noticeText = new TextBlock(() => notice() ?? string.Empty)
@@ -46,6 +47,7 @@ internal static class StraumrFooterHelpers
         HintBar compact = new HintBar
         {
             MaxRows = 1,
+            PreferredCommandIds = compactHintPriority ?? [],
             MoreKey = () => Key(),
             MoreLabel = "more"
         }.Style(StraumrStyleService.CommandBar);

@@ -34,6 +34,7 @@ public sealed partial class HintBar : Visual
     public partial string? HoveredCommandId { get; set; }
 
     public int MaxRows { get; init; } = int.MaxValue;
+    public string[] PreferredCommandIds { get; init; } = [];
 
     public Func<string?>? MoreKey { get; init; }
 
@@ -199,7 +200,7 @@ public sealed partial class HintBar : Visual
             Append(_local, visual, visual.Commands, markupStyles);
             if (visual is IModalVisual { IsModal: true })
             {
-                _local.Sort(ByImportance);
+                _local.Sort(CompareHints);
                 _hints.AddRange(_local);
                 return;
             }
@@ -210,14 +211,23 @@ public sealed partial class HintBar : Visual
             Append(_global, focused ?? app.Root, app.GlobalCommands, markupStyles);
         }
 
-        _local.Sort(ByImportance);
-        _global.Sort(ByImportance);
+        _local.Sort(CompareHints);
+        _global.Sort(CompareHints);
         _hints.AddRange(_local);
         _hints.AddRange(_global);
     }
 
-    private static int ByImportance(HintBarItemModel a, HintBarItemModel b) =>
-        a.Command.Importance.CompareTo(b.Command.Importance);
+    private int CompareHints(HintBarItemModel a, HintBarItemModel b)
+    {
+        int firstIndex = Array.IndexOf(PreferredCommandIds, a.Command.Id);
+        int secondIndex = Array.IndexOf(PreferredCommandIds, b.Command.Id);
+        if (firstIndex == secondIndex)
+        {
+            return a.Command.Importance.CompareTo(b.Command.Importance);
+        }
+
+        return (firstIndex < 0 ? int.MaxValue : firstIndex).CompareTo(secondIndex < 0 ? int.MaxValue : secondIndex);
+    }
 
     private void Append(
         List<HintBarItemModel> destination,

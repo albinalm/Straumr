@@ -16,6 +16,8 @@ namespace Straumr.Console.Tui.Applications;
 public sealed class StraumrTuiApp
 {
     private const string OpenPromptCommandId = "Straumr.OpenCommandPrompt";
+    private const string PreviousPaneCommandId = "Straumr.PreviousPane";
+    private const string NextPaneCommandId = "Straumr.NextPane";
 
     private static readonly TimeSpan MessageLifetime = TimeSpan.FromSeconds(5);
 
@@ -110,7 +112,8 @@ public sealed class StraumrTuiApp
             () => _message.Value.Message,
             () => _message.Value.IsError ? StraumrStyleService.RedText : StraumrStyleService.MutedText,
             _prompt.Root,
-            () => _prompt.IsOpen);
+            () => _prompt.IsOpen,
+            compactHintPriority: [PreviousPaneCommandId, PreviousPaneCommandId + "Alternate", NextPaneCommandId, NextPaneCommandId + "Alternate"]);
 
         Grid shell = new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
@@ -789,7 +792,7 @@ public sealed class StraumrTuiApp
     private void AddPaneCommands(Visual shell)
     {
         foreach ((string id, string label, int step) in ((string, string, int)[])
-                 [("Straumr.NextPane", "Next pane", 1), ("Straumr.PreviousPane", "Previous pane", -1)])
+                 [(NextPaneCommandId, "Next pane", 1), (PreviousPaneCommandId, "Previous pane", -1)])
         {
             foreach (string commandId in (string[])[id, id + "Alternate"])
             {
