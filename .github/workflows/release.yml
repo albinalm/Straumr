@@ -439,7 +439,7 @@ jobs:
       APT_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
     steps:
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev gpg
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev gpg apt-utils
 
       - name: Import GPG key
         env:
