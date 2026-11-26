@@ -100,16 +100,17 @@ public sealed class StraumrTuiApp
 
         _prompt = new CommandPrompt(_commands.Complete, _submitted.Enqueue);
 
-        var commandBar = new HintBar();
-        commandBar.SetStyle(StraumrStyleService.CommandBar);
-
-        ZStack footer = new ZStack(
-                StraumrSurfaceHelpers.Inset(commandBar, StraumrSurfaceHelpers.RowInset)
-                    .IsVisible(() => !_prompt.IsOpen && _message.Value.Message is null),
-                StraumrSurfaceHelpers.Inset(BuildMessageLine(), StraumrSurfaceHelpers.RowInset)
-                    .IsVisible(() => !_prompt.IsOpen && _message.Value.Message is not null),
-                _prompt.Root)
-            .HorizontalAlignment(Align.Stretch);
+        Visual footer = StraumrFooterHelpers.Create(
+            () =>
+            [
+                (_activeWorkspaceName.Value ?? "no workspace",
+                    _activeWorkspaceName.Value is null ? StraumrStyleService.MutedText : StraumrStyleService.GreenText),
+                (StraumrHeaderHelpers.ScreenName(_currentScreen.Value), StraumrStyleService.BrightText)
+            ],
+            () => _message.Value.Message,
+            () => _message.Value.IsError ? StraumrStyleService.RedText : StraumrStyleService.MutedText,
+            _prompt.Root,
+            () => _prompt.IsOpen);
 
         Grid shell = new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
@@ -124,7 +125,7 @@ public sealed class StraumrTuiApp
             .Cell(new ZStack(_screens.Values.Select(screen => screen.Root).ToArray())
                 .HorizontalAlignment(Align.Stretch)
                 .VerticalAlignment(Align.Stretch), 2, 0)
-            .Cell(StraumrSurfaceHelpers.HorizontalDivider(), 3, 0)
+            .Cell(StraumrSurfaceHelpers.FooterDivider(), 3, 0)
             .Cell(footer, 4, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
@@ -385,6 +386,16 @@ public sealed class StraumrTuiApp
             AllowPrefixMatch = false,
             CompleteArgument = CompleteTheme
         });
+        _commands.Add(new TuiCommandModel("layout", LayoutAsync)
+        {
+            AllowPrefixMatch = false,
+            CompleteArgument = (argument, caret) => TuiCommandSetModel.Match(["v1", "v2"], argument[..Math.Clamp(caret, 0, argument.Length)], 0)
+        });
+        _commands.Add(new TuiCommandModel("animations", AnimationsAsync)
+        {
+            AllowPrefixMatch = false,
+            CompleteArgument = (argument, caret) => TuiCommandSetModel.Match(["on", "off"], argument[..Math.Clamp(caret, 0, argument.Length)], 0)
+        });
         _commands.Add(new TuiCommandModel("quickstart", (argument, token) => argument.Length > 0
                 ? Task.FromResult(TuiCommandResultModel.Failed("usage: quickstart"))
                 : BeginQuickStartAsync(token))
@@ -532,6 +543,67 @@ public sealed class StraumrTuiApp
         return _themeSelection.Message is { } notice
             ? TuiCommandResultModel.Failed(notice)
             : TuiCommandResultModel.Ok($"theme {StraumrStyleService.ThemeName}");
+    }
+
+    private async Task<TuiCommandResultModel> LayoutAsync(string argument, CancellationToken cancellationToken)
+    {
+        string text = argument.Trim();
+        string current = StraumrStyleService.IsModern ? "v2" : "v1";
+        if (text.Length == 0)
+        {
+            return TuiCommandResultModel.Ok($"layout {current}");
+        }
+
+        if (!StraumrThemeService.TryParseLayout(text, out StraumrLayoutKind layout))
+        {
+            return TuiCommandResultModel.Failed("usage: layout v1|v2");
+        }
+
+        string chosen = layout == StraumrLayoutKind.V2 ? "v2" : "v1";
+        return await SaveInterfaceAsync(token => _settingsService.SetLayoutAsync(chosen, token), $"layout {chosen}", cancellationToken);
+    }
+
+    private async Task<TuiCommandResultModel> AnimationsAsync(string argument, CancellationToken cancellationToken)
+    {
+        string text = argument.Trim().ToLowerInvariant();
+        if (text.Length == 0)
+        {
+            return TuiCommandResultModel.Ok($"animations {(StraumrStyleService.Motion.Any ? "on" : "off")}");
+        }
+
+        bool? enabled = text switch
+        {
+            "on" or "true" or "yes" => true,
+            "off" or "false" or "no" => false,
+            _ => null
+        };
+        if (enabled is not { } value)
+        {
+            return TuiCommandResultModel.Failed("usage: animations on|off");
+        }
+
+        return await SaveInterfaceAsync(token => _settingsService.SetAnimationsAsync(value, token),
+            $"animations {(value ? "on" : "off")}", cancellationToken);
+    }
+
+    private async Task<TuiCommandResultModel> SaveInterfaceAsync(
+        Func<CancellationToken, Task> save, string done, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await save(cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or TomlException)
+        {
+            return TuiCommandResultModel.Failed($"not saved: {FirstLine(exception.Message)}");
+        }
+
+        if (_themeSelection.Apply())
+        {
+            RestartRequested = true;
+        }
+
+        return _themeSelection.Message is { } notice ? TuiCommandResultModel.Failed(notice) : TuiCommandResultModel.Ok(done);
     }
 
     private TuiCommandResultModel Export(string? name)
@@ -694,6 +766,7 @@ public sealed class StraumrTuiApp
         TuiWindowHelpers.AttachTo(app);
 
         app.Root.SetStyle(Theme.Key, StraumrStyleService.FrameworkTheme);
+        app.Root.SetStyle(SpinnerStyle.Key, StraumrStyleService.LoadingSpinner);
 
         app.RemoveGlobalCommand(TerminalApp.DefaultQuitCommandId);
         foreach (Command command in BuildOpenPromptCommands())
@@ -702,6 +775,7 @@ public sealed class StraumrTuiApp
         }
 
         app.AddGlobalCommand(BuildInterruptCommand());
+        app.AddGlobalCommand(StraumrFooterHelpers.ShortcutsCommand(() => !_quickStart.Active && !_prompt.IsOpen && !IsTyping));
 
         if (_focusOnAttach is not { } focusTarget)
         {
@@ -739,14 +813,6 @@ public sealed class StraumrTuiApp
     {
         _pendingExternalAction ??= action;
     }
-
-    private Visual BuildMessageLine() =>
-        new TextBlock(() => _message.Value.Message ?? string.Empty)
-            .Style(() => _message.Value.IsError
-                ? StraumrStyleService.RedText
-                : StraumrStyleService.MutedText)
-            .Trimming(TextTrimming.EndEllipsis)
-            .HorizontalAlignment(Align.Stretch);
 
     private IEnumerable<Command> BuildOpenPromptCommands()
     {

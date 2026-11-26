@@ -9,6 +9,8 @@ Nothing in it is required. A setting you leave out takes its default.
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `theme` | `"terminal"` | `terminal`, `straumr`, a theme name in `~/.straumr/themes`, or a path to a theme file. |
+| `layout` | the theme's | `v2` for the modern layout, `v1` for the classic one. Overrides the theme. |
+| `animations` | the theme's | `false` stills the spinner, the pulses and the transitions; `true` turns them all on. Overrides the theme. |
 | `keybind-preset` | `"vim"` | `vim`, `emacs`, `commander`, or `client`. |
 | `quick-start-completed` | `false` | Set once you finish the quick start. Clear it, or run `:quickstart`, to see it again. |
 | `paths.workspaces` | none | Where new workspaces are created. Without it, `straumr create workspace` needs `-o <dir>`. |
@@ -76,6 +78,8 @@ name = "Midnight"
 [colors]
 brand = "#65a7ff"
 ```
+
+Themes also choose the layout and what moves. `layout = "v1"` in a theme brings back the classic framed layout; `[animations]` turns animations off together or one at a time; `section` and `[gradient]` colour the v2 chrome. A theme that says nothing about them gets the modern layout, every animation, and chrome colours worked out from its own palette. [terminal-ui.md](terminal-ui.md#two-layouts) describes both layouts.
 
 Colours may be a hex value (`#65a7ff`), an ANSI name (`green`, `bright-blue`), an indexed colour (`indexed:74`), or `default` to inherit the terminal's. The complete list of roles, and the `[methods]` and `[code]` tables that colour HTTP methods and JSON bodies, is in [the theme guide](../themes/README.md), alongside two example themes.
 

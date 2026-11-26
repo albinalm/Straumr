@@ -22,6 +22,8 @@ public sealed partial class HintBar : Visual
 
     private readonly MarkupTextParser _parser = new();
     private readonly Dictionary<KeySequence, string> _sequenceText = [];
+    private int _moreRow;
+    private int _moreX = -1;
 
     public HintBar()
     {
@@ -30,6 +32,12 @@ public sealed partial class HintBar : Visual
 
     [Bindable]
     public partial string? HoveredCommandId { get; set; }
+
+    public int MaxRows { get; init; } = int.MaxValue;
+
+    public Func<string?>? MoreKey { get; init; }
+
+    public string MoreLabel { get; init; } = "more";
 
     protected override SizeHints MeasureCore(in LayoutConstraints constraints)
     {
@@ -67,6 +75,11 @@ public sealed partial class HintBar : Visual
 
         foreach (HintBarItemModel hint in _hints)
         {
+            if (hint.Row < 0)
+            {
+                continue;
+            }
+
             int y = bounds.Y + hint.Row;
             if (y >= bounds.Bottom)
             {
@@ -100,6 +113,20 @@ public sealed partial class HintBar : Visual
 
             cursor = Write(buffer, bounds, cursor, y, " ", labelStyle);
             WriteLabel(buffer, bounds, cursor, y, hint, labelStyle, underline);
+        }
+
+        if (_moreX >= 0 && MoreKey?.Invoke() is { Length: > 0 } more && bounds.Y + _moreRow < bounds.Bottom)
+        {
+            int y = bounds.Y + _moreRow;
+            int cursor = Write(buffer, bounds, bounds.X + _moreX, y, style.Separator, styles.LabelStyle);
+            buffer.SetCell(cursor++, y, style.KeycapOpen, styles.KeyStyle);
+            cursor = Write(buffer, bounds, cursor, y, more, styles.KeyStyle);
+            if (cursor < bounds.Right)
+            {
+                buffer.SetCell(cursor++, y, style.KeycapClose, styles.KeyStyle);
+            }
+
+            Write(buffer, bounds, cursor, y, " " + MoreLabel, styles.DisabledLabelStyle);
         }
     }
 
@@ -138,7 +165,7 @@ public sealed partial class HintBar : Visual
 
         foreach (HintBarItemModel hint in _hints)
         {
-            if (hint.Row != row || column < hint.X || column >= hint.X + hint.Width)
+            if (hint.Row < 0 || hint.Row != row || column < hint.X || column >= hint.X + hint.Width)
             {
                 continue;
             }
@@ -260,19 +287,58 @@ public sealed partial class HintBar : Visual
     private (int Width, int Rows) Layout(CommandBarStyle style, int availableWidth)
     {
         int separatorWidth = TerminalTextUtility.GetWidth((style.Separator ?? string.Empty).AsSpan());
+        _moreX = -1;
+        (int width, int rows, _) = Place(separatorWidth, availableWidth, int.MaxValue, 0);
+        if (rows <= MaxRows)
+        {
+            return (width, rows);
+        }
+
+        string more = MoreKey?.Invoke() ?? string.Empty;
+        int reserve = more.Length == 0 ? 0 : separatorWidth + more.Length + 3 + MoreLabel.Length;
+        (width, rows, int end) = Place(separatorWidth, availableWidth, MaxRows, reserve);
+        if (more.Length > 0)
+        {
+            _moreRow = rows - 1;
+            _moreX = end;
+            width = Math.Max(width, end + reserve);
+        }
+
+        return (width, rows);
+    }
+
+    private (int Width, int Rows, int End) Place(int separatorWidth, int availableWidth, int maxRows, int reserve)
+    {
         int x = 0;
         int row = 0;
         int widest = 0;
         bool hasEntry = false;
+        bool full = false;
 
         foreach (HintBarItemModel hint in _hints)
         {
             int separator = hasEntry ? separatorWidth : 0;
-            if (x > 0 && x + separator + hint.Width > availableWidth)
+            int limit = row == maxRows - 1 ? availableWidth - reserve : availableWidth;
+            if (!full && x > 0 && x + separator + hint.Width > limit)
             {
-                row++;
-                x = 0;
-                separator = 0;
+                if (row + 1 >= maxRows)
+                {
+                    full = true;
+                }
+                else
+                {
+                    row++;
+                    x = 0;
+                    separator = 0;
+                    limit = row == maxRows - 1 ? availableWidth - reserve : availableWidth;
+                }
+            }
+
+            if (full || x + separator + hint.Width > limit && x > 0)
+            {
+                full = true;
+                hint.Row = -1;
+                continue;
             }
 
             hint.SeparatorWidth = separator;
@@ -283,7 +349,7 @@ public sealed partial class HintBar : Visual
             hasEntry = true;
         }
 
-        return (widest, row + 1);
+        return (widest, row + 1, x);
     }
 
     private static int Write(

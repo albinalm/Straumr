@@ -18,11 +18,20 @@ internal sealed class StraumrStyleSetModel
     private readonly TextBlockStyle _put;
 
     private readonly bool _selectionInverts;
+    private readonly bool _rampBlends;
 
-    public StraumrStyleSetModel(StraumrPaletteModel palette)
+    private static readonly string[] FlowerFrames = ["·", "✢", "✳", "✶", "✻", "✽", "✽", "✻", "✶", "✳", "✢", "·"];
+    private static readonly Rune BlankRune = new(' ');
+    private static readonly LineGlyphs BlankGlyphs = new(BlankRune, BlankRune, BlankRune, BlankRune, BlankRune, BlankRune,
+        BlankRune, BlankRune, BlankRune, BlankRune, BlankRune);
+
+    public StraumrStyleSetModel(StraumrPaletteModel palette, StraumrChromeModel chrome)
     {
         Palette = palette;
+        Chrome = chrome;
         _selectionInverts = palette.SelectionInverts;
+        _rampBlends = chrome.Ramp.All(color => color.IsRgbLike);
+        bool modern = chrome.Layout == StraumrLayoutKind.V2;
         FrameworkTheme = palette.Background.Kind == ColorKind.Default
             ? new Theme
             {
@@ -78,6 +87,9 @@ internal sealed class StraumrStyleSetModel
         RedBrightText = PrimaryText with { Foreground = RedBright };
         PurpleText = PrimaryText with { Foreground = Purple };
         BrandText = PrimaryText with { Foreground = Brand };
+        SectionText = PrimaryText with { Foreground = palette.Section, TextStyle = TextStyle.Bold };
+        FocusedSectionText = PrimaryText with { Foreground = Accent, TextStyle = TextStyle.Bold };
+        IdleSectionText = PrimaryText with { Foreground = MutedBright, TextStyle = TextStyle.Bold };
 
         MethodPaletteModel methods = palette.Methods;
         _get = PrimaryText with { Foreground = methods.Get };
@@ -105,7 +117,7 @@ internal sealed class StraumrStyleSetModel
             Foreground = Muted,
             KeyForeground = Accent,
             KeyBackground = Background,
-            Separator = "   ",
+            Separator = modern ? "  " : "   ",
             KeycapOpen = new Rune(' '),
             KeycapClose = new Rune(' ')
         };
@@ -199,7 +211,7 @@ internal sealed class StraumrStyleSetModel
             Placeholder = Muted
         };
 
-        SelectPopup = BorderStyle.Single with
+        SelectPopup = (modern ? BorderStyle.Rounded : BorderStyle.Single) with
         {
             BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
             FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
@@ -214,7 +226,7 @@ internal sealed class StraumrStyleSetModel
             Disabled = Style.None.WithForeground(Muted).WithBackground(Background)
         };
 
-        MenuPopup = GroupStyle.Single with
+        MenuPopup = (modern ? GroupStyle.Rounded : GroupStyle.Single) with
         {
             BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
             FocusedBorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
@@ -258,7 +270,7 @@ internal sealed class StraumrStyleSetModel
             ErrorStyle = Style.None.WithForeground(Red).WithBackground(Background)
         };
 
-        Dialog = DialogStyle.Single with
+        Dialog = (modern ? DialogStyle.Rounded : DialogStyle.Single) with
         {
             SurfaceStyle = Style.None.WithForeground(Text).WithBackground(Background).WithTextStyle(TextStyle.None),
             BorderCellStyle = Style.None.WithForeground(Border).WithBackground(Background),
@@ -266,18 +278,43 @@ internal sealed class StraumrStyleSetModel
             LabelBackgroundStyle = Style.None.WithBackground(Background)
         };
 
+        ScreenDialog = modern ? Dialog with { Glyphs = BlankGlyphs } : Dialog;
+
         WindowGroup = GroupStyle.Single with
         {
+            Glyphs = modern ? BlankGlyphs : GroupStyle.Single.Glyphs,
             BorderCellStyle = Style.None.WithForeground(Border),
             FocusedBorderCellStyle = Style.None.WithForeground(Border),
             LabelBackgroundStyle = Style.None.WithBackground(Background),
             BackgroundStyle = Style.None.WithBackground(Background)
         };
 
-        RequestPulse = new SpinnerStyle("RequestPulse", TimeSpan.FromMilliseconds(80), "●···········", "·●··········", "··●·········", "···●········", "····●·······", "·····●······",
+        RequestPulse = !chrome.Motion.Spinner ? Still("RequestPulse", "●") : new SpinnerStyle("RequestPulse", TimeSpan.FromMilliseconds(80), "●···········", "·●··········", "··●·········", "···●········", "····●·······", "·····●······",
                 "······●·····", "·······●····", "········●···", "·········●··", "··········●·", "···········●", "··········●·", "·········●··", "········●···", "·······●····",
                 "······●·····", "·····●······", "····●·······", "···●········", "··●·········", "·●··········")
             { Foreground = Accent };
+
+        LoadingSpinner = !chrome.Motion.Spinner
+            ? Still("Loading", modern ? "✻" : "●")
+            : modern
+                ? new SpinnerStyle("Flower", TimeSpan.FromMilliseconds(110), FlowerFrames) { Foreground = Accent, TextStyle = TextStyle.Bold }
+                : SpinnerStyle.Default;
+
+        Flower = FlowerFrames;
+
+        PromptFrame = BorderStyle.Rounded with
+        {
+            BorderCellStyle = Style.None.WithForeground(Accent).WithBackground(Background),
+            FocusedBorderCellStyle = Style.None.WithForeground(Accent).WithBackground(Background),
+            BackgroundStyle = Style.None.WithBackground(Background)
+        };
+
+        AccentDivider = RuleStyle.Default with
+        {
+            LineStyle = Style.None.WithForeground(Accent)
+        };
+
+        GaugeTrack = MutedSurface(ScrollTrack);
 
         ListScrollViewer = ScrollViewerStyle.Default with
         {
@@ -319,6 +356,10 @@ internal sealed class StraumrStyleSetModel
     }
     public StraumrPaletteModel Palette { get; }
 
+    public StraumrChromeModel Chrome { get; }
+
+    public bool IsModern => Chrome.Layout == StraumrLayoutKind.V2;
+
     public Theme FrameworkTheme { get; }
 
     public Color Background => Palette.Background;
@@ -354,6 +395,9 @@ internal sealed class StraumrStyleSetModel
     public TextBlockStyle RedBrightText { get; }
     public TextBlockStyle PurpleText { get; }
     public TextBlockStyle BrandText { get; }
+    public TextBlockStyle SectionText { get; }
+    public TextBlockStyle FocusedSectionText { get; }
+    public TextBlockStyle IdleSectionText { get; }
 
     public Style CodeKey { get; }
     public Style CodeString { get; }
@@ -384,8 +428,14 @@ internal sealed class StraumrStyleSetModel
     public SwitchStyle Switch { get; }
     public ValidationStyle Validation { get; }
     public DialogStyle Dialog { get; }
+    public DialogStyle ScreenDialog { get; }
     public GroupStyle WindowGroup { get; }
     public SpinnerStyle RequestPulse { get; }
+    public SpinnerStyle LoadingSpinner { get; }
+    public IReadOnlyList<string> Flower { get; }
+    public BorderStyle PromptFrame { get; }
+    public RuleStyle AccentDivider { get; }
+    public Style GaugeTrack { get; }
     public ScrollViewerStyle ListScrollViewer { get; }
     public RuleStyle Divider { get; }
     public Style DividerCell { get; }
@@ -399,6 +449,34 @@ internal sealed class StraumrStyleSetModel
         : SelectionMarker;
     public Style SelectionMarkerInactive { get; }
     public Style HoveredItem { get; }
+
+    public Color RampColor(double t)
+    {
+        IReadOnlyList<Color> ramp = Chrome.Ramp;
+        double position = double.IsFinite(t) ? Math.Clamp(t, 0, 1) : 0;
+        if (ramp.Count == 1)
+        {
+            return ramp[0];
+        }
+
+        if (!_rampBlends)
+        {
+            return ramp[Math.Min(ramp.Count - 1, (int)(position * ramp.Count))];
+        }
+
+        double scaled = position * (ramp.Count - 1);
+        int index = Math.Min((int)scaled, ramp.Count - 2);
+        return Color.Mix(ramp[index], ramp[index + 1], (float)(scaled - index), ColorMixSpace.Oklab);
+    }
+
+    public Style Tinted(Color color) => Style.None.WithForeground(color).WithTextStyle(MutedDecoration(color));
+
+    public Color Blend(Color from, Color to, double amount) =>
+        from.IsRgbLike && to.IsRgbLike
+            ? Color.Mix(from, to, (float)Math.Clamp(amount, 0, 1), ColorMixSpace.Oklab)
+            : amount < 0.5 ? from : to;
+
+    private SpinnerStyle Still(string name, string frame) => new(name, TimeSpan.FromHours(1), frame) { Foreground = Accent };
 
     public TextBlockStyle MethodText(string method) => method.ToUpperInvariant() switch
     {

@@ -7,4 +7,5 @@ public sealed record ResourceRowModel(
     string? Detail = null,
     bool IsCurrent = false,
     bool IsBroken = false,
-    ResourceTokenModel? LeadingToken = null);
+    ResourceTokenModel? LeadingToken = null,
+    ResourceTokenModel? TrailingToken = null);

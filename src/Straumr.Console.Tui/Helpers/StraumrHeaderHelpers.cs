@@ -12,16 +12,23 @@ internal static class StraumrHeaderHelpers
         State<TuiScreen> currentScreen,
         State<string?> activeWorkspaceName,
         Func<IEnumerable<MenuItem>> screenMenu) =>
-        Create(
-            () => ScreenName(currentScreen.Value),
-            () => activeWorkspaceName.Value,
-            screenMenu);
+        StraumrStyleService.IsModern
+            ? Modern()
+            : Create(
+                () => ScreenName(currentScreen.Value),
+                () => activeWorkspaceName.Value,
+                screenMenu);
 
     public static Visual Create(
         Func<string> screenName,
         Func<string?> activeWorkspaceName,
         Func<IEnumerable<MenuItem>>? screenMenu = null)
     {
+        if (StraumrStyleService.IsModern)
+        {
+            return Modern();
+        }
+
         Visual[] identity =
         [
             .. screenMenu is null ? (Visual[])[] : [MenuButton(screenMenu)],
@@ -40,6 +47,12 @@ internal static class StraumrHeaderHelpers
         return StraumrSurfaceHelpers.Inset(bar, StraumrSurfaceHelpers.RowInset);
     }
 
+    public static string ScreenName(TuiScreen screen) =>
+        screen.ToString().ToLowerInvariant();
+
+    private static Visual Modern() =>
+        StraumrSurfaceHelpers.Inset(new NetworkBand(), StraumrSurfaceHelpers.RowInset);
+
     private static Visual MenuButton(Func<IEnumerable<MenuItem>> screenMenu)
     {
         var button = new ChromeButton(MenuGlyph);
@@ -50,7 +63,4 @@ internal static class StraumrHeaderHelpers
 
         return button;
     }
-
-    private static string ScreenName(TuiScreen screen) =>
-        screen.ToString().ToLowerInvariant();
 }

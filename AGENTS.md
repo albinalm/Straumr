@@ -17,7 +17,7 @@ This section gates everything below it. Satisfy it before writing code.
 
 ## Repository rules
 
-- Target .NET 10. Build the solution with `dotnet build src/Straumr.sln -p:IncludeTui=true`, and verify `-p:IncludeTui=false` still builds when you touch host composition, CLI registration, or trimming roots.
+- Target .NET 11. Build the solution with `dotnet build src/Straumr.sln -p:IncludeTui=true`, and verify `-p:IncludeTui=false` still builds when you touch host composition, CLI registration, or trimming roots.
 - There are no test projects. Verification is a build of both variants plus a manual run; ask for a manual check instead of building a probe harness.
 - The host is Native AOT/single-file. Add persisted models to `StraumrJsonContext`; add CLI JSON DTOs to `CliJsonContext`; preserve command types when changing CLI registration/trimming roots (`Straumr.Console.Cli/CliRoots.xml`).
 - Do not use user storage for verification runs. Settings and state live under the user profile in `.straumr`; use an isolated profile when exercising the app manually.
@@ -46,12 +46,13 @@ This section gates everything below it. Satisfy it before writing code.
 
 ## TUI rules
 
-- Use the pinned `XenoAtom.Terminal.UI` 3.9.0 API, not upstream examples without checking the installed version.
+- Use the pinned `XenoAtom.Terminal.UI` 3.12.0 API, not upstream examples without checking the installed version.
 - Keep I/O out of render, measure, arrange, and per-frame paths. Load when entering a screen; refresh after an operation or explicit refresh.
 - Reuse existing components in `Screens/Components` and state/binding patterns before introducing custom layout, scrolling, focus, or clipping behavior.
 - Route colour and control styles through `StraumrStyleService`/the theme models. Do not add ad-hoc colours or assume colours are RGB; themes may use terminal defaults or palette slots.
 - Text and body editing hands off to the user's `$EDITOR`; that handoff is the product's premise, so do not build an in-TUI text editor for it.
 - Bind keys through `StraumrKeybinds` action ids, never to literal keys. A new action needs a default in `StraumrKeybinds.Defaults` and a row in `docs/keybinds.md`, which `settings.toml` points users to.
+- The theme picks the layout (`v1` classic, `v2` modern) and which animations run. Keep layout differences in the shared builders (`StraumrHeaderHelpers`, `StraumrFooterHelpers`, `StraumrSurfaceHelpers`, `InFlightPulseHelpers`) and `Screens/Components/Chrome`, not branched through screens. An animated visual returns `long.MaxValue` from `NextAnimationTick` when its motion flag is off or it has nothing to move.
 - TUI theme changes rebuild the scoped app tree. Keep TUI registrations independent of CLI registration so the TUI can run on its own.
 
 ## Safe changes

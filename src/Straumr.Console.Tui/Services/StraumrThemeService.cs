@@ -36,7 +36,7 @@ public static class StraumrThemeService
 
     public static IEnumerable<string> BuiltInNames => Sources.Keys;
 
-    private static StraumrPaletteModel TerminalPalette => field ??= ParseRoot();
+    private static StraumrThemeModel TerminalTheme => field ??= ParseRoot();
 
     public static string? BuiltInSource(string name) => Sources.GetValueOrDefault(name.Trim());
 
@@ -78,9 +78,9 @@ public static class StraumrThemeService
 
         if (Sources.TryGetValue(value, out string? builtIn))
         {
-            StraumrPaletteModel? under = value.Equals(BuiltInThemeHelpers.TerminalName, StringComparison.OrdinalIgnoreCase)
+            StraumrThemeModel? under = value.Equals(BuiltInThemeHelpers.TerminalName, StringComparison.OrdinalIgnoreCase)
                 ? null
-                : TerminalPalette;
+                : TerminalTheme;
             if (!TryParse(builtIn, under, out theme, out error))
             {
                 throw new InvalidOperationException($"the built-in theme '{value}' is malformed: {error}");
@@ -108,7 +108,7 @@ public static class StraumrThemeService
             return false;
         }
 
-        if (!TryParse(text, TerminalPalette, out theme, out string? problem))
+        if (!TryParse(text, TerminalTheme, out theme, out string? problem))
         {
             error = $"theme '{value}': {problem}";
             return false;
@@ -145,19 +145,20 @@ public static class StraumrThemeService
             : themePath;
     }
 
-    private static StraumrPaletteModel ParseRoot()
+    private static StraumrThemeModel ParseRoot()
     {
         if (!TryParse(BuiltInThemeHelpers.Terminal, null, out StraumrThemeModel theme, out string? error))
         {
             throw new InvalidOperationException($"the terminal theme is malformed: {error}");
         }
 
-        return theme.Palette;
+        return theme;
     }
 
     private static bool TryParse(
-        string text, StraumrPaletteModel? fallback, out StraumrThemeModel theme, out string? error)
+        string text, StraumrThemeModel? fallbackTheme, out StraumrThemeModel theme, out string? error)
     {
+        StraumrPaletteModel? fallback = fallbackTheme?.Palette;
         theme = null!;
         error = null;
         ThemeDocumentModel document;
@@ -221,6 +222,11 @@ public static class StraumrThemeService
         }
 
         if (!TryOptional(colors, "brand", fallback?.Brand ?? resolved["accent"], out Color brand, out error))
+        {
+            return false;
+        }
+
+        if (!TryOptional(colors, "section", resolved["amber"], out Color section, out error))
         {
             return false;
         }
@@ -294,6 +300,7 @@ public static class StraumrThemeService
         var palette = new StraumrPaletteModel
         {
             Brand = brand,
+            Section = section,
             Methods = new MethodPaletteModel(
                 methodColors[0], methodColors[1], methodColors[2],
                 methodColors[3], methodColors[4], methodColors[5]),
@@ -321,10 +328,105 @@ public static class StraumrThemeService
             Purple = resolved["purple"]
         };
 
+        if (!TryChrome(document, palette, fallbackTheme?.Chrome, out StraumrChromeModel chrome, out error))
+        {
+            return false;
+        }
+
         theme = new StraumrThemeModel(
             string.IsNullOrWhiteSpace(document.Name) ? "unnamed" : document.Name.Trim(),
             palette,
+            chrome,
             Collisions(palette));
+        return true;
+    }
+
+    public static bool TryParseLayout(string? text, out StraumrLayoutKind layout)
+    {
+        layout = StraumrLayoutKind.V2;
+        switch (text?.Trim().ToLowerInvariant())
+        {
+            case "v1" or "1" or "classic":
+                layout = StraumrLayoutKind.V1;
+                return true;
+            case "v2" or "2" or "modern":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryChrome(
+        ThemeDocumentModel document,
+        StraumrPaletteModel palette,
+        StraumrChromeModel? fallback,
+        out StraumrChromeModel chrome,
+        out string? error)
+    {
+        chrome = null!;
+        error = null;
+        StraumrLayoutKind layout = fallback?.Layout ?? StraumrLayoutKind.V2;
+        if (document.Layout is { } written && !TryParseLayout(written, out layout))
+        {
+            error = $"layout is \"{written.Trim()}\"; use v1 or v2";
+            return false;
+        }
+
+        StraumrMotionModel inherited = fallback?.Motion ?? StraumrMotionModel.All;
+        ThemeAnimationsModel? animations = document.Animations;
+        StraumrMotionModel motion = animations?.Enabled is false
+            ? StraumrMotionModel.Still
+            : new StraumrMotionModel(
+                animations?.Spinner ?? (animations?.Enabled is true || inherited.Spinner),
+                animations?.Pulse ?? (animations?.Enabled is true || inherited.Pulse),
+                animations?.Transitions ?? (animations?.Enabled is true || inherited.Transitions));
+
+        if (!TryColors(document.Gradient?.Stops, "gradient stop", [palette.Green, palette.Accent, palette.Purple],
+                out Color[] ramp, out error))
+        {
+            return false;
+        }
+
+        chrome = new StraumrChromeModel
+        {
+            Layout = layout,
+            Motion = motion,
+            Ramp = ramp
+        };
+        return true;
+    }
+
+    private static bool TryColors(
+        IReadOnlyList<string>? written,
+        string what,
+        Color[] derived,
+        out Color[] colors,
+        out string? error)
+    {
+        error = null;
+        if (written is null)
+        {
+            colors = derived;
+            return true;
+        }
+
+        if (written.Count == 0)
+        {
+            colors = [];
+            error = $"{what}s are empty; name at least one colour or leave the line out";
+            return false;
+        }
+
+        colors = new Color[written.Count];
+        for (int index = 0; index < written.Count; index++)
+        {
+            if (!ThemeColorHelpers.TryParse(written[index], out colors[index], out string? problem))
+            {
+                error = $"{what} {index + 1} {problem}";
+                return false;
+            }
+        }
+
         return true;
     }
 

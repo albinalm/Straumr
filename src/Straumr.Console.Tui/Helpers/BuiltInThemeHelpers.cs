@@ -26,6 +26,11 @@ internal static class BuiltInThemeHelpers
         # and badges use the terminal's own foreground, dimmed or brightened.
         name = "Terminal"
 
+        # The interface layout. `v2` is the modern one: a header with a tagline and live network
+        # stats, uppercase section titles, and a slim status line with the keys behind `?`. `v1` is the
+        # classic framed layout with every key listed along the bottom. Every theme inherits this.
+        layout = "v2"
+
         [colors]
         # The terminal's own ground and text. `default` paints no colour at all, which is what
         # keeps a transparent terminal transparent rather than covering it with a dark rectangle.
@@ -83,6 +88,10 @@ internal static class BuiltInThemeHelpers
         # given something up. One word, and one line to change.
         brand              = "cyan"
 
+        # The tagline in the v2 header and the waves around it. The one decoration this
+        # theme allows itself, and still a palette slot, so it is the reader's own yellow.
+        section            = "yellow"
+
         # The method is the first thing a reader looks for in a list of requests, so telling the
         # methods apart is worth more than the restraint the rest of this file shows. The mapping is
         # the conventional one, in palette slots so every colour is the reader's own.
@@ -105,6 +114,18 @@ internal static class BuiltInThemeHelpers
         boolean            = "magenta"
         null               = "default"
         punctuation        = "default"
+
+        # What moves. `enabled = false` stills everything; otherwise each can be turned off alone.
+        #   spinner       the busy indicator while a request or a token is in flight
+        #   pulse         the dot on a fresh message
+        #   transitions   a new tagline typing itself out, and gauges growing into place
+        [animations]
+        enabled            = true
+
+        # The gauges on the Network page fill along these stops. Palette slots cannot be blended, so
+        # here the bar steps from one to the next; hex stops blend smoothly.
+        [gradient]
+        stops              = ["green", "cyan", "blue", "magenta"]
         """;
 
     public const string Straumr =
@@ -153,6 +174,9 @@ internal static class BuiltInThemeHelpers
         # which is what an unwritten role falls back to.
         brand              = "#3B9EFF"
 
+        # The tagline of the v2 header: warm gold against the blue.
+        section            = "#FFC857"
+
         [methods]
         get                = "#3DDC97"
         post               = "#3B9EFF"
@@ -171,5 +195,10 @@ internal static class BuiltInThemeHelpers
         boolean            = "#B79CFF"
         null               = "#8FA0C4"
         punctuation        = "#8FA0C4"
+
+        # The v2 gauges and sparklines. Hex stops blend smoothly, so they run from the valley green
+        # through the accent blue into violet.
+        [gradient]
+        stops              = ["#3DDC97", "#3BC6E0", "#3B9EFF", "#B79CFF"]
         """;
 }

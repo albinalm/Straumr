@@ -1,0 +1,58 @@
+# A misty dusk palette: lavender sky, sage valley and a gold sun. Made for a terminal with a
+# blurred or image background — the ground is `default`, so whatever is behind the terminal shows
+# through, and only bands and text carry colour.
+#
+# The gauges and the header sparklines run from the valley floor up into the sky.
+name = "Valley"
+layout = "v2"
+
+[colors]
+background         = "default"
+
+raised             = "#2A2F3A"
+selection          = "#3A3F5C"
+selection-inactive = "#2E3240"
+hover              = "#262A34"
+border             = "#444B5A"
+
+scroll-track       = "#343A46"
+scroll-thumb       = "#5C6378"
+
+text               = "#D6D3E6"
+text-bright        = "#F4EEF8"
+muted              = "#9A9FB5"
+muted-bright       = "#B2B2DD"
+
+accent             = "#8FA8F0"
+amber              = "#F2A957"
+green              = "#9AAE8A"
+red                = "#F27A8C"
+red-bright         = "#FFB3BE"
+purple             = "#D9B6D6"
+brand              = "#B2B2DD"
+
+# The sun: the header tagline.
+section            = "#D9C08E"
+
+[methods]
+get                = "#86D9A0"
+post               = "#8FA8F0"
+put                = "#D9C08E"
+patch              = "#D9B6D6"
+delete             = "#F27A8C"
+other              = "#B2B2DD"
+
+[code]
+key                = "#8FA8F0"
+string             = "#9AAE8A"
+number             = "#D9C08E"
+boolean            = "#E08A9A"
+null               = "#9590C2"
+punctuation        = "#6B7088"
+
+[animations]
+enabled            = true
+
+# Valley floor to sky.
+[gradient]
+stops              = ["#3F5F55", "#5E7F64", "#8FA584", "#86ABAA", "#9EA6DA", "#B9B4E6", "#D9B6D6", "#F0E6F2"]

@@ -403,7 +403,7 @@ public sealed class AuthScreen : ITuiScreen
 
         Visual badge = new TextBlock($" {item.Id.ToString()[..8]} ").Style(StraumrStyleService.TokenChip);
         return StraumrSurfaceHelpers.Bar(summary, new ComputedVisual(() => _sending.Value
-            ? InFlightPulseHelpers.Create("SENDING", _sendClock)
+            ? InFlightPulseHelpers.Create("SENDING", _sendClock, FlowerSpinner.FetchVerbs)
             : badge));
     }
 

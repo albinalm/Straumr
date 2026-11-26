@@ -1,6 +1,6 @@
 # Development
 
-Requires the .NET 10 SDK. There are no test projects — verification is a build of both variants plus a manual run.
+Requires the .NET 11 SDK. There are no test projects — verification is a build of both variants plus a manual run.
 
 ```sh
 dotnet build src/Straumr.sln -p:IncludeTui=true

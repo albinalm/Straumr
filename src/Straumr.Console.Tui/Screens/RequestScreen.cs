@@ -10,6 +10,7 @@ using Straumr.Core.Services.Interfaces;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
+using XenoAtom.Terminal.UI.Styling;
 using ResourceList = Straumr.Console.Tui.Screens.Components.Shared.ResourceList;
 using ScrollableContent = Straumr.Console.Tui.Screens.Components.Shared.ScrollableContent;
 
@@ -45,6 +46,8 @@ public sealed class RequestScreen : ITuiScreen
     private readonly PreviewPane _responsePreview;
     private readonly HeadersView _sentHeaders;
     private readonly State<string> _responseSummary = new("Not sent");
+    private readonly State<TextBlockStyle?> _responseStatus = new(null);
+    private readonly NetworkView? _network;
     private readonly Dictionary<(Guid Workspace, Guid Request), StraumrResponse> _responses = [];
     private readonly IStraumrSecretService _secrets;
     private readonly ReferencesView _referencesView;
@@ -91,10 +94,11 @@ public sealed class RequestScreen : ITuiScreen
         _requestPreview = new PreviewPane(PreviewPanePageModel.Text("Body"),
             PreviewPanePageModel.Custom("Headers", _requestHeaders.Root, () => _requestHeaders.FocusTarget),
             PreviewPanePageModel.Text("Params"));
+        _network = StraumrStyleService.IsModern ? new NetworkView("No saved response.") : null;
         _responsePreview = new PreviewPane(PreviewPanePageModel.Text("Body"),
             PreviewPanePageModel.Custom("Headers", _responseHeaders.Root, () => _responseHeaders.FocusTarget),
             PreviewPanePageModel.Custom("Sent headers", _sentHeaders.Root, () => _sentHeaders.FocusTarget),
-            PreviewPanePageModel.Text("Network"));
+            _network is { } network ? PreviewPanePageModel.Custom("Network", network.Root, () => network.Root) : PreviewPanePageModel.Text("Network"));
         _requestBody = new BodyPreviewService(_requestPreview, Notify,
             () => BodyOptions with { Format = ResponseBodyFormat.Beautify });
         _responseBody = new BodyPreviewService(_responsePreview, Notify, () => BodyOptions,
@@ -138,10 +142,13 @@ public sealed class RequestScreen : ITuiScreen
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
         _referencesView = new ReferencesView(reference => ReferenceRequested?.Invoke(reference));
         Visual responsePane = ResourceScreenLayoutHelpers.Pane(_responsePreview.Root);
-        Rule responseRule = StraumrSurfaceHelpers.TitledDivider("Response", responsePane);
-        responseRule.EndLabel = new TextBlock(() => _responseSummary.Value)
+        JunctionRule responseRule = StraumrSurfaceHelpers.TitledDivider("Response", responsePane);
+        Visual responseSummary = new TextBlock(() => _responseSummary.Value)
             .Style(() => _responseFailed.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
+        responseRule.EndLabel = StraumrStyleService.IsModern
+            ? new HStack(ChromeStatus.DotFor(() => _responseStatus.Value), responseSummary).Spacing(1)
+            : responseSummary;
         Visual authPane = ResourceScreenLayoutHelpers.Pane(_authView);
         Visual referencesPane = ResourceScreenLayoutHelpers.Pane(_referencesView.Root);
         Visual authColumn = new Grid()
@@ -361,10 +368,12 @@ public sealed class RequestScreen : ITuiScreen
             _requestPreview.SetPageText(ParamsPage, "Unavailable.");
             _responseBody.SetBody(null);
             _responseSummary.Value = "Unavailable";
+            _responseStatus.Value = null;
             _responsePreview.SetPageText(BodyPage, "Repair the request before sending it.");
             _responseHeaders.SetMessage("Unavailable.");
             _sentHeaders.SetMessage("Unavailable.");
             _responsePreview.SetPageText(NetworkPage, "Unavailable.");
+            _network?.SetMessage("Unavailable.");
             return;
         }
         SetRequestPreview(request);
@@ -465,11 +474,13 @@ public sealed class RequestScreen : ITuiScreen
         {
             _responseBody.SetBody(null);
             _responseSummary.Value = "Not sent";
+            _responseStatus.Value = null;
             _responsePreview.SetPageText(BodyPage,
                 $"No saved response. Press {TuiKeybindHelpers.Hint("Request.Send")} to send the request.");
             _responseHeaders.SetMessage("No saved response.");
             _sentHeaders.SetMessage("No saved response.");
             _responsePreview.SetPageText(NetworkPage, "No saved response.");
+            _network?.SetMessage("No saved response.");
             return;
         }
         _responseFailed.Value = response.Exception is not null || (int?)response.StatusCode >= 400;
@@ -493,6 +504,8 @@ public sealed class RequestScreen : ITuiScreen
         }
 
         _responsePreview.SetPageText(NetworkPage, details);
+        _responseStatus.Value = ChromeStatus.Style(response);
+        _network?.SetResponse(response);
         _responseHeaders.SetHeaders(HeaderFormatting.Rows(response.ResponseHeaders));
         _sentHeaders.SetHeaders(HeaderFormatting.Sent(response.RequestHeaders, configured), HeaderFormatting.NotRecorded);
         _responseBody.SetBody(response.Content, HeaderFormatting.ContentType(response.ResponseHeaders));
@@ -518,7 +531,10 @@ public sealed class RequestScreen : ITuiScreen
         _matchCount.Value = _visible.Value.Count;
         _list.SetRows(_visible.Value.Select(item => new ResourceRowModel(SecretFormatting.Display(item.Name), IsBroken: item.IsBroken,
             LeadingToken: item.Request is { } request ? new ResourceTokenModel(request.Method.Method,
-                HttpMethodFormatting.Style(request.Method), request.Method == HttpMethod.Delete ? StraumrStyleService.RedBrightText : null) : null)));
+                HttpMethodFormatting.Style(request.Method), request.Method == HttpMethod.Delete ? StraumrStyleService.RedBrightText : null) : null,
+            TrailingToken: StraumrStyleService.IsModern && _workspace is { } workspace && _responses.TryGetValue((workspace.Id, item.Id), out StraumrResponse? response)
+                ? ChromeStatus.Token(response)
+                : null)));
         int index = selected is { } id ? _visible.Value.FindIndex(item => item.Id == id) : -1;
         _selectedIndex.Value = index >= 0 ? index : _visible.Value.Count > 0 ? 0 : -1;
         if (!_loadError.Value && _workspace is not null)
@@ -761,6 +777,10 @@ public sealed class RequestScreen : ITuiScreen
             StraumrResponse response = await _requests.SendAsync(workspace, request, cancellationToken: linked.Token);
             _responses[(workspace.Id, id)] = response;
             _responseView?.Complete(response);
+            if (StraumrStyleService.IsModern)
+            {
+                ApplyFilter(_filter.Text);
+            }
             _displayedId = null;
             await StoreResponseAsync(workspace, id, response, cancellationToken);
         }

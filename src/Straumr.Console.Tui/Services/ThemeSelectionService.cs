@@ -4,17 +4,12 @@ namespace Straumr.Console.Tui.Services;
 
 public sealed class ThemeSelectionService(IStraumrSettingsService settings)
 {
+    private StraumrChromeModel? _appliedChrome;
     private StraumrPaletteModel? _applied;
 
     public string? Message { get; private set; }
 
-    internal bool Preview(StraumrThemeModel theme)
-    {
-        bool changed = _applied != theme.Palette;
-        _applied = theme.Palette;
-        StraumrStyleService.Apply(theme);
-        return changed;
-    }
+    internal bool Preview(StraumrThemeModel theme) => Use(WithOverrides(theme, out _));
 
     public bool Apply()
     {
@@ -34,9 +29,41 @@ public sealed class ThemeSelectionService(IStraumrSettingsService settings)
             Message = $"{theme.Name}: {theme.Warnings[0]}";
         }
 
-        bool changed = theme.Palette != _applied;
+        StraumrThemeModel effective = WithOverrides(theme, out string? problem);
+        Message ??= problem;
+        return Use(effective);
+    }
+
+    private bool Use(StraumrThemeModel theme)
+    {
+        bool changed = theme.Palette != _applied || theme.Chrome != _appliedChrome;
         _applied = theme.Palette;
+        _appliedChrome = theme.Chrome;
         StraumrStyleService.Apply(theme);
         return changed;
+    }
+
+    private StraumrThemeModel WithOverrides(StraumrThemeModel theme, out string? problem)
+    {
+        problem = null;
+        StraumrChromeModel chrome = theme.Chrome;
+        if (settings.Settings.Layout is { } written)
+        {
+            if (StraumrThemeService.TryParseLayout(written, out StraumrLayoutKind layout))
+            {
+                chrome = chrome with { Layout = layout };
+            }
+            else
+            {
+                problem = $"settings.toml: layout is \"{written.Trim()}\"; use v1 or v2";
+            }
+        }
+
+        if (settings.Settings.Animations is { } animations)
+        {
+            chrome = chrome with { Motion = animations ? StraumrMotionModel.All : StraumrMotionModel.Still };
+        }
+
+        return ReferenceEquals(chrome, theme.Chrome) ? theme : theme with { Chrome = chrome };
     }
 }

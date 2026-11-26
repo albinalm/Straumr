@@ -44,6 +44,8 @@ public sealed record StraumrPaletteModel
 
     public required Color Brand { get; init; }
 
+    public required Color Section { get; init; }
+
     public required MethodPaletteModel Methods { get; init; }
 
     public required CodePaletteModel Code { get; init; }

@@ -21,10 +21,11 @@ internal static class StraumrDialogHelpers
             Left = 0,
             Top = 0
         };
-        dialog.SetStyle(StraumrStyleService.Dialog);
+        dialog.SetStyle(StraumrStyleService.ScreenDialog);
         dialog.Width(() => TerminalViewportHelpers.Columns(dialog));
         dialog.Height(() => TerminalViewportHelpers.Rows(dialog));
         dialog.BlockFieldTraversal();
+        dialog.AddCommand(StraumrFooterHelpers.ShortcutsCommand(() => !dialog.IsTyping()));
         return dialog;
     }
 

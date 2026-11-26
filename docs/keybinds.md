@@ -74,6 +74,7 @@ Terminals differ in what they can deliver. `Ctrl+Shift+<letter>`, and some `Alt`
 | --- | --- | --- | --- | --- |
 | `Straumr.OpenCommandPrompt` | `:` | `Alt+x` | `F9` | `Ctrl+p` |
 | `Straumr.Interrupt` | `Ctrl+c` | · | · | · |
+| `Straumr.Shortcuts` | `?` | · | · | · |
 | `Straumr.NextTab` | `Tab` | · | · | · |
 | `Straumr.NextTabAlternate` | `Ctrl+PageDown` | · | · | · |
 | `Straumr.PreviousTab` | `Shift+Tab` | · | · | · |
