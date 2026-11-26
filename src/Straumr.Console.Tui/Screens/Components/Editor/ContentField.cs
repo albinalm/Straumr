@@ -29,9 +29,9 @@ internal sealed class ContentField : EditorField
         _text = new State<string>(initial);
         GrowsToFill = true;
 
-        _view = new ScrollableContent(new ComputedVisual(Build));
-        _view.AddCommand(EditCommand("ContentField.Edit", CommandPresentation.CommandBar));
-        _view.AddCommand(EditCommand("ContentField.Activate", CommandPresentation.None));
+        _view = new ScrollableContent(new ComputedVisual(Build)) { Clicked = Edit };
+        _view.AddCommand(EditCommand("ContentField.Activate", CommandPresentation.CommandBar));
+        _view.AddCommand(EditCommand("ContentField.Edit", TuiKeybindHelpers.SecondaryPresentation("ContentField.Activate")));
         _view.AddCommand(EditCommand("ContentField.ActivateAlternate", CommandPresentation.None));
         _view.AddCommand(EditCommand("ContentField.Edit.Control",
             CommandPresentation.None));
@@ -100,7 +100,7 @@ internal sealed class ContentField : EditorField
     {
         if (_text.Value.Length == 0)
         {
-            return new TextBlock($"No content. Press {TuiKeybindHelpers.Hint("ContentField.Edit")} to set.")
+            return new TextBlock($"No content. Press {TuiKeybindHelpers.Hint("ContentField.Activate")} to set.")
                 .Style(StraumrStyleService.MutedText)
                 .Wrap(true)
                 .Trimming(TextTrimming.EndEllipsis)

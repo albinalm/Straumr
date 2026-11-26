@@ -1,11 +1,16 @@
+using Straumr.Console.Tui.Screens.Components.Shared;
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
+using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Controls;
+using ResourceList = Straumr.Console.Tui.Screens.Components.Shared.ResourceList;
+using ScrollableContent = Straumr.Console.Tui.Screens.Components.Shared.ScrollableContent;
 
 namespace Straumr.Console.Tui.Screens.Components.Editor;
 
 internal sealed class EditorForm
 {
-    private const int LabelGap = 2;
+    private const int LabelGap = 3;
 
     private readonly EditorField[] _fields;
 
@@ -65,6 +70,10 @@ internal sealed class EditorForm
                 .VerticalAlignment(Align.Stretch);
         }
 
+        Root.AddCommand(MoveCommand("ResourceList.Next", "Next", 1, CommandPresentation.CommandBar));
+        Root.AddCommand(MoveCommand("ResourceList.Previous", "Prev", -1, CommandPresentation.CommandBar));
+        Root.AddCommand(MoveCommand("ResourceList.Down", "Next", 1, CommandPresentation.None));
+        Root.AddCommand(MoveCommand("ResourceList.Up", "Prev", -1, CommandPresentation.None));
         Sync();
     }
 
@@ -74,10 +83,17 @@ internal sealed class EditorForm
 
     public Func<bool>? Visible { get; init; }
 
+    public Action<int>? Leave { get; init; }
+
     public bool Applies => Visible?.Invoke() ?? true;
 
     public Visual FocusTarget =>
-        _fields.FirstOrDefault(item => item.IsVisible)?.FocusTarget ?? Root;
+        Reachable.FirstOrDefault()?.FocusTarget ?? Root;
+
+    public Visual LastTarget => Reachable.LastOrDefault()?.FocusTarget ?? Root;
+
+    private EditorField[] Reachable =>
+        _wrappers.Select(pair => pair.Field).Where(item => item.IsVisible && item.FocusTarget.Focusable).ToArray();
 
     public void Sync()
     {
@@ -102,7 +118,17 @@ internal sealed class EditorForm
             .VerticalAlignment(Align.Stretch);
 
     private static TextBlock Label(EditorField field) =>
-        StraumrSurfaceHelpers.FocusTitle(field.Label, field.FocusTarget.Owns);
+        StraumrSurfaceHelpers.FocusTitle(field.Label, field.FocusTarget.Owns)
+            .PointerPressed((_, e) =>
+            {
+                if (e.Button != TerminalMouseButton.Left || !field.FocusTarget.Focusable)
+                {
+                    return;
+                }
+
+                field.FocusTarget.App?.Focus(field.FocusTarget);
+                e.Handled = true;
+            });
 
     public event Action? Changed;
 
@@ -139,6 +165,43 @@ internal sealed class EditorForm
         {
             field.Commit();
         }
+    }
+
+    private Command MoveCommand(string id, string label, int step, CommandPresentation presentation) => new()
+    {
+        Id = id,
+        LabelMarkup = label,
+        Gesture = TuiKeybindHelpers.Get(id),
+        Importance = CommandImportance.Primary,
+        Presentation = presentation,
+        CanExecute = _ => Move(step) is not null,
+        ConsumesGestureWhenUnavailable = false,
+        Execute = _ => Move(step)?.Invoke()
+    };
+
+    private Action? Move(int step)
+    {
+        bool atEdge = Root.App?.FocusedElement switch
+        {
+            ResourceList list => step > 0 ? list.SelectedIndex >= list.Count - 1 : list.SelectedIndex <= 0,
+            ScrollableContent content => step > 0 ? content.AtBottom : content.AtTop,
+            _ => true
+        };
+        EditorField[] fields = Reachable;
+        int index = Array.FindIndex(fields, field => field.FocusTarget.Owns());
+        if (!atEdge || index < 0)
+        {
+            return null;
+        }
+
+        int next = index + step;
+        if ((uint)next < (uint)fields.Length)
+        {
+            Visual focus = fields[next].FocusTarget;
+            return () => focus.App?.Focus(focus);
+        }
+
+        return Leave is { } leave ? () => leave(step) : null;
     }
 
     private static Visual Row(EditorField field, int labelWidth) =>

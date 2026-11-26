@@ -138,7 +138,7 @@ public sealed class RequestScreen : ITuiScreen
         _authView = new ScrollableContent(new ComputedVisual(BuildAuthentication));
         _referencesView = new ReferencesView(reference => ReferenceRequested?.Invoke(reference));
         Visual responsePane = ResourceScreenLayoutHelpers.Pane(_responsePreview.Root);
-        Rule responseRule = StraumrSurfaceHelpers.TitledDivider("Response", responsePane.Owns);
+        Rule responseRule = StraumrSurfaceHelpers.TitledDivider("Response", responsePane);
         responseRule.EndLabel = new TextBlock(() => _responseSummary.Value)
             .Style(() => _responseFailed.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
@@ -151,7 +151,7 @@ public sealed class RequestScreen : ITuiScreen
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() })
             .Cell(authPane, 0, 0)
-            .Cell(StraumrSurfaceHelpers.TitledDivider("Variables & Secrets", referencesPane.Owns), 1, 0)
+            .Cell(StraumrSurfaceHelpers.TitledDivider("Variables & Secrets", referencesPane), 1, 0)
             .Cell(referencesPane, 2, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);

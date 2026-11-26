@@ -1,6 +1,6 @@
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
-using XenoAtom.Terminal.UI.Input;
 
 namespace Straumr.Console.Tui.Helpers;
 
@@ -34,41 +34,63 @@ internal static class FocusScopeHelpers
         return true;
     }
 
-    public static bool CanTraverseWith(this Visual visual, KeyGesture? gesture)
+    public static void FocusStep(this Visual scope, int step)
     {
-        for (Visual? node = visual; node is not null; node = node.Parent)
+        if (scope.App is not { FocusedElement: { } focused } app)
         {
-            if (node.Commands.Any(command => command.RouteGesture && command.Gesture == gesture && command.IsVisibleFor(visual) && command.CanExecuteFor(visual)))
-            {
-                return false;
-            }
+            return;
         }
+
+        List<Visual> stops = Stops(scope).ToList();
+        if (stops.Count == 0)
+        {
+            return;
+        }
+
+        int index = stops.IndexOf(focused);
+        app.Focus(index < 0
+            ? stops[step > 0 ? 0 : stops.Count - 1]
+            : stops[(index + step + stops.Count) % stops.Count]);
+    }
+
+    public static void FocusPane(this TerminalApp app, Visual scope, int step)
+    {
+        List<Visual> panes = Stops(scope).Where(visual => visual is not (TextEditorBase or PromptEditor)).ToList();
+        if (panes.Count == 0)
+        {
+            return;
+        }
+
+        int index = panes.FindIndex(pane => pane.Owns());
+        app.Focus(panes[index < 0 ? 0 : (index + step + panes.Count) % panes.Count]);
+    }
+
+    public static T FocusesOnClick<T>(this T pane) where T : Visual =>
+        pane.PointerPressed((_, e) =>
+        {
+            if (e.Button == TerminalMouseButton.Left && !pane.Owns() && pane.FocusInto())
+            {
+                e.Handled = true;
+            }
+        });
+
+    public static bool FocusInto(this Visual pane)
+    {
+        if (pane.Owns())
+        {
+            return true;
+        }
+
+        if (pane.App is not { } app || Stops(pane).FirstOrDefault() is not { } target)
+        {
+            return false;
+        }
+
+        app.Focus(target);
         return true;
     }
 
-    public static void FocusStep(this TerminalApp app, int step)
-    {
-        if (app.FocusedElement is not { } focused)
-        {
-            return;
-        }
-
-        Visual scope = focused;
-        while (scope is not IModalVisual { IsModal: true } && scope.Parent is { } parent)
-        {
-            scope = parent;
-        }
-
-        List<Visual> stops = scope.EnumerateVisualsDepthFirst()
-            .Where(visual => visual.Focusable && visual.IsVisible && visual.IsEnabled && visual.IsTabStop && visual.IsReachable())
-            .ToList();
-
-        int index = stops.IndexOf(focused);
-        if (index < 0)
-        {
-            return;
-        }
-
-        app.Focus(stops[(index + step + stops.Count) % stops.Count]);
-    }
+    private static IEnumerable<Visual> Stops(Visual scope) =>
+        scope.EnumerateVisualsDepthFirst()
+            .Where(visual => visual.Focusable && visual.IsVisible && visual.IsEnabled && visual.IsTabStop && visual.IsReachable());
 }

@@ -118,9 +118,22 @@ public readonly record struct StraumrKeyGesture(char? Character, string? Key, Co
         _ => key.Key.ToString()
     }, key.Modifiers);
 
-    public override string ToString() =>
-        ((Modifiers & ConsoleModifiers.Control) != 0 ? "Ctrl+" : "") +
-        ((Modifiers & ConsoleModifiers.Alt) != 0 ? "Alt+" : "") +
-        ((Modifiers & ConsoleModifiers.Shift) != 0 ? "Shift+" : "") +
-        (Character is ' ' ? "Space" : Character?.ToString() ?? Key);
+    public override string ToString() => Format(Character, Key, Modifiers);
+
+    public static string Format(char? character, string? key, ConsoleModifiers modifiers)
+    {
+        bool chord = (modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) != 0;
+        bool letter = character is { } pressed && char.IsAsciiLetter(pressed);
+        bool shift = (modifiers & ConsoleModifiers.Shift) != 0 && (chord || !letter);
+        return ((modifiers & ConsoleModifiers.Control) != 0 ? "Ctrl+" : "") +
+               ((modifiers & ConsoleModifiers.Alt) != 0 ? "Alt+" : "") +
+               (shift ? "Shift+" : "") +
+               (character switch
+               {
+                   ' ' => "Space",
+                   { } value when chord && letter => char.ToLowerInvariant(value).ToString(),
+                   { } value => value.ToString(),
+                   null => key
+               });
+    }
 }

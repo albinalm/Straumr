@@ -17,7 +17,7 @@ internal sealed class VariableEditor
 
     public VariableEditor(StraumrVariable state, string? workspaceName, Guid? workspaceId, bool isNew,
         State<KnownReferenceService> references, IReadOnlyList<StraumrRequest> requests, Action save, Action closed, string? sourceName = null,
-        bool focusValue = false, char? openingEcho = null)
+        bool focusValue = false)
     {
         _state = state;
         _openedName = new State<string>(state.Name);
@@ -32,11 +32,10 @@ internal sealed class VariableEditor
                     _ when VariableHelpers.IsSecretName(value) =>
                         $"A name cannot start with {VariableHelpers.SecretPrefix}; that prefix resolves a secret.",
                     _ => null
-                })
-            { PendingEcho = TuiKeybindHelpers.OpeningEcho };
+                });
 
         var valueField = new TextField("Value", state.Value, text => state.Value = text)
-            { PendingEcho = focusValue ? openingEcho : null, Visible = () => state.Source is null };
+            { Visible = () => state.Source is null };
         Guid? requestId = state.Source?.RequestId;
         ExtractionSource extractionSource = state.Source?.ExtractionSource ?? ExtractionSource.JsonPath;
         string expression = state.Source?.Expression ?? string.Empty;

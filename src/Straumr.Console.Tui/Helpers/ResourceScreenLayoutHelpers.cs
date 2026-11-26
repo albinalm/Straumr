@@ -88,7 +88,7 @@ internal static class ResourceScreenLayoutHelpers
         };
 
     public static Visual Pane(Visual content) =>
-        new FlexiblePane(StraumrSurfaceHelpers.Inset(content, PaneInset));
+        new FlexiblePane(StraumrSurfaceHelpers.Inset(content, PaneInset)).FocusesOnClick();
 
     public static Visual Scrollable(Visual content)
     {
@@ -121,9 +121,9 @@ internal static class ResourceScreenLayoutHelpers
                 splits.Sections,
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() })
-            .Cell(StraumrSurfaceHelpers.TitledDivider(leftTitle, leftFocused ?? leftPane.Owns), 0, 0)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(leftTitle, leftPane, leftFocused), 0, 0)
             .Cell(StraumrSurfaceHelpers.VerticalDivider((0, new Rune('┬'))), 0, 1)
-            .Cell(StraumrSurfaceHelpers.TitledDivider(rightTitle, rightPane.Owns), 0, 2)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(rightTitle, rightPane), 0, 2)
             .Cell(leftPane, 1, 0)
             .Cell(StraumrSurfaceHelpers.VerticalDivider(), 1, 1)
             .Cell(rightPane, 1, 2)
@@ -146,15 +146,15 @@ internal static class ResourceScreenLayoutHelpers
                 splits.Stack.FirstRow(),
                 new RowDefinition { Height = GridLength.Auto },
                 splits.Stack.SecondRow())
-            .Cell(StraumrSurfaceHelpers.TitledDivider(leftTop.Title, leftTop.Pane.Owns), 0, 0)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(leftTop.Title, leftTop.Pane), 0, 0)
             .Cell(StraumrSurfaceHelpers.VerticalDivider((0, new Rune('┬'))), 0, 1)
-            .Cell(StraumrSurfaceHelpers.TitledDivider(rightTop.Title, rightTop.Pane.Owns), 0, 2)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(rightTop.Title, rightTop.Pane), 0, 2)
             .Cell(leftTop.Pane, 1, 0)
             .Cell(StraumrSurfaceHelpers.VerticalDivider(), 1, 1)
             .Cell(rightTop.Pane, 1, 2)
-            .Cell(StraumrSurfaceHelpers.TitledDivider(leftBottom.Title, leftBottom.Pane.Owns), 2, 0)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(leftBottom.Title, leftBottom.Pane), 2, 0)
             .Cell(StraumrSurfaceHelpers.VerticalDivider((0, new Rune('┼'))), 2, 1)
-            .Cell(StraumrSurfaceHelpers.TitledDivider(rightBottom.Title, rightBottom.Pane.Owns), 2, 2)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(rightBottom.Title, rightBottom.Pane), 2, 2)
             .Cell(leftBottom.Pane, 3, 0)
             .Cell(StraumrSurfaceHelpers.VerticalDivider(), 3, 1)
             .Cell(rightBottom.Pane, 3, 2)
@@ -203,7 +203,7 @@ internal static class ResourceScreenLayoutHelpers
 
         return panel
             .Cell(StraumrSurfaceHelpers.Inset(bar, PaneInset), 0, 0)
-            .Cell(StraumrSurfaceHelpers.TitledDivider(listTitle, panel.Owns), 1, 0)
+            .Cell(StraumrSurfaceHelpers.TitledDivider(listTitle, panel), 1, 0)
             .Cell(
                 StraumrSurfaceHelpers.Inset(
                     new ComputedVisual(() => listContent())

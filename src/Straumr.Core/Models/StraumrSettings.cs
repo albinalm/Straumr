@@ -67,11 +67,11 @@ public sealed class StraumrSettings
         #
         #   highlight = false
         #
-        # `h` on a body pane turns it on and off by hand whatever this says.
+        # `c` on a body pane turns it on and off by hand whatever this says.
 
         # The size, in KiB, past which a body arrives uncoloured. Colouring walks every line that
         # is drawn, which a body of several megabytes is felt through; past this it is off until
-        # `h` asks for it. Default: 256.
+        # `c` asks for it. Default: 256.
         #
         #   highlight-limit = 1024
 
@@ -88,7 +88,7 @@ public sealed class StraumrSettings
         # Quote action names (the dots are part of the name). Every action, and every preset, is listed at
         # https://github.com/albinalm/Straumr/blob/main/docs/keybinds.md
         #
-        #   "Request.Send" = "Ctrl+R"
+        #   "Request.Send" = "Ctrl+r"
         #   "Editor.Save" = "F2"
         #   "ResourceList.Next" = "Down"
         # Use "none" to disable a binding, or remove the entry to restore its default.

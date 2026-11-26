@@ -517,7 +517,7 @@ public sealed class VariableScreen : ITuiScreen
         }
     }
 
-    internal TuiCommandResultModel OpenReference(string name, char? openingEcho)
+    internal TuiCommandResultModel OpenReference(string name)
     {
         if (_workspace is null)
         {
@@ -532,11 +532,11 @@ public sealed class VariableScreen : ITuiScreen
             return TuiCommandResultModel.Failed("the variable editor is already open");
         }
         VariableScreenItemModel? source = _items.Find(item => !item.IsBroken && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        OpenEditor(source, false, name, true, openingEcho);
+        OpenEditor(source, false, name, true);
         return TuiCommandResultModel.None;
     }
     private void OpenEditor(VariableScreenItemModel? source, bool copy = false, string? referenceName = null,
-        bool focusValue = false, char? openingEcho = null)
+        bool focusValue = false)
     {
         if (_editorView is not null || _workspace is null)
         {
@@ -558,7 +558,7 @@ public sealed class VariableScreen : ITuiScreen
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
-            sourceName, focusValue, openingEcho);
+            sourceName, focusValue);
         _editorView = editor;
         editor.Show();
         TransientScreenOpened?.Invoke();

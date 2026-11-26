@@ -1,4 +1,5 @@
 using System.Text;
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Commands;
 using XenoAtom.Terminal.UI.Geometry;
@@ -46,9 +47,15 @@ public sealed partial class ScrollableContent : Visual, IScrollable
 
     public Func<KeyEventArgs, bool>? KeyHandler { get; set; }
 
+    public Action? Clicked { get; set; }
+
     protected override int ChildrenCount => 1;
 
     public ScrollModel Scroll { get; }
+
+    public bool AtTop => ScrollOffset <= 0;
+
+    public bool AtBottom => ScrollOffset >= Math.Max(0, _content.DesiredSize.Height - Bounds.Height);
 
     protected override Visual GetChild(int index) =>
         index == 0 ? _content : throw new ArgumentOutOfRangeException(nameof(index));
@@ -156,6 +163,18 @@ public sealed partial class ScrollableContent : Visual, IScrollable
         }
 
         ScrollTo(target.Value);
+        e.Handled = true;
+    }
+
+    protected override void OnPointerPressed(PointerEventArgs e)
+    {
+        if (e.Button != TerminalMouseButton.Left)
+        {
+            return;
+        }
+
+        App?.Focus(this);
+        Clicked?.Invoke();
         e.Handled = true;
     }
 

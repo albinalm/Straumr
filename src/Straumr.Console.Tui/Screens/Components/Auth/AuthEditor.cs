@@ -62,7 +62,6 @@ internal sealed class AuthEditor
                 _ when value.Contains('"') => "A name cannot contain a double quote.",
                 _ => null
             });
-        name.PendingEcho = TuiKeybindHelpers.OpeningEcho;
 
         ChoiceField<AuthType> type = new("Type",
             AuthEditingHelpers.AuthTypes.Select(AuthEditingHelpers.AuthTypeDisplayName).ToList(),

@@ -1,11 +1,12 @@
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Controls;
 
 namespace Straumr.Console.Tui.Screens.Components.Editor;
 
 internal sealed class ChoiceField<T> : EditorField
 {
-    private readonly Select<string> _select;
+    private readonly FieldValue _display;
+    private readonly IReadOnlyList<string> _labels;
+    private readonly State<int> _selected;
     private readonly Action<T> _set;
     private readonly IReadOnlyList<T> _values;
 
@@ -17,27 +18,29 @@ internal sealed class ChoiceField<T> : EditorField
         Action<T> set)
         : base(label)
     {
+        _labels = labels;
         _values = values;
         _set = set;
-        int index = Math.Max(0, values.ToList().FindIndex(value => EqualityComparer<T>.Default.Equals(value, initial)));
-        _select = new Select<string>(labels, index)
-        {
-            HorizontalAlignment = Align.Stretch
-        };
-        _select.SetStyle(StraumrStyleService.Select);
-        _select.WithMovementKeys();
-        _select.IsTabStop(_select.IsReachable);
-        _select.SelectionChanged(() =>
-        {
-            _set(Value);
-            Changed?.Invoke();
-        });
-        Content = _select;
+        _selected = new State<int>(Math.Max(0, values.ToList().FindIndex(value => EqualityComparer<T>.Default.Equals(value, initial))));
+        _display = new FieldValue(() => _labels[_selected.Value], () => false, _ => Choose());
+        Content = _display;
     }
 
     public override Visual Content { get; }
 
-    public override Visual FocusTarget => _select;
+    public override Visual FocusTarget => _display;
 
-    public T Value => _values[Math.Clamp(_select.SelectedIndex, 0, _values.Count - 1)];
+    public T Value => _values[Math.Clamp(_selected.Value, 0, _values.Count - 1)];
+
+    private void Choose() => new ChoicePickerDialog(Label, _labels, _selected.Value, index =>
+    {
+        if (index == _selected.Value)
+        {
+            return;
+        }
+
+        _selected.Value = index;
+        _set(Value);
+        Changed?.Invoke();
+    }).Show();
 }

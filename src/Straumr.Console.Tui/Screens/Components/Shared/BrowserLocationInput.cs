@@ -30,6 +30,15 @@ internal sealed class BrowserLocationInput : TextBox
 
         AddCommand(new Command
         {
+            Id = "BrowserDialog.Location.Complete",
+            LabelMarkup = "Complete path",
+            Gesture = TuiKeybindHelpers.Get("BrowserDialog.Location.Complete"),
+            Importance = CommandImportance.Primary,
+            Presentation = CommandPresentation.CommandBar,
+            Execute = _ => Complete()
+        });
+        AddCommand(new Command
+        {
             Id = "BrowserDialog.Location.Go",
             LabelMarkup = "Go",
             Gesture = TuiKeybindHelpers.Get("BrowserDialog.Location.Go"),
@@ -70,18 +79,6 @@ internal sealed class BrowserLocationInput : TextBox
         Text = path;
         CaretIndex = path.Length;
         ResetCompletion();
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (TuiKeybindHelpers.Matches("BrowserDialog.Location.Complete", e))
-        {
-            Complete();
-            e.Handled = true;
-            return;
-        }
-
-        base.OnKeyDown(e);
     }
 
     protected override void OnTextInput(TextInputEventArgs e)

@@ -27,10 +27,7 @@ internal sealed class DependencyConflictDialog
         {
             detail += $" {remaining} variable conflicts remain.";
         }
-        foreach (Button answer in answers)
-        {
-            answer.KeyDown((_, e) => ConfirmDialog.MoveToAnotherAnswer(e, answers, answer));
-        }
+        ButtonRowHelpers.Hover(answers);
         VStack content = new VStack(
                 new TextBlock($"The destination already has a {kind} named {name}.").Style(StraumrStyleService.BrightText).Wrap(true),
                 new TextBlock(detail)

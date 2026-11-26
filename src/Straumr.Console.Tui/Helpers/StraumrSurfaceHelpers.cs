@@ -1,5 +1,6 @@
 using System.Text;
 using Straumr.Console.Tui.Screens.Components.Shared;
+using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
 using XenoAtom.Terminal.UI.Controls;
 using XenoAtom.Terminal.UI.Geometry;
@@ -48,6 +49,15 @@ internal static class StraumrSurfaceHelpers
         rule.StartLabel = FocusTitle(title, isFocused);
         return rule;
     }
+
+    public static Rule TitledDivider(string title, Visual pane, Func<bool>? isFocused = null) =>
+        TitledDivider(title, isFocused ?? pane.Owns).PointerPressed((_, e) =>
+        {
+            if (e.Button == TerminalMouseButton.Left && pane.FocusInto())
+            {
+                e.Handled = true;
+            }
+        });
 
     public static TextBlock FocusTitle(string title, Func<bool>? isFocused) =>
         new TextBlock(() => FocusLabel(title, isFocused))

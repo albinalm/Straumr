@@ -32,7 +32,7 @@ format = "beautify"
 highlight-limit = 1024
 ```
 
-Neither response limit changes what is shown by hand: `h` still turns highlighting on for a large body, and `b` still beautifies it. A response over `store-limit` is still recorded — its status, headers, and timings stay with the request, and only the body is dropped.
+Neither response limit changes what is shown by hand: `c` still turns highlighting on for a large body, and `b` still beautifies it. A response over `store-limit` is still recorded — its status, headers, and timings stay with the request, and only the body is dropped.
 
 `format` applies to a response as it arrives. A request's own body preview is always laid out, since it is a preview of something you wrote rather than something that came back.
 
@@ -44,7 +44,7 @@ If something in the file cannot be understood, Straumr says so on the next load 
 keybind-preset = "vim"
 
 [keybinds]
-"Request.Send" = "Ctrl+R"
+"Request.Send" = "Ctrl+r"
 "Editor.Save" = "F2"
 ```
 

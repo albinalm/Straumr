@@ -28,6 +28,10 @@ public sealed partial class ResourceList : Visual, IScrollable
     private static readonly Rune CurrentDot = new('●');
     private static readonly Rune Blank = new(' ');
     private readonly Visual? _emptyContent;
+    private readonly string _next;
+    private readonly string _previous;
+    private readonly string _first;
+    private readonly string _last;
     private int _itemHeight;
     private int _itemSpacing;
     private int _itemStride;
@@ -43,8 +47,14 @@ public sealed partial class ResourceList : Visual, IScrollable
     public ResourceList(
         IEnumerable<ResourceRowModel> rows,
         Visual? emptyContent = null,
-        string activateLabel = "Use")
+        string activateLabel = "Use",
+        bool choicePicker = false)
     {
+        string navigation = choicePicker ? "Select" : "ResourceList";
+        _next = navigation + ".Next";
+        _previous = navigation + ".Previous";
+        _first = navigation + ".First";
+        _last = navigation + ".Last";
         _emptyContent = emptyContent;
         Scroll = new ScrollModel(this);
         HoveredIndex = -1;
@@ -62,9 +72,9 @@ public sealed partial class ResourceList : Visual, IScrollable
         // Commands advertise keys only; local handling distinguishes lowercase g from uppercase G.
         AddCommand(new Command
         {
-            Id = "ResourceList.Next",
+            Id = _next,
             LabelMarkup = "Next",
-            Gesture = TuiKeybindHelpers.Get("ResourceList.Next"),
+            Gesture = TuiKeybindHelpers.Get(_next),
             Importance = CommandImportance.Primary,
             Presentation = CommandPresentation.CommandBar,
             RouteGesture = false,
@@ -72,9 +82,9 @@ public sealed partial class ResourceList : Visual, IScrollable
         });
         AddCommand(new Command
         {
-            Id = "ResourceList.Previous",
+            Id = _previous,
             LabelMarkup = "Prev",
-            Gesture = TuiKeybindHelpers.Get("ResourceList.Previous"),
+            Gesture = TuiKeybindHelpers.Get(_previous),
             Importance = CommandImportance.Primary,
             Presentation = CommandPresentation.CommandBar,
             RouteGesture = false,
@@ -103,9 +113,9 @@ public sealed partial class ResourceList : Visual, IScrollable
         });
         AddCommand(new Command
         {
-            Id = "ResourceList.First",
+            Id = _first,
             LabelMarkup = "First",
-            Gesture = TuiKeybindHelpers.Get("ResourceList.First"),
+            Gesture = TuiKeybindHelpers.Get(_first),
             Importance = CommandImportance.Secondary,
             Presentation = CommandPresentation.CommandBar,
             RouteGesture = false,
@@ -113,9 +123,9 @@ public sealed partial class ResourceList : Visual, IScrollable
         });
         AddCommand(new Command
         {
-            Id = "ResourceList.Last",
+            Id = _last,
             LabelMarkup = "Last",
-            Gesture = TuiKeybindHelpers.Get("ResourceList.Last"),
+            Gesture = TuiKeybindHelpers.Get(_last),
             Importance = CommandImportance.Secondary,
             Presentation = CommandPresentation.CommandBar,
             RouteGesture = false,
@@ -141,6 +151,10 @@ public sealed partial class ResourceList : Visual, IScrollable
             : _items.Count * _itemStride - _itemSpacing;
 
     public ScrollModel Scroll { get; }
+
+    public bool ActivatesOnClick { get; init; }
+
+    public bool SelectsOnHover { get; init; }
 
     public event Action<int>? ItemActivated;
 
@@ -349,10 +363,10 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         int pageSize = Math.Max(1, Bounds.Height / _itemStride);
         int? target =
-            TuiKeybindHelpers.Matches("ResourceList.Next", e) ? SelectedIndex + 1 :
-            TuiKeybindHelpers.Matches("ResourceList.Previous", e) ? SelectedIndex - 1 :
-            TuiKeybindHelpers.Matches("ResourceList.First", e) ? 0 :
-            TuiKeybindHelpers.Matches("ResourceList.Last", e) ? Count - 1 :
+            TuiKeybindHelpers.Matches(_next, e) ? SelectedIndex + 1 :
+            TuiKeybindHelpers.Matches(_previous, e) ? SelectedIndex - 1 :
+            TuiKeybindHelpers.Matches(_first, e) ? 0 :
+            TuiKeybindHelpers.Matches(_last, e) ? Count - 1 :
             TuiKeybindHelpers.Matches("ResourceList.Up", e) ? SelectedIndex - 1 :
             TuiKeybindHelpers.Matches("ResourceList.Down", e) ? SelectedIndex + 1 :
             TuiKeybindHelpers.Matches("ResourceList.Home", e) ? 0 :
@@ -377,6 +391,7 @@ public sealed partial class ResourceList : Visual, IScrollable
             return;
         }
 
+        App?.Focus(this);
         int index = IndexAt(e.UiY);
         if (index < 0)
         {
@@ -386,6 +401,11 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         SelectedIndex = index;
         e.Handled = true;
+        if (ActivatesOnClick)
+        {
+            ActivateSelection();
+            return;
+        }
 
         if (e.ClickCount < 2)
         {
@@ -409,7 +429,14 @@ public sealed partial class ResourceList : Visual, IScrollable
         _pressesOnClickedIndex = 0;
     }
 
-    protected override void OnPointerMoved(PointerEventArgs e) => HoveredIndex = IndexAt(e.UiY);
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        HoveredIndex = IndexAt(e.UiY);
+        if (SelectsOnHover && HoveredIndex >= 0)
+        {
+            SelectedIndex = HoveredIndex;
+        }
+    }
 
     protected override void OnHoveredChanged(bool isHovered)
     {
