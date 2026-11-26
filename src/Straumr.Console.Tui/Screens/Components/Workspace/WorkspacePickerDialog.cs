@@ -20,7 +20,8 @@ internal sealed class WorkspacePickerDialog
         _select = select;
         _list = new ResourceList([], new TextBlock("No workspaces match this filter.").Style(StraumrStyleService.MutedText), "Copy here")
         {
-            AutoFocus = true
+            AutoFocus = true,
+            SelectsOnHover = true
         };
         _list.ItemActivated += Choose;
         _filter = new ResourceFilter("filter workspaces", ApplyFilter, () => _list);
@@ -31,13 +32,11 @@ internal sealed class WorkspacePickerDialog
         confirm.SetStyle(StraumrStyleService.PrimaryButton);
         confirm.IsEnabled(() => (uint)_list.SelectedIndex < (uint)_visible.Count);
         confirm.Click(() => Choose(_list.SelectedIndex));
-        var hints = new HintBar();
-        hints.SetStyle(StraumrStyleService.CommandBar);
+        ButtonRowHelpers.Hover(cancel, confirm);
         VStack content = new VStack(
                 new TextBlock($"Choose a destination for {entityName}").Style(StraumrStyleService.MutedText).Wrap(true),
                 _filter.Root,
                 ResourceScreenLayoutHelpers.Scrollable(_list).MinHeight(3).MaxHeight(12),
-                hints,
                 new HStack(cancel, confirm).Spacing(1).HorizontalAlignment(Align.End))
             .Spacing(1).HorizontalAlignment(Align.Stretch);
         _dialog = StraumrDialogHelpers.Create(new TextBlock("Copy to workspace").Style(StraumrStyleService.AccentText), content, 72);

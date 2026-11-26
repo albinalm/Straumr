@@ -14,8 +14,6 @@ internal abstract class BrowserDialog
 
     private const int ViewportMargin = 2;
 
-    private const int HintRows = 3;
-
     private const int ContentCountCap = 1000;
 
     private const string ParentGlyph = "↑ ";
@@ -104,12 +102,9 @@ internal abstract class BrowserDialog
         selectButton.SetStyle(StraumrStyleService.PrimaryButton);
         selectButton.IsEnabled(() => CanConfirmSelection);
         selectButton.Click(ConfirmSelection);
-
-        var hints = new HintBar();
-        hints.SetStyle(StraumrStyleService.CommandBar);
+        ButtonRowHelpers.Hover(cancelButton, selectButton);
 
         Visual content = BuildContent(
-            hints,
             StraumrSurfaceHelpers.Bar(
                 BuildTargetLine(),
                 new HStack(cancelButton, selectButton)
@@ -258,7 +253,7 @@ internal abstract class BrowserDialog
             Execute = _ => OpenLocationEditor()
         };
 
-    private Visual BuildContent(Visual hints, Visual actions) =>
+    private Visual BuildContent(Visual actions) =>
         new Grid()
             .Columns(new ColumnDefinition { Width = GridLength.Star() })
             .Rows(
@@ -268,7 +263,6 @@ internal abstract class BrowserDialog
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star() },
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Fixed(HintRows) },
                 new RowDefinition { Height = GridLength.Auto })
             .Cell(BuildLocationBar(), 0, 0)
             .Cell(_filter.Root, 1, 0)
@@ -290,8 +284,7 @@ internal abstract class BrowserDialog
                 0)
             .Cell(ResourceScreenLayoutHelpers.Scrollable(_folderList), 4, 0)
             .Cell(StraumrSurfaceHelpers.HorizontalDivider(), 5, 0)
-            .Cell(hints, 6, 0)
-            .Cell(actions, 7, 0)
+            .Cell(actions, 6, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 

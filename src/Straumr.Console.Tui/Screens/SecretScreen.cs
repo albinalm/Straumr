@@ -438,7 +438,7 @@ public sealed class SecretScreen : ITuiScreen
         }
     }
 
-    internal TuiCommandResultModel OpenReference(string name, char? openingEcho)
+    internal TuiCommandResultModel OpenReference(string name)
     {
         if (_loadError.Value)
         {
@@ -449,11 +449,11 @@ public sealed class SecretScreen : ITuiScreen
             return TuiCommandResultModel.Failed("the secret editor is already open");
         }
         SecretScreenItemModel? source = _items.Find(item => !item.IsBroken && item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        OpenEditor(source, false, name, true, openingEcho);
+        OpenEditor(source, false, name, true);
         return TuiCommandResultModel.None;
     }
     private void OpenEditor(SecretScreenItemModel? source, bool copy, string? referenceName = null,
-        bool focusValue = false, char? openingEcho = null)
+        bool focusValue = false)
     {
         if (_editorView is not null)
         {
@@ -475,7 +475,7 @@ public sealed class SecretScreen : ITuiScreen
                 _list.App?.Focus(_list);
                 TransientScreenClosed?.Invoke();
             },
-            sourceName, focusValue, openingEcho);
+            sourceName, focusValue);
         _editorView = editor;
         editor.Show();
         TransientScreenOpened?.Invoke();

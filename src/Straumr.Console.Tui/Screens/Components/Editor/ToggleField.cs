@@ -1,26 +1,21 @@
 using XenoAtom.Terminal.UI;
-using XenoAtom.Terminal.UI.Controls;
 
 namespace Straumr.Console.Tui.Screens.Components.Editor;
 
 internal sealed class ToggleField : EditorField
 {
-    private readonly Switch _switch;
-
     public ToggleField(string label, bool initial, Action<bool> set) : base(label)
     {
-        _switch = new Switch { IsOn = initial };
-        _switch.SetStyle(StraumrStyleService.Switch);
-        _switch.IsTabStop(_switch.IsReachable);
-        _switch.Toggled(() =>
+        var enabled = new State<bool>(initial);
+        Content = new FieldValue(() => enabled.Value ? "On" : "Off", () => false, _ =>
         {
-            set(_switch.IsOn);
+            enabled.Value = !enabled.Value;
+            set(enabled.Value);
             Changed?.Invoke();
-        });
-        Content = new HStack(_switch).HorizontalAlignment(Align.Start);
+        }, "Toggle");
     }
 
     public override Visual Content { get; }
 
-    public override Visual FocusTarget => _switch;
+    public override Visual FocusTarget => Content;
 }

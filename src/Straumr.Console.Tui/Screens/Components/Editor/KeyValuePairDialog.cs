@@ -42,9 +42,7 @@ internal sealed class KeyValuePairDialog
         bool startsAsFile = kind == KeyValueValueKind.TextOrFile && initialValue.StartsWith(FileMarker);
         _isFile.Value = startsAsFile;
 
-        _key = Field(keyLabel, startsAsFile ? initialKey : initialKey);
-        _key.SetText(initialKey);
-        _key.CaretIndex = initialKey.Length;
+        _key = Field(keyLabel, initialKey);
         _key.AutoFocus = true;
         _keyField = EditorVisualHelpers.Validated(_key.Root);
         _key.Changed = () => _keyField.Message = null;
@@ -85,6 +83,7 @@ internal sealed class KeyValuePairDialog
         confirmButton.SetStyle(StraumrStyleService.PrimaryButton);
         confirmButton.Click(TrySubmit);
 
+        ButtonRowHelpers.Hover(cancelButton, confirmButton);
         content.Add(new HStack(cancelButton, confirmButton)
             .Spacing(1)
             .HorizontalAlignment(Align.End));
@@ -127,21 +126,15 @@ internal sealed class KeyValuePairDialog
 
     private Visual BuildKindPicker()
     {
-        Select<string> select = new(["Text", "File"], _isFile.Value ? 1 : 0)
+        var kind = new ChoiceField<bool>("Part", ["Text", "File"], [false, true], _isFile.Value, file =>
         {
-            HorizontalAlignment = Align.Stretch
-        };
-        select.SetStyle(StraumrStyleService.Select);
-        select.WithMovementKeys();
-        select.SelectionChanged(() =>
-        {
-            _isFile.Value = select.SelectedIndex == 1;
+            _isFile.Value = file;
             SyncKind();
         });
 
         return new VStack(
-                new TextBlock("Part").Style(StraumrStyleService.MutedText),
-                select)
+                StraumrSurfaceHelpers.FocusTitle("Part", kind.FocusTarget.Owns),
+                kind.Content)
             .Spacing(1)
             .HorizontalAlignment(Align.Stretch);
     }

@@ -6,9 +6,14 @@ namespace Straumr.Console.Tui.Screens.Components.Editor;
 
 internal sealed class TextField : EditorField
 {
-    private readonly FormTextBox _input;
+    private const int DialogWidth = 70;
+
+    private readonly FieldValue _display;
+    private readonly State<string?> _placeholder;
     private readonly ValidationPresenter _presenter;
+    private readonly bool _secret;
     private readonly Action<string> _set;
+    private readonly State<string> _text;
     private readonly Func<string, string?>? _validate;
 
     public TextField(
@@ -21,36 +26,26 @@ internal sealed class TextField : EditorField
         : base(label)
     {
         _set = set;
+        _secret = secret;
         _validate = validate;
-        _input = FormTextBox.Create(placeholder, secret);
-        _input.SetText(initial);
-        _presenter = EditorVisualHelpers.Validated(_input.Root);
-        _input.Changed = () =>
-        {
-            _presenter.Message = null;
-            _set(_input.Text ?? string.Empty);
-            Changed?.Invoke();
-        };
+        _text = new State<string>(initial);
+        _placeholder = new State<string?>(placeholder);
+        _display = new FieldValue(Display, () => _text.Value.Length == 0, Edit);
+        _presenter = EditorVisualHelpers.Validated(_display);
         Content = _presenter;
     }
 
     public override Visual Content { get; }
 
-    public override Visual FocusTarget => _input;
+    public override Visual FocusTarget => _display;
 
     public string? Placeholder
     {
-        get => _input.Placeholder;
-        set => _input.Placeholder = value;
+        get => _placeholder.Value;
+        set => _placeholder.Value = value;
     }
 
-    public char? PendingEcho
-    {
-        get => _input.PendingEcho;
-        set => _input.PendingEcho = value;
-    }
-
-    public string Value => (_input.Text ?? string.Empty).Trim();
+    public string Value => _text.Value.Trim();
 
     public override string? Validate() => _validate?.Invoke(Value);
 
@@ -59,14 +54,33 @@ internal sealed class TextField : EditorField
 
     public override void ClearProblem() => _presenter.Message = null;
 
-    public void Set(string value)
+    public void Set(string value) => Apply(value);
+
+    private string Display() =>
+        _text.Value.Length == 0 ? _placeholder.Value ?? "empty"
+        : _secret ? new string('•', Math.Min(_text.Value.Length, 12))
+        : _text.Value;
+
+    private void Edit(char? echo)
     {
-        if ((_input.Text ?? string.Empty) == value)
+        var dialog = new TextPromptDialog($"Edit {Label}", Label, _text.Value, "Save",
+            value => _validate?.Invoke(value.Trim()), Apply, _placeholder.Value, _secret, width: DialogWidth, trim: false)
+        {
+            PendingEcho = echo
+        };
+        dialog.Show();
+    }
+
+    private void Apply(string value)
+    {
+        if (_text.Value == value)
         {
             return;
         }
 
-        _input.SetText(value);
+        _text.Value = value;
+        _presenter.Message = null;
         _set(value);
+        Changed?.Invoke();
     }
 }

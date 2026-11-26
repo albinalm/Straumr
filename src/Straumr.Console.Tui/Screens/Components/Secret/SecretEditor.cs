@@ -14,7 +14,7 @@ internal sealed class SecretEditor
 
     public SecretEditor(StraumrSecret state, string? workspaceName, bool isNew,
         State<KnownReferenceService> references, Action save, Action closed, string? sourceName = null,
-        bool focusValue = false, char? openingEcho = null)
+        bool focusValue = false)
     {
         _state = state;
         _openedName = new State<string>(state.Name);
@@ -25,11 +25,9 @@ internal sealed class SecretEditor
                     0 => "A name is required.",
                     _ when value.Contains('"') => "A name cannot contain a double quote.",
                     _ => null
-                })
-            { PendingEcho = TuiKeybindHelpers.OpeningEcho };
+                });
 
-        var valueField = new TextField("Value", state.Value, text => state.Value = text, secret: true)
-            { PendingEcho = focusValue ? openingEcho : null };
+        var valueField = new TextField("Value", state.Value, text => state.Value = text, secret: true);
         _view = new ResourceEditorView(
             () => state.Name.Length == 0 ? "new secret" : SecretFormatting.Display(state.Name),
             () => workspaceName,

@@ -24,6 +24,7 @@ internal static class StraumrDialogHelpers
         dialog.SetStyle(StraumrStyleService.Dialog);
         dialog.Width(() => TerminalViewportHelpers.Columns(dialog));
         dialog.Height(() => TerminalViewportHelpers.Rows(dialog));
+        dialog.BlockFieldTraversal();
         return dialog;
     }
 
@@ -41,6 +42,7 @@ internal static class StraumrDialogHelpers
             IsResizable = false
         };
         dialog.SetStyle(StraumrStyleService.Dialog);
+        dialog.AddFieldTraversal();
         dialog.AddCommand(new Command
         {
             Id = CancelCommandId,

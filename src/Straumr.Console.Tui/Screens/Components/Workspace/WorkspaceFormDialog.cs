@@ -66,6 +66,7 @@ internal sealed class WorkspaceFormDialog
         var actionButton = new Button(actionLabel);
         actionButton.SetStyle(StraumrStyleService.PrimaryButton);
 
+        ButtonRowHelpers.Hover(cancelButton, actionButton);
         HStack actions = new HStack(cancelButton, actionButton)
             .Spacing(1)
             .HorizontalAlignment(Align.End);

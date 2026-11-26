@@ -142,6 +142,10 @@ public sealed partial class ResourceList : Visual, IScrollable
 
     public ScrollModel Scroll { get; }
 
+    public bool ActivatesOnClick { get; init; }
+
+    public bool SelectsOnHover { get; init; }
+
     public event Action<int>? ItemActivated;
 
     public void SetRows(IEnumerable<ResourceRowModel> rows)
@@ -377,6 +381,7 @@ public sealed partial class ResourceList : Visual, IScrollable
             return;
         }
 
+        App?.Focus(this);
         int index = IndexAt(e.UiY);
         if (index < 0)
         {
@@ -386,6 +391,11 @@ public sealed partial class ResourceList : Visual, IScrollable
 
         SelectedIndex = index;
         e.Handled = true;
+        if (ActivatesOnClick)
+        {
+            ActivateSelection();
+            return;
+        }
 
         if (e.ClickCount < 2)
         {
@@ -409,7 +419,14 @@ public sealed partial class ResourceList : Visual, IScrollable
         _pressesOnClickedIndex = 0;
     }
 
-    protected override void OnPointerMoved(PointerEventArgs e) => HoveredIndex = IndexAt(e.UiY);
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        HoveredIndex = IndexAt(e.UiY);
+        if (SelectsOnHover && HoveredIndex >= 0)
+        {
+            SelectedIndex = HoveredIndex;
+        }
+    }
 
     protected override void OnHoveredChanged(bool isHovered)
     {

@@ -8,7 +8,7 @@ The first time you open it, a short quick start asks three things: which keybind
 
 Nothing there is permanent. Run `:quickstart` any time to go through it again.
 
-After choosing a preset and theme, a practice screen lets you move between fields and tabs, change a method, and open a query-parameter dialog. Its sample values are not saved. The instructions and footer use the selected preset's actual bindings.
+Each card reads as one column: up and down (`j`/`k` with vim) go through its items and carry on past the last one to **Back** and **Next**, and back up again. `Tab` and `Shift+Tab` step between the content, **Back**, and **Next**, and `Enter` chooses or presses. The footer uses the preset you picked as soon as you pick it.
 
 ## Getting around
 
@@ -30,11 +30,26 @@ Nothing is hidden by which header it is — `Authorization` reads like any other
 
 The bar along the bottom always shows the keys that do something right now, for whatever has focus. It is the fastest way to learn your own keybindings; the full list is in [keybinds.md](keybinds.md).
 
-`Tab` and `Shift+Tab` move focus between panes, fields, and buttons. Within a list or choice, use the movement keys for your preset: `j`/`k` with vim, `Ctrl+N`/`Ctrl+P` with emacs, or `Down`/`Up` with commander and client. Arrow keys work in lists and choices in all presets. In a text field, type normally; arrows move the caret.
+Four rules hold on every screen and in every editor:
 
-`Ctrl+T` or `Ctrl+PageDown` switches to the next tab in the focused pane, and `Ctrl+PageUp` switches back. This is the same in previews and forms, including when a text field has focus. Moving through a list keeps focus in that list; use `Tab` to leave it.
+| To | Press (vim) | Every preset |
+| --- | --- | --- |
+| Move up and down — rows, headers, form fields | `k` / `j` | `Up` / `Down` |
+| Move between panes | `h` / `l` | `Left` / `Right` |
+| Switch tabs — **Body**, **Headers**, **Params** | `Tab` / `Shift+Tab` | `Ctrl+PageUp` / `Ctrl+PageDown` |
+| Edit what is selected | `Enter` | `Enter` |
 
-Drag the splits with `Ctrl+H`/`Ctrl+L`/`Ctrl+K`/`Ctrl+J` (vim preset). Where you leave them is remembered per screen.
+Emacs moves with `Ctrl+p`/`Ctrl+n` and `Ctrl+b`/`Ctrl+f`; commander and client use the arrow keys for both.
+
+Nothing is in edit mode until you press `Enter`. Editing a single value opens a small popup, and popups have their own short set of keys:
+
+| In a popup | |
+| --- | --- |
+| `Tab` / `Shift+Tab` | forward / back through fields, buttons, or the options of a pick list |
+| `Enter` | select what has focus — save from a text field, press a button, pick an option |
+| `Escape` | close the popup |
+
+Drag the splits with `Ctrl+h`/`Ctrl+l`/`Ctrl+k`/`Ctrl+j` (vim preset). Where you leave them is remembered per screen.
 
 `/` opens the filter over the current list. On requests it matches the name, the URL, or the method, so `/post` and `/users` both narrow the list; elsewhere it matches the name. The count beside the screen title shows matches over total.
 
@@ -79,7 +94,7 @@ Use `:reset` to replace `settings.toml` with its factory template after a confir
 
 Prefix a command with a screen name to run it from anywhere: `:rq send users` goes to Requests and sends, `:ws use my-api` switches the active workspace without leaving the screen you are on.
 
-Requests, auths and variables also offer **Copy to workspace**: `Ctrl+Y` with vim/emacs, `Shift+F5` with commander, or `Ctrl+Shift+D` with client. Choose another workspace in the selector; `/` filters its names. The copy keeps its name unless that name is already taken, in which case a prompt asks for a new unique name. Cancel either step to leave everything as it was. The source and active workspace stay in place.
+Requests, auths and variables also offer **Copy to workspace**: `Ctrl+y` with vim/emacs, `Shift+F5` with commander, or `Ctrl+Shift+d` with client. Choose another workspace in the selector; `/` filters its names. The copy keeps its name unless that name is already taken, in which case a prompt asks for a new unique name. Cancel either step to leave everything as it was. The source and active workspace stay in place.
 
 The same flow is available as `:copy-to <name>` on those screens, or `:rq copy-to users` from elsewhere. Each copy gets a new ID and keeps the entity's configuration and JSONC comments; saved request responses are not copied. Secrets are global and do not need a workspace copy.
 
@@ -91,29 +106,36 @@ Copying an auth directly also checks its variable references. Choose **Carry var
 
 ## Editing
 
-Editing a request opens a form: name, method, URL, auth, and the header and parameter tables. Bodies are not edited in the form — `Enter` on the body field hands the file to your `$EDITOR`, and Straumr picks the change back up when you close it. That is deliberate: your editor already knows JSON better than any box inside a terminal UI would.
+Editing a request opens a form: name, method, URL, auth, and the header and parameter tables. Move through it with the same up and down keys as a list, and switch between its **Request**, **Headers**, **Params**, and **Body** tabs with `Tab`. Landing on a field only selects it. `Enter` opens it:
 
-In request, auth, variable and secret forms, `Ctrl+S` saves and keeps the form open; `Ctrl+Shift+S` saves and closes it. The commander preset uses `F2` and `Shift+F2`. Save and close returns to the list only after a successful save; validation or save errors keep your edits open. Both actions can be changed in [keybind settings](keybinds.md).
+- a name, URL, or other single value opens a popup with the value ready to change;
+- a choice such as the method or auth opens a list to pick from;
+- a header, parameter, or form-field row opens a popup with its name and value — `c` adds a row, `d` removes one;
+- a switch flips.
+
+Bodies are not edited in the form — `Enter` on the body field hands the file to your `$EDITOR`, and Straumr picks the change back up when you close it. That is deliberate: your editor already knows JSON better than any box inside a terminal UI would.
+
+In request, auth, variable and secret forms, `Ctrl+s` saves and keeps the form open; `Ctrl+Shift+s` saves and closes it. The commander preset uses `F2` and `Shift+F2`. Save and close returns to the list only after a successful save; validation or save errors keep your edits open. Both actions can be changed in [keybind settings](keybinds.md).
 
 Request URLs can use variable and secret references, including `{{baseUrl}}/orders`. If a request URL is invalid or empty, either save action offers **Save anyway** so you can keep your other edits, including query parameters. **Cancel** keeps the form open with all edits intact. Fix the URL before sending the request; name validation still needs to pass before saving.
 
-Switching a form tab focuses its first field. The shared `Straumr.NextTab`, `Straumr.NextTabAlternate`, and `Straumr.PreviousTab` actions control tab switching everywhere; `Tab` and `Shift+Tab` move between fields, including in header and query-parameter dialogs.
+Switching a form tab selects its first field. Moving down past the end of a header list carries on to the next field, and moving up from its first row goes back to the field above.
 
-`Ctrl+E` on a list entry skips the form entirely and opens the underlying JSONC file. Comments you leave in that file survive everything Straumr writes afterwards.
+`Ctrl+e` on a list entry skips the form entirely and opens the underlying JSONC file. Comments you leave in that file survive everything Straumr writes afterwards.
 
 Both paths need `$EDITOR` set. Without it, the commands that would hand off say so instead.
 
-Type `{{` in any form field and a box of matching variable names opens under it; type `{{secret:` and it lists secrets instead. `Up` and `Down` move through it, `Enter` inserts the name and the closing braces, and `Escape` dismisses it — `Tab` is left alone so it still moves between fields. Keep typing to narrow the list.
+Type `{{` in any form field and a box of matching variable names opens under it; type `{{secret:` and it lists secrets instead. `Up` and `Down` move through it, `Enter` inserts the name and the closing braces, and `Escape` dismisses it — `Tab` is left alone so it still moves between the popup's fields. Keep typing to narrow the list.
 
 A request and an auth show what they reference under **Variables & Secrets**, and whether each one resolves right now.
 
-On Requests, focus **Variables & Secrets** with `Tab` and use the list navigation keys to highlight a reference (`j`/`k` or `Up`/`Down` with the vim preset). **Go to** (`Enter` or `Space`) opens its secret or workspace variable form on the value field. Existing references have their saved value; missing ones have the name prefilled so you can enter a value and create them. Saving refreshes availability when you return, and closing the form returns focus to the selected reference.
+On Requests, move to **Variables & Secrets** with the pane keys (`h`/`l` or `Left`/`Right`) and use the list navigation keys to highlight a reference (`j`/`k` or `Up`/`Down` with the vim preset). **Go to** (`Enter` or `Space`) opens its secret or workspace variable form with the value field selected. Existing references have their saved value; missing ones have the name prefilled so you can enter a value and create them. Saving refreshes availability when you return, and closing the form returns focus to the selected reference.
 
 ## Sending
 
-`s` on a request sends it (`Ctrl+R` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight.
+`s` on a request sends it (`Ctrl+r` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight.
 
-On a **Body** tab — the response's and the request's alike — `b` cycles beautify and minify, `h` turns highlighting on and off, and `y` copies. Straumr works out what the body is from its `Content-Type`, falling back to reading the body itself: JSON, XML, HTML, YAML, and form-urlencoded are coloured by token, and JSON, XML, and HTML are also beautified and minified. Anything else is shown as it was sent, and `b` says so rather than changing it.
+On a **Body** tab — the response's and the request's alike — `b` cycles beautify and minify, `c` turns highlighting on and off, and `y` copies. Straumr works out what the body is from its `Content-Type`, falling back to reading the body itself: JSON, XML, HTML, YAML, and form-urlencoded are coloured by token, and JSON, XML, and HTML are also beautified and minified. Anything else is shown as it was sent, and `b` says so rather than changing it.
 
 On a response **Body** tab, `e` opens the whole body in your `$EDITOR` — the full body, not the preview's truncation. It is a reader, not an editor: Straumr discards whatever you leave behind and never writes it back to the response. Use it to search, fold, or copy pieces out with the keys your own editor has trained into your fingers.
 

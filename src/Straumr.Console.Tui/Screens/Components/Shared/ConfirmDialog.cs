@@ -42,10 +42,7 @@ internal sealed class ConfirmDialog
         }
 
         Button[] answers = alternateButton is null ? [cancelButton, confirmButton] : [cancelButton, confirmButton, alternateButton];
-        foreach (Button answer in answers)
-        {
-            answer.KeyDown((_, e) => MoveToAnotherAnswer(e, answers, answer));
-        }
+        ButtonRowHelpers.Hover(answers);
 
         VStack content = new VStack(
                 new TextBlock(question).Style(StraumrStyleService.BrightText).Wrap(true),
@@ -90,21 +87,4 @@ internal sealed class ConfirmDialog
 
     public void Show() =>
         TuiWindowHelpers.Show(_dialog, () => _cancelButton.App?.Focus(_cancelButton));
-
-    internal static void MoveToAnotherAnswer(KeyEventArgs e, Button[] answers, Button current)
-    {
-        int step = TuiKeybindHelpers.Matches("ConfirmDialog.Left", e) || TuiKeybindHelpers.Matches("ConfirmDialog.Up", e)
-            ? -1
-            : TuiKeybindHelpers.Matches("ConfirmDialog.Right", e) || TuiKeybindHelpers.Matches("ConfirmDialog.Down", e)
-                ? 1
-                : 0;
-        if (step == 0)
-        {
-            return;
-        }
-
-        Button target = answers[(Array.IndexOf(answers, current) + step + answers.Length) % answers.Length];
-        target.App?.Focus(target);
-        e.Handled = true;
-    }
 }

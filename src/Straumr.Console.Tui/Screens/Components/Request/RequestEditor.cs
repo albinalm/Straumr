@@ -70,7 +70,6 @@ internal sealed class RequestEditor
         ChoiceField<Guid?> auth = new("Auth", authLabels, authValues, state.AuthId,
             value => state.AuthId = value);
 
-        name.PendingEcho = TuiKeybindHelpers.OpeningEcho;
         _headers = new KeyValueField("Headers", "header", state.Headers);
         var body = new BodyFields(
             () => state.BodyType,

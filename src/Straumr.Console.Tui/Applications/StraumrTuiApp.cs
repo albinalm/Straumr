@@ -94,8 +94,7 @@ public sealed class StraumrTuiApp
                 string.Empty, false, TuiScreen.Requests)
             {
                 Reference = reference,
-                FocusTarget = requestScreen.ReferenceFocusTarget,
-                OpeningEcho = TuiKeybindHelpers.OpeningEcho
+                FocusTarget = requestScreen.ReferenceFocusTarget
             };
         SetCommands();
 
@@ -129,6 +128,8 @@ public sealed class StraumrTuiApp
             .Cell(footer, 4, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
+        shell.BlockFieldTraversal();
+        AddPaneCommands(shell);
 
         Group window = new Group()
             .Padding(new Thickness(0))
@@ -344,8 +345,8 @@ public sealed class StraumrTuiApp
         TuiCommandResultModel dispatched = pending.Reference is { } reference
             ? _screen switch
             {
-                SecretScreen secrets => secrets.OpenReference(reference.Name, pending.OpeningEcho),
-                VariableScreen variables => variables.OpenReference(reference.Name, pending.OpeningEcho),
+                SecretScreen secrets => secrets.OpenReference(reference.Name),
+                VariableScreen variables => variables.OpenReference(reference.Name),
                 _ => TuiCommandResultModel.Failed("cannot open this reference")
             }
             : await CreateScreenCommandSet(_screen).ExecuteAsync(pending.Command, cancellationToken);
@@ -701,8 +702,6 @@ public sealed class StraumrTuiApp
         }
 
         app.AddGlobalCommand(BuildInterruptCommand());
-        ConfigureFocusTraversal(app, "Straumr.FocusNext", new KeyGesture(TerminalKey.Tab), 1);
-        ConfigureFocusTraversal(app, "Straumr.FocusPreviousTab", new KeyGesture(TerminalKey.Tab, TerminalModifiers.Shift), -1);
 
         if (_focusOnAttach is not { } focusTarget)
         {
@@ -713,32 +712,27 @@ public sealed class StraumrTuiApp
         app.Focus(focusTarget);
     }
 
-    private static void ConfigureFocusTraversal(TerminalApp app, string id, KeyGesture original, int step)
+    private void AddPaneCommands(Visual shell)
     {
-        KeyGesture? gesture = TuiKeybindHelpers.Get(id);
-        app.AddGlobalCommand(new Command
+        foreach ((string id, string label, int step) in ((string, string, int)[])
+                 [("Straumr.NextPane", "Next pane", 1), ("Straumr.PreviousPane", "Previous pane", -1)])
         {
-            Id = id,
-            LabelMarkup = step > 0 ? "Focus next" : "Focus previous",
-            Gesture = gesture,
-            Importance = CommandImportance.Secondary,
-            Presentation = CommandPresentation.CommandBar,
-            RouteGesture = gesture != original,
-            IsVisible = target => target.CanTraverseWith(gesture),
-            Execute = _ => app.FocusStep(step)
-        });
-        if (gesture == original)
-        {
-            return;
+            foreach (string commandId in (string[])[id, id + "Alternate"])
+            {
+                shell.AddCommand(new Command
+                {
+                    Id = commandId,
+                    LabelMarkup = label,
+                    Gesture = TuiKeybindHelpers.Get(commandId),
+                    Importance = CommandImportance.Secondary,
+                    Presentation = commandId == id ? CommandPresentation.CommandBar : TuiKeybindHelpers.SecondaryPresentation(id),
+                    CanExecute = _ => !shell.IsTyping(),
+                    IsVisible = _ => !shell.IsTyping(),
+                    ConsumesGestureWhenUnavailable = false,
+                    Execute = _ => _app?.FocusPane(_screen.Root, step)
+                });
+            }
         }
-        app.AddGlobalCommand(new Command
-        {
-            Id = $"{id}.Replaced",
-            LabelMarkup = "",
-            Gesture = original,
-            Presentation = CommandPresentation.None,
-            Execute = _ => { }
-        });
     }
 
     private void RequestExternalAction(TuiExternalActionModel action)

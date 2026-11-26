@@ -96,7 +96,7 @@ A `.straumrpak` is a zip of the workspace folder. It carries requests, auths, an
 
 Every resource is JSONC on disk: JSON that tolerates `//` and `/* */` comments and trailing commas. Straumr reads them, writes them, and puts your comments back where it found them.
 
-Use `--editor` on `create` and `edit` to open the file in `$EDITOR` instead of answering prompts, or `Ctrl+E` in the terminal UI. Both need `$EDITOR` set. Keep the `Id` field as it is — that is how Straumr and its workspace manifest find the file again.
+Use `--editor` on `create` and `edit` to open the file in `$EDITOR` instead of answering prompts, or `Ctrl+e` in the terminal UI. Both need `$EDITOR` set. Keep the `Id` field as it is — that is how Straumr and its workspace manifest find the file again.
 
 Secrets are stored in plain text under `~/.straumr/secrets`. Straumr does not encrypt them; give that directory the permissions you would give an SSH key.
 

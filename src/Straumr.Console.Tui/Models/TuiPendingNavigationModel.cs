@@ -10,5 +10,4 @@ internal readonly record struct TuiPendingNavigationModel(
 {
     public ReferenceModel? Reference { get; init; }
     public Visual? FocusTarget { get; init; }
-    public char? OpeningEcho { get; init; }
 }

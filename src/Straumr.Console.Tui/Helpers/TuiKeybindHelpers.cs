@@ -48,6 +48,22 @@ internal static class TuiKeybindHelpers
         StraumrKeybinds.Get(Canonical(id))?.Matches(e.Char ?? '\0', e.Key.ToString(), Modifiers(e.Modifiers)) == true;
 
     public static string Hint(string id) => StraumrKeybinds.Hint(Canonical(id));
+
+    public static string Text(KeyGesture gesture)
+    {
+        if (gesture.Key != TerminalKey.Unknown || gesture.Char is not { } character)
+        {
+            return gesture.ToString();
+        }
+
+        ConsoleModifiers modifiers = Modifiers(gesture.Modifiers);
+        if ((modifiers & ConsoleModifiers.Control) != 0 && character < ' ')
+        {
+            character = (char)(character | 0x60);
+        }
+
+        return StraumrKeyGesture.Format(character, null, modifiers);
+    }
     public static char? Echo(string id) => StraumrKeybinds.Echo(Canonical(id));
 
     public static string CombinedLabel(string label, params string[] actions) => string.Join(" ",

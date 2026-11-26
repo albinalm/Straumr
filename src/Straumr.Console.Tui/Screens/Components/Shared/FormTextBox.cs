@@ -44,6 +44,11 @@ internal sealed class FormTextBox : TextBox
         return box;
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        PendingEcho = null;
+        base.OnKeyDown(e);
+    }
     protected override void OnTextInput(TextInputEventArgs e)
     {
         bool isEcho = PendingEcho is { } echo && e.Text == echo.ToString();

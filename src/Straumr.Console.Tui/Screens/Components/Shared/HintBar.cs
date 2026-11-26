@@ -16,7 +16,6 @@ public sealed partial class HintBar : Visual
 {
     private static readonly Rune Blank = new(' ');
     private readonly HashSet<string> _dedup = new(StringComparer.Ordinal);
-    private readonly Dictionary<KeyGesture, string> _gestureText = [];
     private readonly List<HintBarItemModel> _global = [];
     private readonly List<HintBarItemModel> _hints = [];
     private readonly List<HintBarItemModel> _local = [];
@@ -171,6 +170,12 @@ public sealed partial class HintBar : Visual
         for (Visual? visual = focused; visual is not null; visual = visual.Parent)
         {
             Append(_local, visual, visual.Commands, markupStyles);
+            if (visual is IModalVisual { IsModal: true })
+            {
+                _local.Sort(ByImportance);
+                _hints.AddRange(_local);
+                return;
+            }
         }
 
         if (app.GlobalCommands.Count > 0)
@@ -246,12 +251,7 @@ public sealed partial class HintBar : Visual
 
         if (command.Gesture is { } gesture)
         {
-            if (!_gestureText.TryGetValue(gesture, out string? text))
-            {
-                _gestureText[gesture] = text = gesture.ToString();
-            }
-
-            return text;
+            return TuiKeybindHelpers.Text(gesture);
         }
 
         return string.Empty;
