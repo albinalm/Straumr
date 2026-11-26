@@ -62,7 +62,7 @@ internal sealed class PreviewPane
 
     public Visual Root { get; }
 
-    public Rule? TabRule { get; }
+    public JunctionRule? TabRule { get; }
 
     public Visual FocusTarget => _focus[Math.Clamp(SelectedPage, 0, _focus.Length - 1)]();
 

@@ -10,5 +10,6 @@ global using Straumr.Console.Tui.Interfaces;
 global using Straumr.Console.Tui.Models;
 global using Straumr.Console.Tui.Screens;
 global using Straumr.Console.Tui.Screens.Components;
+global using Straumr.Console.Tui.Screens.Components.Chrome;
 global using Straumr.Console.Tui.Serialization;
 global using Straumr.Console.Tui.Services;

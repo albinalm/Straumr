@@ -30,5 +30,9 @@ public interface IStraumrSettingsService
 
     Task SetThemeAsync(string reference, CancellationToken cancellationToken = default);
 
+    Task SetLayoutAsync(string layout, CancellationToken cancellationToken = default);
+
+    Task SetAnimationsAsync(bool enabled, CancellationToken cancellationToken = default);
+
     Task CompleteQuickStartAsync(string preset, string theme, CancellationToken cancellationToken = default);
 }

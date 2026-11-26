@@ -10,6 +10,7 @@ public static class StraumrKeybinds
         {
             ["Straumr.OpenCommandPrompt"] = ":",
             ["Straumr.Interrupt"] = "Ctrl+c",
+            ["Straumr.Shortcuts"] = "?",
             ["Straumr.NextField"] = "Tab",
             ["Straumr.PreviousField"] = "Shift+Tab",
             ["Straumr.NextTab"] = "Tab",

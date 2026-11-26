@@ -28,7 +28,33 @@ Each screen is a list on the left and detail panes on the right. Move through th
 
 Nothing is hidden by which header it is — `Authorization` reads like any other. What stays hidden is a secret: a header whose configured value holds a `{{secret:name}}` is listed with that reference left in place, so you see the header and its scheme without its value ever reaching the screen. Everything else is shown resolved, variables and fetched auth tokens included.
 
-The bar along the bottom always shows the keys that do something right now, for whatever has focus. It is the fastest way to learn your own keybindings; the full list is in [keybinds.md](keybinds.md).
+The bottom of the screen always shows the keys that do something right now, for whatever has focus. It is the fastest way to learn your own keybindings; the full list is in [keybinds.md](keybinds.md).
+
+## Two layouts
+
+The terminal UI has two layouts, and the theme picks one.
+
+**v2**, the default, is the modern one:
+
+- **Header.** A line between waves — networking jokes and stream puns, such as `~~ Retry-After: fika ~~` — that types itself out and changes every 15 to 25 minutes. On the right, your machine's download and upload rate, updated once a second in fixed-width slots so nothing shifts as the numbers change, each with a short sparkline. On a narrow terminal the sparklines and then the upload rate give way before the line is cut.
+- **Section titles.** Uppercase, with a rule that lights up in the accent colour while that section has focus.
+- **Status line.** One slim line at the bottom: `⏵⏵ workspace › screen`, then the most useful keys for whatever has focus. `?` unfolds every key above it and folds them away again. Messages appear in the same place, with a green or red dot.
+- **Command prompt.** `:` opens it in a rounded box above the status line.
+- **Requests.** Each request in the list carries a coloured dot and the status code of its last response: green for 2xx, violet for 3xx, amber for 4xx, red for 5xx or a failed send. The divider above the response has the same dot.
+- **Sending.** While a request is in flight, a spinner names what is happening and counts the seconds.
+- **Network tab.** The response's timing is drawn as gauges for headers, body and the whole exchange, which fill along the theme's gradient, followed by size, rate, protocol and when it was sent.
+- **Frames.** Dialogs, dropdowns and menus have rounded corners, and there is no outer frame around the window.
+
+**v1** is the classic layout: a framed window, `{straumr}` and the active workspace in the header, filled section chips, and every key listed along the bottom.
+
+```text
+:layout            show the active layout
+:layout v1         switch to the classic layout
+:layout v2         switch to the modern layout
+:animations off    still every animation; :animations on brings them back
+```
+
+Both are saved to `settings.toml`, where they win over the theme. A theme can also set them itself, along with which animations run and the colours of the gauges and sparklines; see [the theme guide](../themes/README.md).
 
 Four rules hold on every screen and in every editor:
 
@@ -73,6 +99,8 @@ Anywhere:
 :theme             show the active theme
 :theme <name>      switch theme, by name or by path
 :theme export      write a copy of the built-in straumr theme to edit
+:layout v1|v2      switch between the classic and the modern layout
+:animations on|off turn the animations on or off
 :quickstart        run the first-launch setup again
 ```
 
@@ -133,7 +161,7 @@ On Requests, move to **Variables & Secrets** with the pane keys (`h`/`l` or `Lef
 
 ## Sending
 
-`s` on a request sends it (`Ctrl+r` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight.
+`s` on a request sends it (`Ctrl+r` in the client preset). The response pane fills in as it arrives, and the divider above it carries the status and timing. `Escape` cancels a request still in flight. In the v2 layout the list row picks up the response's status dot and code the moment it comes back.
 
 On a **Body** tab — the response's and the request's alike — `b` cycles beautify and minify, `c` turns highlighting on and off, and `y` copies. Straumr works out what the body is from its `Content-Type`, falling back to reading the body itself: JSON, XML, HTML, YAML, and form-urlencoded are coloured by token, and JSON, XML, and HTML are also beautified and minified. Anything else is shown as it was sent, and `b` says so rather than changing it.
 

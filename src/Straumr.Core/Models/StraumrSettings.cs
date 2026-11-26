@@ -30,6 +30,19 @@ public sealed class StraumrSettings
         # to copy and change.
         theme = "terminal"
 
+        # The interface layout, and whether it moves. Both normally come from the theme; set them
+        # here to keep your choice whichever theme is active.
+        #
+        #   "v2"   the modern layout: live network stats up top, a slim status line (default)
+        #   "v1"   the classic framed layout, with the full key list along the bottom
+        #
+        #   layout = "v1"
+        #
+        # false stills every animation: the busy spinner, the message pulse and the transitions. Values
+        # that change, like an elapsed time or the network stats, keep updating.
+        #
+        #   animations = false
+
         # Named defaults, followed by your individual [keybinds] overrides.
         # Choices: vim (default), emacs, commander, client.
         # keybind-preset = "vim"
@@ -96,6 +109,12 @@ public sealed class StraumrSettings
         """;
     [TomlPropertyName("theme")]
     public string? Theme { get; set; }
+
+    [TomlPropertyName("layout")]
+    public string? Layout { get; set; }
+
+    [TomlPropertyName("animations")]
+    public bool? Animations { get; set; }
 
     [TomlPropertyName("keybind-preset")]
     public string? KeybindPreset { get; set; }

@@ -144,7 +144,7 @@ public partial class StraumrRequestService
     private async Task<string> VariableFingerprintAsync(StraumrWorkspaceEntry workspace, StraumrVariable variable, CancellationToken cancellationToken,
         bool includeDependencyCache = true)
     {
-        JsonArray inputs = [Path.GetFullPath(workspace.Path), workspace.Id.ToString()];
+        JsonArray inputs = new(JsonValue.Create(Path.GetFullPath(workspace.Path)), JsonValue.Create(workspace.Id.ToString()));
         HashSet<string> visited = [];
         await VisitVariableAsync(variable, true);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(inputs.ToJsonString())));
@@ -166,7 +166,7 @@ public partial class StraumrRequestService
             {
                 node["Expired"] = CacheExpired(current);
             }
-            inputs.Add(node);
+            inputs.Add((JsonNode?)node);
             if (current.Source is { } source)
             {
                 StraumrRequest request = await GetAsync(workspace, source.RequestId, false, cancellationToken);
@@ -183,7 +183,7 @@ public partial class StraumrRequestService
             RemoveMetadata(node);
             node.Remove(nameof(StraumrRequest.LastResponse));
             node.Remove(nameof(StraumrRequest.Captures));
-            inputs.Add(node);
+            inputs.Add((JsonNode?)node);
             await VisitReferencesAsync(node);
             if (request.AuthId is { } authId)
             {
@@ -199,7 +199,7 @@ public partial class StraumrRequestService
                 {
                     config.Remove(nameof(CustomAuthConfig.CachedValue));
                 }
-                inputs.Add(authNode);
+                inputs.Add((JsonNode?)authNode);
                 JsonObject references = authNode.DeepClone().AsObject();
                 if (auth.Config is CustomAuthConfig)
                 {
@@ -222,7 +222,7 @@ public partial class StraumrRequestService
                     StraumrSecret secret = await secretService.GetAsync(VariableHelpers.StripSecretPrefix(name), false, cancellationToken);
                     JsonObject secretNode = JsonSerializer.SerializeToNode(secret, StraumrJsonContext.Default.StraumrSecret)!.AsObject();
                     RemoveMetadata(secretNode);
-                    inputs.Add(secretNode);
+                    inputs.Add((JsonNode?)secretNode);
                 }
                 else
                 {

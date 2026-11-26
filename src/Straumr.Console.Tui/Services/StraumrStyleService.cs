@@ -13,6 +13,10 @@ internal static class StraumrStyleService
 
     public static Theme FrameworkTheme => _set.FrameworkTheme;
 
+    public static StraumrChromeModel Chrome => _set.Chrome;
+    public static bool IsModern => _set.IsModern;
+    public static StraumrMotionModel Motion => _set.Chrome.Motion;
+
     public static Color Background => _set.Background;
     public static Color Raised => _set.Raised;
     public static Color Selection => _set.Selection;
@@ -32,6 +36,7 @@ internal static class StraumrStyleService
     public static Color RedBright => _set.RedBright;
     public static Color Purple => _set.Purple;
     public static Color Brand => _set.Brand;
+    public static Color Section => _set.Palette.Section;
 
     public static TextBlockStyle PrimaryText => _set.PrimaryText;
     public static TextBlockStyle MutedText => _set.MutedText;
@@ -46,6 +51,9 @@ internal static class StraumrStyleService
     public static TextBlockStyle RedBrightText => _set.RedBrightText;
     public static TextBlockStyle PurpleText => _set.PurpleText;
     public static TextBlockStyle BrandText => _set.BrandText;
+    public static TextBlockStyle SectionText => _set.SectionText;
+    public static TextBlockStyle FocusedSectionText => _set.FocusedSectionText;
+    public static TextBlockStyle IdleSectionText => _set.IdleSectionText;
 
     public static Style CodeKey => _set.CodeKey;
     public static Style CodeString => _set.CodeString;
@@ -81,8 +89,14 @@ internal static class StraumrStyleService
     };
     public static ValidationStyle Validation => _set.Validation;
     public static DialogStyle Dialog => _set.Dialog;
+    public static DialogStyle ScreenDialog => _set.ScreenDialog;
     public static GroupStyle WindowGroup => _set.WindowGroup;
     public static SpinnerStyle RequestPulse => _set.RequestPulse;
+    public static SpinnerStyle LoadingSpinner => _set.LoadingSpinner;
+    public static IReadOnlyList<string> Flower => _set.Flower;
+    public static BorderStyle PromptFrame => _set.PromptFrame;
+    public static RuleStyle AccentDivider => _set.AccentDivider;
+    public static Style GaugeTrack => _set.GaugeTrack;
     public static ScrollViewerStyle ListScrollViewer => _set.ListScrollViewer;
     public static BorderStyle SuggestionPopup => _set.SelectPopup;
     public static RuleStyle Divider => _set.Divider;
@@ -99,15 +113,19 @@ internal static class StraumrStyleService
 
     public static void Apply(StraumrThemeModel theme)
     {
-        _set = new StraumrStyleSetModel(theme.Palette);
+        _set = new StraumrStyleSetModel(theme.Palette, theme.Chrome);
         ThemeName = theme.Name;
     }
 
     private static StraumrStyleSetModel Build(string reference)
     {
         StraumrThemeService.TryResolve(reference, string.Empty, out StraumrThemeModel theme, out _);
-        return new StraumrStyleSetModel(theme.Palette);
+        return new StraumrStyleSetModel(theme.Palette, theme.Chrome);
     }
+
+    public static Color RampColor(double t) => _set.RampColor(t);
+    public static Style Tinted(Color color) => _set.Tinted(color);
+    public static Color Blend(Color from, Color to, double amount) => _set.Blend(from, to, amount);
 
     public static TextBlockStyle MethodText(string method) => _set.MethodText(method);
 

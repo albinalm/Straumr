@@ -91,8 +91,8 @@ internal sealed class ResourceEditorView
             .Cell(BuildBar(summary, sourceName), 2, 0)
             .Cell(_pages.TabRule, 3, 0)
             .Cell(ResourceScreenLayoutHelpers.Pane(_pages.Root), 4, 0)
-            .Cell(StraumrSurfaceHelpers.HorizontalDivider(), 5, 0)
-            .Cell(BuildFooter(), 6, 0)
+            .Cell(StraumrSurfaceHelpers.FooterDivider(), 5, 0)
+            .Cell(BuildFooter(workspaceName), 6, 0)
             .HorizontalAlignment(Align.Stretch)
             .VerticalAlignment(Align.Stretch);
 
@@ -322,21 +322,15 @@ internal sealed class ResourceEditorView
             ResourceScreenLayoutHelpers.PaneInset);
     }
 
-    private Visual BuildFooter()
-    {
-        HintBar hints = new HintBar().Style(StraumrStyleService.CommandBar);
-        return new ZStack(
-                StraumrSurfaceHelpers.Inset(hints, StraumrSurfaceHelpers.RowInset)
-                    .IsVisible(() => _notice.Value.Length == 0),
-                StraumrSurfaceHelpers.Inset(
-                        new TextBlock(() => _notice.Value)
-                            .Style(() => _noticeError.Value ? StraumrStyleService.RedText : StraumrStyleService.GreenText)
-                            .Trimming(TextTrimming.EndEllipsis)
-                            .HorizontalAlignment(Align.Stretch),
-                        StraumrSurfaceHelpers.RowInset)
-                    .IsVisible(() => _notice.Value.Length > 0))
-            .HorizontalAlignment(Align.Stretch);
-    }
+    private Visual BuildFooter(Func<string?> workspaceName) =>
+        StraumrFooterHelpers.Create(
+            () =>
+            [
+                (workspaceName() ?? "no workspace", workspaceName() is null ? StraumrStyleService.MutedText : StraumrStyleService.GreenText),
+                (_headerName.Value, StraumrStyleService.BrightText)
+            ],
+            () => _notice.Value.Length == 0 ? null : _notice.Value,
+            () => _noticeError.Value ? StraumrStyleService.RedText : StraumrStyleService.GreenText);
 
     private void AddSaveCommands()
     {

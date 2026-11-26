@@ -557,6 +557,21 @@ public sealed partial class ResourceList : Visual, IScrollable
                 .HorizontalAlignment(Align.Stretch);
         }
 
+        if (row.TrailingToken is { } trailing)
+        {
+            name = new Grid()
+                .Columns(
+                    new ColumnDefinition { Width = GridLength.Star() },
+                    new ColumnDefinition { Width = GridLength.Auto })
+                .Rows(new RowDefinition { Height = GridLength.Auto })
+                .ColumnGap(1)
+                .Cell(name, 0, 0)
+                .Cell(Line(trailing.Text,
+                    () => index == SelectedIndex ? trailing.SelectedStyle ?? trailing.Style : trailing.Style,
+                    TextTrimming.EndEllipsis, index), 0, 1)
+                .HorizontalAlignment(Align.Stretch);
+        }
+
         VStack stack = new VStack(name)
             .HorizontalAlignment(Align.Stretch);
 

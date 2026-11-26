@@ -27,14 +27,14 @@ internal sealed class PagedPane
         SyncTabs();
 
         TabRule = StraumrSurfaceHelpers.HorizontalDivider();
-        TabRule.StartLabel(new HStack(_tabs).Spacing(0));
+        TabRule.StartLabel = new HStack(_tabs).Spacing(0);
 
         Root.AddTabNavigation(step => Change(Step(step)), () => _pages.Count(page => page.Applies) > 1);
     }
 
     public Visual Root { get; }
 
-    public Rule TabRule { get; }
+    public JunctionRule TabRule { get; }
 
     public int SelectedPage => _page.Value;
 

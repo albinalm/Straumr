@@ -24,6 +24,11 @@ public sealed class EscapeCancellableConsole(IAnsiConsole console) : IAnsiConsol
         console.Write(renderable);
     }
 
+    public void WriteAnsi(Action<AnsiWriter> action)
+    {
+        console.WriteAnsi(action);
+    }
+
     public void PrefillInput(string? text)
     {
         _input.Prefill(text);

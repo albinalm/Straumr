@@ -12,6 +12,7 @@ internal sealed class RequestResponseView
 {
     private const int BodyPage = 0;
     private const int NetworkPage = 3;
+    private const string WaitingForMeasurements = "Network measurements will appear when the request completes.";
     private static readonly TimeSpan NoticeLifetime = TimeSpan.FromSeconds(5);
     private readonly BodyPreviewService _body;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -24,6 +25,7 @@ internal sealed class RequestResponseView
     private readonly State<bool> _noticeError = new(false);
     private readonly PreviewPane _preview;
     private readonly State<bool> _sending = new(true);
+    private readonly NetworkView? _network;
     private readonly HeadersView _sent;
     private readonly State<string> _summary = new(string.Empty);
     private bool _focused;
@@ -37,10 +39,11 @@ internal sealed class RequestResponseView
     {
         _headers = new HeadersView(Notice);
         _sent = new HeadersView(Notice);
+        _network = StraumrStyleService.IsModern ? new NetworkView(WaitingForMeasurements) : null;
         _preview = PreviewPane.OnRule(true, PreviewPanePageModel.Text("Body"),
             PreviewPanePageModel.Custom("Headers", _headers.Root, () => _headers.FocusTarget),
             PreviewPanePageModel.Custom("Sent headers", _sent.Root, () => _sent.FocusTarget),
-            PreviewPanePageModel.Text("Network"));
+            _network is { } network ? PreviewPanePageModel.Custom("Network", network.Root, () => network.Root) : PreviewPanePageModel.Text("Network"));
         _configured = request.Headers;
         _body = new BodyPreviewService(_preview, Notice, options, false, openBody);
         ShowWaiting();
@@ -56,8 +59,8 @@ internal sealed class RequestResponseView
             .Cell(BuildBar(request), 2, 0)
             .Cell(_preview.TabRule!, 3, 0)
             .Cell(ResourceScreenLayoutHelpers.Pane(_preview.Root), 4, 0)
-            .Cell(StraumrSurfaceHelpers.HorizontalDivider(), 5, 0)
-            .Cell(BuildFooter(), 6, 0)
+            .Cell(StraumrSurfaceHelpers.FooterDivider(), 5, 0)
+            .Cell(BuildFooter(request, workspaceName), 6, 0)
             .HorizontalAlignment(Align.Stretch).VerticalAlignment(Align.Stretch);
 
         _dialog = StraumrDialogHelpers.CreateScreen(content);
@@ -145,7 +148,8 @@ internal sealed class RequestResponseView
         _preview.SetPageText(BodyPage, "Waiting for the response body…");
         _headers.SetMessage("Waiting for response headers…");
         _sent.SetMessage("The headers sent will appear when the request completes.");
-        _preview.SetPageText(NetworkPage, "Network measurements will appear when the request completes.");
+        _preview.SetPageText(NetworkPage, WaitingForMeasurements);
+        _network?.SetMessage(WaitingForMeasurements);
     }
 
     private void FocusBody()
@@ -212,6 +216,7 @@ internal sealed class RequestResponseView
         }
 
         _preview.SetPageText(NetworkPage, network.ToString());
+        _network?.SetResponse(response, cached ? null : _clock.Elapsed);
         _headers.SetHeaders(HeaderFormatting.Rows(response.ResponseHeaders));
         _sent.SetHeaders(HeaderFormatting.Sent(response.RequestHeaders, _configured), HeaderFormatting.NotRecorded);
         _body.SetBody(response.Content, HeaderFormatting.ContentType(response.ResponseHeaders));
@@ -240,14 +245,23 @@ internal sealed class RequestResponseView
         _headers.SetMessage("No response headers.");
         _sent.SetMessage("The request did not go out.");
         _preview.SetPageText(NetworkPage, $"{measurements}\n\n{message}");
+        _network?.SetFailure(summary, detail, _clock.Elapsed);
     }
 
     private Visual BuildBar(StraumrRequest request)
     {
-        Visual pulse = InFlightPulseHelpers.Create("IN FLIGHT", _clock);
+        Visual pulse = InFlightPulseHelpers.Create("IN FLIGHT", _clock,
+            hint: () => $"{TuiKeybindHelpers.Hint("Response.Cancel")} to cancel");
         Visual summary = new TextBlock(() => _summary.Value)
             .Style(() => _failed.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedBrightText)
             .Trimming(TextTrimming.EndEllipsis);
+        if (StraumrStyleService.IsModern)
+        {
+            summary = new HStack(
+                    new TextBlock(ChromeStatus.Dot).Style(() => _failed.Value ? StraumrStyleService.RedText : StraumrStyleService.GreenText),
+                    summary)
+                .Spacing(1);
+        }
 
         Visual bar = StraumrSurfaceHelpers.Bar(
             new HStack(
@@ -264,21 +278,16 @@ internal sealed class RequestResponseView
         return StraumrSurfaceHelpers.Inset(bar, ResourceScreenLayoutHelpers.PaneInset);
     }
 
-    private Visual BuildFooter()
-    {
-        HintBar hints = new HintBar().Style(StraumrStyleService.CommandBar);
-        return new ZStack(
-                StraumrSurfaceHelpers.Inset(hints, StraumrSurfaceHelpers.RowInset)
-                    .IsVisible(() => _notice.Value.Length == 0),
-                StraumrSurfaceHelpers.Inset(
-                        new TextBlock(() => _notice.Value)
-                            .Style(() => _noticeError.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedText)
-                            .Trimming(TextTrimming.EndEllipsis)
-                            .HorizontalAlignment(Align.Stretch),
-                        StraumrSurfaceHelpers.RowInset)
-                    .IsVisible(() => _notice.Value.Length > 0))
-            .HorizontalAlignment(Align.Stretch);
-    }
+    private Visual BuildFooter(StraumrRequest request, string? workspaceName) =>
+        StraumrFooterHelpers.Create(
+            () =>
+            [
+                (workspaceName ?? "no workspace", workspaceName is null ? StraumrStyleService.MutedText : StraumrStyleService.GreenText),
+                (SecretFormatting.Display(request.Name), StraumrStyleService.BrightText),
+                ("response", StraumrStyleService.MutedBrightText)
+            ],
+            () => _notice.Value.Length == 0 ? null : _notice.Value,
+            () => _noticeError.Value ? StraumrStyleService.RedText : StraumrStyleService.MutedText);
 
     private void AddExit(string label, Func<bool> available, Action execute) => _dialog.AddCommand(new Command
     {

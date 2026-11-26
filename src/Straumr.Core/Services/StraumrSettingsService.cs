@@ -108,6 +108,18 @@ public class StraumrSettingsService : IStraumrSettingsService
             ["theme"] = new StringValueSyntax(reference)
         }, null, cancellationToken);
 
+    public Task SetLayoutAsync(string layout, CancellationToken cancellationToken = default)
+        => SaveValuesAsync(new Dictionary<string, ValueSyntax>
+        {
+            ["layout"] = new StringValueSyntax(layout)
+        }, null, cancellationToken);
+
+    public Task SetAnimationsAsync(bool enabled, CancellationToken cancellationToken = default)
+        => SaveValuesAsync(new Dictionary<string, ValueSyntax>
+        {
+            ["animations"] = new BooleanValueSyntax(enabled)
+        }, null, cancellationToken);
+
     public Task CompleteQuickStartAsync(string preset, string theme, CancellationToken cancellationToken = default) =>
         SaveValuesAsync(new Dictionary<string, ValueSyntax>
         {

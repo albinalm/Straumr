@@ -55,6 +55,6 @@ internal sealed class StraumrHelpProvider : HelpProvider
     private static string Stylize(string text, Style? style)
     {
         string escaped = Markup.Escape(text);
-        return style is null ? escaped : $"[{style.ToMarkup()}]{escaped}[/]";
+        return style is { } value ? $"[{value.ToMarkup()}]{escaped}[/]" : escaped;
     }
 }

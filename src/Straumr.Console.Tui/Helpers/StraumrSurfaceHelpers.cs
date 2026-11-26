@@ -1,4 +1,3 @@
-using System.Text;
 using Straumr.Console.Tui.Screens.Components.Shared;
 using XenoAtom.Terminal;
 using XenoAtom.Terminal.UI;
@@ -9,48 +8,41 @@ namespace Straumr.Console.Tui.Helpers;
 
 internal static class StraumrSurfaceHelpers
 {
-    private static readonly Rune VerticalLine = new('│');
 
     public static readonly Thickness RowInset = new(1, 0, 1, 0);
 
     public static Visual Surface(Visual content) =>
         StraumrStyleService.Background.Kind == ColorKind.Default ? new TerminalSurface(content) : content;
 
-    public static Visual VerticalDivider(params (int Row, Rune Glyph)[] junctions)
-    {
-        var canvas = new Canvas(context =>
-        {
-            int height = context.Size.Height;
-            context.DrawVLine(0, 0, height, VerticalLine, StraumrStyleService.DividerCell);
+    public static Visual VerticalDivider() => new JunctionDivider();
 
-            foreach ((int row, Rune glyph) in junctions)
-            {
-                if (row >= 0 && row < height)
-                {
-                    context.DrawVLine(0, row, 1, glyph, StraumrStyleService.DividerCell);
-                }
-            }
-        });
-        canvas.HorizontalAlignment = Align.Stretch;
-        canvas.VerticalAlignment = Align.Stretch;
-        return canvas;
-    }
-
-    public static Rule HorizontalDivider()
+    public static JunctionRule HorizontalDivider()
     {
-        var rule = new Rule();
+        var rule = new JunctionRule();
         rule.SetStyle(StraumrStyleService.Divider);
         return rule;
     }
 
-    public static Rule TitledDivider(string title, Func<bool>? isFocused = null)
+    public static JunctionRule TitledDivider(string title, Func<bool>? isFocused = null)
     {
-        Rule rule = HorizontalDivider();
-        rule.StartLabel = FocusTitle(title, isFocused);
+        JunctionRule rule = HorizontalDivider();
+        if (!StraumrStyleService.IsModern)
+        {
+            rule.StartLabel = FocusTitle(title, isFocused);
+            return rule;
+        }
+
+        bool Focused() => isFocused?.Invoke() is true;
+        rule.StartLabel = new TextBlock(title.ToUpperInvariant())
+            .Style(() => Focused() ? StraumrStyleService.FocusedSectionText : StraumrStyleService.IdleSectionText);
+        rule.SetStyle(() => Focused() ? StraumrStyleService.AccentDivider : StraumrStyleService.Divider);
         return rule;
     }
 
-    public static Rule TitledDivider(string title, Visual pane, Func<bool>? isFocused = null) =>
+    public static Visual FooterDivider() =>
+        StraumrStyleService.IsModern ? new Padder().Padding(new Thickness(0)) : HorizontalDivider();
+
+    public static JunctionRule TitledDivider(string title, Visual pane, Func<bool>? isFocused = null) =>
         TitledDivider(title, isFocused ?? pane.Owns).PointerPressed((_, e) =>
         {
             if (e.Button == TerminalMouseButton.Left && pane.FocusInto())
