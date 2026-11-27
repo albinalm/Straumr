@@ -5,20 +5,20 @@ Codename: stable
 Architectures: amd64
 Components: main
 Description: Straumr APT repository
-Date: Thu, 26 Nov 2026 10:16:56 +0000
+Date: Fri, 27 Nov 2026 08:53:22 +0000
 MD5Sum:
- ae1dd27a22fca79cbd4086833c879417              174 Release
- 27fb3d169c4339f11d33ec0f6c22b3a7            10382 main/binary-amd64/Packages
- 88931a72521fe18796f64c9c9a99cb2e             2483 main/binary-amd64/Packages.gz
+ 5333bfd59e926aab00b7c9f29b2a208c              174 Release
+ a388c8a1ad6ce2aa5ab7d993ce2d9d69            10904 main/binary-amd64/Packages
+ bc2d01537d8db6075ac84c90dde93dca             2587 main/binary-amd64/Packages.gz
 SHA1:
- c08996e7665c240ce2da8381af6458e6d533d721              174 Release
- 074f0e26c3944c4527067e0a4717c04cac0200cf            10382 main/binary-amd64/Packages
- a700951b82b8ab50841ad07f949720393c27978b             2483 main/binary-amd64/Packages.gz
+ c442af574e1aeeb7d53d8e5346ba97af965e1379              174 Release
+ f723d18c7d16692f360f10632815de47d17868dd            10904 main/binary-amd64/Packages
+ 5f870f00b23e804414f19c176105c60068929d72             2587 main/binary-amd64/Packages.gz
 SHA256:
- 1b11893e083b3165882eb6b12f65a07561f74e1d7c230d0ac256d6a7710e14c8              174 Release
- 664203fcfe1292e0c673dbff07add88a100dc08d806e156ed35068dde63f4eb2            10382 main/binary-amd64/Packages
- ddb43a9cf4e7cfbbdab5034dd25727a63a51be8d118c69d2988c6e9782bfb1c4             2483 main/binary-amd64/Packages.gz
+ 4f00a5363cfd1cbba12d75b1fff0bc51df2380c8101071014545f02c1c2ad9d7              174 Release
+ 1b5073e3bfdbdfdcee1001d393d40c1059aaf1384aaa5593a7c6079c43f5d1f3            10904 main/binary-amd64/Packages
+ 998fc7eeaa3def1a106707205cd805956a2a951479da1adbfc682baf9e6c7268             2587 main/binary-amd64/Packages.gz
 SHA512:
- 6053d14ec6daa15ba75fca405f9952d9bdb958b279b44c3ebc3522ec79efca3ecabccb4eae982d05b6f62672d49c192226a49238408fc13ebd9f5d2324263a46              174 Release
- 018d97ed4ed52bb77aada919d6675d6e64a427de2c6bc8864988602777d27f5461c50aa9c82eef778cf02b2764c0bfaf23c1ce4d82de3a2b1ea3a9165699212c            10382 main/binary-amd64/Packages
- 3997a3d260375151f11b0093c1cbe7a6f7703fc42098bd47fc91f700a8e98d426a4a21cb1d8ad1849c02a09fba0e62e646330f60b40c65add90099dc4fd64049             2483 main/binary-amd64/Packages.gz
+ 86ce07cf6aba1b23c3aa8d2839e8fefcf9c85eeea9d2c4d32fb7256257218d8b83ae30a7bf6f1f80a941378db46256d7d53e400d3d069cd3b4d501b4c8387dfa              174 Release
+ 66abfa18db26aa2cbdcbe7c2d8a6d6de94a7b445f03338e37c4f0807bb28ee10119a1b773f6da5e665dd43826e903753945326f836137f2799055629c8def89b            10904 main/binary-amd64/Packages
+ 2b0d943b922eb3bf9bcf34622b5ca27674f6a2c4c4d17dbef28fc23689c2b98b7b26577405c523e29aa5eb33fb93534bb49ae56de5abe053755ca29603a1c6b5             2587 main/binary-amd64/Packages.gz
